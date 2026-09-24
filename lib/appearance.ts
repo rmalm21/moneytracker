@@ -24,6 +24,7 @@ export function applyAppearance(profile: Profile | null) {
   root.dataset.theme = mode;
   root.dataset.preset = profile?.themePreset || 'default';
   root.dataset.density = profile?.density || 'comfortable';
+  root.dataset.fontSize = profile?.fontSize || 'm';
   const accent = profile?.accentColor;
   if (accent && validAccent(accent, mode)) {
     root.style.setProperty('--accent', accent);
@@ -34,4 +35,4 @@ export function applyAppearance(profile: Profile | null) {
 }
 const cacheKey=(uid:string)=>`dompet-ajaib:appearance:${uid}`;
 export function readCachedAppearance(uid:string):Profile|null{if(typeof localStorage==='undefined')return null;try{const value=JSON.parse(localStorage.getItem(cacheKey(uid))||'null');return value&&value.uid===uid?value as Profile:null}catch{return null}}
-export function cacheAppearance(profile:Profile){if(typeof localStorage==='undefined')return;try{localStorage.setItem(cacheKey(profile.uid),JSON.stringify({uid:profile.uid,theme:profile.theme,themePreset:profile.themePreset,colorMode:profile.colorMode,accentColor:profile.accentColor,density:profile.density}));localStorage.setItem('dompet-ajaib:appearance:last',profile.uid)}catch{/* Appearance cache is optional. */}}
+export function cacheAppearance(profile:Profile){if(typeof localStorage==='undefined')return;try{localStorage.setItem(cacheKey(profile.uid),JSON.stringify({uid:profile.uid,theme:profile.theme,themePreset:profile.themePreset,colorMode:profile.colorMode,accentColor:profile.accentColor,density:profile.density,fontSize:profile.fontSize}));localStorage.setItem('dompet-ajaib:appearance:last',profile.uid)}catch{/* Appearance cache is optional. */}}

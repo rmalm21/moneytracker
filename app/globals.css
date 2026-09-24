@@ -123,7 +123,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
-body { font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { font: .9375rem/1.55 var(--font-body); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
@@ -785,11 +785,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 /* ==========================================================================
    22. Density & motion
    ========================================================================== */
-:root[data-density='compact'] .stat-card { padding: 14px 16px; }
-:root[data-density='compact'] :is(.panel, .wallet-card) { --pad: 15px; }
-:root[data-density='compact'] :is(.panel.flush, .widget-details, .category-group, .settings-section, .dashboard-period) { padding: 0; }
-:root[data-density='compact'] .content { padding-top: 22px; }
-:root[data-density='compact'] .data-row { padding-top: 10px; padding-bottom: 10px; }
+:root:is([data-density='compact'], [data-density='xs']) .stat-card { padding: 14px 16px; }
+:root:is([data-density='compact'], [data-density='xs']) :is(.panel, .wallet-card) { --pad: 15px; }
+:root:is([data-density='compact'], [data-density='xs']) :is(.panel.flush, .widget-details, .category-group, .settings-section, .dashboard-period) { padding: 0; }
+:root:is([data-density='compact'], [data-density='xs']) .content { padding-top: 22px; }
+:root:is([data-density='compact'], [data-density='xs']) .data-row { padding-top: 10px; padding-bottom: 10px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
@@ -914,7 +914,7 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
   html, body { max-width: 100%; overflow-x: clip; }
   h1 { font-size: 1.5rem; }
   /* 16px inputs stop iOS Safari from zooming into the form. */
-  .input { font-size: 16px; min-height: 46px; }
+  .input { font-size: max(16px, 1rem); min-height: 46px; }
 
   .login-shell { display: block; }
   .login-art { display: none; }
@@ -939,7 +939,7 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 
   :root { --row-x: 14px; }
   .panel, .wallet-card { --pad: 16px; border-radius: 16px; }
-  :root[data-density='compact'] :is(.panel, .wallet-card) { --pad: 13px; }
+  :root:is([data-density='compact'], [data-density='xs']) :is(.panel, .wallet-card) { --pad: 13px; }
   .panel.flush, .widget-details, .category-group, .settings-section, .dashboard-period { padding: 0; }
   .card-grid { gap: 10px; }
   .stat-card { padding: 14px 15px; border-radius: 16px; }
@@ -1175,3 +1175,66 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
   .recent-widget .widget-body { padding: 2px 4px 6px; }
 }
 @media (hover: none) { .search-kbd { display: none; } }
+
+/* ==========================================================================
+   30. Text size & display size (XS · S · M · L)
+   ========================================================================== */
+:root[data-font-size='xs'] { font-size: 87.5%; }
+:root[data-font-size='s'] { font-size: 93.75%; }
+:root[data-font-size='l'] { font-size: 112.5%; }
+:root[data-density='xs'] .content { padding-top: 14px; }
+:root[data-density='xs'] :is(.panel, .wallet-card) { --pad: 11px; }
+:root[data-density='xs'] .stat-card { padding: 10px 12px; gap: 2px; }
+:root[data-density='xs'] .data-row { padding-top: 7px; padding-bottom: 7px; }
+:root[data-density='xs'] .btn { min-height: 34px; padding: 6px 12px; }
+:root[data-density='xs'] .input { min-height: 36px; }
+:root[data-density='xs'] :is(.widget-grid, .entity-grid, .card-grid, .kpi-strip, .tx-days) { gap: 8px; }
+:root[data-density='xs'] .widget-details > summary { min-height: 48px; padding-top: 9px; padding-bottom: 9px; }
+:root[data-density='xs'] .wallet-card { gap: 10px; }
+:root[data-density='large'] .content { padding-top: 40px; }
+:root[data-density='large'] :is(.panel, .wallet-card) { --pad: 26px; }
+:root[data-density='large'] .stat-card { padding: 24px 26px; }
+:root[data-density='large'] .data-row { padding-top: 18px; padding-bottom: 18px; }
+:root[data-density='large'] .btn { min-height: 48px; padding: 11px 20px; }
+:root[data-density='large'] .input { min-height: 50px; }
+:root[data-density='large'] :is(.widget-grid, .entity-grid, .card-grid, .kpi-strip, .tx-days) { gap: 18px; }
+:root[data-density='large'] .widget-details > summary { min-height: 72px; }
+:root[data-density='large'] .wallet-card { gap: 20px; }
+.size-segment { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, 360px); }
+.size-segment button { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 58px; padding: 6px 4px; }
+.size-segment button > span { font-weight: 800; line-height: 1; color: var(--ink); }
+.size-segment button small { font-size: .72rem; font-weight: 800; letter-spacing: .04em; }
+.size-segment button.active small { color: var(--accent); }
+.density-glyph { display: grid; width: 22px; }
+.density-glyph i { display: block; height: 4px; border-radius: 2px; background: currentColor; opacity: .55; }
+.density-glyph.d0 { gap: 1px; } .density-glyph.d1 { gap: 2px; } .density-glyph.d2 { gap: 4px; } .density-glyph.d3 { gap: 6px; }
+
+/* ==========================================================================
+   31. Brand icons (bank & e-wallet)
+   ========================================================================== */
+.brand-icon { display: inline-grid; place-items: center; width: 100%; height: 100%; min-width: 1.6em; border-radius: inherit; font-family: var(--font-head); font-weight: 900; letter-spacing: -.03em; line-height: 1; white-space: nowrap; overflow: hidden; }
+.wallet-emoji:has(.brand-icon) { padding: 0; overflow: hidden; font-size: 1.45rem; }
+.wallet-solid .wallet-emoji:has(.brand-icon) { box-shadow: 0 0 0 2px #ffffff55; }
+.picker-current:has(.brand-icon) { width: 44px; height: 44px; border-radius: 12px; overflow: hidden; font-size: 1.3rem; }
+.brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.emoji-grid .brand-choice { width: 100%; height: 44px; padding: 3px; font-size: 1.35rem; }
+.emoji-grid .brand-choice .brand-icon { border-radius: 7px; }
+.wallet-icon-library { max-height: 300px; overflow-y: auto; }
+.identity-badge > .badge-brand { width: 22px; height: 16px; border-radius: 4px; font-size: .95rem; flex: none; }
+.wallet-detail-hero { position: relative; padding-right: 76px; }
+.wallet-detail-icon { position: absolute; right: 18px; top: 18px; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: #ffffff2e; font-size: 1.5rem; overflow: hidden; box-shadow: 0 0 0 2px #ffffff40; }
+
+/* ==========================================================================
+   32. Fixes: menus above neighbouring cards, full-width sheets on phones
+   ========================================================================== */
+:is(.wallet-card, .panel, .budget-card, .data-row, .category-row, .receivable-entry, .widget-slot, .entity-grid > *):has(> * .more-actions[open], > .more-actions[open]) { position: relative; z-index: 50; }
+.wallet-card:has(.more-actions[open]) { overflow: visible; }
+@media (max-width: 760px) {
+  .modal-content.app-dialog, .modal-content.app-dialog[class*='-dialog'] { left: 0; right: 0; width: 100%; max-width: 100%; }
+  .topbar { background: var(--paper); }
+}
+/* Amounts shrink to fit their card instead of breaking mid-number. */
+.stat-card { container-type: inline-size; }
+.stat-card .stat-value { white-space: nowrap; overflow-wrap: normal; font-size: min(clamp(1.2rem, 1.9vw, 1.7rem), 13.5cqi); }
+@media (max-width: 760px) { .stat-card .stat-value { font-size: min(clamp(1.05rem, 5vw, 1.4rem), 13.5cqi); } }
+:root[data-font-size='l'] .stat-card .stat-value { font-size: min(1.5rem, 13.5cqi); }
