@@ -105,3 +105,11 @@ Jika kamu hanya memperbarui link dan belum mengubah Rules, aplikasi tetap menyar
 3. Di **Kategori**, pilih ikon dan warna serta geser urutan. Di **Dashboard → Atur Dashboard**, tampilkan/sembunyikan kartu dan ubah urutannya.
 4. Di **Piutang**, buka rincian dan tambah catatan. Di **Analisis**, ketuk kategori pada grafik untuk melihat bagiannya. Di **Pengaturan → Tampilan**, ganti tema; warna berubah langsung.
 5. Buka lewat browser HP jika ada. Cek lebar layar kecil: kartu uang, pencarian, formulir pembayaran, dan tombol di bawah tetap mudah disentuh. Jika saldo cache berbeda, jalankan **Pengaturan → Periksa Data** untuk meninjau perbaikan.
+
+
+## Perubahan tidak terlihat?
+
+- `PERBARUI_LINK_COBA.sh` pertama-tama memperbarui **link percobaan** (Preview URL, alamatnya berisi `--coba-dompet-ajaib`). Alamat utama `dompetajaib.web.app` baru ikut berubah jika kamu mengetik `LIVE` saat diminta di akhir skrip.
+- Pastikan ZIP yang diunggah adalah ZIP terbaru, lalu jalankan `unzip -o` dengan nama file yang sama persis.
+- Setelah deploy, tutup tab aplikasi lalu buka lagi. Buka **Pengaturan** dan lihat tulisan **Versi aplikasi** di bagian bawah; versi terbaru adalah `2026.09.24-4`.
+- Kategori lama tidak diubah otomatis. Untuk menambahkan subkategori ke kategori yang sudah ada, buka **Kategori → Ambil dari Template**, centang kategorinya, lalu pilih **Lengkapi subkategori**.

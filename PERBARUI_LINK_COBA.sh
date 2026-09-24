@@ -16,3 +16,10 @@ npm run build
 firebase hosting:channel:deploy coba-dompet-ajaib --project money-manage-32467
 
 echo 'Selesai. Buka Preview URL yang muncul di atas, lalu refresh tab aplikasi.'
+
+echo
+read -r -p 'Ketik LIVE untuk juga memperbarui alamat utama (dompetajaib.web.app); tekan Enter untuk melewati: ' live
+if [[ "$live" == 'LIVE' ]]; then
+  firebase deploy --only hosting --project money-manage-32467
+  echo 'Alamat utama sudah diperbarui. Tutup lalu buka lagi tab aplikasi (atau tarik ke bawah untuk memuat ulang).'
+fi

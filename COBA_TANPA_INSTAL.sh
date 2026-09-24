@@ -77,3 +77,10 @@ Jika login gagal karena unauthorized-domain, masukkan HOST dari Preview URL
 ke Firebase Console > Authentication > Settings > Authorized domains.
 Jika login berhasil tetapi data gagal dimuat, cek Firestore Database > Rules.
 TEXT
+
+echo
+read -r -p 'Ketik LIVE untuk juga memperbarui alamat utama (dompetajaib.web.app); tekan Enter untuk melewati: ' live
+if [[ "$live" == 'LIVE' ]]; then
+  firebase deploy --only hosting --project money-manage-32467
+  echo 'Alamat utama sudah diperbarui. Tutup lalu buka lagi tab aplikasi (atau tarik ke bawah untuk memuat ulang).'
+fi

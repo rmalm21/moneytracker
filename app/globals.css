@@ -296,6 +296,7 @@ small.form-error { display: block; }
 .account-chip strong, .account-chip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-chip strong { color: #fff; font-size: .9rem; }
 .account-chip small { color: var(--sidebar-muted); font-size: .72rem; }
+.app-version { display: block; padding: 6px 12px 0; color: var(--sidebar-muted); font-size: .68rem; }
 .avatar { width: 38px; height: 38px; flex: none; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; text-transform: uppercase; }
 .sidebar.is-collapsed { width: 78px; padding-left: 12px; padding-right: 12px; }
 .sidebar.is-collapsed .sidebar-header { justify-content: center; padding: 0; }

@@ -1,5 +1,5 @@
 'use client';
-import { categoryTemplates, presetHex, similarCategory } from '@/lib/category-templates';
+import { categoryTemplates, normalizeCategoryName, presetHex, similarCategory } from '@/lib/category-templates';
 import type { Category } from '@/lib/types';
 
 /** Checklist of starter categories grouped by type; categories the user already has are marked. */
@@ -11,7 +11,7 @@ export function TemplateChecklist({selected,onChange,existing=[]}:{selected:stri
    <input type="checkbox" checked={selected.includes(item.key)} onChange={()=>toggle(item.key)}/>
    <span className="template-icon" style={{background:`color-mix(in srgb, ${presetHex(item.color)} 16%, var(--paper))`}} aria-hidden="true">{item.icon}</span>
    <span className="template-text"><strong>{item.name}</strong><small>{item.subcategories.slice(0,4).map(sub=>`${sub.icon} ${sub.name}`).join(' · ')}{item.subcategories.length>4?` · +${item.subcategories.length-4}`:''}</small></span>
-   {similar&&<span className="tag muted">Sudah ada</span>}
+   {similar&&(()=>{const have=new Set(existing.filter(c=>c.parentId===similar.id).map(c=>normalizeCategoryName(c.name)));const missing=item.subcategories.filter(sub=>!have.has(normalizeCategoryName(sub.name))).length;return <span className={`tag ${missing?'warn':'muted'}`}>{missing?`Sudah ada · +${missing} sub`:'Sudah lengkap'}</span>})()}
   </label>})}
  </section>})}</div>;
 }

@@ -264,9 +264,9 @@ export type SeedRecord = { id: string; data: Omit<Category, 'id'> };
 export const templateDocId = (key: string, copy = '') => `tpl${CATEGORY_TEMPLATE_VERSION}_${key.replace(/[^a-z0-9]+/g, '_')}${copy}`;
 
 /**
- * Category records to create for the chosen templates. Parents already present
- * (same template or a similar name) are skipped unless `allowSimilar` is set; in that
- * case a separate copy with its own ids is created instead of touching the existing one.
+ * Category records to create for the chosen templates. When the user already has a
+ * similar main category it is left untouched and only its missing subcategories are
+ * added, unless `allowSimilar` asks for a separate copy with its own ids.
  */
 export function planTemplateSeed(existing: Category[], keys: string[], allowSimilar = false, copySuffix = ''): SeedRecord[] {
   const records: SeedRecord[] = [];
@@ -274,7 +274,13 @@ export function planTemplateSeed(existing: Category[], keys: string[], allowSimi
   for (const category of existing) if (!category.parentId) typeCount[category.type] = Math.max(typeCount[category.type] ?? -1, category.sortOrder ?? 0);
   for (const template of categoryTemplates.filter(item => keys.includes(item.key))) {
     const similar = similarCategory(existing, template);
-    if (similar && !allowSimilar) continue;
+    if (similar && !allowSimilar) {
+      // Keep the user's own main category as it is and only add the subcategories it is missing.
+      const have = new Set(existing.filter(category => category.parentId === similar.id).map(category => normalizeCategoryName(category.name)));
+      const start = existing.filter(category => category.parentId === similar.id).reduce((max, category) => Math.max(max, (category.sortOrder ?? 0) + 1), 0);
+      template.subcategories.filter(sub => !have.has(normalizeCategoryName(sub.name))).forEach((sub, index) => records.push({ id: templateDocId(sub.key, `__${similar.id.replace(/[^A-Za-z0-9]+/g, '_')}`), data: { name: sub.name, type: template.type, parentId: similar.id, icon: sub.icon, color: '', sortOrder: start + index, isArchived: false, templateKey: sub.key, templateVersion: CATEGORY_TEMPLATE_VERSION } }));
+      continue;
+    }
     const suffix = similar ? copySuffix || `_${Date.now().toString(36)}` : '';
     const parentId = templateDocId(template.key, suffix);
     const order = (typeCount[template.type] = (typeCount[template.type] ?? -1) + 1);

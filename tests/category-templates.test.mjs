@@ -29,7 +29,12 @@ test('seeding twice or over existing categories never duplicates or overwrites',
  assert.equal(planTemplateSeed(saved,['expense.makan-minum','income.gaji']).length,0);
  const custom=[{id:'mine',name:'makan dan minum',type:'expense',parentId:null,icon:'🍕',color:'#000000',sortOrder:3,isArchived:false}];
  assert.ok(similarCategory(custom,categoryTemplates[0]));
- assert.equal(planTemplateSeed(custom,['expense.makan-minum']).length,0);
+ const fill=planTemplateSeed(custom,['expense.makan-minum']);
+ assert.equal(fill.length,10);assert.ok(fill.every(r=>r.data.parentId==='mine'));
+ assert.equal(planTemplateSeed([...custom,...fill.map(r=>({id:r.id,...r.data}))],['expense.makan-minum']).length,0);
+ const partial=[...custom,{id:'s1',name:'Sarapan',type:'expense',parentId:'mine',icon:'🍞',color:'',sortOrder:0,isArchived:false}];
+ const rest=planTemplateSeed(partial,['expense.makan-minum']);
+ assert.equal(rest.length,9);assert.ok(!rest.some(r=>r.data.name==='Sarapan'));assert.equal(rest[0].data.sortOrder,1);
  const forced=planTemplateSeed(custom,['expense.makan-minum'],true,'_copy');
  assert.ok(forced.every(r=>r.id.endsWith('_copy')&&r.id!=='mine'));
  assert.equal(forced.find(r=>!r.data.parentId).data.sortOrder,4);
