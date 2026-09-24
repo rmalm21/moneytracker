@@ -35,3 +35,20 @@ test('percent change handles zero and direction', () => {
   assert.equal(percentChange(0, 0), 0);
   assert.equal(percentChange(50, 0), null);
 });
+
+import { forecast } from '../lib/forecast.ts';
+test('forecast follows the spending pace and uses last cycle while this one is new', () => {
+  const base = { free: 3_000_000, spentThisCycle: 1_000_000, daysElapsed: 10, daysRemaining: 20, daysTotal: 30, salary: 8_000_000, totalBudget: 6_000_000 };
+  const f = forecast(base);
+  assert.equal(f.daily, 100_000);
+  assert.equal(f.before, 1_000_000);
+  assert.equal(f.after, 9_000_000);
+  assert.deepEqual(f.months.slice(0, 3), [9_000_000, 11_000_000, 13_000_000]);
+  assert.equal(f.status, 'aman');
+  const early = forecast({ ...base, spentThisCycle: 500_000, daysElapsed: 1, baselineDaily: 80_000 });
+  assert.equal(early.dailySource, 'baseline');
+  assert.equal(early.daily, 80_000);
+  const frugal = forecast({ ...base, spendAdjust: -10 });
+  assert.equal(frugal.untilPayday, 1_800_000);
+  assert.equal(forecast({ ...base, free: 500_000 }).status, 'minus');
+});

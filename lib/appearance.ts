@@ -3,6 +3,7 @@ import type { ColorMode, Profile, ThemePreset } from './types';
 export const themes: { value: ThemePreset; label: string; color: string }[] = [
   { value: 'default', label: 'Dompet Ajaib', color: '#267e73' },
   { value: 'peach', label: 'Soft Peach', color: '#ad594d' },
+  { value: 'blush', label: 'Pink Pastel', color: '#e38aaa' },
   { value: 'lavender', label: 'Lavender', color: '#7762a6' },
   { value: 'sage', label: 'Sage', color: '#53795c' },
   { value: 'ocean', label: 'Ocean', color: '#386e9a' },
