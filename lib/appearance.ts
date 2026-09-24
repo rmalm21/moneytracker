@@ -32,6 +32,9 @@ export function applyAppearance(profile: Profile | null) {
     root.style.setProperty('--accent-soft', `color-mix(in srgb, ${accent} 16%, var(--paper))`);
     root.style.setProperty('--accent-on', contrast(accent, '#ffffff') > contrast(accent, '#172f3c') ? '#ffffff' : '#172f3c');
   } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); root.style.removeProperty('--accent-on'); }
+  // The phone's browser bar follows the chosen palette.
+  const paper = getComputedStyle(root).getPropertyValue('--paper').trim();
+  if (paper) document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => { meta.content = paper; });
 }
 const cacheKey=(uid:string)=>`dompet-ajaib:appearance:${uid}`;
 export function readCachedAppearance(uid:string):Profile|null{if(typeof localStorage==='undefined')return null;try{const value=JSON.parse(localStorage.getItem(cacheKey(uid))||'null');return value&&value.uid===uid?value as Profile:null}catch{return null}}

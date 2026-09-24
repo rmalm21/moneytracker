@@ -108,11 +108,11 @@
 :root[data-preset='ocean'][data-theme='light'] { --ink: #233b4a; --muted: #647783; --bg: #f3f8fc; --paper: #fff; --paper-2: #f7fafd; --line: #dce8ef; --line-strong: #c9dae4; --deep: #17384c; --deep2: #24506b; --accent: #326b96; --accent-soft: #e1f0f7; --chart-1: #326b96; --chart-2: #d89868; }
 :root[data-preset='rose'][data-theme='light'] { --ink: #48323c; --muted: #7d6772; --bg: #fcf6f9; --paper: #fff; --paper-2: #fdf8fa; --line: #f0dfe7; --line-strong: #e6ccd8; --deep: #4e3241; --deep2: #6a4658; --accent: #9b4d69; --accent-soft: #fae8f0; --chart-1: #9b4d69; --chart-2: #bd8b65; }
 :root[data-preset='monochrome'][data-theme='light'] { --ink: #2b3439; --muted: #626e76; --bg: #f4f6f7; --paper: #fff; --paper-2: #f8f9fa; --line: #dfe5e8; --line-strong: #ccd5d9; --deep: #27373f; --deep2: #3a4d57; --accent: #364d59; --accent-soft: #e5ecef; --chart-1: #364d59; --chart-2: #8b7773; }
-:root[data-preset='lavender'][data-theme='dark'] { --accent: #c2a9ed; --accent-on: #1b1625; --accent-soft: #403650; --chart-1: #c2a9ed; }
-:root[data-preset='sage'][data-theme='dark'] { --accent: #a7d2ad; --accent-on: #18251c; --accent-soft: #304336; --chart-1: #a7d2ad; }
-:root[data-preset='ocean'][data-theme='dark'] { --accent: #85c4e5; --accent-on: #11232e; --accent-soft: #29495b; --chart-1: #85c4e5; }
-:root[data-preset='rose'][data-theme='dark'] { --accent: #e2a4b8; --accent-on: #2d1924; --accent-soft: #513943; --chart-1: #e2a4b8; }
-:root[data-preset='monochrome'][data-theme='dark'] { --accent: #d4dce0; --accent-on: #1b272c; --accent-soft: #35454c; --chart-1: #d4dce0; }
+:root[data-preset='lavender'][data-theme='dark'] { --ink: #efeaf8; --muted: #b1a8c2; --bg: #17141f; --paper: #231e2e; --paper-2: #2a2437; --line: #3b3349; --line-strong: #4b4160; --deep: #110e18; --deep2: #30284a; --sidebar-ink: #d4cbe4; --sidebar-muted: #968aab; --scroll-thumb: #5c4f78; --scroll-track: #231e2e; --accent: #c2a9ed; --accent-on: #1b1625; --accent-soft: #403650; --chart-1: #c2a9ed; }
+:root[data-preset='sage'][data-theme='dark'] { --ink: #e8f2ea; --muted: #a2b6a7; --bg: #121a15; --paper: #1c2820; --paper-2: #222f27; --line: #304236; --line-strong: #3e5446; --deep: #0c130e; --deep2: #26382c; --sidebar-ink: #c6d8ca; --sidebar-muted: #86a08c; --scroll-thumb: #4d6b55; --scroll-track: #1c2820; --accent: #a7d2ad; --accent-on: #18251c; --accent-soft: #304336; --chart-1: #a7d2ad; }
+:root[data-preset='ocean'][data-theme='dark'] { --ink: #e6f0f7; --muted: #9db2c2; --bg: #0e1822; --paper: #172533; --paper-2: #1d2c3c; --line: #2a3f52; --line-strong: #37526a; --deep: #09121a; --deep2: #1d3649; --sidebar-ink: #bfd3e1; --sidebar-muted: #7d98ab; --scroll-thumb: #456a86; --scroll-track: #172533; --accent: #85c4e5; --accent-on: #11232e; --accent-soft: #29495b; --chart-1: #85c4e5; }
+:root[data-preset='rose'][data-theme='dark'] { --ink: #f6e8ee; --muted: #c2a7b3; --bg: #1d1419; --paper: #2a1e25; --paper-2: #31232b; --line: #47323d; --line-strong: #5a404e; --deep: #140d11; --deep2: #3f2835; --sidebar-ink: #e2cad4; --sidebar-muted: #a88796; --scroll-thumb: #7a5264; --scroll-track: #2a1e25; --accent: #e2a4b8; --accent-on: #2d1924; --accent-soft: #513943; --chart-1: #e2a4b8; }
+:root[data-preset='monochrome'][data-theme='dark'] { --ink: #eceff1; --muted: #a8b1b6; --bg: #141719; --paper: #1f2427; --paper-2: #252b2f; --line: #353d42; --line-strong: #454e54; --deep: #0d1012; --deep2: #2b3237; --sidebar-ink: #cfd5d8; --sidebar-muted: #8c969b; --scroll-thumb: #58636a; --scroll-track: #1f2427; --accent: #d4dce0; --accent-on: #1b272c; --accent-soft: #35454c; --chart-1: #d4dce0; }
 :root:not([data-preset='peach']) { --scroll-thumb: color-mix(in srgb, var(--accent) 45%, var(--paper)); --scroll-hover: var(--accent); --scroll-track: var(--bg); }
 
 /* ==========================================================================
@@ -517,7 +517,7 @@ small.form-error { display: block; }
 .wallet-balance { font: 800 1.5rem/1.2 var(--font-head); letter-spacing: -.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .wallet-emoji { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 13px; background: var(--paper); font-size: 1.45rem; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
 .identity-wallet { background: color-mix(in srgb, var(--identity-color) 8%, var(--paper)); border-color: color-mix(in srgb, var(--identity-color) 24%, var(--line)); }
-.wallet-solid { background: color-mix(in srgb, var(--identity-color) 76%, #102a30); border-color: transparent; color: #fff; }
+.wallet-solid { background: color-mix(in srgb, var(--identity-color) 76%, var(--deep)); border-color: transparent; color: #fff; }
 .wallet-solid :is(h3, strong, .wallet-balance) { color: #fff; }
 .wallet-solid :is(small, .link-button, .more-actions > summary, .context-notes > summary) { color: #ffffffde; }
 .wallet-solid .link-button:hover, .wallet-solid .more-actions > summary:hover { background: #ffffff1f; color: #fff; }
@@ -1092,7 +1092,7 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 .wallet-card.is-clickable { cursor: pointer; }
 .wallet-card.is-clickable:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 2px; }
 .modal-content.app-dialog.wallet-detail-dialog { width: min(94vw, 560px); }
-.wallet-detail-hero { --identity-color: var(--accent); display: grid; gap: 4px; padding: 18px 20px; border-radius: 18px; color: #fff; background: linear-gradient(135deg, var(--identity-color), color-mix(in srgb, var(--identity-color) 60%, #0b2530)); box-shadow: 0 12px 28px color-mix(in srgb, var(--identity-color) 30%, transparent); }
+.wallet-detail-hero { --identity-color: var(--accent); display: grid; gap: 4px; padding: 18px 20px; border-radius: 18px; color: #fff; background: linear-gradient(135deg, var(--identity-color), color-mix(in srgb, var(--identity-color) 60%, var(--deep))); box-shadow: 0 12px 28px color-mix(in srgb, var(--identity-color) 30%, transparent); }
 .wallet-detail-hero small { color: #ffffffd0; font-weight: 600; }
 .wallet-detail-hero strong { font: 800 clamp(1.5rem, 5vw, 2rem)/1.15 var(--font-head); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .wallet-detail-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
