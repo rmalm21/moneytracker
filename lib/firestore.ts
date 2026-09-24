@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
-import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle } from './accounting';
+import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle, newestFirst } from './accounting';
 import type { Budget, Category, Claim, Data, Debt, Fund, LedgerTx, Profile, Receivable, Recurring, Wallet, Draft, TxType } from './types';
 import { validateWalletUse, walletActions } from './wallet-capabilities';
 
@@ -19,10 +19,10 @@ export async function initProfile(user:User) {
 }
 export function subscribeProfile(uid:string,onValue:(value:Profile|null)=>void,onError:(e:Error)=>void):Unsubscribe { return onSnapshot(userRef(uid),s=>onValue(s.exists()?s.data() as Profile:null),onError); }
 export function subscribePeriodTransactions(uid:string,start:string,end:string,onValue:(items:LedgerTx[])=>void,onError:(error:Error)=>void):Unsubscribe {
-  return onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort((a,b)=>b.date.localeCompare(a.date))),onError);
+  return onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort(newestFirst)),onError);
 }
 export function subscribeRelatedTransactions(uid:string,field:'receivableId'|'claimId'|'debtId'|'fundId',id:string,onValue:(items:LedgerTx[])=>void,onError:(error:Error)=>void):Unsubscribe {
- return onSnapshot(query(coll(uid,'transactions'),where(field,'==',id)),snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort((a,b)=>b.date.localeCompare(a.date))),onError);
+ return onSnapshot(query(coll(uid,'transactions'),where(field,'==',id)),snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort(newestFirst)),onError);
 }
 export function subscribeData(uid:string,start:string,end:string,onPart:(key:Name,value:unknown[])=>void,onError:(e:Error)=>void,onSync?:(state:'syncing'|'synced'|'offline')=>void,asOf=new Date(),salaryDay=24):Unsubscribe {
   const all:Unsubscribe[]=[];
@@ -31,7 +31,7 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   const baselineEnd=end>month.end?end:month.end;
   const union=new Map<string,LedgerTx>();let recent:LedgerTx[]=[];let cycle:LedgerTx[]=[];let calendar:LedgerTx[]=[];let custom:LedgerTx[]=[];
   let customRange='',customStop:Unsubscribe|undefined;
-  const emit=()=>{ union.clear(); for(const t of [...recent,...cycle,...calendar,...custom]) union.set(t.id,t); onPart('transactions',[...union.values()].sort((a,b)=>b.date.localeCompare(a.date))); };
+  const emit=()=>{ union.clear(); for(const t of [...recent,...cycle,...calendar,...custom]) union.set(t.id,t); onPart('transactions',[...union.values()].sort(newestFirst)); };
   for(const name of names) {
     if(name==='transactions'||name==='categorizationRules') continue;
     all.push(onSnapshot(coll(uid,name),s=>{

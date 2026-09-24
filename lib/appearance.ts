@@ -27,7 +27,8 @@ export function applyAppearance(profile: Profile | null) {
   const accent = profile?.accentColor;
   if (accent && validAccent(accent, mode)) {
     root.style.setProperty('--accent', accent);
-    root.style.setProperty('--accent-soft', `${accent}20`);
+    // Opaque tint so the soft colour also reads well on the dark sidebar.
+    root.style.setProperty('--accent-soft', `color-mix(in srgb, ${accent} 16%, var(--paper))`);
     root.style.setProperty('--accent-on', contrast(accent, '#ffffff') > contrast(accent, '#172f3c') ? '#ffffff' : '#172f3c');
   } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); root.style.removeProperty('--accent-on'); }
 }

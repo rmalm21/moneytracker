@@ -1,6 +1,11 @@
 import type { Budget, Category, Data, LedgerTx, Wallet } from './types';
-export function rupiah(value: number) { return 'Rp' + Math.round(value || 0).toLocaleString('id-ID'); }
+export function rupiah(value: number) { const rounded = Math.round(value || 0); return (rounded < 0 ? '-Rp' : 'Rp') + Math.abs(rounded).toLocaleString('id-ID'); }
 export function readMoney(value: string) { const n = Number(value.replace(/\D/g, '')); return Number.isSafeInteger(n) ? n : 0; }
+/** Newest first: by date, then time, then when it was recorded (unsaved local writes count as newest). */
+export function newestFirst(a: LedgerTx, b: LedgerTx) {
+  const recorded = (tx: LedgerTx) => (tx.createdAt as { seconds?: number } | null | undefined)?.seconds ?? Number.MAX_SAFE_INTEGER;
+  return b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '') || recorded(b) - recorded(a);
+}
 export function validAmount(n: number) { return Number.isSafeInteger(n) && n > 0; }
 export function effects(tx: LedgerTx): Record<string, number> {
   const delta: Record<string, number> = {};

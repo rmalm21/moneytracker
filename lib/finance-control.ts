@@ -64,7 +64,7 @@ function receivablesAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.re
 export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRange,previous?:CycleSnapshot):Omit<CycleSnapshot,'id'|'createdAt'|'updatedAt'>{
   const transactions=ledger.filter(tx=>inRange(tx.date,range));
   const at=(date:string)=>{
-    const owned=data.wallets.filter(w=>w.includeInNetWorth);
+    const owned=data.wallets.filter(w=>w.includeInNetWorth!==false);
     const balances=owned.map(w=>({wallet:w,amount:walletAt(w,ledger,date)}));
     const assets=balances.reduce((sum,row)=>sum+Math.max(0,row.amount),0);
     const signed=balances.reduce((sum,row)=>sum+row.amount,0);

@@ -35,6 +35,8 @@ export function resolvePeriodRange(preset: PeriodPreset, salaryDay: number, toda
   return { start: localDate(start), end: localDate(tomorrow) };
 }
 
+/** Human date for lists, e.g. "24 Sep 2026". Invalid or empty values are returned unchanged. */
+export const formatDate = (date: string, withYear = true) => /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? parseDate(date).toLocaleDateString('id-ID', withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }) : date;
 export const periodLabel = (range: DateRange) => `${parseDate(range.start).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} – ${parseDate(previousDate(range.end)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 export const automaticGranularity = (range: DateRange): Exclude<Granularity, 'auto'> => { const days = daysInRange(range); return days <= 45 ? 'daily' : days <= 125 ? 'weekly' : days <= 730 ? 'monthly' : 'yearly'; };
 

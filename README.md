@@ -2,6 +2,32 @@
 
 Aplikasi keuangan pribadi multiakun berbasis Next.js, TypeScript, Tailwind CSS, komponen UI berbasis Radix, Recharts, Firebase Authentication, Firestore, Storage, dan PWA. Bahasa tampilan Indonesia, mata uang Rupiah.
 
+## Perbaikan tampilan & bug (versi repositori)
+
+**Tampilan desktop dan mobile**
+- Gaya ditulis ulang dan dirapikan. Semua warna memakai token tema sehingga mode terang/gelap, palet (termasuk Soft Peach) dan warna aksen sendiri tampil konsisten, termasuk tombol, pemberitahuan, label status, menu samping, dan kartu dompet berwarna.
+- Kartu angka tidak lagi menempelkan label dengan nominal. Judul kembali tebal, dan ikon di tombol teks (mis. “Edit”) sejajar dengan teksnya.
+- Dashboard desktop membuka rincian kartu secara otomatis dan tidak menyisakan ruang kosong. Di ponsel kartu tetap ringkas.
+- Di ponsel, semua dialog tampil sebagai *bottom sheet*, tombol “Catat transaksi” di atas diringkas menjadi ikon, input memakai huruf 16px agar iOS tidak memperbesar layar, dan Kalender Keuangan menampilkan grid bulan ringkas.
+- Daftar transaksi dibatasi 50 baris dengan tombol “Tampilkan lagi”. Transaksi pada tanggal yang sama diurutkan menurut jam, lalu waktu dicatat.
+- Tanggal ditampilkan dalam format Indonesia, status klaim tidak lagi berbahasa Inggris, dan nominal negatif ditulis `-Rp75.000`.
+
+**Bug yang diperbaiki**
+- Dana Tujuan kini bisa memakai dompet tabungan/dicadangkan yang tidak dipakai membayar. Sebelumnya pilihan dompet salah memakai aturan “bisa membayar”.
+- Dompet penerima dana pinjaman memakai aturan “bisa menerima uang”. Pilihan itu disembunyikan saat mengedit utang karena perubahannya memang tidak diterapkan.
+- Mengedit Dana Tujuan tidak lagi menghapus catatan lamanya.
+- Menyimpan pengingat tanpa nominal tidak lagi gagal, karena field opsional yang kosong kini dilewati Firestore.
+- Laporan yang difilter per kategori hanya menghitung porsi kategori dari transaksi terbagi, sama dengan halaman Analisis.
+- Snapshot siklus menghitung dompet lama yang belum punya field `includeInNetWorth`.
+- Anggaran yang terlampaui tampil merah, anggaran yang hampir habis tampil kuning, dan anggaran tabungan yang terpenuhi berlabel “Tercapai”.
+- Menekan Esc di dropdown hanya menutup dropdown itu, tidak lagi menutup seluruh formulir.
+- Menu “Lainnya” tertutup setelah dipilih, saat klik di luar, atau saat Esc ditekan.
+- Label dan gaya dropdown kini diterapkan ke tombol yang terlihat, sehingga dropdown status klaim tidak lagi melebar penuh.
+- Tanggal gajian, tanggal mulai anggaran, dan ambang peringatan dibatasi ke rentang yang valid.
+- Mengedit transaksi lama tidak lagi mengisi jam secara otomatis.
+- Kolom kategori di CSV kini terisi untuk transaksi terbagi.
+- Kode lama yang tidak dipakai (Dashboard lama, tampilan Dompet/Kategori/Anggaran/Piutang/Rutin/Analisis ganda) dihapus.
+
 ## Pembaruan 24 September 2026
 
 - Menu ponsel membuka seluruh fitur melalui tombol **Lainnya**, serta tombol **Tambah** untuk mencatat cepat. Sidebar desktop dapat diringkas.
@@ -35,6 +61,10 @@ npm run dev
 ```
 
 Buka `http://localhost:3000`. Login dapat memakai `rama` untuk akun `rama@gmail.com`; email penuh juga bisa. Pada login pertama, buat dompet atau pilih contoh anggaran secara eksplisit.
+
+## Uji lokal tanpa project Firebase
+
+Aplikasi dapat dijalankan dengan [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite) (butuh Java). Isi `.env.local` dengan nilai contoh apa pun (misalnya `NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-dompet`) dan tambahkan `NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1`, lalu jalankan `firebase emulators:start --only auth,firestore,storage --project demo-dompet` bersama `npm run dev`. Jangan isi variabel emulator saat build untuk Firebase Hosting.
 
 ## Uji dan deploy
 
