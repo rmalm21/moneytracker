@@ -1,6 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowLeftRight, ArrowUp, CarFront, Coffee, Coins, HandCoins, Pencil, Plus, Receipt, ShieldCheck, ShoppingBasket, Star, Trash2, UtensilsCrossed, Wallet } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, CarFront, Coffee, Coins, HandCoins, Pencil, Plus, Receipt, ShieldCheck, ShoppingBasket, Star, Trash2, TrendingDown, TrendingUp, UtensilsCrossed, Wallet } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Field, Input, Money, Select } from './fields';
 import { Button } from './ui/button';
@@ -16,12 +16,12 @@ const defaults: QuickAction[] = [
   { id: 'claims', label: 'Klaim kantor', kind: 'claims' },
   { id: 'receivables', label: 'Piutang', kind: 'receivables' },
   { id: 'debts', label: 'Utang', kind: 'debts' },
-  { id: 'breakfast', label: 'Sarapan', kind: 'expense', amount: 15000, description: 'Sarapan' },
-  { id: 'lunch', label: 'Makan siang', kind: 'expense', amount: 25000, description: 'Makan Siang' },
-  { id: 'snack', label: 'Jajan', kind: 'expense', amount: 15000, description: 'Jajan' },
 ];
+/** Old built-in food shortcuts, hidden unless the user changed them into their own. */
+const legacy: Record<string, [string, number]> = { breakfast: ['Sarapan', 15000], lunch: ['Makan siang', 25000], snack: ['Jajan', 15000] };
+const isLegacy = (action: QuickAction) => legacy[action.id]?.[0] === action.label && legacy[action.id]?.[1] === action.amount && !action.categoryId && !action.walletId;
 const kindLabels: Record<QuickAction['kind'], string> = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer dompet', claims: 'Klaim kantor', receivables: 'Piutang', debts: 'Utang' };
-const icons = { expense: Plus, income: Plus, transfer: ArrowLeftRight, claims: ShieldCheck, receivables: HandCoins, debts: Coins };
+const icons = { expense: TrendingDown, income: TrendingUp, transfer: ArrowLeftRight, claims: ShieldCheck, receivables: HandCoins, debts: Coins };
 const customIcons = { coffee: Coffee, food: UtensilsCrossed, shopping: ShoppingBasket, transport: CarFront, bill: Receipt, wallet: Wallet, star: Star };
 const transactionKinds: QuickAction['kind'][] = ['expense', 'income', 'transfer'];
 function isTransactionKind(kind: QuickAction['kind']): kind is 'expense' | 'income' | 'transfer' { return transactionKinds.includes(kind); }
@@ -34,15 +34,13 @@ export function QuickActions({ openTx, navigate, notify }: { openTx: (preset?: P
   const [draft, setDraft] = useState<QuickAction>({ id: '', label: '', kind: 'expense' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const visible = profile?.quickActions ?? defaults;
+  const visible = (profile?.quickActions ?? defaults).filter(action => !isLegacy(action));
 
   function start() { setActions(visible.map(action => ({ ...action }))); setEditing(null); setError(''); setOpen(true); }
   function close(next: boolean) { setOpen(next); if (!next) setEditing(null); }
   function launch(action: QuickAction) {
     if (!isTransactionKind(action.kind)) { navigate(action.kind); return; }
-    const foodPreset = ['breakfast', 'lunch', 'snack'].includes(action.id) && !action.categoryId && action.kind === 'expense';
-    const foodCategory = foodPreset ? data.categories.find(category => !category.isArchived && category.type === 'expense' && category.name.toLowerCase().includes('makan'))?.id : undefined;
-    const categoryId = data.categories.some(category => category.id === action.categoryId && !category.isArchived) ? action.categoryId : foodCategory;
+    const categoryId = data.categories.some(category => category.id === action.categoryId && !category.isArchived) ? action.categoryId : undefined;
     const walletId = data.wallets.some(wallet => wallet.id === action.walletId && !wallet.isArchived) ? action.walletId : undefined;
     const subcategoryId = data.categories.some(category => category.id === action.subcategoryId && !category.isArchived && category.parentId === categoryId) ? action.subcategoryId : undefined;
     openTx({ type: action.kind, amount: action.amount, description: action.description, categoryId, subcategoryId, walletId });

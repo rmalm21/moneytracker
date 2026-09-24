@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ArrowLeftRight, CreditCard, HandCoins, Home, LayoutGrid, ListFilter, Menu, Plus, Receipt, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, CreditCard, HandCoins, Home, ListFilter, Menu, Plus, Receipt, TrendingDown, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { Dialog, DialogContent } from './ui/dialog';
 import type { LedgerTx } from '@/lib/types';
 
@@ -8,11 +8,11 @@ const tabs: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'dashboard', label: 'Beranda', icon: Home },
   { key: 'transactions', label: 'Transaksi', icon: ListFilter },
   { key: 'add', label: 'Tambah', icon: Plus },
-  { key: 'budgets', label: 'Anggaran', icon: LayoutGrid },
+  { key: 'wallets', label: 'Dompet', icon: Wallet },
   { key: 'more', label: 'Lainnya', icon: Menu },
 ];
 const groups = [
-  { label: 'Keuangan', items: ['inbox','wallets', 'claims', 'receivables', 'debts', 'funds', 'recurring','upcoming','calendar'] },
+  { label: 'Keuangan', items: ['budgets', 'inbox', 'claims', 'receivables', 'debts', 'funds', 'recurring','upcoming','calendar'] },
   { label: 'Analisis', items: ['forecast', 'analytics', 'report','cycles'] },
   { label: 'Pengaturan', items: ['categories','health', 'settings'] },
 ];
@@ -20,7 +20,7 @@ const groups = [
 export function MobileNavigation({ view, items, onNavigate, openTx }: { view: string; items: { key: string; label: string; icon: LucideIcon }[]; onNavigate: (key: string) => void; openTx: (preset?: Partial<LedgerTx>) => void }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const secondary = !['dashboard', 'transactions', 'budgets'].includes(view);
+  const secondary = !['dashboard', 'transactions', 'wallets'].includes(view);
   function navigate(key: string) { setMoreOpen(false); setAddOpen(false); onNavigate(key); }
   function add(preset?: Partial<LedgerTx>) { setAddOpen(false); openTx(preset); }
   return <>
