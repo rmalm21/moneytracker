@@ -2,6 +2,16 @@
 
 Aplikasi keuangan pribadi multiakun berbasis Next.js, TypeScript, Tailwind CSS, komponen UI berbasis Radix, Recharts, Firebase Authentication, Firestore, Storage, dan PWA. Bahasa tampilan Indonesia, mata uang Rupiah.
 
+## Pembaruan tampilan lanjutan
+
+- Istilah dibuat lebih mudah dipahami: **Tujuan dana** (sebelumnya Dana tujuan), **Beranda**, **Periode**, “Catat otomatis”, “Tunggu konfirmasi”, “Samakan saldo”, “Aset bersih”, “Arus kas”, “cadangan”, dan istilah Indonesia lain sebagai pengganti inbox/draft/cache/budget/net worth/backup.
+- Beranda: empat kartu angka di atas, **Catat cepat** menjadi satu baris memanjang yang bisa digeser, lalu kartu lain tersusun rapi dalam dua kolom.
+- Transaksi (termasuk *Transaksi Terbaru* di Beranda) bisa diklik di bagian mana saja untuk membuka detail.
+- Semua tombol teks memiliki bingkai kotak. Kartu yang ditekan lalu digeser akan terangkat dan mengikuti jari/kursor.
+- Filter kategori di Transaksi hanya menampilkan kategori yang sesuai dengan jenis transaksi (pengeluaran atau pemasukan), tersusun dari kategori induk ke subkategori.
+- Pilihan emoji kategori dan dompet diperbanyak. Ada animasi halus saat berpindah halaman, saat kartu muncul, saat bilah progres terisi, dan saat tombol ditekan.
+- Menu Timeline dan Catatan Keuangan dihapus. Pengingat tetap bisa dibuat dari Arus Kas Mendatang dan Kalender Keuangan.
+
 ## Perbaikan tampilan & bug (versi repositori)
 
 **Tampilan desktop dan mobile**

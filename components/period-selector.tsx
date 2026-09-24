@@ -6,7 +6,7 @@ import { subscribePeriodTransactions } from '@/lib/firestore';
 import { dateInTimeZone, nextDate, periodLabel, periodOptions, previousDate, resolvePeriodRange, type DateRange, type PeriodPreset } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 
-export function PeriodSelector({ value, onChange, custom, onCustomChange, label = 'Periode analisis' }: { value: PeriodPreset; onChange: (value: PeriodPreset) => void; custom?: DateRange; onCustomChange?: (value: DateRange) => void; label?: string }) {
+export function PeriodSelector({ value, onChange, custom, onCustomChange, label = 'Periode' }: { value: PeriodPreset; onChange: (value: PeriodPreset) => void; custom?: DateRange; onCustomChange?: (value: DateRange) => void; label?: string }) {
   const { profile } = useApp();
   const range = resolvePeriodRange(value, profile?.salaryCycleStartDay || 24, dateInTimeZone(new Date(),profile?.timeZone), custom);
   function change(next: PeriodPreset) { if (next === 'custom' && !custom && onCustomChange) onCustomChange(resolvePeriodRange('last_30_days', profile?.salaryCycleStartDay || 24, dateInTimeZone(new Date(),profile?.timeZone))); onChange(next); }

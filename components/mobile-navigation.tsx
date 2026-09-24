@@ -13,7 +13,7 @@ const tabs: { key: string; label: string; icon: LucideIcon }[] = [
 ];
 const groups = [
   { label: 'Keuangan', items: ['inbox','wallets', 'claims', 'receivables', 'debts', 'funds', 'recurring','upcoming','calendar'] },
-  { label: 'Analisis', items: ['forecast', 'analytics', 'timeline','report','cycles','notes'] },
+  { label: 'Analisis', items: ['forecast', 'analytics', 'report','cycles'] },
   { label: 'Pengaturan', items: ['categories','health', 'settings'] },
 ];
 

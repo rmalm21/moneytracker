@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useApp } from './app-provider';
-import { Field, Select } from './fields';
+import { Field, Select, categoryOptions } from './fields';
 import { PeriodSelector, usePeriodTransactions } from './period-selector';
 import { metrics, rupiah } from '@/lib/accounting';
 import { transactionsForCategory } from '@/lib/category-analytics';
@@ -26,7 +26,7 @@ function useAnalysisPeriod() {
 
 function Filters({ period, wallet, onWallet, category, onCategory }: { period: ReturnType<typeof useAnalysisPeriod>; wallet: string; onWallet: (value: string) => void; category: string; onCategory: (value: string) => void }) {
   const { data } = useApp();
-  return <div className="panel period-filters"><PeriodSelector value={period.preset} custom={period.custom} onChange={value => void period.update({ analyticsPeriod: value })} onCustomChange={value => void period.update({ analyticsCustom: value })}/><Field label="Dompet"><Select value={wallet} onChange={event => onWallet(event.target.value)}><option value="">Semua dompet</option>{data.wallets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field><Field label="Kategori / subkategori"><Select value={category} onChange={event => onCategory(event.target.value)}><option value="">Semua kategori</option>{data.categories.map(item => <option key={item.id} value={item.id}>{item.parentId?'↳ ':''}{item.name}</option>)}</Select></Field>{period.history.loading && <small role="status">Memuat seluruh transaksi periode ini…</small>}{(period.history.error || period.saveError) && <small role="alert" className="form-error">{period.history.error || period.saveError}</small>}</div>;
+  return <div className="panel period-filters"><PeriodSelector value={period.preset} custom={period.custom} onChange={value => void period.update({ analyticsPeriod: value })} onCustomChange={value => void period.update({ analyticsCustom: value })}/><Field label="Dompet"><Select value={wallet} onChange={event => onWallet(event.target.value)}><option value="">Semua dompet</option>{data.wallets.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field><Field label="Kategori / subkategori"><Select value={category} onChange={event => onCategory(event.target.value)}><option value="">Semua kategori</option>{categoryOptions(data.categories)}</Select></Field>{period.history.loading && <small role="status">Memuat seluruh transaksi periode ini…</small>}{(period.history.error || period.saveError) && <small role="alert" className="form-error">{period.history.error || period.saveError}</small>}</div>;
 }
 
 function useFilteredTransactions(items: LedgerTx[], wallet: string, category: string) {

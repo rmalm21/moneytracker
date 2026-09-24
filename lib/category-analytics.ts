@@ -25,3 +25,18 @@ export function transactionsForCategory(items:LedgerTx[],categories:Category[],c
   return [{...tx,amount,splits:lines.map(line=>({categoryId:line.categoryId||'',subcategoryId:line.subcategoryId,amount:line.amount})),categoryId:null,subcategoryId:null}];
  });
 }
+/** Categories ordered as a tree (parent, then its subcategories) for dropdowns, optionally limited to some types. */
+export function categoryTree(categories:Category[],types?:Category['type'][]){
+ const active=categories.filter(c=>!c.isArchived&&(!types||types.includes(c.type)));
+ const order=['expense','income','savings','debt','receivable','reimbursement'];
+ const sorted=(list:Category[])=>list.sort((a,b)=>order.indexOf(a.type)-order.indexOf(b.type)||(a.sortOrder??0)-(b.sortOrder??0)||a.name.localeCompare(b.name));
+ const parents=sorted(active.filter(c=>!c.parentId||!active.some(p=>p.id===c.parentId)));
+ return parents.flatMap(parent=>[{category:parent,depth:0},...sorted(active.filter(c=>c.parentId===parent.id)).map(category=>({category,depth:1}))]);
+}
+/** Category types that make sense as a filter for a transaction type ('' = all types). */
+export function categoryTypesFor(txType:string):Category['type'][]|undefined{
+ if(txType==='expense'||txType==='transfer')return ['expense'];
+ if(txType==='income')return ['income'];
+ if(txType==='fund_contribution')return ['expense','savings'];
+ return undefined;
+}

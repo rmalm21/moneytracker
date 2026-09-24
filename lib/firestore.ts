@@ -104,7 +104,7 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
     for(const rel of relations){const key=rel.kind+'/'+rel.id;if(!related.has(key)){const rr=ref(uid,rel.kind,rel.id);const snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan terkait tidak ditemukan.');related.set(key,{r:rr,kind:rel.kind,value:snap.data(),delta:0});}related.get(key)!.delta+=rel.delta;}
     const draftRef=input.draftId?ref(uid,'drafts',input.draftId):null;
     const draftSnap=draftRef?await trx.get(draftRef):null;
-    if(draftRef&&(!draftSnap?.exists()||!old&&draftSnap.data().status!=='pending'))throw Error('Transaksi ini sudah diproses atau tidak tersedia di inbox.');
+    if(draftRef&&(!draftSnap?.exists()||!old&&draftSnap.data().status!=='pending'))throw Error('Transaksi ini sudah diproses atau tidak tersedia di daftar konfirmasi.');
     const plannedRef=input.plannedId?ref(uid,'plannedTransactions',input.plannedId):null;
     const plannedSnap=plannedRef?await trx.get(plannedRef):null;
     if(plannedRef&&(!plannedSnap?.exists()||!old&&plannedSnap.data().status!=='planned'))throw Error('Rencana sudah diproses atau tidak tersedia.');

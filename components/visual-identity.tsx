@@ -2,8 +2,8 @@
 import type { CSSProperties } from 'react';
 
 export const identityColors=['#267e73','#a94f45','#326b96','#705aa1','#4b7554','#c48153','#9b4d69','#58848b','#966339','#b6565c','#536ba5','#687f48','#835aa0','#456e83'];
-export const categoryEmojis=['🍽️','🍔','🛒','☕','🚗','⛽','🏠','💡','🎧','🎬','🩺','📚','✈️','🎁','💼','💰','🐱','👗','⚽','🧾','💳','🎯','🌿','📦'];
-export const walletEmojis=['💳','🏦','💵','👛','📱','🏧','💰','🪙','🏡','🌱','🔒','🎯','🚀','💎','🧳','🏪'];
+export const categoryEmojis=['🍽️','🍔','🍜','🍱','🍕','🍗','🥗','🍞','🍳','🥤','☕','🧋','🍰','🍦','🍎','🛒','🧺','🧴','🧻','🧼','🚗','🏍️','🛵','🚌','🚆','✈️','🚕','⛽','🅿️','🔧','🏠','🛋️','💡','🚿','🔥','📶','📱','💻','🎧','📺','🎬','🎮','🎵','📚','✏️','🎓','🩺','💊','🦷','🏥','💪','🧘','💇','👗','👟','👜','💍','🎁','🎉','🕌','🤲','💝','👶','🧸','🐱','🐶','🌿','🪴','⚽','🏸','🏊','🎨','📷','🧳','🏖️','⛺','🧾','📄','💳','🏦','💰','💵','💸','🪙','📈','🎯','🛡️','🔒','🤝','💼','🏢','📦','🚚','🛠️','🗂️','⭐'];
+export const walletEmojis=['💳','🏦','💵','👛','👝','📱','🏧','💰','🪙','💸','💎','🐷','🏡','🌱','🔒','🎯','🚀','🧳','🏪','📈','📊','🛡️','🎓','🕌','🏝️','🚗','💍','🎁','🧧','⭐','❤️','🌙'];
 export function emojiOrFallback(value:string|undefined,fallback='🗂️'){return value&&/\p{Extended_Pictographic}/u.test(value)?value:fallback;}
 export function identityStyle(color?:string):CSSProperties{return {'--identity-color':/^#[\da-fA-F]{6}$/.test(color||'')?color:'var(--accent)'} as CSSProperties;}
 export function IdentityBadge({icon,color,label}:{icon?:string;color?:string;label:string}){return <span className="identity-badge" style={identityStyle(color)}><span aria-hidden="true">{emojiOrFallback(icon)}</span><span>{label}</span></span>}
