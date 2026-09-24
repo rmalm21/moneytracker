@@ -1633,6 +1633,29 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   41. Minimal, theme-coloured floating notifications
+   ========================================================================== */
+.toast-stack { width: min(340px, calc(100vw - 32px)); gap: 6px; }
+.toast-card { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 6px 9px 10px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 7%, var(--paper)); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 14%, rgba(0, 0, 0, .12)); }
+.toast-icon, .toast-card.is-info .toast-icon, .toast-card.is-progress .toast-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.toast-icon svg { width: 16px; height: 16px; }
+.toast-card.is-success .toast-icon { background: var(--accent-soft); color: var(--accent); }
+.toast-card.is-error { border-color: color-mix(in srgb, var(--rose) 40%, var(--line)); background: color-mix(in srgb, var(--rose) 6%, var(--paper)); }
+.toast-card.is-error .toast-icon { background: color-mix(in srgb, var(--rose) 14%, var(--paper)); color: var(--rose); }
+.toast-card.is-warning .toast-icon { background: color-mix(in srgb, var(--amber) 16%, var(--paper)); color: var(--amber); }
+.toast-text { gap: 0; padding: 0; }
+.toast-text strong { font-size: .84rem; font-weight: 700; line-height: 1.3; }
+.toast-text small { color: var(--muted); font-size: .72rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toast-card.is-error .toast-text small, .toast-card.is-warning .toast-text small { white-space: normal; }
+.toast-action { margin-top: 4px; min-height: 26px; padding: 0 10px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--paper); color: var(--accent); font-size: .74rem; }
+.toast-action:hover { background: var(--accent); color: var(--accent-on); }
+.toast-close { width: 26px; height: 26px; color: var(--muted); }
+.toast-close:hover { background: var(--accent-soft); color: var(--accent); }
+.toast-progress { height: 2px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.toast-progress i { background: var(--accent); box-shadow: none; border-radius: 0 2px 2px 0; }
+@media (max-width: 760px) { .toast-stack { left: 50%; right: auto; transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); } }
+
+/* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
        which floats in the middle). Kept last so no dialog-specific width can override it.
    ========================================================================== */
