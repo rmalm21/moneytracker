@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, type ReactNode } from 'react';
 import { BarChart3, CalendarRange, Clock3, Layers3, Lightbulb, Printer, Scale, ScrollText, Sparkles, Store, TrendingUp, Wallet as WalletIcon } from 'lucide-react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
 import { Empty, Field, Select, categoryOptions } from './fields';
 import { PeriodSelector, usePeriodTransactions } from './period-selector';
@@ -12,7 +12,7 @@ import { AppIcon, IdentityBadge } from './visual-identity';
 import { TxList } from './dashboard';
 import { budgetCurrent, metrics, rupiah, transactionExpense } from '@/lib/accounting';
 import { categoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
-import { cumulativeSpending, incomeBreakdown, largestExpenses, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '@/lib/insights';
+import { cumulativeSpending, monthlyTotals, incomeBreakdown, largestExpenses, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '@/lib/insights';
 import { saveProfile } from '@/lib/firestore';
 import { dateInTimeZone, daysInRange, formatDate, groupTransactions, percentChange, periodLabel, previousComparableRange, resolvePeriodRange, summarizeTransactions, todayInTimeZone, type DateRange, type Granularity, type PeriodPreset } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
@@ -82,6 +82,12 @@ function CashFlowChart({ items, range, granularity = 'auto' }: { items: LedgerTx
 
 /* ============================================================== Laporan */
 export function ReportView({ navigate }: { navigate?: (key: string, focus?: string) => void } = {}) {
+  const [mode, setMode] = useState<'period' | 'year'>('period');
+  const toggle = <div className="segmented report-mode" role="tablist" aria-label="Jenis laporan"><button type="button" role="tab" aria-selected={mode === 'period'} className={mode === 'period' ? 'active' : ''} onClick={() => setMode('period')}>Per periode</button><button type="button" role="tab" aria-selected={mode === 'year'} className={mode === 'year' ? 'active' : ''} onClick={() => setMode('year')}>Tahunan</button></div>;
+  return mode === 'year' ? <AnnualReport navigate={navigate} toggle={toggle}/> : <PeriodReport navigate={navigate} toggle={toggle}/>;
+}
+
+function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: string) => void; toggle: ReactNode }) {
   const { data, cycle, profile } = useApp();
   const pair = usePeriodPair();
   const go = (key: string, focus?: string) => navigate?.(key, focus);
@@ -102,6 +108,7 @@ export function ReportView({ navigate }: { navigate?: (key: string, focus?: stri
   const filtered = Boolean(pair.wallet || pair.category);
   return <div className="report-page">
     <div className="page-heading"><div><h1>Laporan keuangan</h1><p>Rangkuman lengkap satu periode: arus kas, kategori, dompet, anggaran, dan posisi keuanganmu.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button><button type="button" className="btn btn-ghost" onClick={() => go('cycles')}><ScrollText size={16}/> Riwayat siklus</button></div></div>
+    {toggle}
     <PeriodBar pair={pair}/>
     <div className="report-title"><span className="eyebrow ink">LAPORAN PERIODE</span><h2>{periodLabel(pair.range)}</h2><small className="muted">{length} hari · {pair.items.length} transaksi{filtered ? ' · dengan filter' : ''}</small></div>
     {pair.loading ? <div className="panel" role="status">Memuat transaksi periode ini…</div> : <>
@@ -290,3 +297,72 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
   </div>;
 }
 function resolveEnd(start: string, length: number) { const day = new Date(`${start}T12:00:00`); day.setDate(day.getDate() + length); return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`; }
+
+/* ============================================================== Laporan tahunan */
+function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: string) => void; toggle: ReactNode }) {
+  const { data, profile } = useApp();
+  const thisYear = Number(todayInTimeZone(profile?.timeZone).slice(0, 4));
+  const [year, setYear] = useState(thisYear);
+  const go = (key: string, focus?: string) => navigate?.(key, focus);
+  const current = usePeriodTransactions({ start: `${year}-01-01`, end: `${year + 1}-01-01` });
+  const previous = usePeriodTransactions({ start: `${year - 1}-01-01`, end: `${year}-01-01` });
+  const months = useMemo(() => monthlyTotals(current.items, year), [current.items, year]);
+  const total = useMemo(() => summarizeTransactions(current.items), [current.items]), before = useMemo(() => summarizeTransactions(previous.items), [previous.items]);
+  const categories = useMemo(() => categoryBreakdown(current.items, data.categories), [current.items, data.categories]);
+  const prevCategories = useMemo(() => categoryBreakdown(previous.items, data.categories), [previous.items, data.categories]);
+  const incomes = useMemo(() => incomeBreakdown(current.items, data.categories), [current.items, data.categories]);
+  const active = months.filter(m => m.income || m.expense), activeCount = Math.max(1, active.length);
+  const best = [...active].sort((a, b) => b.net - a.net)[0], costly = [...active].sort((a, b) => b.expense - a.expense)[0];
+  const rate = total.income ? Math.round(total.cashFlow / total.income * 100) : 0, prevRate = before.income ? Math.round(before.cashFlow / before.income * 100) : 0;
+  // Without any data last year there is nothing meaningful to compare with.
+  const ready = !previous.loading && previous.items.length > 0, basis = `Tahun ${year - 1}`;
+  const categoryMonths = (id: string) => months.map(m => ({ ...m, value: categoryBreakdown(current.items.filter(t => t.date >= m.start && t.date < m.end), data.categories).find(c => c.id === id)?.amount || 0 }));
+  const [focusCategory, setFocusCategory] = useState('');
+  const trend = focusCategory ? categoryMonths(focusCategory) : null;
+  return <div className="report-page">
+    <div className="page-heading"><div><h1>Laporan tahunan</h1><p>Gambaran satu tahun penuh: bulan demi bulan, kategori, dan perbandingan dengan tahun sebelumnya.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button></div></div>
+    {toggle}
+    <div className="panel report-toolbar year-bar"><div className="segmented" role="group" aria-label="Pilih tahun">{[thisYear - 3, thisYear - 2, thisYear - 1, thisYear].map(y => <button type="button" key={y} className={y === year ? 'active' : ''} onClick={() => setYear(y)}>{y}</button>)}</div><small className="muted report-compare">{!previous.loading && !previous.items.length ? `Belum ada data tahun ${year - 1} untuk dibandingkan.` : `Dibanding tahun ${year - 1}${year === thisYear ? ' (tahun berjalan dibanding tahun penuh sebelumnya)' : ''}`}</small>{current.error && <p className="form-error" role="alert">{current.error}</p>}</div>
+    {current.loading ? <div className="panel" role="status">Memuat transaksi tahun {year}…</div> : !current.items.length ? <div className="panel"><Empty message={`Belum ada transaksi di tahun ${year}.`}/></div> : <>
+      <div className="card-grid report-kpis">
+        <Kpi label="Pemasukan setahun" value={total.income} previous={ready ? before.income : undefined} basis={basis} icon={<TrendingUp size={14}/>}/>
+        <Kpi label="Pengeluaran setahun" value={total.expense} previous={ready ? before.expense : undefined} good="down" basis={basis}/>
+        <Kpi label="Selisih setahun" value={total.cashFlow} previous={ready ? before.cashFlow : undefined} basis={basis}/>
+        <Kpi label="Rasio menabung" value={rate} format="percent" suffix={ready && before.income ? `Tahun lalu ${prevRate}% (${rate - prevRate >= 0 ? '+' : ''}${rate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
+        <Kpi label="Rata-rata pengeluaran per bulan" value={Math.round(total.expense / activeCount)} good="down" basis={basis} suffix={`${active.length} bulan tercatat`}/>
+        <Kpi label="Rata-rata pemasukan per bulan" value={Math.round(total.income / activeCount)} basis={basis} suffix={best ? `Bulan terbaik: ${best.label} (${rupiah(best.net)})` : undefined}/>
+      </div>
+      <Section icon={<BarChart3 size={18}/>} title="Bulan demi bulan" hint={costly ? `Pengeluaran terbesar di ${costly.label} (${rupiah(costly.expense)})` : undefined}>
+        <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={months} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
+          <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
+          <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} contentStyle={tooltipStyle} cursor={{ fill: 'var(--accent-soft)' }}/>
+          <Legend wrapperStyle={{ fontSize: 12 }}/>
+          <Bar dataKey="income" name="Pemasukan" fill="var(--positive)" radius={[5, 5, 0, 0]} animationDuration={700}/>
+          <Bar dataKey="expense" name="Pengeluaran" fill="var(--rose)" radius={[5, 5, 0, 0]} animationDuration={700}/>
+          <Line type="monotone" dataKey="net" name="Selisih" stroke="var(--accent)" strokeWidth={3} dot={{ r: 3 }} animationDuration={900}/>
+        </ComposedChart></ResponsiveContainer></div>
+        <div className="year-table" role="table" aria-label="Ringkasan per bulan">
+          <div className="year-row year-head" role="row"><span>Bulan</span><span>Pemasukan</span><span>Pengeluaran</span><span>Selisih</span><span>Menabung</span></div>
+          {months.map(m => <button type="button" key={m.month} role="row" className={`year-row ${!m.income && !m.expense ? 'is-empty' : ''}`} onClick={() => go('transactions', `@${m.start}..${m.end}`)}><span>{new Date(year, m.month, 1).toLocaleDateString('id-ID', { month: 'long' })}</span><span className="amount-positive">{m.income ? rupiah(m.income) : '–'}</span><span className="amount-negative">{m.expense ? rupiah(m.expense) : '–'}</span><strong className={m.net < 0 ? 'amount-negative' : ''}>{m.income || m.expense ? rupiah(m.net) : '–'}</strong><span>{m.income ? `${m.rate}%` : '–'}</span></button>)}
+          <div className="year-row year-total" role="row"><span>Total</span><span className="amount-positive">{rupiah(total.income)}</span><span className="amount-negative">{rupiah(total.expense)}</span><strong className={total.cashFlow < 0 ? 'amount-negative' : ''}>{rupiah(total.cashFlow)}</strong><span>{rate}%</span></div>
+        </div>
+      </Section>
+      <div className="report-two">
+        <Section icon={<Layers3 size={18}/>} title="Kategori setahun" hint="Ketuk untuk melihat tren bulanannya">
+          <div className="report-table">{categories.slice(0, 10).map(c => { const last = prevCategories.find(p => p.id === c.id)?.amount || 0; return <button type="button" key={c.id} className={`report-row ${focusCategory === c.id ? 'is-active' : ''}`} onClick={() => setFocusCategory(v => v === c.id ? '' : c.id)}>
+            <IdentityBadge icon={c.icon} color={c.color} label={c.name}/>
+            <span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, categories[0].amount))}%`, background: c.color || 'var(--accent)' }}/></span>
+            <span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>±{rupiah(Math.round(c.amount / activeCount))}/bln {ready && <Delta current={c.amount} previous={last} good="down" basis={basis} compact/>}</small></span>
+          </button>; })}</div>
+          {trend && <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="cat-year" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/><YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={48}/><Tooltip formatter={v => [rupiah(Number(v)), categories.find(c => c.id === focusCategory)?.name || '']} contentStyle={tooltipStyle}/><Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#cat-year)" strokeWidth={3} animationDuration={700}/></AreaChart></ResponsiveContainer></div>}
+        </Section>
+        <Section icon={<TrendingUp size={18}/>} title="Sumber pemasukan setahun">
+          {incomes.length ? <div className="report-table">{incomes.map(c => <div key={c.id} className="report-row"><IdentityBadge icon={c.icon} color={c.color} label={c.name}/><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, incomes[0].amount))}%`, background: 'var(--positive)' }}/></span><span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>{pct(c.amount, total.income)}% · {c.count}×</small></span></div>)}</div> : <Empty message="Belum ada pemasukan tahun ini."/>}
+        </Section>
+      </div>
+      <p className="muted report-foot">Dibuat {new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })} · Dompet Ajaib</p>
+    </>}
+  </div>;
+}

@@ -8,6 +8,8 @@ import { Button } from './ui/button';
 import { usePeriodTransactions } from './period-selector';
 import { metrics, rupiah } from '@/lib/accounting';
 import { forecast, statusText, type ForecastStatus } from '@/lib/forecast';
+import { savingsPlan } from '@/lib/savings';
+import { todayInTimeZone } from '@/lib/period';
 import { dateInTimeZone, formatDate, parseDate, previousDate, resolvePeriodRange, summarizeTransactions } from '@/lib/period';
 
 /** Counts smoothly from the previous value to the new one. */
@@ -136,6 +138,12 @@ export function ForecastView() {
         <AnimatedRupiah value={Math.abs(step.value) * (step.tone === 'total' && step.value < 0 ? -1 : 1)} className="forecast-step-value"/>
       </div>)}</div>
     </section>
+
+    {data.funds.length > 0 && (() => { const today = todayInTimeZone(profile?.timeZone); const rows = data.funds.map(f => ({ f, plan: savingsPlan(f, today) })).filter(r => r.plan.status !== 'reached'); const need = rows.reduce((n, r) => n + (r.plan.status === 'overdue' ? 0 : r.plan.perMonth), 0); const left = result.monthlyNet - need; return rows.length ? <section className="panel forecast-panel">
+      <div className="forecast-panel-head"><h3>Target tabungan</h3><small>{left >= 0 ? `Masih tersisa ±${rupiah(left)}/bulan setelah setoran` : `Kurang ±${rupiah(-left)}/bulan untuk semua target`}</small></div>
+      <div className="forecast-steps">{rows.map(({ f, plan }) => <div key={f.id} className="forecast-step is-base"><span className="forecast-step-label">{f.name}<small>{f.targetDate ? `Tenggat ${formatDate(f.targetDate)} · ` : ''}terkumpul {Math.round(plan.progress)}%</small></span><span className="forecast-step-bar"><i style={{ width: `${Math.max(2, plan.progress)}%` }}/></span><span className="forecast-step-value">{plan.status === 'overdue' ? 'Lewat tenggat' : `${rupiah(plan.perMonth)}/bln`}</span></div>)}
+      <div className={`forecast-step is-total`}><span className="forecast-step-label">Total setoran per bulan</span><span className="forecast-step-bar"><i style={{ width: `${Math.min(100, Math.max(2, need / Math.max(1, result.income) * 100))}%` }}/></span><AnimatedRupiah value={need} className="forecast-step-value"/></div></div>
+    </section> : null; })()}
 
     <div className="section-heading"><h2><ShoppingBag size={19}/> Kalau beli ini?</h2></div>
     <div className="forecast-grid">

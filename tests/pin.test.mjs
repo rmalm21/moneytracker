@@ -68,3 +68,40 @@ test('analysis helpers group spending by weekday, time, size, place and wallet',
   const cumulative = cumulativeSpending(items, { start: '2026-09-21', end: '2026-09-28' });
   assert.equal(cumulative[0], 162_500); assert.equal(cumulative[6], 192_500);
 });
+
+import { savingsPlan } from '../lib/savings.ts';
+test('savings target works out the monthly and weekly amount needed before the deadline', () => {
+  const plan = savingsPlan({ targetAmount: 15_000_000, currentAmount: 3_000_000, monthlyContribution: 1_000_000, targetDate: '2027-03-15' }, '2026-09-25');
+  assert.equal(plan.remaining, 12_000_000);
+  assert.equal(plan.monthsLeft, 6);
+  assert.equal(plan.perMonth, 2_000_000);
+  assert.equal(plan.status, 'behind');
+  assert.equal(plan.finish, '2027-09-25');
+  assert.equal(plan.lateMonths, 6);
+  assert.equal(savingsPlan({ targetAmount: 1_000, currentAmount: 1_000, monthlyContribution: 0, targetDate: '' }, '2026-09-25').status, 'reached');
+  assert.equal(savingsPlan({ targetAmount: 10_000, currentAmount: 0, monthlyContribution: 5_000, targetDate: '2026-08-01' }, '2026-09-25').status, 'overdue');
+  assert.equal(savingsPlan({ targetAmount: 6_000_000, currentAmount: 0, monthlyContribution: 2_000_000, targetDate: '2026-11-30' }, '2026-09-25').status, 'on_track');
+});
+
+import { monthlyTotals } from '../lib/insights.ts';
+test('annual report adds up each month of the year', () => {
+  const rows = monthlyTotals([tx({ date: '2026-01-05', amount: 100_000 }), tx({ date: '2026-01-20', type: 'income', amount: 1_000_000 }), tx({ date: '2026-12-31', amount: 50_000 }), tx({ date: '2025-12-31', amount: 999 })], 2026);
+  assert.equal(rows.length, 12);
+  assert.deepEqual([rows[0].income, rows[0].expense, rows[0].net, rows[0].rate], [1_000_000, 100_000, 900_000, 90]);
+  assert.deepEqual([rows[11].expense, rows[11].end], [50_000, '2027-01-01']);
+  assert.equal(rows[1].end, '2026-03-01');
+});
+
+import { dueReminders, defaultReminders } from '../lib/reminders.ts';
+test('reminders fire once per chosen time, catch up within 3 hours, and never repeat', () => {
+  const config = { ...defaultReminders, balanceEnabled: true, times: ['08:00', '13:00', '20:00'], billsEnabled: true, billTime: '08:00' };
+  assert.deepEqual(dueReminders(config, '07:59', []), { fire: [], consumed: [] });
+  const morning = dueReminders(config, '08:05', []);
+  assert.deepEqual(morning.fire, ['balance', 'bills']);
+  assert.deepEqual(dueReminders(config, '08:30', morning.consumed).fire, []);
+  const late = dueReminders(config, '14:00', morning.consumed);
+  assert.deepEqual([late.fire, late.consumed], [['balance'], ['balance@13:00']]);
+  const tooLate = dueReminders(config, '23:30', [...morning.consumed, 'balance@13:00']);
+  assert.deepEqual([tooLate.fire, tooLate.consumed], [[], ['balance@20:00']]);
+  assert.deepEqual(dueReminders({ ...config, balanceEnabled: false, billsEnabled: false }, '20:00', []).fire, []);
+});

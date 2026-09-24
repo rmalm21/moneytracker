@@ -1579,6 +1579,60 @@ button.report-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(-
 }
 
 /* ==========================================================================
+   40. Pelunasan, target tabungan, laporan tahunan, pengingat
+   ========================================================================== */
+.settle-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--paper-2); border: 1px solid var(--line); font-weight: 700; }
+.settle-head strong { font-family: var(--font-head); }
+.settle-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.manual-payments { display: grid; gap: 4px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line-strong); }
+.manual-payments h4 { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.manual-payments .budget-line { font-size: .86rem; }
+.savings-plan { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--paper-2); border: 1px solid var(--line); }
+.savings-plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.savings-plan-head small { color: var(--muted); font-weight: 700; }
+.savings-need { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.savings-need > div { display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); }
+.savings-need small { color: var(--muted); font-size: .72rem; font-weight: 700; }
+.savings-need strong { font: 800 .98rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; }
+.savings-plan > .link-button { justify-self: start; }
+.tag.danger { background: var(--danger-soft, #fde8ea); color: var(--danger-ink, #9b2c3a); border-color: var(--danger-line, #f3c2c9); }
+.report-mode { justify-self: start; }
+.year-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.year-table { display: grid; gap: 2px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.year-row { display: grid; grid-template-columns: minmax(90px, 1.1fr) repeat(3, minmax(0, 1fr)) 80px; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--line); border-radius: 10px; background: transparent; color: inherit; font: inherit; font-size: .88rem; text-align: right; }
+.year-row > :first-child { text-align: left; font-weight: 700; }
+button.year-row { cursor: pointer; }
+button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
+.year-row.is-empty { color: var(--muted); }
+.year-head { color: var(--muted); font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--line-strong); }
+.year-total { font-weight: 800; background: var(--paper-2); border: 1px solid var(--line); }
+.report-row.is-active { background: var(--accent-soft); }
+.reminder-settings { display: grid; gap: 14px; }
+.reminder-settings h3 { display: flex; align-items: center; gap: 8px; }
+.switch-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); cursor: pointer; }
+.switch-row input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 44px; height: 26px; margin-top: 2px; border-radius: 99px; background: var(--line-strong); cursor: pointer; transition: background .16s ease; }
+.switch-row input::after { content: ''; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .18s var(--ease-out); }
+.switch-row input:checked { background: var(--accent); }
+.switch-row input:checked::after { transform: translateX(18px); }
+.switch-row input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 2px; }
+.switch-row > span { display: grid; gap: 2px; }
+.switch-row small { color: var(--muted); }
+.reminder-block { display: grid; gap: 10px; padding: 0 4px 4px 12px; border-left: 3px solid var(--accent-soft); animation: view-in .18s ease-out; }
+.field-caption { font-weight: 700; font-size: .86rem; }
+.reminder-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.reminder-time { display: flex; align-items: flex-end; gap: 4px; }
+.reminder-time > .field { flex: 1; min-width: 0; }
+.reminder-block > .link-button { justify-self: start; }
+@media (max-width: 760px) {
+  .settle-modes { grid-template-columns: minmax(0, 1fr); }
+  .year-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; text-align: left; }
+  .year-row > :nth-child(2), .year-row > :nth-child(3) { font-size: .78rem; }
+  .year-row > :nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; }
+  .year-row > :nth-child(5) { display: none; }
+  .year-head { display: none; }
+}
+
+/* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
        which floats in the middle). Kept last so no dialog-specific width can override it.
    ========================================================================== */

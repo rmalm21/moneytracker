@@ -86,3 +86,15 @@ export function cumulativeSpending(items: LedgerTx[], range: { start: string; en
 }
 
 export function largestExpenses(items: LedgerTx[], limit = 5) { return items.filter(tx => transactionExpense(tx) > 0).sort((a, b) => transactionExpense(b) - transactionExpense(a)).slice(0, limit); }
+
+/** Twelve months of one year: income, spending, net and savings rate per month. */
+export function monthlyTotals(items: LedgerTx[], year: number) {
+  const months = Array.from({ length: 12 }, (_, month) => ({ month, label: new Date(year, month, 1).toLocaleDateString('id-ID', { month: 'short' }), start: `${year}-${String(month + 1).padStart(2, '0')}-01`, income: 0, expense: 0, net: 0, rate: 0, count: 0 }));
+  for (const tx of items) {
+    if (!tx.date.startsWith(`${year}-`)) continue;
+    const row = months[Number(tx.date.slice(5, 7)) - 1];
+    if (tx.type === 'income') row.income += tx.amount;
+    const spent = transactionExpense(tx); if (spent) { row.expense += spent; row.count++; }
+  }
+  return months.map(row => ({ ...row, net: row.income - row.expense, rate: row.income ? Math.round((row.income - row.expense) / row.income * 100) : 0, end: row.month === 11 ? `${year + 1}-01-01` : `${year}-${String(row.month + 2).padStart(2, '0')}-01` }));
+}

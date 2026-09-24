@@ -2,7 +2,7 @@ import { collection, doc, getDoc, getDocs, increment, limit, onSnapshot, orderBy
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle, newestFirst } from './accounting';
-import type { Budget, Category, Claim, Data, Debt, Fund, LedgerTx, Profile, Receivable, Recurring, Wallet, Draft, TxType } from './types';
+import type { Budget, Category, Claim, Data, Debt, Fund, LedgerTx, ManualPayment, Profile, Receivable, Recurring, Wallet, Draft, TxType } from './types';
 import { validateWalletUse, walletActions } from './wallet-capabilities';
 
 export const names = ['wallets','categories','budgets','transactions','claims','receivables','debts','funds','recurring','drafts','plannedTransactions','categorizationRules','financialNotes','cycleSnapshots'] as const;
@@ -126,7 +126,7 @@ export async function deleteTransaction(uid:string,id:string) {
   });if(removedDate)await syncSnapshot(uid,removedDate);
 }
 export async function createClaim(uid:string,claim:Omit<Claim,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(claim.amount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'claims'));const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...claim,remainingAmount:claim.amount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_c,...claimTx}=newTx({type:'claim_advance',amount:claim.amount,walletId:claim.sourceWalletId,claimId:r.id,date:claim.submissionDate,description:claim.name});batch.set(t,{...claimTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',claim.sourceWalletId),{cachedBalance:increment(-claim.amount),updatedAt:serverTimestamp()});await batch.commit();await syncSnapshot(uid,claim.submissionDate);return r.id;}
-export async function createReceivable(uid:string,item:Omit<Receivable,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(item.originalAmount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'receivables'));const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...item,remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_r,...receivableTx}=newTx({type:'receivable_issue',amount:item.originalAmount,walletId:item.sourceWalletId,receivableId:r.id,date:item.date,description:item.person});batch.set(t,{...receivableTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',item.sourceWalletId),{cachedBalance:increment(-item.originalAmount),updatedAt:serverTimestamp()});await batch.commit();await syncSnapshot(uid,item.date);return r.id;}
+export async function createReceivable(uid:string,item:Omit<Receivable,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(item.originalAmount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'receivables'));if(!item.sourceWalletId){await setDoc(r,{...item,sourceWalletId:'',remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});return r.id;}const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...item,remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_r,...receivableTx}=newTx({type:'receivable_issue',amount:item.originalAmount,walletId:item.sourceWalletId,receivableId:r.id,date:item.date,description:item.person});batch.set(t,{...receivableTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',item.sourceWalletId),{cachedBalance:increment(-item.originalAmount),updatedAt:serverTimestamp()});await batch.commit();await syncSnapshot(uid,item.date);return r.id;}
 export async function createDebt(uid:string,item:Omit<Debt,'id'|'outstandingAmount'|'status'|'createdAt'|'updatedAt'>,creditWallet?:string) {if(!validAmount(item.originalAmount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'debts'));const batch=writeBatch(database());batch.set(r,{...item,outstandingAmount:item.originalAmount,status:'open',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});if(creditWallet){const t=doc(coll(uid,'transactions'));const {id:_d,...debtTx}=newTx({type:'borrowing',amount:item.originalAmount,walletId:creditWallet,debtId:r.id,description:item.name});batch.set(t,{...debtTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',creditWallet),{cachedBalance:increment(item.originalAmount),updatedAt:serverTimestamp()});}await batch.commit();await syncSnapshot(uid,item.dueDate||'0000-01-01');return r.id;}
 export async function updateLinked(uid:string,name:'claims'|'debts'|'receivables',id:string,changes:Record<string,unknown>) {await updateDoc(ref(uid,name,id),{...changes,updatedAt:serverTimestamp()});await syncSnapshot(uid,'0000-01-01');}
 export async function recalculateBalance(uid:string,wallet:Wallet) {const [a,b]=await Promise.all([getDocs(query(coll(uid,'transactions'),where('walletId','==',wallet.id))),getDocs(query(coll(uid,'transactions'),where('destinationWalletId','==',wallet.id)))]);const all=new Map<string,LedgerTx>();for(const snap of [...a.docs,...b.docs])all.set(snap.id,hydrate<LedgerTx>(snap));const n=walletBalance(wallet,[...all.values()]);await updateDoc(ref(uid,'wallets',wallet.id),{cachedBalance:n,updatedAt:serverTimestamp()});return n;}
@@ -210,4 +210,22 @@ export async function seedCategoryTemplates(uid:string,records:import('./categor
     trx.set(userRef(uid),{defaultCategoryTemplateVersion:version,updatedAt:serverTimestamp()},{merge:true});
     return created;
   });
+}
+
+/** Settle part of a receivable or debt without moving money in any wallet (e.g. it was paid in cash that was never recorded). */
+export async function settleWithoutWallet(uid:string,kind:'receivables'|'debts',id:string,amount:number,date:string,note=''){
+  if(!validAmount(amount))throw Error('Nominal harus lebih dari nol.');
+  await runTransaction(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',remaining=Number(row[key]);if(amount>remaining)throw Error(`Nominal melebihi sisa ${kind==='debts'?'utang':'piutang'} (Rp${remaining.toLocaleString('id-ID')}).`);
+    const next=remaining-amount,original=Number(row.originalAmount);const payments=[...((row.manualPayments||[]) as ManualPayment[]),{id:crypto.randomUUID(),amount,date,...(note?{note}:{})}];
+    trx.update(rr,{[key]:next,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),manualPayments:payments,updatedAt:serverTimestamp()});});
+  await syncSnapshot(uid,date);
+}
+/** Undo a settlement made without a wallet. */
+export async function undoManualPayment(uid:string,kind:'receivables'|'debts',id:string,paymentId:string){
+  let date='0000-01-01';
+  await runTransaction(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();const list=(row.manualPayments||[]) as ManualPayment[];const payment=list.find(p=>p.id===paymentId);if(!payment)return;date=payment.date;
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',next=Number(row[key])+payment.amount,original=Number(row.originalAmount);
+    trx.update(rr,{[key]:next,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),manualPayments:list.filter(p=>p.id!==paymentId),updatedAt:serverTimestamp()});});
+  await syncSnapshot(uid,date);
 }
