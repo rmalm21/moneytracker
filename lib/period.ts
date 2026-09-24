@@ -74,3 +74,22 @@ export function groupTransactions(items: LedgerTx[], range: DateRange, requested
   }
   return [...grouped].map(([date, values]) => ({ date, label: granularity === 'yearly' ? date.slice(0, 4) : granularity === 'monthly' ? parseDate(date).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }) : parseDate(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), ...values }));
 }
+
+const shiftDays = (date: string, days: number) => { const day = parseDate(date); day.setDate(day.getDate() + days); return localDate(day); };
+const daysBetween = (from: string, to: string) => Math.round((utcDay(to) - utcDay(from)) / 86400000);
+/**
+ * The previous period (PP) of the same kind. While the current period is still running, PP is cut to the same
+ * number of days so "day 10 of this cycle" is compared with "day 10 of the last cycle".
+ */
+export function previousComparableRange(preset: PeriodPreset, salaryDay: number, range: DateRange, today: string): DateRange & { partial: boolean; days: number } {
+  let previous: DateRange;
+  if (preset === 'salary_cycle' || preset === 'calendar_month') previous = resolvePeriodRange(preset, salaryDay, parseDate(previousDate(range.start)));
+  else if (preset === 'year_to_date') { const year = Number(range.start.slice(0, 4)) - 1; previous = { start: `${year}-01-01`, end: `${year + 1}-01-01` }; }
+  else { const length = daysBetween(range.start, range.end); previous = { start: shiftDays(range.start, -length), end: range.start }; }
+  const running = today >= range.start && today < range.end;
+  const days = Math.max(1, running ? daysBetween(range.start, nextDate(today)) : daysBetween(range.start, range.end));
+  const cut = shiftDays(previous.start, days);
+  return { start: previous.start, end: running && cut < previous.end ? cut : previous.end, partial: running, days };
+}
+/** Percentage change, or null when there is nothing to compare with. */
+export function percentChange(current: number, previous: number) { if (!previous) return current ? null : 0; return Math.round((current - previous) / Math.abs(previous) * 100); }

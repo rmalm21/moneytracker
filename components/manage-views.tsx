@@ -24,13 +24,15 @@ const PAGE=50;
 const claimStatus:Record<Claim['status'],string>={draft:'Draf',submitted:'Diajukan',waiting:'Menunggu cair',approved:'Disetujui',paid:'Sudah cair',rejected:'Ditolak'};
 const claimTone:Record<Claim['status'],string>={draft:'muted',submitted:'',waiting:'warn',approved:'',paid:'',rejected:'danger'};
 
-export function TransactionsView({notify,openTx,revision,focus}:Props&{focus?:string}){
- const {data,user,profile}=useApp();const [panel,setPanel]=useState<'period'|'filter'|null>(null);const searchRef=useRef<HTMLInputElement>(null);
- const [search,setSearch]=useState(''),[query,setQuery]=useState(''),[type,setType]=useState(()=>focus?.startsWith('type:')?focus.slice(5):'all'),[walletFilter,setWalletFilter]=useState(()=>focus?.startsWith('wallet:')?focus.slice(7):''),[categoryFilter,setCategoryFilter]=useState(''),[sort,setSort]=useState<'newest'|'oldest'|'highest'>('newest');
+export function TransactionsView({notify,openTx,revision,focus:rawFocus}:Props&{focus?:string}){
+ const {data,user,profile}=useApp();
+ // Links from Beranda look like `type:expense@2026-08-27..2026-09-26`: a filter plus the period that was shown.
+ const [focus,focusRange]=(rawFocus||'').split('@'),[focusStart,focusEnd]=(focusRange||'').split('..');const linkedRange=focusStart&&focusEnd&&focusStart<focusEnd?{start:focusStart,end:focusEnd}:undefined;const [panel,setPanel]=useState<'period'|'filter'|null>(null);const searchRef=useRef<HTMLInputElement>(null);
+ const [search,setSearch]=useState(''),[query,setQuery]=useState(''),[type,setType]=useState(()=>focus?.startsWith('type:')?focus.slice(5):focus?.startsWith('category:')?'expense':'all'),[walletFilter,setWalletFilter]=useState(()=>focus?.startsWith('wallet:')?focus.slice(7):''),[categoryFilter,setCategoryFilter]=useState(()=>focus?.startsWith('category:')?focus.slice(9):''),[sort,setSort]=useState<'newest'|'oldest'|'highest'>('newest');
  useEffect(()=>{const timer=setTimeout(()=>setQuery(search.trim().toLocaleLowerCase('id-ID')),250);return()=>clearTimeout(timer)},[search]);
  useEffect(()=>{const key=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(event.key==='/'&&!target?.closest('input,textarea,[contenteditable="true"],[role="dialog"]')){event.preventDefault();searchRef.current?.focus()}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[]);
- const [period,setPeriod]=useState<PeriodPreset>('salary_cycle');
- const [custom,setCustom]=useState<DateRange|undefined>();
+ const [period,setPeriod]=useState<PeriodPreset>(linkedRange?'custom':'salary_cycle');
+ const [custom,setCustom]=useState<DateRange|undefined>(linkedRange);
  const [allHistory,setAllHistory]=useState(false);
  const [error,setError]=useState('');
  const [all,setAll]=useState<{uid:string;items:LedgerTx[]}|null>(null),[loadingAll,setLoadingAll]=useState(false),[limit,setLimit]=useState(PAGE);
