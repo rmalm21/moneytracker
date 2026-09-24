@@ -1248,7 +1248,8 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 .toast-card.is-success .toast-icon { color: #7fe0b4; }
 .toast-card.is-error .toast-icon { color: #ffa3ad; }
 .toast-card.is-warning .toast-icon { color: #f5cf85; }
-.toast-card.is-info .toast-icon, .toast-card.is-progress .toast-icon { color: #9fd4f2; }
+.toast-card.is-info .toast-icon, .toast-card.is-progress .toast-icon { color: color-mix(in srgb, var(--accent) 60%, #fff); background: color-mix(in srgb, var(--accent) 24%, transparent); }
+.toast-card { border-color: color-mix(in srgb, var(--accent) 22%, #ffffff1a); }
 .toast-card.is-progress .toast-icon svg { animation: spin .9s linear infinite; }
 .toast-text { display: grid; gap: 2px; min-width: 0; padding-top: 1px; }
 .toast-text strong { font-size: .9rem; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1257,8 +1258,8 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 .toast-action:hover { background: #ffffff2a; }
 .toast-close { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 9px; background: transparent; color: #ffffffb3; cursor: pointer; }
 .toast-close:hover { background: #ffffff1f; color: #fff; }
-.toast-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #ffffff14; overflow: hidden; }
-.toast-progress i { position: absolute; inset: 0 auto 0 0; width: 100%; background: linear-gradient(90deg, #7fe0b4, #9fd4f2); transform-origin: left; }
+.toast-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: color-mix(in srgb, var(--accent) 22%, transparent); overflow: hidden; }
+.toast-progress i { position: absolute; inset: 0 auto 0 0; width: 100%; border-radius: 0 4px 4px 0; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #fff), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); transform-origin: left; }
 .toast-progress.is-running i { width: 40%; animation: progress-run 1.1s ease-in-out infinite; }
 .toast-progress.is-done i { animation: bar-grow .5s var(--ease-out) both; }
 @keyframes progress-run { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
