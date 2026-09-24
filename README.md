@@ -2,6 +2,16 @@
 
 Aplikasi keuangan pribadi multiakun berbasis Next.js, TypeScript, Tailwind CSS, komponen UI berbasis Radix, Recharts, Firebase Authentication, Firestore, Storage, dan PWA. Bahasa tampilan Indonesia, mata uang Rupiah.
 
+## Kategori default & dompet awal
+
+- **Pustaka kategori default** (versi template 1): 16 kategori pengeluaran dan 6 kategori pemasukan. Setiap kategori punya subkategori, emoji, dan warna. Subkategori memakai warna kategori utamanya kecuali diubah. Tidak ada kategori “Transfer”, karena transfer antardompet tetap bukan pemasukan atau pengeluaran. Klaim, piutang, dan utang tetap memakai alur transaksinya masing-masing.
+- **Onboarding** menawarkan *Gunakan Kategori Default* (disarankan), *Pilih Sendiri*, atau *Mulai dari Kosong*, dan membuat dompet **Tunai** serta **Bank**. Contoh anggaran bersifat opsional.
+- **Pengguna lama** tidak pernah ditimpa. Di menu Kategori tersedia **Ambil dari Template**, dan kategori yang serupa ditandai “Sudah ada”. Jika tetap dipilih, muncul pesan “Kategori serupa sudah ada.” dengan pilihan Batal, Lewati yang serupa, atau Tambahkan Tetap. Penyimpanan memakai ID tetap per template sehingga aman dijalankan ulang.
+- Kategori default menjadi data biasa milik akun (`users/{uid}/categories`, dengan `templateKey` dan `templateVersion`). Semuanya bisa diganti nama, ikon, dan warna, diurutkan, dipindah, diarsipkan, dan ditambah subkategori.
+- **Pemilih ikon**: pustaka emoji berkelompok, pencarian, ikon yang disarankan dari nama, dan ikon yang terakhir dipakai. **Pemilih warna**: 16 lingkaran warna bernama, pilihan “Ikuti kategori utama”, dan “Warna lainnya”.
+- **Form transaksi**: pemilih kategori menampilkan kategori utama dulu, lalu subkategorinya, dengan pencarian dan pintasan *Sering dipakai* dari riwayat. Di ponsel tampil sebagai lembar dari bawah. Tidak ada kategorisasi otomatis.
+- **Halaman Transaksi**: filter kategori hanya menampilkan kategori utama (sudah mencakup subkategorinya) dan mengikuti jenis transaksi. Ada ringkasan masuk/keluar/selisih, dan transaksi dikelompokkan per hari beserta totalnya.
+
 ## Pembaruan tampilan lanjutan
 
 - Istilah dibuat lebih mudah dipahami: **Tujuan dana** (sebelumnya Dana tujuan), **Beranda**, **Periode**, “Catat otomatis”, “Tunggu konfirmasi”, “Samakan saldo”, “Aset bersih”, “Arus kas”, “cadangan”, dan istilah Indonesia lain sebagai pengganti inbox/draft/cache/budget/net worth/backup.

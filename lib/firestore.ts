@@ -193,3 +193,21 @@ export async function postAutoDrafts(uid:string,drafts:Draft[]){for(const draft 
 export async function dismissDraft(uid:string,id:string){await runTransaction(database(),async trx=>{const r=ref(uid,'drafts',id),draft=await trx.get(r);if(!draft.exists()||draft.data().status!=='pending')throw Error('Transaksi ini sudah diproses.');trx.update(r,{status:'dismissed',updatedAt:serverTimestamp()})});}
 
 export async function rejectClaim(uid:string,id:string){const r=ref(uid,'claims',id),t=doc(coll(uid,'transactions'));await runTransaction(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())throw Error('Klaim tidak ditemukan.');const c=snap.data() as Claim;if(c.remainingAmount<=0)throw Error('Klaim sudah selesai.');const {id:_ignored,...event}=newTx({type:'claim_writeoff',amount:c.remainingAmount,walletId:c.sourceWalletId,claimId:id,description:`Klaim ditolak: ${c.name}`});trx.set(t,{...event,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(r,{remainingAmount:0,status:'rejected',updatedAt:serverTimestamp()});});await syncSnapshot(uid,new Date().toLocaleDateString('en-CA'));}
+
+/**
+ * Adds starter categories as normal user-owned records. Ids are deterministic and every id
+ * is read first, so running this twice (or on two devices at once) never creates duplicates
+ * and never overwrites a category the user already has.
+ */
+export async function seedCategoryTemplates(uid:string,records:import('./category-templates').SeedRecord[]){
+  if(!records.length)return 0;
+  const version=(await import('./category-templates')).CATEGORY_TEMPLATE_VERSION;
+  return runTransaction(database(),async trx=>{
+    const refs=records.map(record=>ref(uid,'categories',record.id));
+    const existing=await Promise.all(refs.map(r=>trx.get(r)));
+    let created=0;
+    records.forEach((record,index)=>{if(existing[index].exists())return;trx.set(refs[index],{...record.data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});created++;});
+    trx.set(userRef(uid),{defaultCategoryTemplateVersion:version,updatedAt:serverTimestamp()},{merge:true});
+    return created;
+  });
+}
