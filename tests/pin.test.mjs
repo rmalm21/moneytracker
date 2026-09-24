@@ -52,3 +52,19 @@ test('forecast follows the spending pace and uses last cycle while this one is n
   assert.equal(frugal.untilPayday, 1_800_000);
   assert.equal(forecast({ ...base, free: 500_000 }).status, 'minus');
 });
+
+import { cumulativeSpending, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '../lib/insights.ts';
+const tx = (over) => ({ id: Math.random().toString(36), type: 'expense', amount: 10_000, date: '2026-09-21', time: '', walletId: 'a', destinationWalletId: null, categoryId: 'c', subcategoryId: null, merchant: '', description: '', notes: '', tags: [], claimId: null, debtId: null, receivableId: null, fundId: null, recurringTransactionId: null, draftId: null, adjustmentDirection: 'in', ...over });
+test('analysis helpers group spending by weekday, time, size, place and wallet', () => {
+  const items = [tx({ date: '2026-09-21', time: '08:10', merchant: 'Kopi Kenangan' }), tx({ date: '2026-09-21', amount: 150_000, time: '20:00', description: 'Belanja bulanan' }), tx({ date: '2026-09-27', amount: 30_000, merchant: 'kopi kenangan' }), tx({ type: 'transfer', amount: 100_000, destinationWalletId: 'b', transferFee: 2_500 }), tx({ type: 'income', amount: 500_000, walletId: 'b' })];
+  const week = weekdaySpending(items, { start: '2026-09-21', end: '2026-09-28' });
+  assert.equal(week[0].total, 160_000 + 2_500); assert.equal(week[6].total, 30_000); assert.equal(week[0].occurrences, 1);
+  const time = timeOfDaySpending(items); assert.equal(time.rows[1].total, 10_000); assert.equal(time.rows[4].total, 150_000);
+  assert.deepEqual(sizeBands(items).map(b => b.count), [2, 1, 1, 0]);
+  assert.deepEqual(topPlaces(items)[1], { name: 'Kopi Kenangan', total: 40_000, count: 2 });
+  const flows = walletFlows(items, [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
+  assert.deepEqual(flows.find(f => f.id === 'b'), { id: 'b', name: 'B', icon: undefined, color: undefined, in: 600_000, out: 0, net: 600_000 });
+  assert.equal(flows.find(f => f.id === 'a').out, 10_000 + 150_000 + 30_000 + 102_500);
+  const cumulative = cumulativeSpending(items, { start: '2026-09-21', end: '2026-09-28' });
+  assert.equal(cumulative[0], 162_500); assert.equal(cumulative[6], 192_500);
+});
