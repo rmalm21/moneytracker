@@ -1,0 +1,7 @@
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import { AppProvider } from '@/components/app-provider';
+export const metadata: Metadata = {title:'Dompet Ajaib — uang jelas, keputusan tenang',description:'Catat uang, anggaran, utang, dan dana yang sudah punya tujuan.',applicationName:'Dompet Ajaib',manifest:'/manifest.webmanifest',appleWebApp:{capable:true,title:'Dompet Ajaib'}};
+export const viewport:Viewport={width:'device-width',initialScale:1,themeColor:'#122d40'};
+const themeBoot="try{var u=localStorage.getItem('dompet-ajaib:appearance:last'),p=u&&JSON.parse(localStorage.getItem('dompet-ajaib:appearance:'+u)||'null');if(p&&p.uid===u){var r=document.documentElement;r.dataset.preset=p.themePreset||'default';r.dataset.theme=p.colorMode==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p.colorMode||p.theme||'light';r.dataset.density=p.density||'comfortable';if(/^#[0-9a-fA-F]{6}$/.test(p.accentColor||'')){r.style.setProperty('--accent',p.accentColor);r.style.setProperty('--accent-soft',p.accentColor+'20')}}}catch(e){}";
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="id"><head><script dangerouslySetInnerHTML={{__html:themeBoot}}/></head><body><AppProvider>{children}</AppProvider><script dangerouslySetInnerHTML={{__html:"if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));"}}/></body></html>}

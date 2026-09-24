@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function own(userId) { return request.auth != null && request.auth.uid == userId; }
+    function canPay(userId, walletId) {
+      let wallet = get(/databases/$(database)/documents/users/$(userId)/wallets/$(walletId));
+      return wallet.data.get('isArchived', false) == false
+        && wallet.data.get('isSpendable', true) == true
+        && wallet.data.get('canPay', true) == true;
+    }
+    function expenseAllowed(userId, previous) {
+      return request.resource.data.get('type', '') != 'expense'
+        || (previous != null && previous.data.get('type', '') == 'expense'
+            && previous.data.get('walletId', '') == request.resource.data.get('walletId', ''))
+        || canPay(userId, request.resource.data.get('walletId', ''));
+    }
+    match /users/{userId} {
+      allow read, write: if own(userId);
+      match /transactions/{transactionId} {
+        allow read, delete: if own(userId);
+        allow create: if own(userId) && expenseAllowed(userId, null);
+        allow update: if own(userId) && expenseAllowed(userId, resource);
+      }
+      match /{collectionName}/{documentId} {
+        allow read, write: if own(userId) && collectionName != 'transactions';
+      }
+    }
+  }
+}

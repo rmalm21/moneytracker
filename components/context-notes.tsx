@@ -1,0 +1,16 @@
+'use client';
+import { useState, type FormEvent } from 'react';
+import { MoreHorizontal, Pin } from 'lucide-react';
+import { useApp } from './app-provider';
+import { Confirm } from './ui/alert-dialog';
+import { Button } from './ui/button';
+import { Input } from './fields';
+import { changeContextNote } from '@/lib/firestore';
+import type { ContextNote } from '@/lib/types';
+
+export function ContextNotes({kind,id,notes=[],legacy,notify}:{kind:'receivables'|'claims'|'debts'|'funds'|'wallets';id:string;notes?:ContextNote[];legacy?:string;notify:(message:string)=>void}){
+ const {user}=useApp();const [text,setText]=useState(''),[editing,setEditing]=useState<string|null>(null),[expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const ordered=[...notes].sort((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))||b.createdAt.localeCompare(a.createdAt));
+ async function change(change:Parameters<typeof changeContextNote>[3],message:string){if(!user)return;setBusy(true);setError('');try{await changeContextNote(user.uid,kind,id,change);notify(message);if(change.kind==='add'||change.kind==='edit'){setText('');setEditing(null)}}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ function submit(event:FormEvent){event.preventDefault();if(editing)void change({kind:'edit',id:editing,text},'Catatan diperbarui.');else void change({kind:'add',text},'Catatan ditambahkan.')}
+ return <details className="context-notes"><summary>Catatan {notes.length?`(${notes.length})`:''}</summary><div className="context-notes-body">{legacy&&<p className="legacy-note">{legacy}</p>}{(expanded?ordered:ordered.slice(0,3)).map(note=><div className="note-entry" key={note.id}><div><small>{note.pinned&&<Pin size={12} aria-label="Disematkan"/>} {new Date(note.createdAt).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small><p>{note.text}</p>{note.updatedAt&&<small>Diedit</small>}</div><details className="more-actions"><summary aria-label="Pilihan catatan"><MoreHorizontal size={18}/></summary><div className="more-menu"><button onClick={()=>void change({kind:'pin',id:note.id},'Sematan catatan diperbarui.')}>{note.pinned?'Lepas sematan':'Sematkan'}</button><button onClick={()=>{setEditing(note.id);setText(note.text)}}>Edit</button><Confirm title="Hapus catatan?" description="Saldo dan riwayat transaksi tidak berubah." onConfirm={()=>change({kind:'delete',id:note.id},'Catatan dihapus.')}><button>Hapus</button></Confirm></div></details></div>)}{ordered.length>3&&<button className="link-button" onClick={()=>setExpanded(x=>!x)}>{expanded?'Tampilkan 3 catatan':'Lihat semua catatan'}</button>}<form onSubmit={submit} className="note-form"><Input value={text} onChange={e=>setText(e.target.value)} placeholder="Tulis perkembangan atau kesepakatan…" aria-label="Isi catatan" required/><div className="toolbar-row">{editing&&<button type="button" className="link-button" onClick={()=>{setEditing(null);setText('')}}>Batal edit</button>}<Button disabled={busy||!text.trim()} type="submit" className="small">{editing?'Simpan edit':'Tambah catatan'}</Button></div></form>{error&&<p className="form-error" role="alert">{error}</p>}</div></details>;
+}

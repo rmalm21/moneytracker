@@ -1,0 +1,25 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
+import { useApp } from './app-provider';
+import { Button } from './ui/button';
+import { Input } from './fields';
+import { applyAppearance, effectiveMode, themes, validAccent } from '@/lib/appearance';
+import { saveProfile } from '@/lib/firestore';
+import type { ColorMode, Profile, ThemePreset } from '@/lib/types';
+
+type Draft={preset:ThemePreset;mode:ColorMode;accent:string;density:'comfortable'|'compact'};
+const fromProfile=(profile:Profile|null):Draft=>({preset:profile?.themePreset||'default',mode:profile?.colorMode||profile?.theme||'light',accent:profile?.accentColor||'',density:profile?.density||'comfortable'});
+export function AppearanceSettings({notify:_notify}:{notify:(message:string)=>void}){
+ const {user,profile}=useApp();const [draft,setDraft]=useState<Draft>(()=>fromProfile(profile)),[status,setStatus]=useState(''),[retry,setRetry]=useState(0);const dirty=useRef(false),queue=useRef(Promise.resolve()),revision=useRef(0);
+ const mode=effectiveMode(draft.mode,profile?.theme),valid=!draft.accent||validAccent(draft.accent,mode);
+ useEffect(()=>{dirty.current=false;setDraft(fromProfile(profile));setStatus('')},[profile?.uid]);
+ useEffect(()=>{if(profile&&!dirty.current)setDraft(fromProfile(profile))},[profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density]);
+ useEffect(()=>{if(profile)applyAppearance({...profile,themePreset:draft.preset,colorMode:draft.mode,accentColor:valid?draft.accent:'',density:draft.density})},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,draft.preset,draft.mode,draft.accent,draft.density,valid]);
+ useEffect(()=>{if(!profile||!user||!dirty.current||!valid)return;const timer=setTimeout(()=>{
+  setStatus('Menyimpan…');const payload={themePreset:draft.preset,colorMode:draft.mode,accentColor:draft.accent,density:draft.density,theme:mode};const uid=user.uid,version=revision.current;
+  queue.current=queue.current.catch(()=>{}).then(async()=>{await saveProfile(uid,payload);if(user.uid===uid&&revision.current===version){dirty.current=false;setStatus('Tersimpan untuk akun ini.')}}).catch(e=>{if(user.uid===uid&&revision.current===version)setStatus((e as Error).message||'Belum tersimpan. Coba lagi.')});
+ },350);return()=>clearTimeout(timer)},[draft.preset,draft.mode,draft.accent,draft.density,valid,retry,profile?.uid,user?.uid]);
+ function choose(changes:Partial<Draft>){dirty.current=true;revision.current++;setStatus('');setDraft(current=>({...current,...changes}))}
+ return <div className="panel appearance-settings"><h3>Tema & tampilan</h3><p className="muted">Pilihan langsung terlihat dan disimpan otomatis.</p><h4>Palet warna</h4><div className="theme-choices">{themes.map(theme=><button type="button" key={theme.value} aria-pressed={draft.preset===theme.value} className={draft.preset===theme.value?'active':''} onClick={()=>choose({preset:theme.value,accent:''})}><i style={{background:theme.color}}/><span>{theme.label}</span>{draft.preset===theme.value&&<Check size={15}/>}</button>)}</div><h4>Mode layar</h4><div className="segment">{(['system','light','dark'] as const).map(option=><button type="button" key={option} className={draft.mode===option?'active':''} onClick={()=>choose({mode:option})}>{option==='system'?'Sistem':option==='light'?'Terang':'Gelap'}</button>)}</div><details className="disclosure"><summary>Warna sendiri & kepadatan tampilan</summary><h4>Warna aksen (opsional)</h4><div className="accent-control"><Input type="color" aria-label="Pilih warna aksen" value={/^#[0-9a-fA-F]{6}$/.test(draft.accent)?draft.accent:themes.find(theme=>theme.value===draft.preset)?.color} onChange={event=>choose({accent:event.target.value})}/><Input value={draft.accent} onChange={event=>choose({accent:event.target.value})} placeholder="Ikuti tema atau tulis #A95248" maxLength={7}/></div>{!valid&&<small className="amount-negative">Pilih warna yang cukup jelas agar tulisan terbaca.</small>}<h4>Kepadatan</h4><div className="segment">{(['comfortable','compact'] as const).map(option=><button type="button" key={option} className={draft.density===option?'active':''} onClick={()=>choose({density:option})}>{option==='comfortable'?'Nyaman':'Ringkas'}</button>)}</div></details><div className="appearance-preview"><span className="eyebrow ink">CONTOH TAMPILAN</span><div className="preview-card"><small>Uang Bebas</small><strong>Rp2.450.000</strong><div className="progress-track"><div className="progress-fill" style={{width:'64%'}}/></div><Button type="button" className="small">Contoh tombol</Button></div></div>{status&&<div className="toolbar-row"><small className={status.includes('Belum')?'form-error':'muted'} role="status">{status}</small>{status.includes('Belum')&&<Button type="button" variant="secondary" onClick={()=>{dirty.current=true;setRetry(n=>n+1)}}>Coba simpan lagi</Button>}</div>}</div>;
+}
