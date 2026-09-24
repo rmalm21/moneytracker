@@ -11,7 +11,6 @@ type Row = CategorySlice & { pct: number; fill: string };
 const RAD = Math.PI / 180;
 const MIN_LABEL = .05;
 const percent = (value: number) => `${Math.round(value * 100)}%`;
-const shortName = (name: string) => name.length > 13 ? `${name.slice(0, 12)}…` : name;
 
 /** Spending by category: donut with labelled slices, a total in the middle, and a clickable legend with the change vs the previous period. */
 export function CategoryDonut({ slices, previous, previousReady, navigate, basis, rangeFocus = '' }: { slices: CategorySlice[]; previous: CategorySlice[]; previousReady: boolean; navigate: (view: string, focus?: string) => void; basis: string; rangeFocus?: string }) {
@@ -26,19 +25,34 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
   const active = rows.find(row => row.id === selected);
   const toggle = (id: string) => { setTouched(true); setSelected(current => current === id ? null : id); };
 
-  const label = (props: { cx?: number; cy?: number; midAngle?: number; outerRadius?: number; index?: number }) => {
+  type SliceProps = { cx?: number; cy?: number; midAngle?: number; outerRadius?: number; index?: number; points?: { x: number; y: number }[] };
+  /** Where a slice label goes, or null when there is no room beside the ring (the centre and legend still show it). */
+  const place = (props: SliceProps) => {
     const row = rows[props.index ?? 0];
-    if (!row || row.pct < MIN_LABEL) return null;
-    const angle = -(props.midAngle ?? 0) * RAD, radius = (props.outerRadius ?? 0) + 22;
-    const x = (props.cx ?? 0) + radius * Math.cos(angle), y = (props.cy ?? 0) + radius * Math.sin(angle), right = x >= (props.cx ?? 0);
-    const faded = selected && selected !== row.id;
-    return <g opacity={faded ? .35 : 1}><text x={x} y={y - 3} textAnchor={right ? 'start' : 'end'} className="donut-label-name">{shortName(row.name)}</text><text x={x} y={y + 11} textAnchor={right ? 'start' : 'end'} className="donut-label-pct">{percent(row.pct)}</text></g>;
+    if (!row || rows.length < 2 || row.pct < MIN_LABEL) return null;
+    const cx = props.cx ?? 0, outer = props.outerRadius ?? 0, angle = -(props.midAngle ?? 0) * RAD, cos = Math.cos(angle), right = cos >= 0, edge = 6, charWidth = 6.4;
+    const x0 = cx + (outer + 22) * cos, y = (props.cy ?? 0) + (outer + 22) * Math.sin(angle);
+    const vertical = Math.abs(Math.sin(angle)) > .8;
+    // Room between the card edge and the ring (or the whole side when the label sits above/below the ring).
+    const room = vertical ? (right ? cx * 2 - edge - x0 : x0 - edge) : (right ? cx * 2 - edge - (cx + outer * Math.abs(cos) + 4) : (cx - outer * Math.abs(cos) - 4) - edge);
+    const fit = Math.floor(room / charWidth);
+    if (fit < 4) return null;
+    const full = row.name, name = full.length <= Math.min(fit, 13) ? full : `${full.slice(0, Math.min(fit, 13) - 1)}…`;
+    const width = Math.max(name.length, 4) * charWidth;
+    const x = right ? Math.min(Math.max(x0, vertical ? x0 : cx + outer * Math.abs(cos) + 4), cx * 2 - edge - width) : Math.max(Math.min(x0, vertical ? x0 : cx - outer * Math.abs(cos) - 4), edge + width);
+    return { row, x, y, right, name };
   };
-  const line = (props: { points?: { x: number; y: number }[]; index?: number }) => {
-    const row = rows[props.index ?? 0], points = props.points || [];
-    if (!row || row.pct < MIN_LABEL || points.length < 2) return <g/>;
+  const label = (props: SliceProps) => {
+    const spot = place(props);
+    if (!spot) return null;
+    const faded = selected && selected !== spot.row.id;
+    return <g opacity={faded ? .35 : 1}><text x={spot.x} y={spot.y - 3} textAnchor={spot.right ? 'start' : 'end'} className="donut-label-name">{spot.name}</text><text x={spot.x} y={spot.y + 11} textAnchor={spot.right ? 'start' : 'end'} className="donut-label-pct">{percent(spot.row.pct)}</text></g>;
+  };
+  const line = (props: SliceProps) => {
+    const spot = place(props), points = props.points || [];
+    if (!spot || points.length < 2) return <g/>;
     const [a, b] = points;
-    return <path d={`M${a.x},${a.y}L${b.x},${b.y}`} stroke={row.fill} strokeWidth={1.5} fill="none" opacity={selected && selected !== row.id ? .35 : .9}/>;
+    return <path d={`M${a.x},${a.y}L${b.x},${b.y}`} stroke={spot.row.fill} strokeWidth={1.5} fill="none" opacity={selected && selected !== spot.row.id ? .35 : .9}/>;
   };
 
   return <div className="donut-layout">
