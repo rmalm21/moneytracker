@@ -4031,31 +4031,35 @@ html, body { overscroll-behavior-x: none; }
 }
 .book-widget > summary strong.amount-positive { color: var(--positive); }
 .book-body { display: grid; gap: 14px; }
-.book-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 11%, var(--paper)), color-mix(in srgb, var(--accent) 3%, var(--paper))); }
+.book-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 11%, var(--paper)), color-mix(in srgb, var(--accent) 3%, var(--paper))); }
 .book-head > div { display: grid; gap: 2px; min-width: 0; }
-.book-head small { color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.book-head strong { font: 800 1.45rem/1.15 var(--font-head); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.book-head small { color: var(--muted); font-size: .74rem; font-weight: 500; }
+.book-head strong { font: 700 1.15rem/1.2 var(--font-head); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .book-vs { justify-items: end; text-align: right; }
-.book-vs b { font-size: .86rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.book-vs b { font-size: .8rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); }
 .book-head small { white-space: nowrap; }
 .book-section { display: grid; gap: 2px; }
-.book-section > header { display: grid; grid-template-columns: 1fr auto 58px; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--paper-2); font-weight: 800; }
-.book-section > header b { font-variant-numeric: tabular-nums; }
+.book-section > header { display: grid; grid-template-columns: 1fr auto 54px; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--paper-2); font-size: .86rem; font-weight: 600; }
+.book-section > header b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .book-section > header > :last-child { justify-self: end; }
 .book-section ul { list-style: none; margin: 0; padding: 0; display: grid; }
 .book-section li + li { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
-.book-section li button { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 58px; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 12px 6px 6px; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+.book-section li button { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 54px; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 5px 10px 5px 4px; font-size: .86rem; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
 .book-section li button:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
-.book-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--identity-color, var(--accent)) 16%, var(--paper)); font-size: 1rem; }
-.book-icon .emoji { width: 20px; height: 20px; }
+.book-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--identity-color, var(--accent)) 16%, var(--paper)); font-size: 1rem; }
+.book-icon .emoji { width: 16px; height: 16px; }
 .book-icon > .brand-icon { width: 100%; height: 100%; font-size: .7rem; }
-.book-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.book-amount { font-variant-numeric: tabular-nums; font-weight: 700; }
+.book-name { min-width: 0; font-weight: 400; line-height: 1.3; overflow-wrap: anywhere; }
+.book-amount { font-variant-numeric: tabular-nums; font-weight: 500; }
 .book-delta { justify-self: end; }
+.book-widget :is(.book-delta, .book-section > header, .book-vs) .delta { font-size: .72rem; font-weight: 600; }
+.panel.widget-details.book-widget > summary > strong { font-size: .95rem; font-weight: 600; }
+.book-widget .book-head strong { font-weight: 600; }
+.book-widget > summary small { font-size: .74rem; }
 .book-delta i { color: var(--muted); font-style: normal; }
 .book-empty { margin: 6px 12px; color: var(--muted); font-size: .86rem; }
-.book-more { padding: 4px 12px; color: var(--muted); }
-.book-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); color: var(--accent); font: inherit; font-weight: 800; cursor: pointer; }
+.book-more { padding: 4px 10px; color: var(--muted); font-size: .76rem; }
+.book-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); color: var(--accent); font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
 .book-link:hover { background: color-mix(in srgb, var(--accent) 15%, var(--paper)); }
 
 /* ==========================================================================
