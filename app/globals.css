@@ -1864,6 +1864,66 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   46. Settings: grouped menu + one page per section (two panes on desktop)
+   ========================================================================== */
+.set-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.set-menu { display: grid; gap: 18px; min-width: 0; }
+.set-hero { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000)); color: var(--accent-on); box-shadow: var(--elev-1); }
+.set-hero .settings-avatar { flex: none; width: 48px; height: 48px; border-radius: 16px; background: color-mix(in srgb, #fff 18%, transparent); color: inherit; font: 800 1.25rem/1 var(--font-head); display: grid; place-items: center; }
+.set-hero > div { display: grid; gap: 2px; min-width: 0; }
+.set-hero strong { font: 800 1.08rem/1.2 var(--font-head); }
+.set-hero small { color: inherit; opacity: .8; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.set-group { display: grid; gap: 8px; }
+.set-group > h2 { margin: 0 4px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.set-list { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: var(--elev-1); }
+.set-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background .14s ease; }
+.set-row + .set-row { border-top: 1px solid var(--line); }
+.set-row:hover { background: color-mix(in srgb, var(--accent) 5%, var(--paper)); }
+.set-row.is-active { background: var(--accent-soft); }
+.set-row:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -3px; }
+.set-row-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; color: #fff; background: var(--accent); }
+.set-row-icon.tone-teal { background: #1f8a7a; } .set-row-icon.tone-blue { background: #3b6fd4; } .set-row-icon.tone-amber { background: #d98a1e; }
+.set-row-icon.tone-pink { background: #d4568a; } .set-row-icon.tone-violet { background: #7a5bc9; } .set-row-icon.tone-green { background: #3f8f4f; } .set-row-icon.tone-slate { background: #5a6b76; }
+.set-row-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.set-row-text strong { font-size: .95rem; }
+.set-row-text small { color: var(--muted); font-size: .78rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.set-row-arrow { flex: none; color: var(--muted); }
+.set-row.is-active .set-row-arrow { color: var(--accent); }
+.set-version { text-align: center; color: var(--muted); font-size: .76rem; }
+.set-page { display: grid; gap: 16px; min-width: 0; animation: view-in .2s var(--ease-out) both; }
+.set-page-head { display: flex; align-items: center; gap: 12px; }
+.set-page-head .set-row-icon { width: 44px; height: 44px; border-radius: 14px; }
+.set-page-head h2 { margin: 0; font: 800 1.3rem/1.2 var(--font-head); }
+.set-page-head p { margin: 2px 0 0; color: var(--muted); font-size: .86rem; }
+.set-back { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); cursor: pointer; }
+.set-back:hover { border-color: var(--accent); color: var(--accent); }
+.set-form { display: grid; gap: 14px; }
+.set-card, .set-form > .panel { display: grid; gap: 12px; align-content: start; margin: 0; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: none; }
+.set-card > h3, .set-form > .panel > h3 { margin: 0; font-size: 1rem; }
+.set-card > p { margin: -6px 0 2px; color: var(--muted); font-size: .84rem; line-height: 1.45; }
+.set-card .form-grid { margin: 0; }
+.set-form > .reminder-settings > h3:first-child, .set-form > .install-panel > h3:first-child { display: none; }
+.set-switches { display: grid; gap: 0; }
+.set-form .switch-row { border: 0; border-radius: 0; padding: 12px 0; background: transparent; }
+.set-form .switch-row + .switch-row { border-top: 1px solid var(--line); }
+.set-form .reminder-settings > .switch-row { border-top: 1px solid var(--line); }
+.set-form .reminder-settings > .switch-row:first-of-type { border-top: 0; }
+.set-save { position: static; z-index: 3; display: flex; justify-content: flex-end; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); box-shadow: var(--elev-2, var(--elev-1)); }
+.set-save .btn { min-height: 44px; padding-inline: 22px; border-radius: 12px; gap: 8px; }
+.set-form > .form-error, .set-card .form-error { margin: 0; }
+@media (min-width: 900px) {
+  .set-layout { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 24px; }
+  .set-menu { position: sticky; top: 88px; }
+}
+@media (max-width: 899px) {
+  .set-layout.has-page > .set-menu { display: none; }
+  .set-page-head h2 { font-size: 1.15rem; }
+  .set-card, .set-form > .panel { padding: 16px; }
+  .set-save { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .set-save .btn { flex: 1; }
+}
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
