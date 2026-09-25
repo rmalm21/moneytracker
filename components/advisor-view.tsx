@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Star, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Star, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { usePeriodTransactions } from './period-selector';
@@ -53,6 +53,7 @@ function Ring({ score, tone }: { score: number; tone: Tone }) {
   </div>;
 }
 
+const partIcons: Record<string, LucideIcon> = { savings: Coins, emergency: ShieldCheck, debt: CreditCard, budget: Target, runway: CalendarClock, trend: TrendingUp };
 const toneWord: Record<Tone, string> = { bad: 'Mendesak', warn: 'Perhatian', good: 'Peluang', info: 'Info' };
 
 /** The headline number of a finding: latest value, how it compares with earlier periods, and the trend line. */
@@ -202,24 +203,24 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       </div>
     </section>
 
-    <div className="ins-parts">{advice.parts.map(p => <div key={p.key} className={`ins-part ${p.score >= 75 ? 'good' : p.score >= 50 ? 'ok' : 'low'}`}>
-      <span>{p.label}</span>
+    <div className="ins-parts">{advice.parts.map(p => { const level = p.score >= 75 ? 'good' : p.score >= 50 ? 'warn' : 'bad'; const PartIcon = partIcons[p.key] || Gauge; return <div key={p.key} className={`ins-part tone-${level}`}>
+      <div className="ins-part-top"><span className="ins-part-icon" aria-hidden="true"><PartIcon size={17}/></span><span className="ins-part-label">{p.label}</span><em>{level === 'good' ? 'Baik' : level === 'warn' ? 'Cukup' : 'Rendah'}</em></div>
       <strong>{p.value}</strong>
-      <i><b style={{ width: `${Math.max(4, p.score)}%` }}/></i>
+      <i role="img" aria-label={`Skor ${Math.round(p.score)} dari 100`}><b style={{ width: `${Math.max(4, p.score)}%` }}/></i>
       <small>{p.hint}</small>
-    </div>)}</div>
+    </div>; })}</div>
 
     {!advice.enoughHistory && <div className="notice">Baru {advice.cyclesUsed} siklus gaji yang punya catatan. Saran tentang anggaran dan kategori yang longgar muncul setelah minimal 2 siklus lengkap.</div>}
 
     <section className="ins-section">
       <SectionHead icon={Lightbulb} title="Rencana aksi" hint="Langkah paling berdampak, diurutkan dari yang paling mendesak."/>
-      {actions.length ? <div className="ins-grid">{actions.map((f, i) => card(f, i))}</div> : <p className="ins-empty">Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya.</p>}
+      {actions.length ? <div className="ins-grid">{actions.map((f, i) => card(f, i))}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya.</p>}
     </section>
 
     {advice.enoughHistory && <div className="ins-duo">
       <section className="panel ins-box">
         <SectionHead icon={Gauge} title="Pola per siklus" hint="Pemasukan dan pengeluaran tiap siklus gaji."/>
-        <div className="ins-bars" role="img" aria-label={advice.cycles.map(c => `${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`).join('; ')}>{advice.cycles.map(c => <div key={c.label} className="ins-bar-col">
+        <div className="ins-bars" role="img" aria-label={advice.cycles.map(c => `${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`).join('; ')}>{advice.cycles.map(c => <div key={c.label} className="ins-bar-col" title={`${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`}>
           <div className="ins-bar-pair"><i className="in" style={{ height: `${c.income / maxCycle * 100}%` }}/><i className="out" style={{ height: `${c.expense / maxCycle * 100}%` }}/></div>
           <small>{c.label}</small>
         </div>)}</div>
@@ -246,11 +247,11 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
         {active.key === 'cats'
           ? topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => navigate('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
             <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
-            <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small></span>
+            <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small><i className="ins-cat-share" style={identityStyle(c.color)}><b style={{ width: `${Math.max(3, Math.round(c.share / Math.max(...topCats.map(x => x.share), .01) * 100))}%` }}/></i></span>
             <Spark values={[...c.history, c.projected]}/>
             <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
-          </button>)}</div> : <p className="ins-empty">{active.empty}</p>
-          : active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f, undefined, active.key === 'important' ? source.get(f.id) : undefined))}</div> : <p className="ins-empty">{active.empty}</p>}
+          </button>)}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>
+          : active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f, undefined, active.key === 'important' ? source.get(f.id) : undefined))}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>}
       </div>
     </section>
 
