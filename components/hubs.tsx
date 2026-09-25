@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import { BookOpenText, CalendarClock, HandCoins, type LucideIcon } from 'lucide-react';
 
 /** Related pages grouped under one menu entry and switched with tabs. Page keys stay the same for links. */
@@ -18,6 +19,9 @@ export const menuKeyOf = (view: string) => hubOf(view)?.key || parents[view] || 
 
 export function HubTabs({ view, onSelect }: { view: string; onSelect: (key: string) => void }) {
   const hub = hubOf(view);
+  const bar = useRef<HTMLDivElement>(null);
+  // Keep the active tab visible (e.g. after swiping to it).
+  useEffect(() => { bar.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }, [view]);
   if (!hub) return null;
-  return <div className="hub-tabs" role="tablist" aria-label={hub.label}>{hub.tabs.map(([key, label]) => <button type="button" role="tab" key={key} aria-selected={view === key} className={view === key ? 'active' : ''} onClick={() => onSelect(key)}>{label}</button>)}</div>;
+  return <div className="hub-tabs" role="tablist" aria-label={hub.label} ref={bar}>{hub.tabs.map(([key, label]) => <button type="button" role="tab" key={key} aria-selected={view === key} className={view === key ? 'active' : ''} onClick={() => onSelect(key)}>{label}</button>)}</div>;
 }

@@ -118,7 +118,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
     </section> : !shown.length ? <p className="ins-empty"><Sparkles size={18}/>{tab === 'bought' ? 'Belum ada impian yang tercapai. Semangat menyisihkan!' : 'Semua impian sudah tercapai. Tambahkan impian baru!'}</p> :
     <div className="wl-grid">{shown.map(w => {
       const ready = readiness(w, freeAfterBills, income, today), e = eta(w, today), pct = progress(w), wait = coolingLeft(w, income, today), done = w.status === 'bought';
-      return <article key={w.id} className={`wl-card ${done ? 'is-bought' : ''} is-${ready.kind}`} data-sort-id={tab === 'active' && sort === 'manual' ? w.id : undefined} style={{ '--wish': w.color || wishColors[0] } as CSSProperties}>
+      return <article key={w.id} className={`wl-card ${done ? 'is-bought' : ''} is-${ready.kind}`} data-sort-id={tab === 'active' && sort === 'manual' ? w.id : undefined}>
         <div className="wl-visual">
           {tab === 'active' && sort === 'manual' && active.length > 1 && <ReorderHandle id={w.id} onMove={move}/>}
           <span className="wl-priority" title={priorityLabels[w.priority]}>{[1, 2, 3].map(i => <Star key={i} size={12} className={i <= 4 - w.priority ? 'on' : ''}/>)}</span>
@@ -151,7 +151,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
 
     {/* Add / edit */}
     <Dialog open={formOpen} onOpenChange={setFormOpen}><DialogContent title={editing ? 'Ubah impian' : 'Tambah impian'} className="wish-dialog">
-      <div className="wl-preview" style={{ '--wish': draft.color } as CSSProperties}>
+      <div className="wl-preview">
         <span className="wl-emoji"><BigEmoji e={draft.emoji}/></span>
         <div><strong>{draft.name || 'Nama impian'}</strong><span>{draft.price ? rupiah(draft.price) : 'Rp0'}</span><small>{draftEta ? (draftEta.months ? `Tercapai ± ${draftEta.months} bulan (${monthName(draftEta.date)})` : 'Sudah terkumpul') : draft.price ? `Masa pikir-pikir ${coolingDays(draft.price, income)} hari sebelum beli` : 'Isi harga untuk melihat perkiraan'}</small></div>
       </div>
@@ -159,7 +159,6 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
         <Field label="Nama impian"><Input required value={draft.name} onChange={event => setDraft(d => ({ ...d, name: event.target.value }))} placeholder="contoh: Headphone noise cancelling"/></Field>
         <div className="form-grid"><Field label="Harga"><Money value={draft.price} onChange={price => setDraft(d => ({ ...d, price }))} required/></Field>{!editing && <Field label="Sudah terkumpul (opsional)"><Money value={draft.saved} onChange={saved => setDraft(d => ({ ...d, saved }))}/></Field>}</div>
         <div className="wl-field"><span>Ikon</span><div className="wl-emoji-grid" role="radiogroup" aria-label="Ikon">{wishEmojis.map(e => <button type="button" role="radio" aria-checked={draft.emoji === e} key={e} className={draft.emoji === e ? 'active' : ''} onClick={() => setDraft(d => ({ ...d, emoji: e }))}><Emoji e={e}/></button>)}</div></div>
-        <div className="wl-field"><span>Warna kartu</span><div className="wl-colors" role="radiogroup" aria-label="Warna">{wishColors.map(c => <button type="button" role="radio" aria-checked={draft.color === c} aria-label={c} key={c} className={draft.color === c ? 'active' : ''} style={{ background: c }} onClick={() => setDraft(d => ({ ...d, color: c }))}>{draft.color === c && <Check size={14}/>}</button>)}</div></div>
         <div className="wl-field"><span>Prioritas</span><div className="ip-choices">{([1, 2, 3] as const).map(p => <button type="button" key={p} className={draft.priority === p ? 'active' : ''} aria-pressed={draft.priority === p} onClick={() => setDraft(d => ({ ...d, priority: p }))}>{draft.priority === p && <Check size={14}/>}{priorityLabels[p]}</button>)}</div></div>
         <div className="form-grid">
           <Field label="Target tanggal (opsional)"><Input type="date" value={draft.targetDate} min={today} onChange={event => setDraft(d => ({ ...d, targetDate: event.target.value }))}/></Field>
@@ -175,7 +174,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
     {/* Set aside */}
     <Dialog open={Boolean(saving)} onOpenChange={open => { if (!open) setSaving(null); }}><DialogContent title={takeOut ? 'Kurangi sisihan' : 'Sisihkan untuk impian'} className="wish-dialog">
       {saving && <>
-        <div className="wl-preview" style={{ '--wish': saving.color || wishColors[0] } as CSSProperties}><span className="wl-emoji"><BigEmoji e={saving.emoji}/></span><div><strong>{saving.name}</strong><span>{short(saving.saved || 0)} dari {short(saving.price)}</span><small>{takeOut ? 'Uang dikembalikan ke saldo bebas' : `Kurang ${short(remaining(saving))}`}</small></div></div>
+        <div className="wl-preview"><span className="wl-emoji"><BigEmoji e={saving.emoji}/></span><div><strong>{saving.name}</strong><span>{short(saving.saved || 0)} dari {short(saving.price)}</span><small>{takeOut ? 'Uang dikembalikan ke saldo bebas' : `Kurang ${short(remaining(saving))}`}</small></div></div>
         <p className="muted wl-explain">Menyisihkan tidak memindahkan saldo dompet — uangnya tetap di dompetmu, hanya ditandai untuk impian ini sehingga Insight tidak menganggapnya uang menganggur.</p>
         {!takeOut && <div className="ip-choices">{[50_000, 100_000, 250_000, 500_000].filter(v => v <= remaining(saving)).map(v => <button type="button" key={v} className={amount === v ? 'active' : ''} onClick={() => setAmount(v)}>+{short(v)}</button>)}<button type="button" className={amount === remaining(saving) ? 'active' : ''} onClick={() => setAmount(remaining(saving))}>Lunasi {short(remaining(saving))}</button></div>}
         <Field label="Jumlah"><Money value={amount} onChange={setAmount}/></Field>
@@ -186,7 +185,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
     {/* Buy */}
     <Dialog open={Boolean(buying)} onOpenChange={open => { if (!open) setBuying(null); }}><DialogContent title="Beli impian" className="wish-dialog">
       {buying && (() => { const wait = coolingLeft(buying, income, today), left = remaining(buying); return <>
-        <div className="wl-celebrate" style={{ '--wish': buying.color || wishColors[0] } as CSSProperties}><span className="wl-emoji"><BigEmoji e={buying.emoji}/></span><strong>{buying.name}</strong><span>{rupiah(buying.price)}</span></div>
+        <div className="wl-celebrate"><span className="wl-emoji"><BigEmoji e={buying.emoji}/></span><strong>{buying.name}</strong><span>{rupiah(buying.price)}</span></div>
         {wait > 0 && <p className="notice">Masih masa pikir-pikir <b>{wait} hari</b> lagi (ditambahkan {daysBetween(buying.addedDate, today)} hari lalu). Kalau setelah dipikir tetap ingin, silakan lanjut.</p>}
         {left > 0 && <p className="notice">Sisihan belum penuh — masih kurang <b>{rupiah(left)}</b> yang akan diambil dari saldo biasa.</p>}
         <label className="check-row"><input type="checkbox" checked={record} onChange={event => setRecord(event.target.checked)}/> Catat sebagai pengeluaran sekarang</label>

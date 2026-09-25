@@ -542,7 +542,14 @@ small.form-error { display: block; }
 .emoji-grid button:hover, .color-grid button:hover { border-color: var(--accent); }
 .emoji-grid button.selected, .color-grid button.selected { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .color-grid button i { width: 22px; height: 22px; border-radius: 7px; border: 1px solid #0002; }
-.sort-handle { display: inline-grid; place-items: center; flex: none; min-width: 32px; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: grab; touch-action: none; }
+.sort-handle { position: relative; display: inline-grid; place-items: center; flex: none; min-width: 32px; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: grab; touch-action: pan-y; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+@media (pointer: fine) { .sort-handle { touch-action: none; } }
+/* Touch: a ring fills up during the 2-second hold, then the row lifts. */
+@property --hold { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+.sort-handle::after { content: ''; position: absolute; inset: 1px; border-radius: 50%; pointer-events: none; opacity: 0; background: conic-gradient(var(--accent) var(--hold), transparent 0); -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%); }
+.sort-handle.is-holding { color: var(--accent); background: var(--accent-soft); }
+.sort-handle.is-holding::after { opacity: 1; animation: hold-fill 2s linear forwards; }
+@keyframes hold-fill { from { --hold: 0%; } to { --hold: 100%; } }
 .sort-handle:hover { color: var(--accent); background: var(--accent-soft); }
 .sort-handle:active { cursor: grabbing; }
 .sort-target { outline: 2px dashed var(--accent) !important; outline-offset: 3px; background: var(--accent-soft) !important; transition: outline-offset .15s ease; }
@@ -3602,6 +3609,50 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
   .il-moves { grid-column: 2; grid-row: 2; }
   .il-switch { grid-row: 1 / span 2; grid-column: 3; }
 }
+
+.view-enter.from-left { animation: view-from-right .28s cubic-bezier(.2, .8, .2, 1) both; }
+.view-enter.from-right { animation: view-from-left .28s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes view-from-right { from { opacity: .3; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes view-from-left { from { opacity: .3; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .view-enter.from-left, .view-enter.from-right { animation: none; } }
+
+
+/* 70b. Wish list: elegant frosted glass in the theme's own accent (no per-card colours) */
+.wl-card, .wl-preview, .wl-celebrate { --wish: var(--accent); }
+.wl-hero { color: var(--ink); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--paper)) 0%, color-mix(in srgb, var(--accent) 6%, var(--paper)) 100%); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); box-shadow: var(--card-shadow, var(--elev-1)); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.wl-hero::before { background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); }
+.wl-hero::after { background: radial-gradient(circle, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%); }
+.wl-hero small { color: var(--muted); }
+.wl-hero-main > span { color: var(--muted); }
+.wl-hero-main > span b { color: var(--ink); }
+.wl-hero-main strong { color: var(--ink); }
+.wl-hero-bar { background: color-mix(in srgb, var(--accent) 14%, var(--paper-2)); }
+.wl-hero-bar i { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, var(--paper)), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 35%, transparent); }
+.wl-hero-stats span { background: color-mix(in srgb, var(--paper) 62%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.wl-hero-stats strong { color: var(--ink); }
+.wl-hero-next { background: color-mix(in srgb, var(--paper) 55%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--line)); color: var(--muted); }
+.wl-hero-next b { color: var(--ink); }
+.wl-hero-next svg { color: var(--accent); }
+.wl-card { border-color: color-mix(in srgb, var(--accent) 14%, var(--line)); }
+@media (hover: hover) and (pointer: fine) { .wl-card:hover { box-shadow: var(--card-shadow-hover, var(--elev-2)); } }
+.wl-visual { background: radial-gradient(circle at 50% 75%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 60%), linear-gradient(165deg, color-mix(in srgb, var(--accent) 9%, var(--paper)), color-mix(in srgb, var(--accent) 3%, var(--paper))); border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, var(--line)); }
+.wl-card .wl-emoji { filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .14)); }
+.wl-priority { background: color-mix(in srgb, var(--paper) 70%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--line)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.wl-priority svg { color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.wl-priority svg.on { color: var(--accent); fill: var(--accent); }
+.wl-badge { background: color-mix(in srgb, var(--paper) 78%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: none; color: var(--ink); }
+.wl-badge.is-wait { color: var(--muted); background: color-mix(in srgb, var(--paper) 78%, transparent); }
+.wl-badge.is-ready, .wl-badge.is-done { color: var(--accent-on); background: var(--accent); border-color: transparent; }
+.wl-progress i { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, var(--paper)), var(--accent)); }
+.wl-progress span { color: var(--accent); }
+.wl-card.is-reached { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.wl-hint.is-affordable, .wl-hint.is-reached { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+.wl-hint.is-wait { color: var(--muted); background: var(--paper-2); }
+.wl-empty { background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 9%, var(--paper)), var(--paper) 70%); }
+.wl-preview, .wl-celebrate { background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 12%, var(--paper)), color-mix(in srgb, var(--accent) 4%, var(--paper))); border-color: color-mix(in srgb, var(--accent) 20%, var(--line)); }
+
+/* Horizontal swipes belong to the app (tab switching), not to the browser's back/forward gesture. */
+html, body { overscroll-behavior-x: none; }
 
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
