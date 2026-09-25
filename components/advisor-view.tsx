@@ -51,31 +51,31 @@ function Ring({ score, tone }: { score: number; tone: Tone }) {
 function FindingCard({ finding, index, onApply, onGo, onHide, busy }: { finding: Finding; index?: number; onApply: (apply: Apply, finding: Finding) => void; onGo: (view: string, focus?: string) => void; onHide?: (id: string) => void; busy: boolean }) {
   const Icon = toneIcon[finding.tone];
   const percent = finding.id.startsWith('shrink-') || finding.id.startsWith('tight-');
+  const series = finding.series, labels = finding.seriesLabels;
+  const last = series?.[series.length - 1];
   return <article className={`ins-card tone-${finding.tone}`}>
     <div className="ins-card-head">
-      {index !== undefined ? <span className="ins-step" aria-hidden="true">{index + 1}</span> : <span className="ins-card-icon" aria-hidden="true"><Icon size={17}/></span>}
+      {index !== undefined ? <span className="ins-step" aria-hidden="true">{index + 1}</span> : <span className="ins-card-icon" aria-hidden="true"><Icon size={16}/></span>}
       <h3>{finding.title}</h3>
       {onHide && <button type="button" className="ins-hide" aria-label={`Abaikan saran ${finding.title}`} title="Abaikan saran ini" onClick={() => onHide(finding.id)}><EyeOff size={15}/></button>}
     </div>
     <p>{finding.detail}</p>
-    {(finding.series || finding.saving || finding.apply || finding.target) && <div className="ins-card-foot">
-      {finding.series && <Spark values={finding.series} labels={finding.seriesLabels} percent={percent}/>}
+    {series && series.length > 1 && <div className="ins-evidence">
+      <Spark values={series} percent={percent}/>
+      <span><small>{labels?.[0]} – {labels?.[labels.length - 1]}</small><strong>{labels?.[labels.length - 1]}: {percent ? `${last}%` : short(last || 0)}</strong></span>
+    </div>}
+    {(finding.saving || finding.apply || finding.target) && <div className="ins-card-foot">
+      {finding.saving ? <span className="ins-saving">Hemat ±{short(finding.saving)}/bln</span> : <span/>}
       <div className="ins-card-actions">
-        {finding.saving ? <span className="ins-saving">Hemat ±{short(finding.saving)}/bln</span> : null}
+        {finding.target && <button type="button" className="btn btn-secondary small" onClick={() => onGo(finding.target!.view, finding.target!.focus)}>Lihat <ArrowRight size={14}/></button>}
         {finding.apply && <Button className="small" disabled={busy} onClick={() => onApply(finding.apply!, finding)}><Check size={15}/> {finding.apply.kind === 'create-budget' ? `Buat ${short(finding.apply.amount)}` : `Ubah ke ${short(finding.apply.amount)}`}</Button>}
-        {finding.target && <button type="button" className="link-button" onClick={() => onGo(finding.target!.view, finding.target!.focus)}>Lihat <ArrowRight size={14}/></button>}
       </div>
     </div>}
   </article>;
 }
 
-function Section({ icon: Icon, title, hint, items, empty, render, planned = 0 }: { icon: LucideIcon; title: string; hint?: string; items: Finding[]; empty?: string; render: (f: Finding) => React.ReactNode; planned?: number }) {
-  if (!items.length && !empty && !planned) return null;
-  if (!items.length && planned) empty = planned === 1 ? '1 saran di bagian ini sudah ada di Rencana aksi di atas.' : `${planned} saran di bagian ini sudah ada di Rencana aksi di atas.`;
-  return <section className="ins-section">
-    <header><span className="ins-section-icon" aria-hidden="true"><Icon size={17}/></span><div><h2>{title}</h2>{hint && <small>{hint}</small>}</div></header>
-    {items.length ? <div className="ins-grid">{items.map(render)}</div> : <p className="ins-empty">{empty}</p>}
-  </section>;
+function SectionHead({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
+  return <header className="ins-head"><span className="ins-section-icon" aria-hidden="true"><Icon size={17}/></span><div><h2>{title}</h2>{hint && <small>{hint}</small>}</div></header>;
 }
 
 export function AdvisorView({ navigate }: { navigate: (view: string, focus?: string) => void }) {
@@ -102,8 +102,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   function hide(id: string) { const next = [...new Set([...hidden, id])]; setHidden(next); if (user) try { localStorage.setItem(hiddenKey(user.uid), JSON.stringify(next)); } catch { /* per-device preference */ } }
   function restore() { setHidden([]); setShowHidden(false); if (user) try { localStorage.removeItem(hiddenKey(user.uid)); } catch { /* per-device preference */ } }
   const visible = (list: Finding[]) => showHidden ? list : list.filter(f => !hidden.includes(f.id));
-  // Sections below the action plan skip what the plan already shows.
-  const rest = (list: Finding[]) => { const shown = visible(list); const inPlan = new Set(advice?.actions.map(f => f.id)); return { items: shown.filter(f => !inPlan.has(f.id)), planned: shown.filter(f => inPlan.has(f.id)).length }; };
+  const [tab, setTab] = useState('');
 
   function apply(action: Apply, finding: Finding) {
     if (!user || busy) return;
@@ -117,8 +116,8 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     track(task, { pending: 'Menyimpan anggaran…', success: action.kind === 'create-budget' ? `Anggaran ${action.name} dibuat.` : 'Anggaran diperbarui.', failure: 'Anggaran belum tersimpan', after: () => setBusy('') });
   }
 
-  const card = (index?: boolean) => (f: Finding, i?: number) => <FindingCard key={f.id} finding={f} index={index ? i : undefined} onApply={apply} onGo={navigate} onHide={hide} busy={busy === f.id}/>;
-  const heading = <div className="page-heading"><div><h1>Insight</h1><p>Pemeriksaan keuangan otomatis dari riwayat transaksimu: apa yang perlu dikurangi, mana yang masih longgar, dan anggaran mana yang bisa ditekan. Dihitung di perangkat ini — datamu tidak dikirim ke mana pun.</p></div></div>;
+  const card = (f: Finding, i?: number) => <FindingCard key={f.id} finding={f} index={i} onApply={apply} onGo={navigate} onHide={hide} busy={busy === f.id}/>;
+  const heading = <div className="page-heading"><div><h1>Insight</h1><p>Saran otomatis dari riwayat transaksimu. Dihitung di perangkat ini, datamu tidak dikirim ke mana pun.</p></div></div>;
   if (!advice) return <>{heading}<div className="view-skeleton" aria-busy="true" aria-label="Menganalisis riwayat"><span/><span/><span/></div></>;
 
   const { summary: s } = advice;
@@ -127,6 +126,17 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const maxCycle = Math.max(1, ...advice.cycles.flatMap(c => [c.income, c.expense]));
   const hiddenCount = hidden.length;
   const topCats = advice.categories.filter(c => c.avg >= 10_000).slice(0, 8);
+  const tabs: { key: string; label: string; icon: LucideIcon; hint: string; items?: Finding[]; empty: string }[] = [
+    { key: 'reduce', label: 'Perlu dikurangi', icon: Scissors, hint: 'Pos keinginan yang besar, terus naik, atau siklus ini sudah melaju cepat.', items: visible(advice.reduce), empty: 'Tidak ada pos keinginan yang membengkak. Bagus!' },
+    { key: 'loose', label: 'Masih longgar', icon: TrendingDown, hint: 'Dibanding siklus-siklus sebelumnya pada hari yang sama.', items: visible(advice.loose), empty: 'Belum ada kategori yang jelas di bawah kebiasaannya.' },
+    { key: 'budget', label: 'Anggaran', icon: Wallet, hint: 'Ditekan bila jarang terpakai, dinaikkan bila selalu jebol, dibuat bila belum ada.', items: visible(advice.budgetTips), empty: 'Anggaranmu sudah pas dengan kebiasaan belanja.' },
+    { key: 'cats', label: 'Kategori', icon: Gauge, hint: 'Rata-rata per siklus dan arah trennya. Ketuk untuk melihat transaksinya.', empty: 'Belum ada pengeluaran.' },
+    { key: 'habits', label: 'Kebiasaan', icon: CalendarClock, hint: 'Pola waktu belanja dan kebocoran kecil yang menumpuk.', items: visible(advice.habits), empty: 'Tidak ada pola belanja yang mencolok.' },
+    { key: 'recurring', label: 'Rutin', icon: Repeat, hint: 'Pengeluaran tetap dan transaksi yang berulang tiap siklus.', items: visible(advice.recurring), empty: 'Belum ada pengeluaran rutin yang terdeteksi.' },
+    { key: 'duty', label: 'Kewajiban', icon: Landmark, hint: 'Utang, piutang, tujuan dana, dan dana darurat.', items: visible(advice.obligations), empty: 'Semua kewajiban dan tujuan dana aman.' },
+    { key: 'alerts', label: 'Peringatan', icon: AlertTriangle, hint: 'Transaksi tidak biasa dan bekal sampai gajian.', items: visible(advice.alerts), empty: 'Tidak ada peringatan.' },
+  ];
+  const active = tabs.find(t => t.key === tab) || tabs.find(t => t.items?.length) || tabs[0];
 
   return <div className="insight-page">
     {heading}
@@ -137,71 +147,69 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       <div className="ins-hero-text">
         <span className="ins-kicker"><BrainCircuit size={15}/> Skor kesehatan keuangan</span>
         <p className="ins-verdict">{advice.verdict}</p>
-        <div className="ins-chips">
-          <span><small>Rata-rata masuk</small><strong>{short(s.avgIncome)}</strong></span>
-          <span><small>Rata-rata keluar</small><strong>{short(s.avgExpense)}</strong></span>
-          <span><small>Sisa per siklus</small><strong>{pct(s.savingsRate)}</strong></span>
-          {potential > 0 && <span className="ins-chip-save"><small>Potensi hemat</small><strong>{short(potential)}/bln</strong></span>}
-        </div>
-        <small className="ins-basis">{advice.enoughHistory ? `Berdasarkan ${advice.cyclesUsed} siklus gaji terakhir + siklus berjalan (${s.daysLeft} hari lagi sampai gajian).` : 'Riwayat masih sedikit — saran akan makin tajam setelah 2 siklus gaji tercatat.'}</small>
+        <small className="ins-basis">{advice.enoughHistory ? `Dari ${advice.cyclesUsed} siklus gaji terakhir · ${s.daysLeft} hari lagi sampai gajian` : 'Riwayat masih sedikit — saran makin tajam setelah 2 siklus gaji tercatat.'}</small>
+      </div>
+      <div className="ins-chips">
+        <span><small>Rata-rata masuk</small><strong>{short(s.avgIncome)}</strong></span>
+        <span><small>Rata-rata keluar</small><strong>{short(s.avgExpense)}</strong></span>
+        <span><small>Sisa per siklus</small><strong>{pct(s.savingsRate)}</strong></span>
+        <span className="ins-chip-save"><small>Potensi hemat</small><strong>{potential > 0 ? `${short(potential)}/bln` : '–'}</strong></span>
       </div>
     </section>
 
-    <div className="ins-parts">{advice.parts.map(p => <div key={p.key} className={`ins-part ${p.score >= 75 ? 'good' : p.score >= 50 ? 'ok' : 'low'}`} title={p.hint}>
-      <div><span>{p.label}</span><strong>{p.value}</strong></div>
+    <div className="ins-parts">{advice.parts.map(p => <div key={p.key} className={`ins-part ${p.score >= 75 ? 'good' : p.score >= 50 ? 'ok' : 'low'}`}>
+      <span>{p.label}</span>
+      <strong>{p.value}</strong>
       <i><b style={{ width: `${Math.max(4, p.score)}%` }}/></i>
       <small>{p.hint}</small>
     </div>)}</div>
 
-    {!advice.enoughHistory && <div className="notice">Baru {advice.cyclesUsed} siklus gaji yang punya catatan. Saran tentang anggaran dan kategori yang longgar muncul setelah minimal 2 siklus lengkap. Sementara itu, skor dan peringatan di bawah sudah bisa dipakai.</div>}
+    {!advice.enoughHistory && <div className="notice">Baru {advice.cyclesUsed} siklus gaji yang punya catatan. Saran tentang anggaran dan kategori yang longgar muncul setelah minimal 2 siklus lengkap.</div>}
 
-    <Section icon={Lightbulb} title="Rencana aksi" hint="Langkah paling berdampak, diurutkan dari yang paling mendesak." items={actions} empty="Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya." render={card(true) as (f: Finding) => React.ReactNode}/>
+    <section className="ins-section">
+      <SectionHead icon={Lightbulb} title="Rencana aksi" hint="Langkah paling berdampak, diurutkan dari yang paling mendesak."/>
+      {actions.length ? <div className="ins-grid">{actions.map((f, i) => card(f, i))}</div> : <p className="ins-empty">Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya.</p>}
+    </section>
 
-    {advice.cycles.length > 1 && <section className="ins-section">
-      <header><span className="ins-section-icon" aria-hidden="true"><Gauge size={17}/></span><div><h2>Pola per siklus</h2><small>Pemasukan dan pengeluaran tiap siklus gaji. “Kini” = siklus berjalan.</small></div></header>
-      <div className="panel ins-cycles">
+    {advice.enoughHistory && <div className="ins-duo">
+      <section className="panel ins-box">
+        <SectionHead icon={Gauge} title="Pola per siklus" hint="Pemasukan dan pengeluaran tiap siklus gaji."/>
         <div className="ins-bars" role="img" aria-label={advice.cycles.map(c => `${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`).join('; ')}>{advice.cycles.map(c => <div key={c.label} className="ins-bar-col">
           <div className="ins-bar-pair"><i className="in" style={{ height: `${c.income / maxCycle * 100}%` }}/><i className="out" style={{ height: `${c.expense / maxCycle * 100}%` }}/></div>
           <small>{c.label}</small>
         </div>)}</div>
-        <div className="ins-legend"><span><i className="in"/>Pemasukan</span><span><i className="out"/>Pengeluaran</span></div>
-      </div>
-    </section>}
-
-    <Section icon={Scissors} title="Perlu dikurangi" hint="Pos keinginan yang besar, naik, atau sedang melaju cepat siklus ini." {...rest(advice.reduce)} empty={advice.enoughHistory ? 'Tidak ada pos keinginan yang membengkak. Bagus!' : undefined} render={card()}/>
-    <Section icon={TrendingDown} title="Masih longgar" hint="Dibanding pengeluaran siklus-siklus sebelumnya pada hari yang sama." {...rest(advice.loose)} render={card()}/>
-    <Section icon={Wallet} title="Anggaran" hint="Ditekan bila jarang terpakai, dinaikkan bila selalu jebol, dibuat bila belum ada." {...rest(advice.budgetTips)} empty={advice.enoughHistory ? 'Anggaranmu sudah pas dengan kebiasaan belanja.' : undefined} render={card()}/>
-
-    {advice.enoughHistory && topCats.length > 0 && <section className="ins-section">
-      <header><span className="ins-section-icon" aria-hidden="true"><Gauge size={17}/></span><div><h2>Kategori utama</h2><small>Rata-rata per siklus, perkiraan siklus ini, dan arah trennya.</small></div></header>
-      <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => navigate('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
-        <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
-        <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small></span>
-        <Spark values={[...c.history, c.projected]}/>
-        <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
-      </button>)}</div>
-    </section>}
-
-    <Section icon={CalendarClock} title="Kebiasaan" hint="Pola waktu belanja dan kebocoran kecil yang menumpuk." {...rest(advice.habits)} render={card()}/>
-    <Section icon={Repeat} title="Rutin & langganan" {...rest(advice.recurring)} render={card()}/>
-    <Section icon={Landmark} title="Kewajiban & tabungan" {...rest(advice.obligations)} render={card()}/>
-    <Section icon={AlertTriangle} title="Peringatan" {...rest(advice.alerts)} render={card()}/>
-
-    {advice.enoughHistory && s.avgIncome > 0 && <section className="ins-section">
-      <header><span className="ins-section-icon" aria-hidden="true"><Gauge size={17}/></span><div><h2>Porsi 50/30/20</h2><small>Pedoman: kebutuhan ≤ 50%, keinginan ≤ 30%, sisanya ≥ 20% untuk ditabung. Dikelompokkan dari nama kategori.</small></div></header>
-      <div className="panel ins-split">
+        <div className="ins-legend"><span><i className="in"/>Pemasukan</span><span><i className="out"/>Pengeluaran</span><span className="ins-legend-note">Kini = siklus berjalan</span></div>
+      </section>
+      {s.avgIncome > 0 && <section className="panel ins-box">
+        <SectionHead icon={Gauge} title="Porsi 50/30/20" hint="Rata-rata per siklus, dibanding pemasukan."/>
         <div className="ins-split-bar" role="img" aria-label={`Kebutuhan ${pct(advice.split.needs)}, keinginan ${pct(advice.split.wants)}, sisa ${pct(advice.split.saved)}`}>
           <i className="needs" style={{ flex: advice.split.needs }}/><i className="wants" style={{ flex: advice.split.wants }}/><i className="saved" style={{ flex: advice.split.saved }}/>
         </div>
         <div className="ins-split-legend">
-          <span className={advice.split.needs > .5 ? 'over' : ''}><i className="needs"/>Kebutuhan <strong>{pct(advice.split.needs)}</strong><small>ideal ≤ 50%</small></span>
-          <span className={advice.split.wants > .3 ? 'over' : ''}><i className="wants"/>Keinginan <strong>{pct(advice.split.wants)}</strong><small>ideal ≤ 30%</small></span>
-          <span className={advice.split.saved < .2 ? 'over' : ''}><i className="saved"/>Sisa <strong>{pct(advice.split.saved)}</strong><small>ideal ≥ 20%</small></span>
+          {([['needs', 'Kebutuhan', advice.split.needs, 'maks 50%', advice.split.needs > .5], ['wants', 'Keinginan', advice.split.wants, 'maks 30%', advice.split.wants > .3], ['saved', 'Sisa', advice.split.saved, 'min 20%', advice.split.saved < .2]] as const).map(([key, label, value, ideal, over]) => <div key={key} className={over ? 'over' : ''}>
+            <span><i className={key}/>{label}</span><strong>{pct(value)}</strong><small>{ideal}</small>
+          </div>)}
         </div>
+      </section>}
+    </div>}
+
+    <section className="ins-section">
+      <SectionHead icon={BrainCircuit} title="Rincian analisis"/>
+      <div className="ins-tabs" role="tablist" aria-label="Rincian analisis">{tabs.map(t => { const count = t.key === 'cats' ? topCats.length : t.items?.length || 0; return <button type="button" role="tab" key={t.key} aria-selected={active.key === t.key} className={active.key === t.key ? 'active' : ''} onClick={event => { setTab(t.key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }}><t.icon size={15} aria-hidden="true"/>{t.label}{count > 0 && <b>{count}</b>}</button>; })}</div>
+      <div className="ins-tab-body" role="tabpanel">
+        <small className="ins-tab-hint">{active.hint}</small>
+        {active.key === 'cats'
+          ? topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => navigate('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
+            <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
+            <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small></span>
+            <Spark values={[...c.history, c.projected]}/>
+            <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
+          </button>)}</div> : <p className="ins-empty">{active.empty}</p>
+          : active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f))}</div> : <p className="ins-empty">{active.empty}</p>}
       </div>
-    </section>}
+    </section>
 
     {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran diabaikan.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}
-    <p className="ins-disclaimer">Insight adalah perhitungan otomatis dari catatanmu sendiri, bukan nasihat keuangan profesional. Semakin rapi pencatatan dan kategorinya, semakin tepat sarannya.</p>
+    <p className="ins-disclaimer">Insight adalah perhitungan otomatis dari catatanmu sendiri, bukan nasihat keuangan profesional. Kebutuhan dan keinginan ditebak dari nama kategori.</p>
   </div>;
 }
