@@ -4020,6 +4020,44 @@ html, body { overscroll-behavior-x: none; }
 .wallet-row .more-actions > summary span { display: none; }
 @media (max-width: 420px) { .view-toggle button span { display: none; } .view-toggle button { padding: 0 10px; } .wallet-row { gap: 8px; padding-right: 8px; } .wallet-row-amount strong { font-size: .9rem; } .wallet-row .more-actions > summary { min-width: 26px; padding: 0 4px; } }
 
+/* 80. Keyboard-aware sheets and the Pemasukan & Pengeluaran card */
+@media (max-width: 760px) {
+  .modal-content.app-dialog.keyboard-open { border-radius: 22px; }
+  .modal-content.app-dialog.keyboard-open .modal-body { padding-bottom: 14px; }
+  /* Emoji search: the results take whatever room is left above the keyboard. */
+  .emoji-search-dialog.modal-content.app-dialog { height: min(78dvh, calc(var(--vvh, 100dvh) - 8px)); }
+  .emoji-search-dialog .modal-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  .emoji-search-dialog .emoji-search-library { flex: 1; min-height: 0; max-height: none; }
+}
+.book-widget > summary strong.amount-positive { color: var(--positive); }
+.book-body { display: grid; gap: 14px; }
+.book-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 11%, var(--paper)), color-mix(in srgb, var(--accent) 3%, var(--paper))); }
+.book-head > div { display: grid; gap: 2px; min-width: 0; }
+.book-head small { color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.book-head strong { font: 800 1.45rem/1.15 var(--font-head); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.book-vs { justify-items: end; text-align: right; }
+.book-vs b { font-size: .86rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.book-head small { white-space: nowrap; }
+.book-section { display: grid; gap: 2px; }
+.book-section > header { display: grid; grid-template-columns: 1fr auto 58px; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--paper-2); font-weight: 800; }
+.book-section > header b { font-variant-numeric: tabular-nums; }
+.book-section > header > :last-child { justify-self: end; }
+.book-section ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.book-section li + li { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.book-section li button { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 58px; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 12px 6px 6px; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+.book-section li button:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.book-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--identity-color, var(--accent)) 16%, var(--paper)); font-size: 1rem; }
+.book-icon .emoji { width: 20px; height: 20px; }
+.book-icon > .brand-icon { width: 100%; height: 100%; font-size: .7rem; }
+.book-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.book-amount { font-variant-numeric: tabular-nums; font-weight: 700; }
+.book-delta { justify-self: end; }
+.book-delta i { color: var(--muted); font-style: normal; }
+.book-empty { margin: 6px 12px; color: var(--muted); font-size: .86rem; }
+.book-more { padding: 4px 12px; color: var(--muted); }
+.book-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); color: var(--accent); font: inherit; font-weight: 800; cursor: pointer; }
+.book-link:hover { background: color-mix(in srgb, var(--accent) 15%, var(--paper)); }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
@@ -4034,8 +4072,9 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
    ========================================================================== */
 @media (max-width: 760px) {
   .modal-content.app-dialog:not(.notification-dialog), .modal-content.confirm {
-    left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; transform: none !important;
-    width: 100% !important; max-width: 100% !important; max-height: min(92dvh, 860px);
+    left: 0 !important; right: 0 !important; top: auto !important; bottom: var(--kb, 0px) !important; transform: none !important;
+    width: 100% !important; max-width: 100% !important; max-height: min(92dvh, 860px, calc(var(--vvh, 100dvh) - 8px));
+    transition: bottom .16s ease-out, max-height .16s ease-out;
     border-radius: 22px 22px 0 0; border-bottom: 0; animation: sheet-in .2s var(--ease-out);
   }
   .modal-content.confirm { padding: 22px 18px max(22px, env(safe-area-inset-bottom)); }

@@ -220,7 +220,7 @@ export function EmojiSearchButton({value,onPick,label='Cari lainnya'}:{value?:st
  return <>
   <button type="button" className="emoji-more-btn" onClick={()=>{setQuery('');setRecent(readRecent());setOpen(true)}}><Search size={14}/> {label}</button>
   <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Cari ikon" className="emoji-search-dialog">
-   <label className="emoji-search"><Search size={16}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} placeholder="Cari, mis. kopi, rumah, liburan, gaji" aria-label="Cari ikon"/></label>
+   <label className="emoji-search"><Search size={16}/><input autoFocus={typeof window!=='undefined'&&window.matchMedia('(pointer: fine)').matches} enterKeyHint="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Cari, mis. kopi, rumah, liburan, gaji" aria-label="Cari ikon"/></label>
    <div className="emoji-library emoji-search-library" role="group" aria-label="Pilih ikon">
     {search?<section><h5>Hasil pencarian</h5><div className="emoji-grid">{found.length?found.map(emoji=>button(emoji,`s${emoji}`)):<small>Tidak ada ikon yang cocok. Coba kata lain.</small>}</div></section>:<>
      {recent.length>0&&<section><h5>Terakhir dipakai</h5><div className="emoji-grid">{recent.map(emoji=>button(emoji,`h${emoji}`))}</div></section>}

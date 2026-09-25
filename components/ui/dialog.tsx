@@ -1,6 +1,6 @@
 'use client';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useRef, type PointerEvent } from 'react';
+import { useEffect, useRef, type PointerEvent } from 'react';
 import { X } from 'lucide-react';
 export const Dialog=DialogPrimitive.Root;
 export const DialogTrigger=DialogPrimitive.Trigger;
@@ -33,7 +33,22 @@ function useSheetDrag(){
  return {content,close,handlers:{onPointerDown,onPointerMove,onPointerUp,onPointerCancel:onPointerUp}};
 }
 
+/**
+ * Phones: the on-screen keyboard covers the bottom of the page without moving fixed elements, which would hide
+ * a bottom sheet's inputs and results. Lift the sheet to sit on top of the keyboard and fit the space left.
+ */
+function useKeyboardLift(content:React.RefObject<HTMLDivElement|null>){
+ useEffect(()=>{
+  const vv=typeof window!=='undefined'?window.visualViewport:null;if(!vv)return;
+  let frame=0;
+  const update=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{const el=content.current;if(!el)return;const keyboard=Math.max(0,Math.round(window.innerHeight-vv.height-vv.offsetTop));el.style.setProperty('--kb',`${keyboard}px`);el.style.setProperty('--vvh',`${Math.round(vv.height)}px`);el.classList.toggle('keyboard-open',keyboard>80);});};
+  update();vv.addEventListener('resize',update);vv.addEventListener('scroll',update);
+  return ()=>{cancelAnimationFrame(frame);vv.removeEventListener('resize',update);vv.removeEventListener('scroll',update);};
+ },[content]);
+}
+
 export function DialogContent({title,children,className=''}:{title:string;children:React.ReactNode;className?:string}){
  const sheet=useSheetDrag();
+ useKeyboardLift(sheet.content);
  return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
 }
