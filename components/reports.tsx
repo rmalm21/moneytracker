@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, PiggyBank, Printer, Receipt, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, Banknote, Printer, Receipt, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
 import { Empty, Field, Select, categoryOptions } from './fields';
@@ -116,7 +116,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         <Kpi label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis} />
         <Kpi label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>
         <Kpi label="Selisih (arus kas bersih)" icon={ArrowLeftRight} value={summary.cashFlow} previous={pair.prevReady ? prev.cashFlow : undefined} basis={pair.basis}/>
-        <Kpi label="Rasio menabung" icon={PiggyBank} value={savingsRate} format="percent" suffix={pair.prevReady && prev.income ? `Periode lalu ${prevRate}% (${savingsRate - prevRate >= 0 ? '+' : ''}${savingsRate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
+        <Kpi label="Rasio menabung" icon={Banknote} value={savingsRate} format="percent" suffix={pair.prevReady && prev.income ? `Periode lalu ${prevRate}% (${savingsRate - prevRate >= 0 ? '+' : ''}${savingsRate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
         <Kpi label="Rata-rata belanja per hari" icon={CalendarDays} value={Math.round(summary.expense / length)} previous={pair.prevReady ? Math.round(prev.expense / prevLength) : undefined} good="down" basis={pair.basis}/>
         <Kpi label="Transaksi keluar" icon={Receipt} value={count} format="count" suffix={`±${rupiah(Math.round(summary.expense / Math.max(1, count)))} per transaksi`} previous={pair.prevReady ? prevCount : undefined} good="none" basis={pair.basis}/>
       </div>
@@ -328,7 +328,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         <Kpi label="Pemasukan setahun" icon={TrendingUp} tone="in" value={total.income} previous={ready ? before.income : undefined} basis={basis} />
         <Kpi label="Pengeluaran setahun" icon={TrendingDown} tone="out" value={total.expense} previous={ready ? before.expense : undefined} good="down" basis={basis}/>
         <Kpi label="Selisih setahun" icon={ArrowLeftRight} value={total.cashFlow} previous={ready ? before.cashFlow : undefined} basis={basis}/>
-        <Kpi label="Rasio menabung" icon={PiggyBank} value={rate} format="percent" suffix={ready && before.income ? `Tahun lalu ${prevRate}% (${rate - prevRate >= 0 ? '+' : ''}${rate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
+        <Kpi label="Rasio menabung" icon={Banknote} value={rate} format="percent" suffix={ready && before.income ? `Tahun lalu ${prevRate}% (${rate - prevRate >= 0 ? '+' : ''}${rate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
         <Kpi label="Rata-rata pengeluaran per bulan" icon={CalendarRange} value={Math.round(total.expense / activeCount)} good="down" basis={basis} suffix={`${active.length} bulan tercatat`}/>
         <Kpi label="Rata-rata pemasukan per bulan" icon={Wallet2} value={Math.round(total.income / activeCount)} basis={basis} suffix={best ? `Bulan terbaik: ${best.label} (${rupiah(best.net)})` : undefined}/>
       </div>

@@ -101,7 +101,7 @@ export const emojiLibrary: EmojiGroup[] = [
     🖨️ print fotokopi
     📖 sertifikasi
     🎒 perlengkapan sekolah`),
-  g('Keuangan', `💰 uang gaji tabungan
+  g('Keuangan', `💰 uang gaji tabungan celengan
     💵 tunai cash
     💳 kartu kredit
     🏦 bank admin
@@ -113,7 +113,6 @@ export const emojiLibrary: EmojiGroup[] = [
     🏆 reward insentif
     💸 biaya pengeluaran
     🪙 koin
-    🐷 celengan
     🛡️ asuransi`),
   g('Kerja', `💼 kerja kantor gaji
     🏨 hotel perjalanan dinas
@@ -186,10 +185,10 @@ export function AppIcon({ icon, fallback = '💳', className = '' }: { icon?: st
   if (brand) return <span className={`brand-icon ${className}`} style={{ background: brand.bg, color: brand.fg, fontSize: `${Math.max(.42, Math.min(.72, 2.6 / brand.text.length))}em` }} title={brand.label} aria-label={brand.label}>{brand.text}</span>;
   return <span className={className} aria-hidden="true">{emojiOrFallback(icon, fallback)}</span>;
 }
-export const walletEmojis=['💳','🏦','💵','👛','👝','📱','🏧','💰','🪙','💸','💎','🐷','🏡','🌱','🔒','🎯','🚀','🧳','🏪','📈','📊','🛡️','🎓','🕌','🏝️','🚗','💍','🎁','🧧','⭐','❤️','🌙'];
+export const walletEmojis=['💳','🏦','💵','👛','👝','📱','🏧','💰','🪙','💸','💎','🏡','🌱','🔒','🎯','🚀','🧳','🏪','📈','📊','🛡️','🎓','🕌','🏝️','🚗','💍','🎁','🧧','⭐','❤️','🌙'];
 /** Kept for older records that stored a hex colour; the picker itself only shows named swatches. */
 export const identityColors = colorPresets.map(preset => preset.hex);
-export function emojiOrFallback(value:string|undefined,fallback='🗂️'){if(value?.startsWith('brand:'))return brandOf(value)?.group==='E-wallet'?'📱':brandOf(value)?.group==='Investasi'?'📈':'🏦';return value&&/\p{Extended_Pictographic}/u.test(value)?value:fallback;}
+export function emojiOrFallback(value:string|undefined,fallback='🗂️'){if(value==='🐷')return '💰';if(value?.startsWith('brand:'))return brandOf(value)?.group==='E-wallet'?'📱':brandOf(value)?.group==='Investasi'?'📈':'🏦';return value&&/\p{Extended_Pictographic}/u.test(value)?value:fallback;}
 const validHex = (color?: string) => /^#[\da-fA-F]{6}$/.test(color || '');
 export function identityStyle(color?:string):CSSProperties{return {'--identity-color':validHex(color)?color:'var(--accent)'} as CSSProperties;}
 /** Subcategories without their own colour use the colour of their main category. */

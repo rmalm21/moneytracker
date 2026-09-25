@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowLeftRight, ArrowUp, CalendarCheck, CalendarClock, CalendarDays, CreditCard, Landmark, Lock, PiggyBank, Scale, Settings2, Sparkles, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, CalendarCheck, CalendarClock, CalendarDays, CreditCard, Landmark, Lock, Banknote, Scale, Settings2, Sparkles, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
@@ -38,7 +38,7 @@ const oldDefaults=[['free','budget','income','expenses','money','quickActions','
 /** Where each summary card leads when clicked. */
 const cardTarget:Partial<Record<WidgetId,[string,string?]>>={free:['wallets'],budget:['budgets'],income:['transactions','type:income'],expenses:['transactions','type:expense'],cashFlow:['transactions'],assets:['wallets'],netWorth:['wallets'],liabilities:['debts'],reserved:['funds'],safeDaily:['budgets'],daysUntilSalary:['forecast']};
 /** Icon in the top-right corner of each summary card. */
-const metricIcons:Partial<Record<WidgetId,LucideIcon>>={free:Sparkles,budget:PiggyBank,income:TrendingUp,expenses:TrendingDown,cashFlow:ArrowLeftRight,assets:Landmark,netWorth:Scale,liabilities:CreditCard,reserved:Lock,safeDaily:CalendarCheck,daysUntilSalary:CalendarClock};
+const metricIcons:Partial<Record<WidgetId,LucideIcon>>={free:Sparkles,budget:Banknote,income:TrendingUp,expenses:TrendingDown,cashFlow:ArrowLeftRight,assets:Landmark,netWorth:Scale,liabilities:CreditCard,reserved:Lock,safeDaily:CalendarCheck,daysUntilSalary:CalendarClock};
 const metricIds=new Set<WidgetId>(['free','budget','income','expenses','cashFlow','assets','netWorth','liabilities','reserved','safeDaily','daysUntilSalary']);
 
 /** Widgets start expanded on wide screens where there is room, and collapsed on phones. */
