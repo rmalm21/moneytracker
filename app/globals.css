@@ -2437,6 +2437,10 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
   }
   .modal-content.confirm { padding: 22px 18px max(22px, env(safe-area-inset-bottom)); }
   .modal-content.confirm .modal-actions { flex-wrap: nowrap; }
+  /* The top bar of a sheet is its drag handle: pull down to close. */
+  .app-dialog .modal-heading.sheet-drag { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; padding-top: 22px; }
+  .app-dialog .modal-heading.sheet-drag:active { cursor: grabbing; }
+  .app-dialog .modal-heading.sheet-drag::before { width: 44px; height: 5px; margin-left: -22px; top: 8px; }
 }
 
 /* ==========================================================================
