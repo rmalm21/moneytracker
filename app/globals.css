@@ -3220,6 +3220,68 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (max-width: 760px) { :root { --card-r: 18px; } }
 
 /* ==========================================================================
+   66. Modern buttons everywhere: gradient primary with a light sweep, soft raised
+       secondary, capsule chips and tabs, clear focus ring and a tactile press.
+   ========================================================================== */
+:root { --btn-grad: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, #fff) 0%, var(--accent) 45%, color-mix(in srgb, var(--accent) 78%, var(--deep)) 100%); --btn-glow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* Base */
+.btn { position: relative; overflow: hidden; isolation: isolate; border-radius: 14px; font-weight: 750; letter-spacing: .005em; transition: transform .16s cubic-bezier(.2, .8, .2, 1), box-shadow .18s ease, background .18s ease, border-color .18s ease, color .18s ease, filter .18s ease; }
+.btn.small { border-radius: 999px; padding-inline: 14px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+.btn:not(:disabled):active { transform: translateY(0) scale(.97); }
+.btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+
+/* Primary: gradient, top highlight, coloured glow and a light sweep on hover */
+.btn-primary { background: var(--btn-grad); color: var(--accent-on); border-color: color-mix(in srgb, var(--accent) 70%, var(--deep)); box-shadow: var(--btn-glow), inset 0 1px 0 rgba(255, 255, 255, .28); }
+.btn-primary::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%); transform: translateX(-120%); transition: transform .6s ease; }
+.btn-primary:not(:disabled):hover { filter: none; transform: translateY(-1px); box-shadow: 0 12px 26px color-mix(in srgb, var(--accent) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, .32); }
+.btn-primary:not(:disabled):hover::after { transform: translateX(120%); }
+
+/* Secondary: raised paper button */
+.btn-secondary { background: linear-gradient(180deg, var(--paper), color-mix(in srgb, var(--paper-2) 60%, var(--paper))); border-color: color-mix(in srgb, var(--accent) 12%, var(--line-strong)); color: var(--ink); box-shadow: 0 1px 2px rgba(16, 42, 54, .05), 0 3px 10px rgba(16, 42, 54, .05), inset 0 1px 0 rgba(255, 255, 255, .6); }
+.btn-secondary:not(:disabled):hover { background: color-mix(in srgb, var(--accent) 7%, var(--paper)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* Ghost */
+.btn-ghost { color: var(--ink); }
+.btn-ghost:not(:disabled):hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+
+/* Danger */
+.btn-danger { background: linear-gradient(135deg, color-mix(in srgb, var(--rose) 85%, #fff), var(--rose) 50%, color-mix(in srgb, var(--rose) 80%, #000)); border-color: color-mix(in srgb, var(--rose) 75%, #000); box-shadow: 0 8px 20px color-mix(in srgb, var(--rose) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.btn-danger:not(:disabled):hover { filter: none; transform: translateY(-1px); box-shadow: 0 12px 26px color-mix(in srgb, var(--rose) 36%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3); }
+
+/* Small text buttons and chips: capsules */
+.link-button { border-radius: 999px; padding-inline: 13px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--paper)), color-mix(in srgb, var(--accent) 10%, var(--paper))); border-color: color-mix(in srgb, var(--accent) 20%, var(--line)); font-weight: 750; }
+.link-button:not(:disabled):hover { background: color-mix(in srgb, var(--accent) 14%, var(--paper)); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 18%, transparent); transform: translateY(-1px); }
+.quick-action { border-radius: 999px; border-color: color-mix(in srgb, var(--accent) 14%, var(--line-strong)); background: linear-gradient(180deg, var(--paper), color-mix(in srgb, var(--paper-2) 60%, var(--paper))); box-shadow: 0 1px 2px rgba(16, 42, 54, .04); padding: 6px 12px 6px 6px; gap: 4px 7px; }
+.quick-action svg { box-sizing: content-box; padding: 4px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 12%, var(--paper)); }
+.quick-action:hover { box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 16%, transparent); }
+.chip-button { box-shadow: 0 1px 2px rgba(16, 42, 54, .04); border-color: color-mix(in srgb, var(--accent) 12%, var(--line-strong)); }
+.chip-button:hover, .chip-button.is-open { box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 16%, transparent); }
+.filter-chip { transition: background .15s ease, color .15s ease, transform .12s ease; }
+
+/* Icon buttons */
+.icon-btn { border-radius: 12px; transition: background .15s ease, color .15s ease, transform .15s ease; }
+.icon-btn:not(:disabled):hover { background: color-mix(in srgb, var(--accent) 12%, transparent); transform: scale(1.06); }
+.icon-btn:not(:disabled):active { transform: scale(.94); }
+
+/* Tabs and segmented controls: capsule track, gradient active pill */
+.hub-tabs { border-radius: 999px; padding: 5px; border-color: color-mix(in srgb, var(--accent) 10%, var(--line)); box-shadow: var(--card-shadow, var(--elev-1)); }
+.hub-tabs button { border-radius: 999px; transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+.hub-tabs button.active { background: var(--btn-grad); box-shadow: var(--btn-glow), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.segmented { border-radius: 999px; padding: 4px; }
+.segmented button { border-radius: 999px; transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+.segmented button.active { box-shadow: 0 2px 8px rgba(16, 42, 54, .1); }
+.ins-tabs button.active { background: var(--btn-grad); border-color: transparent; box-shadow: var(--btn-glow), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.ins-tabs button:not(.active):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); color: var(--accent); }
+
+/* Floating add button on phones */
+.bottom-nav .nav-add-icon { background: var(--btn-grad); box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3); transition: transform .16s ease; }
+.bottom-nav button.add:active .nav-add-icon { transform: scale(.92); }
+
+@media (prefers-reduced-motion: reduce) { .btn, .link-button, .icon-btn { transition: none; } .btn-primary::after { display: none; } }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
