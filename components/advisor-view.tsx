@@ -28,9 +28,9 @@ function Rich({ text }: { text: string }) {
   return <>{text.split(/(\*\*[^*]+\*\*|==[^=]+==)/g).map((part, i) => part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <strong key={i}>{part.slice(2, -2)}</strong> : part.startsWith('==') && part.endsWith('==') && part.length > 4 ? <mark key={i}>{part.slice(2, -2)}</mark> : part)}</>;
 }
 
-function Spark({ values, labels, percent }: { values: number[]; labels?: string[]; percent?: boolean }) {
+function Spark({ values, labels, percent, width = 132, height = 38 }: { values: number[]; labels?: string[]; percent?: boolean; width?: number; height?: number }) {
   if (values.length < 2) return null;
-  const w = 132, h = 38, pad = 4, max = Math.max(...values, percent ? 100 : 0, 1);
+  const w = width, h = height, pad = 4, max = Math.max(...values, percent ? 100 : 0, 1);
   const x = (i: number) => pad + i * (w - pad * 2) / (values.length - 1), y = (v: number) => h - pad - v / max * (h - pad * 2);
   const points = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
   const last = values.length - 1;
@@ -39,7 +39,7 @@ function Spark({ values, labels, percent }: { values: number[]; labels?: string[
       {percent && <line x1={pad} x2={w - pad} y1={y(100)} y2={y(100)} className="ins-spark-limit"/>}
       <polyline points={`${x(0)},${h - pad} ${points} ${x(last)},${h - pad}`} className="ins-spark-fill"/>
       <polyline points={points} className="ins-spark-line"/>
-      <circle cx={x(last)} cy={y(values[last])} r="3.2" className="ins-spark-dot"/>
+      <circle cx={x(last)} cy={y(values[last])} r="3.4" className="ins-spark-dot"/>
     </svg>
     {labels && <figcaption><span>{labels[0]}</span><span>{labels[last]}</span></figcaption>}
   </figure>;
@@ -53,29 +53,63 @@ function Ring({ score, tone }: { score: number; tone: Tone }) {
   </div>;
 }
 
+const toneWord: Record<Tone, string> = { bad: 'Mendesak', warn: 'Perhatian', good: 'Peluang', info: 'Info' };
+
+/** The headline number of a finding: latest value, how it compares with earlier periods, and the trend line. */
+function Metric({ finding }: { finding: Finding }) {
+  const series = finding.series!, labels = finding.seriesLabels;
+  const percent = finding.id.startsWith('shrink-') || finding.id.startsWith('tight-');
+  const last = series[series.length - 1], lastLabel = labels?.[labels.length - 1] || '';
+  const earlier = series.slice(0, -1), avg = earlier.reduce((n, v) => n + v, 0) / Math.max(1, earlier.length);
+  const change = avg > 0 ? last / avg - 1 : 0;
+  const caption = percent ? `Terpakai · ${lastLabel === 'Kini' ? 'periode ini' : `periode ${lastLabel}`}` : lastLabel === 'Kini' ? 'Siklus ini' : `Siklus ${lastLabel}`;
+  const compare = percent ? `rata-rata ${Math.round(avg)}%` : Math.abs(change) < .05 ? 'setara rata-rata' : `${change > 0 ? '▲' : '▼'} ${pct(Math.abs(change))} vs rata-rata`;
+  return <div className="ins-metric">
+    <div className="ins-metric-text">
+      <small>{caption}</small>
+      <strong>{percent ? `${last}%` : short(last)}</strong>
+      <span className={!percent && change >= .05 ? 'up' : !percent && change <= -.05 ? 'down' : ''}>{compare}</span>
+    </div>
+    <Spark values={series} labels={labels} percent={percent} width={124} height={46}/>
+  </div>;
+}
+
+/** Headline figure for findings without a history line (debts, goals, habits…). */
+function Stat({ stat }: { stat: NonNullable<Finding['stat']> }) {
+  return <div className="ins-metric">
+    <div className="ins-metric-text">
+      <small>{stat.label}</small>
+      <strong>{stat.value}</strong>
+      {stat.note && <span>{stat.note}</span>}
+    </div>
+    {stat.progress !== undefined && <div className="ins-metric-meter" role="img" aria-label={stat.progressLabel || `${Math.round(stat.progress * 100)}%`}>
+      <i><b style={{ width: `${Math.max(3, Math.round(stat.progress * 100))}%` }}/></i>
+      {stat.progressLabel && <small>{stat.progressLabel}</small>}
+    </div>}
+  </div>;
+}
+
 function FindingCard({ finding, index, tag, onApply, onGo, onHide, busy }: { finding: Finding; index?: number; tag?: string; onApply: (apply: Apply, finding: Finding) => void; onGo: (view: string, focus?: string) => void; onHide?: (id: string) => void; busy: boolean }) {
   const Icon = toneIcon[finding.tone];
-  const percent = finding.id.startsWith('shrink-') || finding.id.startsWith('tight-');
-  const series = finding.series, labels = finding.seriesLabels;
-  const last = series?.[series.length - 1];
+  const hasFoot = Boolean(finding.saving || finding.apply || finding.target);
   return <article className={`ins-card tone-${finding.tone}`}>
-    <div className="ins-card-head">
-      {index !== undefined ? <span className="ins-step" aria-hidden="true">{index + 1}</span> : <span className="ins-card-icon" aria-hidden="true"><Icon size={16}/></span>}
-      <div className="ins-card-title">{tag && <span className="ins-tag">{tag}</span>}<h3>{finding.title}</h3></div>
-      {onHide && <button type="button" className="ins-hide" aria-label={`Abaikan saran ${finding.title}`} title="Abaikan saran ini" onClick={() => onHide(finding.id)}><EyeOff size={15}/></button>}
-    </div>
-    <p><Rich text={finding.detail}/></p>
-    {series && series.length > 1 && <div className="ins-evidence">
-      <Spark values={series} percent={percent}/>
-      <span><small>{labels?.[0]} – {labels?.[labels.length - 1]}</small><strong>{labels?.[labels.length - 1]}: {percent ? `${last}%` : short(last || 0)}</strong></span>
-    </div>}
-    {(finding.saving || finding.apply || finding.target) && <div className="ins-card-foot">
-      {finding.saving ? <span className="ins-saving">Hemat ±{short(finding.saving)}/bln</span> : <span/>}
-      <div className="ins-card-actions">
-        {finding.target && <button type="button" className="btn btn-secondary small" onClick={() => onGo(finding.target!.view, finding.target!.focus)}>Lihat <ArrowRight size={14}/></button>}
-        {finding.apply && <Button className="small" disabled={busy} onClick={() => onApply(finding.apply!, finding)}><Check size={15}/> {finding.apply.kind === 'create-budget' ? `Buat ${short(finding.apply.amount)}` : `Ubah ke ${short(finding.apply.amount)}`}</Button>}
+    <header className="ins-card-head">
+      <span className={index !== undefined ? 'ins-step' : 'ins-card-icon'} aria-hidden="true">{index !== undefined ? index + 1 : <Icon size={18}/>}</span>
+      <div className="ins-card-title">
+        <span className="ins-kicker-line"><b>{toneWord[finding.tone]}</b>{tag && <> · {tag}</>}</span>
+        <h3>{finding.title}</h3>
       </div>
-    </div>}
+      {onHide && <button type="button" className="ins-hide" aria-label={`Abaikan saran ${finding.title}`} title="Abaikan saran ini" onClick={() => onHide(finding.id)}><EyeOff size={16}/></button>}
+    </header>
+    {finding.series && finding.series.length > 1 ? <Metric finding={finding}/> : finding.stat ? <Stat stat={finding.stat}/> : null}
+    <p><Rich text={finding.detail}/></p>
+    {hasFoot && <footer className="ins-card-foot">
+      {finding.saving ? <span className="ins-saving"><TrendingDown size={14} aria-hidden="true"/> Hemat ±{short(finding.saving)}/bln</span> : <span/>}
+      <div className="ins-card-actions">
+        {finding.target && <button type="button" className="ins-link" onClick={() => onGo(finding.target!.view, finding.target!.focus)}>Lihat <ArrowRight size={15}/></button>}
+        {finding.apply && <Button className="small ins-apply" disabled={busy} onClick={() => onApply(finding.apply!, finding)}><Check size={15}/> {finding.apply.kind === 'create-budget' ? `Buat ${short(finding.apply.amount)}` : `Ubah ke ${short(finding.apply.amount)}`}</Button>}
+      </div>
+    </footer>}
   </article>;
 }
 
