@@ -13,7 +13,7 @@ const tabs: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'more', label: 'Lainnya', icon: Menu },
 ];
 const groups = [
-  { label: 'Keuangan', items: ['budgets', 'funds', 'owed', 'schedule'] },
+  { label: 'Keuangan', items: ['advisor', 'budgets', 'funds', 'owed', 'schedule'] },
   { label: 'Laporan & lainnya', items: ['reports', 'categories', 'settings'] },
 ];
 
