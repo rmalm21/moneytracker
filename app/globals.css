@@ -1678,6 +1678,43 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   42. Finance pages: summary cards and card lists
+   ========================================================================== */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: 12px; margin: 0 0 18px; }
+.summary-grid > .summary-card { animation: rise-in .26s var(--ease-out) both; }
+.summary-grid > .summary-card:nth-child(2) { animation-delay: .04s; } .summary-grid > .summary-card:nth-child(3) { animation-delay: .08s; } .summary-grid > .summary-card:nth-child(n+4) { animation-delay: .12s; }
+.summary-card .stat-value { font-size: min(clamp(1.1rem, 1.8vw, 1.45rem), 12.5cqi); }
+.page-note { margin: -6px 0 14px; font-size: .84rem; }
+.fin-list { display: grid; gap: 12px; }
+.fin-list > .receivable-entry, .fin-list > .data-row, .fin-list > div:not(.empty):not(.receivable-entry) { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--elev-1); overflow: clip; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; animation: rise-in .26s var(--ease-out) both; }
+.fin-list > :nth-child(2) { animation-delay: .04s; } .fin-list > :nth-child(3) { animation-delay: .08s; } .fin-list > :nth-child(n+4) { animation-delay: .12s; }
+.fin-list > .receivable-entry:hover, .fin-list > .data-row:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); box-shadow: var(--elev-2); }
+.fin-list > .receivable-entry > .data-row, .fin-list > .data-row { border-bottom: 0; }
+.fin-list > .data-row { padding: 16px var(--row-x); }
+.fin-list .data-row-main[data-avatar] { position: relative; min-height: 42px; padding-left: 54px; }
+.fin-list .data-row-main[data-avatar]::before { content: attr(data-avatar); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--accent-soft); color: var(--accent); font: 800 1.15rem/1 var(--font-head); }
+.fin-list .data-row-main > strong { font-size: 1rem; }
+.fin-list .data-row-side > strong { font-size: 1.05rem; }
+.fin-list .progress-track { margin: 0 var(--row-x) 14px !important; height: 8px; }
+.fin-list > .panel.empty, .fin-list > .empty { background: var(--paper); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); }
+.fin-list .receivable-detail, .fin-list .context-notes { border-top: 1px solid var(--line); }
+.fin-list .receivable-detail > summary, .fin-list .context-notes > summary { padding-left: var(--row-x); }
+.fin-list .toolbar-row .link-button { min-height: 34px; }
+/* Budget and savings cards */
+.budget-card { position: relative; overflow: clip; transition: border-color .15s ease, box-shadow .15s ease; }
+.budget-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 40%, var(--paper))); opacity: .85; }
+.budget-card:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.budget-card .progress-track { height: 9px; }
+.budget-card .wallet-balance { font-size: clamp(1.35rem, 3vw, 1.7rem); }
+@media (max-width: 760px) {
+  .summary-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.2rem), 1fr)); gap: 10px; }
+  .summary-grid > .summary-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .fin-list { gap: 10px; }
+  .fin-list .data-row-main[data-avatar] { padding-left: 48px; min-height: 38px; }
+  .fin-list .data-row-main[data-avatar]::before { width: 38px; height: 38px; border-radius: 12px; font-size: 1.05rem; }
+}
+
+/* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
        which floats in the middle). Kept last so no dialog-specific width can override it.
    ========================================================================== */
