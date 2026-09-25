@@ -1,5 +1,5 @@
 /** Daily reminders chosen by the user: update balances at set times, and upcoming bills. */
-export type ReminderConfig = { balanceEnabled: boolean; times: string[]; billsEnabled: boolean; billTime: string; billDaysBefore: number };
+export type ReminderConfig = { balanceEnabled: boolean; times: string[]; billsEnabled: boolean; billTime: string; billDaysBefore: number; budgetAlerts?: boolean };
 export const defaultReminders: ReminderConfig = { balanceEnabled: false, times: ['20:00'], billsEnabled: false, billTime: '08:00', billDaysBefore: 1 };
 /** Sensible times for 1–4 reminders a day. */
 export const presetTimes: Record<number, string[]> = { 1: ['20:00'], 2: ['12:00', '20:00'], 3: ['08:00', '13:00', '20:00'], 4: ['08:00', '12:00', '17:00', '21:00'] };

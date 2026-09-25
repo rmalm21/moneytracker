@@ -11,8 +11,9 @@ import { dateInTimeZone, formatDate, nextDate, todayInTimeZone } from '@/lib/per
 
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
-export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action };
-type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean };
+/** `app`: a reminder from Dompet Ajaib itself, shown as a floating banner with the app logo (like a phone notification). */
+export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean };
+type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean };
 /** `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail. */
 type TrackLabels = { pending: string; success: string; failure: string; retry?: Action; after?: () => void; quiet?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
@@ -41,11 +42,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: string) => { setFloating(list => list.filter(note => note.id !== id)); const timer = timers.current.get(id); if (timer) clearTimeout(timer); timers.current.delete(id); }, []);
   const push = useCallback((input: PushInput) => {
     const id = input.id || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const note: Note = { id, title: input.title, body: input.body, kind: input.kind || 'success', time: Date.now(), action: input.action };
+    const note: Note = { id, title: input.title, body: input.body, kind: input.kind || 'success', time: Date.now(), action: input.action, app: input.app };
     setFloating(list => [note, ...list.filter(item => item.id !== id)].slice(0, 4));
     if (input.history !== false && note.kind !== 'progress') setHistory(list => [note, ...list.filter(item => item.id !== id)].slice(0, 60));
     const old = timers.current.get(id); if (old) clearTimeout(old);
-    const life = lifetime[note.kind] * (note.title.length > 70 ? 2 : 1);
+    const life = note.app ? 9000 : lifetime[note.kind] * (note.title.length > 70 ? 2 : 1);
     if (life) timers.current.set(id, setTimeout(() => dismiss(id), life));
     return id;
   }, [dismiss]);
@@ -91,7 +92,38 @@ const icons = { success: CheckCircle2, error: XCircle, info: Info, warning: Aler
 
 function ToastStack({ notes, onDismiss }: { notes: Note[]; onDismiss: (id: string) => void }) {
   if (!notes.length) return null;
-  return <div className="toast-stack" role="region" aria-label="Notifikasi">{notes.map(note => <Toast key={note.id} note={note} onDismiss={() => onDismiss(note.id)}/>)}</div>;
+  const banners = notes.filter(note => note.app), toasts = notes.filter(note => !note.app);
+  return <>
+    {banners.length > 0 && <div className="heads-up-stack" role="region" aria-label="Pemberitahuan Dompet Ajaib">{banners.map(note => <HeadsUp key={note.id} note={note} onDismiss={() => onDismiss(note.id)}/>)}</div>}
+    {toasts.length > 0 && <div className="toast-stack" role="region" aria-label="Notifikasi">{toasts.map(note => <Toast key={note.id} note={note} onDismiss={() => onDismiss(note.id)}/>)}</div>}
+  </>;
+}
+
+/** Floating banner that looks like a phone notification: app logo, name, time; swipe up or sideways to dismiss, tap to open. */
+function HeadsUp({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
+  const [offset, setOffset] = useState({ x: 0, y: 0 }), [leaving, setLeaving] = useState(false);
+  const start = useRef<{ x: number; y: number } | null>(null), moved = useRef(false);
+  useEffect(() => { try { navigator.vibrate?.([60, 40, 60]); } catch { /* optional */ } }, []);
+  function down(event: ReactPointerEvent<HTMLDivElement>) { if ((event.target as Element).closest('button')) return; start.current = { x: event.clientX, y: event.clientY }; moved.current = false; event.currentTarget.setPointerCapture(event.pointerId); }
+  function move(event: ReactPointerEvent<HTMLDivElement>) { if (!start.current) return; const x = event.clientX - start.current.x, y = Math.min(0, event.clientY - start.current.y); if (Math.abs(x) > 6 || y < -6) moved.current = true; setOffset({ x, y }); }
+  function up() {
+    if (!start.current) return; start.current = null;
+    if (offset.y < -40 || Math.abs(offset.x) > 80) { setLeaving(true); setOffset(offset.y < -40 ? { x: 0, y: -160 } : { x: offset.x > 0 ? 480 : -480, y: 0 }); setTimeout(onDismiss, 180); return; }
+    setOffset({ x: 0, y: 0 });
+    if (!moved.current && note.action) { note.action.run(); onDismiss(); }
+  }
+  const drag = offset.x || offset.y;
+  return <div className={`heads-up is-${note.kind} ${leaving ? 'is-leaving' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: drag ? `translate(${offset.x}px, ${offset.y}px)` : undefined, opacity: drag ? Math.max(.2, 1 - (Math.abs(offset.x) + Math.abs(offset.y) * 2) / 300) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+    <img className="heads-up-logo" src="/icons/icon-192.png" alt="" draggable={false}/>
+    <div className="heads-up-text">
+      <span className="heads-up-app">Dompet Ajaib <i aria-hidden="true">·</i> sekarang</span>
+      <strong><EmojiText text={note.title}/></strong>
+      {note.body && <small><EmojiText text={note.body}/></small>}
+      {note.action && <button type="button" className="heads-up-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}
+    </div>
+    <button type="button" className="heads-up-close" aria-label="Tutup pemberitahuan" onClick={onDismiss}><X size={15}/></button>
+    <span className="heads-up-grip" aria-hidden="true"/>
+  </div>;
 }
 
 /** A floating card: close with ×, or swipe it sideways. */

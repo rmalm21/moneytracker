@@ -1,9 +1,9 @@
 // Dompet Ajaib service worker: fast app shell, offline fallback, and user-approved updates.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const STATE = 'dompet-ajaib-state';
 const SHELL = `dompet-ajaib-shell-${VERSION}`;
 const RUNTIME = `dompet-ajaib-runtime-${VERSION}`;
-const PRECACHE = ['/', '/login/', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
+const PRECACHE = ['/', '/login/', '/manifest.webmanifest', '/icon.svg', '/icons/badge-96.png', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(SHELL).then(cache => cache.addAll(PRECACHE)));
@@ -81,6 +81,6 @@ async function checkReminders() {
   }
   if (!consumed.length) return;
   await writeJson('/__reminders-fired.json', { date: day, fired: [...fired, ...consumed] });
-  await Promise.all(show.map(([title, body, url, tag]) => self.registration.showNotification(title, { body, tag, icon: '/icons/icon-192.png', badge: '/icons/maskable-192.png', data: { url } })));
+  await Promise.all(show.map(([title, body, url, tag]) => self.registration.showNotification(title, { body, tag, icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', data: { url }, lang: 'id', renotify: true, vibrate: [120, 60, 120], timestamp: Date.now(), actions: [{ action: 'open', title: 'Buka' }] })));
 }
 self.addEventListener('periodicsync', event => { if (event.tag === 'dompet-reminders') event.waitUntil(checkReminders()); });

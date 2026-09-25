@@ -12,14 +12,14 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 
 ## Unggah dan jalankan dari browser
 
-1. Unduh `DompetAjaib_v20260925_39.zip` dari percakapan ke laptop kantor. Cukup unduh, tidak perlu ekstrak.
+1. Unduh `DompetAjaib_v20260925_40.zip` dari percakapan ke laptop kantor. Cukup unduh, tidak perlu ekstrak.
 2. Masih di Firebase Console, klik ikon terminal `>_` di pojok atas untuk membuka Cloud Shell. Klik Authorize jika diminta. Tunggu sampai terminal siap.
 3. Di toolbar Cloud Shell, klik menu tiga titik → Upload → pilih ZIP tadi. File masuk ke home Cloud Shell.
 4. Di terminal Cloud Shell, salin dan jalankan:
 
    ```bash
    cd ~
-   unzip -o DompetAjaib_v20260925_39.zip
+   unzip -o DompetAjaib_v20260925_40.zip
    cd dompet-ajaib
    bash COBA_TANPA_INSTAL.sh
    ```
@@ -39,13 +39,13 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 
 Gunakan ini jika kamu sudah pernah membuat link percobaan dan sudah menyimpan konfigurasi Firebase di Cloud Shell. Prosesnya tetap dilakukan lewat browser:
 
-1. Unduh ZIP **baru** `DompetAjaib_v20260925_39.zip` dari percakapan. Jangan pakai ZIP lama yang namanya mirip.
+1. Unduh ZIP **baru** `DompetAjaib_v20260925_40.zip` dari percakapan. Jangan pakai ZIP lama yang namanya mirip.
 2. Buka Cloud Shell yang dipakai sebelumnya. ZIP ini tidak berisi `.env.local`, jadi konfigurasi Firebase lama di Cloud Shell tetap tersimpan. Di toolbar, pilih menu tiga titik → **Upload**, lalu pilih ZIP terbaru.
 3. Tempel perintah ini di terminal Cloud Shell:
 
    ```bash
    cd ~
-   unzip -o DompetAjaib_v20260925_39.zip
+   unzip -o DompetAjaib_v20260925_40.zip
    bash ~/dompet-ajaib/PERBARUI_LINK_COBA.sh
    ```
 

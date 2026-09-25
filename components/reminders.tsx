@@ -10,6 +10,8 @@ import { saveProfile } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
 import { upcomingEvents } from '@/lib/finance-control';
 import { formatDate, nextDate, todayInTimeZone } from '@/lib/period';
+import { showAppNotification } from '@/lib/system-notify';
+import { budgetCurrent } from '@/lib/accounting';
 import { defaultReminders, dueReminders, presetTimes, validTime, type ReminderConfig } from '@/lib/reminders';
 
 const STATE_CACHE = 'dompet-ajaib-state';
@@ -20,11 +22,7 @@ const localTime = () => { const d = new Date(); return `${String(d.getHours()).p
 async function readJson<T>(key: string): Promise<T | null> { try { const cache = await caches.open(STATE_CACHE); const hit = await cache.match(key); return hit ? await hit.json() as T : null; } catch { return null; } }
 async function writeJson(key: string, value: unknown) { try { const cache = await caches.open(STATE_CACHE); await cache.put(key, new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })); } catch { /* Cache Storage is optional. */ } }
 
-async function showSystemNotification(title: string, body: string, url: string, tag: string) {
-  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
-  const options = { body, tag, icon: '/icons/icon-192.png', badge: '/icons/maskable-192.png', data: { url } } as NotificationOptions;
-  try { const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : undefined; if (registration) { await registration.showNotification(title, options); return true; } new Notification(title, options); return true; } catch { return false; }
-}
+const showSystemNotification = showAppNotification;
 
 /** One check at a time across the whole app, so a reminder can never be shown twice. */
 let queue: Promise<void> = Promise.resolve();
@@ -62,6 +60,26 @@ export function useReminderEngine(navigate: (view: string) => void) {
     async function run() {
       {
         const { config, data, profile, navigate } = latest.current;
+        // Budget alerts: once per budget per period when it reaches its warning level, and again when it runs out.
+        if (config.budgetAlerts !== false && profile && data.budgets.length) {
+          const alerts = (await readJson<Record<string, string>>('/__budget-alerts.json')) || {};
+          let changed = false;
+          for (const budget of data.budgets.filter(b => b.active)) {
+            const status = budgetCurrent(budget, data.transactions, data.categories, new Date(), profile.salaryCycleStartDay || 24);
+            if (!status.available) continue;
+            const used = status.spent / status.available, warnAt = (budget.warningPercent || profile.budgetWarningPercent || 80) / 100;
+            const level = used > 1 ? 'over' : used >= warnAt ? 'warn' : '';
+            const key = `${budget.id}@${status.start}`;
+            if (!level || alerts[key] === level || alerts[key] === 'over') continue;
+            alerts[key] = level; changed = true;
+            const name = budget.name || data.categories.find(c => c.id === (budget.subcategoryId || budget.categoryId))?.name || 'Anggaran';
+            const title = level === 'over' ? `Anggaran ${name} terlampaui` : `Anggaran ${name} hampir habis`;
+            const body = level === 'over' ? `Terpakai ${rupiah(status.spent)} dari ${rupiah(status.available)} (lebih ${rupiah(status.spent - status.available)}).` : `Sudah ${Math.round(used * 100)}% terpakai · sisa ${rupiah(status.remaining)} sampai ${formatDate(status.end, false)}.`;
+            const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=budgets', `budget-${budget.id}`);
+            push({ title, body, kind: level === 'over' ? 'error' : 'warning', app: true, action: { label: 'Lihat anggaran', run: () => navigate('budgets') }, history: !shown });
+          }
+          if (changed) await writeJson('/__budget-alerts.json', alerts);
+        }
         if (!config.balanceEnabled && !config.billsEnabled) return;
         const day = localDay(), state = await readJson<{ date: string; fired: string[] }>('/__reminders-fired.json');
         const fired = state?.date === day ? state.fired : [];
@@ -72,7 +90,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
           if (kind === 'balance') {
             const title = 'Waktunya perbarui saldo 💰', body = `Cocokkan saldo ${data.wallets.filter(w => !w.isArchived).length} dompetmu dan catat transaksi yang terlewat hari ini.`;
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=wallets', 'balance');
-            push({ title, body, kind: 'info', action: { label: 'Buka dompet', run: () => navigate('wallets') }, history: !shown });
+            push({ title, body, kind: 'info', app: true, action: { label: 'Buka dompet', run: () => navigate('wallets') }, history: !shown });
           } else if (profile) {
             const today = todayInTimeZone(profile.timeZone); let end = today; for (let i = 0; i <= config.billDaysBefore; i++) end = nextDate(end);
             const due = upcomingEvents(data, profile, { start: today, end }).filter(e => e.kind !== 'note' && e.amount < 0);
@@ -80,7 +98,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
             const title = due.length === 1 ? `Tagihan: ${due[0].title}` : `${due.length} tagihan segera jatuh tempo`;
             const body = due.slice(0, 3).map(e => `${e.title} ${rupiah(Math.abs(e.amount))} · ${e.date === today ? 'hari ini' : formatDate(e.date, false)}`).join('\n');
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=upcoming', 'bills');
-            push({ title, body, kind: 'warning', action: { label: 'Lihat jadwal', run: () => navigate('upcoming') }, history: !shown });
+            push({ title, body, kind: 'warning', app: true, action: { label: 'Lihat jadwal', run: () => navigate('upcoming') }, history: !shown });
           }
         }
       }
@@ -97,7 +115,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
 /** Settings panel: how many balance reminders a day and at what times, plus bill reminders. */
 export function ReminderSettings() {
   const { user, profile } = useApp();
-  const { notify } = useNotify();
+  const { notify, push } = useNotify();
   const saved = reminderConfig(profile);
   const [draft, setDraft] = useState<ReminderConfig>(saved);
   const [permission, setPermission] = useState<string>('default');
@@ -131,7 +149,9 @@ export function ReminderSettings() {
       <Field label="Jam pengingat tagihan"><AppTimePicker value={draft.billTime} onChange={e => set({ billTime: e.target.value })} required/></Field>
     </div>}
 
-    <div className="settings-actions start"><Button type="button" disabled={!dirty} onClick={() => void save()}><Check size={16}/> Simpan pengingat</Button>{permission === 'granted' && <Button type="button" variant="secondary" onClick={() => void showSystemNotification('Contoh pengingat 💰', 'Waktunya perbarui saldo dompetmu.', '/?view=wallets', 'test')}><Send size={15}/> Coba kirim</Button>}</div>
+    <label className="switch-row"><input type="checkbox" checked={draft.budgetAlerts !== false} onChange={e => set({ budgetAlerts: e.target.checked })}/><span><strong>Peringatan anggaran</strong><small>Saat anggaran mencapai batas peringatan dan saat terlampaui (sekali per periode).</small></span></label>
+
+    <div className="settings-actions start"><Button type="button" disabled={!dirty} onClick={() => void save()}><Check size={16}/> Simpan pengingat</Button>{permission === 'granted' && <Button type="button" variant="secondary" onClick={() => { void showSystemNotification('Contoh pengingat 💰', 'Waktunya perbarui saldo dompetmu.', '/?view=wallets', 'test'); push({ title: 'Contoh pengingat 💰', body: 'Waktunya perbarui saldo dompetmu.', kind: 'info', app: true, history: false }); }}><Send size={15}/> Coba kirim</Button>}</div>
     <small className="muted">Pengingat dikirim oleh aplikasi di perangkat ini. Agar tepat waktu, pasang Dompet Ajaib ke layar utama dan jangan tutup paksa. Jika aplikasi baru dibuka setelah jamnya lewat (maks. 3 jam), pengingat muncul saat dibuka. Di iPhone perlu iOS 16.4+ dengan aplikasi terpasang.</small>
   </div>;
 }
