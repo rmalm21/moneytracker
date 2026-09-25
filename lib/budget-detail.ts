@@ -36,7 +36,7 @@ export function budgetDetail(budget: Budget, txs: LedgerTx[], categories: Catego
   for (const t of items) walletMap.set(t.walletId, (walletMap.get(t.walletId) || 0) + transactionExpense(t));
   const byWallet = [...walletMap].map(([walletId, amount]) => ({ walletId, amount })).sort((a, b) => b.amount - a.amount);
   const places = new Map<string, { name: string; amount: number; count: number }>();
-  for (const t of items) { const name = (t.merchant || t.description || '').trim(); if (!name) continue; const key = name.toLowerCase(); const row = places.get(key) || { name, amount: 0, count: 0 }; row.amount += transactionExpense(t); row.count++; places.set(key, row); }
+  for (const t of items) { const name = (t.merchant || '').trim(); if (!name) continue; const key = name.toLowerCase(); const row = places.get(key) || { name, amount: 0, count: 0 }; row.amount += transactionExpense(t); row.count++; places.set(key, row); }
   return { items, spent, totalDays, elapsed, daysLeft, dailyAvg, ideal, projected, pace, weeks, bySub, unassigned, byWallet, places: [...places.values()].sort((a, b) => b.amount - a.amount).slice(0, 5), largest: [...items].sort((a, b) => transactionExpense(b) - transactionExpense(a)).slice(0, 3) };
 }
 

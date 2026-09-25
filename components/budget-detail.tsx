@@ -119,7 +119,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
         <Bars total={detail.spent} rows={detail.weeks.map((w, i) => ({ key: `${i}`, label: <>{w.label}{w.current && <span className="bd-now">minggu ini</span>}</>, amount: w.amount, muted: w.future, current: w.current }))}/>
       </Block>}
       <Block icon={<Store size={16}/>} title="Tempat teratas">
-        {detail.places.length ? <Bars total={detail.spent} rows={detail.places.map(p => ({ key: p.name, label: p.name, amount: p.amount, note: `${p.count}×` }))}/> : <p className="bd-empty">Isi nama tempat atau keterangan saat mencatat agar terlihat di sini.</p>}
+        {detail.places.length ? <Bars total={detail.spent} rows={detail.places.map(p => ({ key: p.name, label: p.name, amount: p.amount, note: `${p.count}×` }))}/> : <p className="bd-empty">Belum ada tempat. Isi kolom “Tempat / penerima” saat mencatat agar terlihat di sini.</p>}
       </Block>
     </div>}
 

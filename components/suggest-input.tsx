@@ -1,6 +1,6 @@
 'use client';
 import { useId, useMemo, useState, type InputHTMLAttributes } from 'react';
-import { History } from 'lucide-react';
+import { History, X } from 'lucide-react';
 import type { LedgerTx } from '@/lib/types';
 
 /**
@@ -9,14 +9,27 @@ import type { LedgerTx } from '@/lib/types';
  * often and how recently they were used.
  */
 const memoryKey = (uid: string, field: string) => `dompet-ajaib:typed:${uid}:${field}`;
+const hiddenKey = (uid: string, field: string) => `dompet-ajaib:typed-hidden:${uid}:${field}`;
+const readList = (key: string): string[] => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 export type TypedField = 'description' | 'merchant';
 
 export function rememberTyped(uid: string, field: TypedField, text: string) {
   const value = text.trim();
   if (!value) return;
   try {
-    const list: string[] = JSON.parse(localStorage.getItem(memoryKey(uid, field)) || '[]');
+    const list = readList(memoryKey(uid, field));
     localStorage.setItem(memoryKey(uid, field), JSON.stringify([value, ...list.filter(item => item.toLowerCase() !== value.toLowerCase())].slice(0, 300)));
+    // Typing a removed text again brings it back.
+    localStorage.setItem(hiddenKey(uid, field), JSON.stringify(readList(hiddenKey(uid, field)).filter(item => item !== value.toLowerCase())));
+  } catch { /* Suggestions are a convenience. */ }
+}
+
+/** Stop suggesting a text (the transactions that use it are not changed). */
+export function forgetTyped(uid: string, field: TypedField, text: string) {
+  const key = text.trim().toLowerCase();
+  try {
+    localStorage.setItem(hiddenKey(uid, field), JSON.stringify([key, ...readList(hiddenKey(uid, field)).filter(item => item !== key)].slice(0, 500)));
+    localStorage.setItem(memoryKey(uid, field), JSON.stringify(readList(memoryKey(uid, field)).filter(item => item.toLowerCase() !== key)));
   } catch { /* Suggestions are a convenience. */ }
 }
 
@@ -33,10 +46,10 @@ export function useTypedSuggestions(uid: string | undefined, field: TypedField, 
       row.count++; row.score += 1 + 1 / (1 + index / 20);
       map.set(key, row);
     });
-    let remembered: string[] = [];
-    try { if (uid) remembered = JSON.parse(localStorage.getItem(memoryKey(uid, field)) || '[]'); } catch { /* ignore */ }
+    const remembered = uid ? readList(memoryKey(uid, field)) : [];
+    const hidden = new Set(uid ? readList(hiddenKey(uid, field)) : []);
     remembered.forEach((text, index) => { const key = text.toLowerCase(); const row = map.get(key) || { text, count: 0, score: 0 }; row.score += .5 / (1 + index / 10); map.set(key, row); });
-    return [...map.values()].sort((a, b) => b.score - a.score).map(({ text, last }) => ({ text, last }));
+    return [...map.values()].filter(row => !hidden.has(row.text.toLowerCase())).sort((a, b) => b.score - a.score).map(({ text, last }) => ({ text, last }));
   }, [uid, field, transactions]);
 }
 
@@ -50,10 +63,10 @@ function match(list: Suggestion[], query: string) {
 }
 
 /** Text input with a suggestion list under it; tapping a suggestion fills the field (and lets the form copy related values). */
-export function SuggestInput({ value, onValue, suggestions, onPick, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string; onValue: (value: string) => void; suggestions: Suggestion[]; onPick?: (item: Suggestion) => void }) {
-  const [open, setOpen] = useState(false), [active, setActive] = useState(-1);
+export function SuggestInput({ value, onValue, suggestions, onPick, onForget, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string; onValue: (value: string) => void; suggestions: Suggestion[]; onPick?: (item: Suggestion) => void; onForget?: (text: string) => void }) {
+  const [open, setOpen] = useState(false), [active, setActive] = useState(-1), [removed, setRemoved] = useState<string[]>([]);
   const id = useId();
-  const items = open ? match(suggestions, value) : [];
+  const items = open ? match(suggestions.filter(item => !removed.includes(item.text)), value) : [];
   const q = value.trim().toLowerCase();
   function pick(item: Suggestion) { onValue(item.text); onPick?.(item); setOpen(false); setActive(-1); }
   return <div className="suggest">
@@ -72,6 +85,7 @@ export function SuggestInput({ value, onValue, suggestions, onPick, ...rest }: O
       return <li key={item.text} id={`${id}-${index}`} role="option" aria-selected={index === active} className={index === active ? 'active' : ''} onPointerDown={event => { event.preventDefault(); pick(item); }}>
         <History size={14} aria-hidden="true"/>
         <span>{at >= 0 ? <>{item.text.slice(0, at)}<b>{item.text.slice(at, at + q.length)}</b>{item.text.slice(at + q.length)}</> : item.text}</span>
+        {onForget && <button type="button" className="suggest-forget" aria-label={`Hapus saran ${item.text}`} title="Hapus dari saran" onPointerDown={event => { event.preventDefault(); event.stopPropagation(); onForget(item.text); setRemoved(list => [...list, item.text]); setActive(-1); }}><X size={15}/></button>}
       </li>;
     })}</ul>}
   </div>;

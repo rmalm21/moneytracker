@@ -2068,6 +2068,9 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .suggest-list li span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .suggest-list li b { color: var(--accent); font-weight: 800; }
 .suggest-list li:hover, .suggest-list li.active { background: var(--accent-soft); }
+.suggest-list li span { flex: 1; }
+.suggest-forget { display: grid; place-items: center; flex: none; width: 34px; height: 34px; margin-right: -8px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.suggest-forget:hover { background: color-mix(in srgb, var(--rose) 12%, var(--paper)); color: var(--rose); }
 :root[data-theme='dark'] .suggest-list { box-shadow: 0 16px 34px -12px rgba(0, 0, 0, .7); }
 
 /* ==========================================================================
