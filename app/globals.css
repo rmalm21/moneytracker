@@ -2026,6 +2026,8 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .transaction-row .data-row-main > strong { font-size: .95rem; }
 .tx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin-top: 2px; color: var(--muted); font-size: .8rem; }
 .tx-meta > span + span::before { content: '·'; margin: 0 6px; opacity: .6; }
+/* Wrap between items, never inside one: “Makan & Minum” stays on one line. */
+.tx-meta > span { white-space: nowrap; }
 .tx-meta .tx-cat { color: color-mix(in srgb, var(--identity-color, var(--accent)) 75%, var(--ink)); font-weight: 700; }
 .transaction-row .data-row-side { gap: 2px; }
 .transaction-row .data-row-side > strong { font-size: .98rem; font-variant-numeric: tabular-nums; }
@@ -2055,6 +2057,18 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 :root[data-theme='dark'] .tx-meta .tx-cat { color: color-mix(in srgb, var(--identity-color, var(--accent)) 55%, #fff); }
 :root[data-theme='dark'] .transaction-row .row-icon:has(.row-emoji) { background: color-mix(in srgb, var(--identity-color, var(--accent)) 26%, var(--paper)); }
 :root[data-theme='dark'] .chart-tip { background: color-mix(in srgb, var(--paper-2) 96%, transparent); }
+
+/* ==========================================================================
+   55. Suggestions under text inputs (keterangan, tempat)
+   ========================================================================== */
+.suggest { position: relative; }
+.suggest-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 16px 34px -12px rgba(16, 42, 54, .28); animation: view-in .12s ease-out; }
+.suggest-list li { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 10px; cursor: pointer; font-size: .92rem; }
+.suggest-list li svg { flex: none; color: var(--muted); }
+.suggest-list li span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.suggest-list li b { color: var(--accent); font-weight: 800; }
+.suggest-list li:hover, .suggest-list li.active { background: var(--accent-soft); }
+:root[data-theme='dark'] .suggest-list { box-shadow: 0 16px 34px -12px rgba(0, 0, 0, .7); }
 
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
