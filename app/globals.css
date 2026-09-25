@@ -2110,6 +2110,33 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (max-width: 760px) { .group-choices { grid-template-columns: minmax(0, 1fr); } .wallet-group { margin-top: 18px; } }
 
 /* ==========================================================================
+   58. Wallet group tabs: three side by side, swipe the list to switch
+   ========================================================================== */
+.wallet-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 18px 0 6px; padding: 5px; border-radius: 18px; background: var(--paper); box-shadow: var(--elev-card); border: 1px solid var(--card-edge); }
+.wallet-tab { --group: var(--accent); display: grid; gap: 2px; justify-items: start; min-width: 0; padding: 10px 12px; border: 0; border-radius: 14px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.wallet-tab.is-savings { --group: #3b6fd4; } .wallet-tab.is-investment { --group: #7a5bc9; }
+:root[data-theme='dark'] .wallet-tab.is-savings { --group: #8fb2f5; } :root[data-theme='dark'] .wallet-tab.is-investment { --group: #b9a2f0; }
+.wallet-tab:hover { background: var(--paper-2); }
+.wallet-tab-top { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 800; }
+.wallet-tab-top svg { color: var(--group); }
+.wallet-tab strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 1rem/1.25 var(--font-head); font-variant-numeric: tabular-nums; }
+.wallet-tab small { color: var(--muted); font-size: .72rem; }
+.wallet-tab.active { background: var(--group); color: #fff; box-shadow: 0 10px 22px -12px var(--group); }
+.wallet-tab.active :is(.wallet-tab-top, .wallet-tab-top svg, small) { color: rgba(255, 255, 255, .85); }
+:root[data-theme='dark'] .wallet-tab.active { color: var(--bg); }
+:root[data-theme='dark'] .wallet-tab.active :is(.wallet-tab-top, .wallet-tab-top svg, small) { color: color-mix(in srgb, var(--bg) 80%, transparent); }
+.wallet-group { margin-top: 8px; animation: view-in .2s var(--ease-out) both; touch-action: pan-y; }
+.wallet-group-hint { margin: 0 2px 4px; color: var(--muted); font-size: .84rem; }
+.wallet-group-empty { display: grid; gap: 12px; justify-items: start; }
+.wallet-group-empty p { margin: 0; color: var(--muted); }
+@media (max-width: 760px) {
+  .wallet-tabs { gap: 4px; padding: 4px; }
+  .wallet-tab { padding: 9px 9px; }
+  .wallet-tab strong { font-size: .86rem; }
+  .wallet-tab-top { font-size: .72rem; gap: 4px; }
+}
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
@@ -2165,3 +2192,5 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .group-choices .choice-card input { position: absolute; opacity: 0; pointer-events: none; }
 .group-choices .choice-card.is-selected .group-choice-icon { background: var(--accent); color: var(--accent-on); }
 @media (max-width: 760px) { .wallet-group-head .group-hint { display: none; } }
+.wallet-tab .amount-short { display: none; }
+@media (max-width: 760px) { .wallet-tab .amount-full { display: none; } .wallet-tab .amount-short { display: inline; } }
