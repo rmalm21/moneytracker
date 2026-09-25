@@ -20,8 +20,9 @@ export function forecast(input: ForecastInput) {
   const before = free - untilPayday - extra + claim - debtDue;
   const income = salary + overtime;
   const after = before + income;
-  // Monthly spending: the budget when one is set, otherwise the spending pace for a full cycle.
-  const monthlyOut = Math.round(totalBudget > 0 ? totalBudget * factor : daily * daysTotal);
+  // Monthly spending: the budget or the spending pace for a full cycle, whichever is larger
+  // (budgets often cover only some categories).
+  const monthlyOut = Math.round(Math.max(totalBudget * factor, daily * daysTotal));
   const monthlyNet = income - monthlyOut;
   const months = Array.from({ length: 6 }, (_, index) => after + index * monthlyNet);
   const status: ForecastStatus = before < 0 ? 'minus' : before < daily * 7 ? 'tipis' : 'aman';

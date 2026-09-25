@@ -59,9 +59,11 @@ function walletAt(wallet:Wallet,ledger:LedgerTx[],cutoff:string){
   if(created?.seconds&&new Date(created.seconds*1000).toISOString().slice(0,10)>=cutoff)return 0;
   return wallet.cachedBalance-ledger.filter(tx=>tx.date>=cutoff).reduce((sum,tx)=>sum+(effects(tx)[wallet.id]||0),0);
 }
-function debtAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.debts.reduce((sum,debt)=>{const created=debt.createdAt as {seconds?:number}|undefined;if(created?.seconds&&new Date(created.seconds*1000).toISOString().slice(0,10)>=cutoff)return sum;return sum+Math.max(0,debt.outstandingAmount+ledger.filter(tx=>tx.debtId===debt.id&&tx.type==='debt_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0));},0);}
+/** Payments recorded without a wallet ("lunas tanpa dompet") on or after the cutoff, added back for an earlier balance. */
+const manualAfter=(item:{manualPayments?:{amount:number;date:string}[]},cutoff:string)=>(item.manualPayments||[]).filter(p=>p.date>=cutoff).reduce((n,p)=>n+p.amount,0);
+function debtAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.debts.reduce((sum,debt)=>{const created=debt.createdAt as {seconds?:number}|undefined;if(created?.seconds&&new Date(created.seconds*1000).toISOString().slice(0,10)>=cutoff)return sum;return sum+Math.max(0,debt.outstandingAmount+manualAfter(debt,cutoff)+ledger.filter(tx=>tx.debtId===debt.id&&tx.type==='debt_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0));},0);}
 function claimsAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.claims.reduce((sum,claim)=>sum+(claim.submissionDate>=cutoff?0:Math.max(0,claim.remainingAmount+ledger.filter(tx=>tx.claimId===claim.id&&['claim_payment','claim_writeoff'].includes(tx.type)&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0))),0);}
-function receivablesAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.receivables.reduce((sum,item)=>sum+(item.date>=cutoff?0:Math.max(0,item.remainingAmount+ledger.filter(tx=>tx.receivableId===item.id&&tx.type==='receivable_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0))),0);}
+function receivablesAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.receivables.reduce((sum,item)=>sum+(item.date>=cutoff?0:Math.max(0,item.remainingAmount+manualAfter(item,cutoff)+ledger.filter(tx=>tx.receivableId===item.id&&tx.type==='receivable_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0))),0);}
 export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRange,previous?:CycleSnapshot,includeReceivables=false):Omit<CycleSnapshot,'id'|'createdAt'|'updatedAt'>{
   const transactions=ledger.filter(tx=>inRange(tx.date,range));
   const at=(date:string)=>{
@@ -76,8 +78,10 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
   const income=transactions.filter(tx=>tx.type==='income').reduce((sum,tx)=>sum+tx.amount,0);
   const expense=transactions.reduce((sum,tx)=>sum+transactionExpense(tx),0);
   const budgets=previous?.budgetDefinitions||data.budgets.filter(b=>b.active&&(!b.createdDate||b.createdDate<range.end));
-  const budgetTotal=previous?.budgetTotal??budgets.reduce((sum,b)=>sum+budgetMonthly(b),0);
-  const budgetUsed=budgets.reduce((sum,b)=>sum+budgetSpent(b,transactions,data.categories),0);
+  // A category budget already covers its subcategory budgets: count each amount once, as the Anggaran page does.
+  const counted=budgets.filter(b=>!b.subcategoryId||!budgets.some(parent=>parent.categoryId===b.categoryId&&!parent.subcategoryId));
+  const budgetTotal=previous?.budgetTotal??counted.reduce((sum,b)=>sum+budgetMonthly(b),0);
+  const budgetUsed=counted.reduce((sum,b)=>sum+budgetSpent(b,transactions,data.categories),0);
   return {startDate:range.start,endDate:range.end,openingAssets:opening.assets,closingAssets:closing.assets,openingNetWorth:opening.netWorth,closingNetWorth:closing.netWorth,income,expense,cashFlow:income-expense,budgetTotal,budgetSpent:budgetUsed,budgetRemaining:budgetTotal-budgetUsed,budgetDefinitions:budgets,reservedMoney:closing.reserved,debtOutstanding:debtAt(data,ledger,range.end),claimsOutstanding:claimsAt(data,ledger,range.end),savings:transactions.filter(tx=>tx.type==='fund_contribution').reduce((sum,tx)=>sum+tx.amount,0),debtPaid:transactions.filter(tx=>tx.type==='debt_payment').reduce((sum,tx)=>sum+tx.amount,0),claimReceived:transactions.filter(tx=>tx.type==='claim_payment').reduce((sum,tx)=>sum+tx.amount,0),notes:previous?.notes||''};
 }
 

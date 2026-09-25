@@ -112,7 +112,7 @@ export function ForecastView() {
       <section className="panel forecast-panel">
         <div className="forecast-panel-head"><h3>Perjalanan saldo</h3><small>{result.monthlyNet >= 0 ? <><TrendingUp size={14}/> Naik ±{rupiah(result.monthlyNet)}/bulan</> : <><TrendingDown size={14}/> Turun ±{rupiah(-result.monthlyNet)}/bulan</>}</small></div>
         <BalanceChart points={points} height={260}/>
-        <small className="muted">Tiap bulan: pemasukan {rupiah(result.income)} − pengeluaran {rupiah(result.monthlyOut)} ({stat.totalBudget > 0 ? 'total anggaran' : 'pola belanja'}).</small>
+        <small className="muted">Tiap bulan: pemasukan {rupiah(result.income)} − pengeluaran {rupiah(result.monthlyOut)} ({stat.totalBudget > 0 && result.monthlyOut === Math.round(stat.totalBudget * (1 + (input.spendAdjust || 0) / 100)) ? 'total anggaran' : stat.totalBudget > 0 ? 'pola belanja, karena lebih besar dari total anggaran' : 'pola belanja'}).</small>
       </section>
       <section className="panel forecast-panel">
         <div className="forecast-panel-head"><h3>Atur skenario</h3><button type="button" className="link-button" onClick={() => setInput(defaults)}><RotateCcw size={14}/> Kembalikan</button></div>

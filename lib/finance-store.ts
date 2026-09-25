@@ -25,8 +25,9 @@ export async function repairWalletCache(uid:string,id:string,expected:number){
   try{await refreshCycleSnapshots(uid,'0000-01-01');return {balance:preview.calculated,warning:''}}catch(error){console.error(error);return {balance:preview.calculated,warning:'Saldo sudah disamakan, tetapi ringkasan siklus belum dapat diperbarui. Buka Riwayat Siklus → Perbarui laporan.'}}
 }
 export async function reconcileWallet(uid:string,id:string,expectedCached:number,actual:number,notes:string,date?:string){
-  if(!Number.isSafeInteger(actual)||actual<0)throw Error('Saldo aktual harus berupa Rupiah yang valid.');
   const preview=await walletBalancePreview(uid,id);
+  // A credit card may legitimately stand below zero; other wallets cannot.
+  if(!Number.isSafeInteger(actual)||actual<0&&preview.wallet.type!=='credit')throw Error('Saldo aktual harus berupa Rupiah yang valid.');
   if(preview.cached!==preview.calculated)throw Error('Saldo tersimpan berbeda dari catatan transaksi. Jalankan Hitung ulang saldo dahulu.');
   if(preview.cached!==expectedCached)throw Error('Saldo berubah. Periksa ulang sebelum menyesuaikan.');
   const delta=actual-preview.cached;if(!delta)throw Error('Saldo sudah cocok; tidak diperlukan penyesuaian.');

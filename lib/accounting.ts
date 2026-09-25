@@ -56,12 +56,17 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const signedAssets = owned.reduce((n,w)=>n+w.cachedBalance,0);
   const liabilities = data.debts.reduce((n,d)=>n+Math.max(0,d.outstandingAmount),0);
   const receivables = data.claims.filter(c=>c.status!=='rejected').reduce((n,c)=>n+Math.max(0,c.remainingAmount),0)+data.receivables.reduce((n,r)=>n+Math.max(0,r.remainingAmount),0);
-  const reserved = owned.filter(w=>w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
-  // Wallets in a kantong are set aside as a whole; other Tujuan dana set aside their recorded amount.
+  const keptWallets = owned.filter(w=>w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
+  // Uang bebas: spendable wallets that are not "Disimpan", minus money that already has a purpose —
+  // wallets grouped in a kantong (as a whole) and amounts collected for Tujuan dana kept in those wallets.
   const inKantong = kantongWalletIds(data.funds);
-  const kantongMoney = owned.filter(w=>!w.isReserved&&inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
-  const unlinkedFunds = data.funds.filter(f=>!f.isArchived&&!isKantong(f)&&!active.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((n,f)=>n+Math.max(0,f.currentAmount),0)+kantongMoney;
-  const free = liquid.filter(w=>!w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0)-unlinkedFunds;
+  const usableWallets = liquid.filter(w=>!w.isReserved);
+  const usable = usableWallets.reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
+  const kantongMoney = usableWallets.filter(w=>inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
+  const kantongElsewhere = owned.filter(w=>!w.isReserved&&w.isSpendable===false&&inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
+  const goalMoney = data.funds.filter(f=>{ if(f.isArchived||isKantong(f))return false; const w=active.find(x=>x.id===f.linkedWalletId); return !w||!w.isReserved&&w.isSpendable!==false&&!inKantong.has(w.id); }).reduce((n,f)=>n+Math.max(0,f.currentAmount),0);
+  const free = usable-kantongMoney-goalMoney;
+  const reserved = keptWallets+kantongMoney+kantongElsewhere+goalMoney;
   const cycle = data.transactions.filter(t=>t.date>=start&&t.date<end);
   const income = cycle.filter(t=>t.type==='income').reduce((n,t)=>n+t.amount,0);
   const expenses = cycle.reduce((n,t)=>n+transactionExpense(t),0);
@@ -70,5 +75,5 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const totalBudget=nonOverlapping.reduce((n,b)=>n+b.amount+(b.rolloverEnabled?(b.rolloverCarry||0):0),0);
   const budgetRemaining=nonOverlapping.reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
   const discretionaryRemaining=nonOverlapping.filter(b=>b.classification==='living').reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
-  return {assets,liabilities,receivables,netWorth:signedAssets+(includeReceivables?receivables:0)-liabilities,reserved:reserved+unlinkedFunds,free:Math.max(0,free),income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
+  return {assets,liabilities,receivables,netWorth:signedAssets+(includeReceivables?receivables:0)-liabilities,reserved,free:Math.max(0,free),freeParts:{usable,usableCount:usableWallets.length,kantongMoney,goalMoney,keptWallets},income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
 }

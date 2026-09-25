@@ -42,20 +42,19 @@ function FreeMoneyCard({ perform, navigate }: { perform: (fn: () => Promise<unkn
   const { data, profile, user, cycle } = useApp();
   const today = todayInTimeZone(profile?.timeZone), day = dateInTimeZone(new Date(), profile?.timeZone);
   const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day, Boolean(profile?.netWorthIncludesReceivables));
-  const usableWallets = data.wallets.filter(w => !w.isArchived && w.isSpendable !== false && !w.isReserved);
-  const usable = usableWallets.reduce((n, w) => n + Math.max(0, w.cachedBalance), 0);
-  const funds = Math.max(0, usable - stat.free), keptWallets = Math.max(0, stat.reserved - funds);
+  const { usable, usableCount, kantongMoney, goalMoney, keptWallets } = stat.freeParts;
   const committed = commitments(data, { start: today, end: cycle.end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0);
   const subtract = profile?.excludeCommittedFromAvailable !== false;
   const rows: [string, number, string][] = [
-    [`Saldo dompet yang bisa dipakai (${usableWallets.length} dompet)`, usable, 'base'],
-    ...(funds > 0 ? [['Tujuan dana yang belum punya dompet sendiri', -funds, 'minus'] as [string, number, string]] : []),
+    [`Saldo dompet yang bisa dipakai (${usableCount} dompet)`, usable, 'base'],
+    ...(kantongMoney > 0 ? [['Dompet yang masuk kantong (mis. Dana darurat)', -kantongMoney, 'minus'] as [string, number, string]] : []),
+    ...(goalMoney > 0 ? [['Sudah terkumpul untuk tujuan dana', -goalMoney, 'minus'] as [string, number, string]] : []),
     ['Uang bebas', stat.free, 'total'],
     [`Tagihan & rencana belum dibayar sampai gajian${subtract ? '' : ' (tidak dikurangi)'}`, subtract ? -committed : 0, subtract ? 'minus' : 'off'],
     ['Uang tersedia', stat.free - (subtract ? committed : 0), 'total'],
   ];
   return <div className="set-card"><h3>Uang bebas</h3>
-    <p>Uang bebas adalah uang yang aman dipakai sekarang. Dompet yang ditandai <b>Disimpan</b> (tabungan, investasi) tidak ikut dihitung.</p>
+    <p>Uang bebas adalah uang yang aman dipakai sekarang. Dompet yang ditandai <b>Disimpan</b> (tabungan, investasi) dan dompet yang masuk <b>kantong</b> tidak ikut dihitung.</p>
     <div className="free-breakdown">{rows.map(([label, value, kind]) => <div key={label} className={`free-row is-${kind}`}><span>{label}</span><strong>{kind === 'minus' ? `− ${rupiah(-value)}` : kind === 'off' ? rupiah(committed) : rupiah(value)}</strong></div>)}
       <div className="free-row is-note"><span>Tidak dihitung: dompet Disimpan</span><strong>{rupiah(keptWallets)}</strong></div></div>
     <div className="set-switches">
