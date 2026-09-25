@@ -9,7 +9,7 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { Field, Input, Money, Select } from './fields';
 import { Emoji, emojiKey } from './emoji';
 import { ReorderHandle, reorder } from './reorder-handle';
-import { EmojiSearchButton, withCurrent } from './visual-identity';
+import { IconChoice } from './visual-identity';
 import { metrics, rupiah } from '@/lib/accounting';
 import { commitments } from '@/lib/finance-control';
 import { deleteWish, saveDisplayOrder, saveWish } from '@/lib/firestore';
@@ -159,7 +159,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
       <form className="form-stack" onSubmit={event => { event.preventDefault(); submit(); }}>
         <Field label="Nama impian"><Input required value={draft.name} onChange={event => setDraft(d => ({ ...d, name: event.target.value }))} placeholder="contoh: Headphone noise cancelling"/></Field>
         <div className="form-grid"><Field label="Harga"><Money value={draft.price} onChange={price => setDraft(d => ({ ...d, price }))} required/></Field>{!editing && <Field label="Sudah terkumpul (opsional)"><Money value={draft.saved} onChange={saved => setDraft(d => ({ ...d, saved }))}/></Field>}</div>
-        <div className="wl-field"><span className="emoji-head">Ikon<EmojiSearchButton value={draft.emoji} onPick={e => setDraft(d => ({ ...d, emoji: e }))}/></span><div className="wl-emoji-grid" role="radiogroup" aria-label="Ikon">{withCurrent(wishEmojis, draft.emoji).map(e => <button type="button" role="radio" aria-checked={draft.emoji === e} key={e} className={draft.emoji === e ? 'active' : ''} onClick={() => setDraft(d => ({ ...d, emoji: e }))}><Emoji e={e}/></button>)}</div></div>
+        <IconChoice value={draft.emoji} onPick={e => setDraft(d => ({ ...d, emoji: e }))} options={wishEmojis}/>
         <div className="wl-field"><span>Prioritas</span><div className="ip-choices">{([1, 2, 3] as const).map(p => <button type="button" key={p} className={draft.priority === p ? 'active' : ''} aria-pressed={draft.priority === p} onClick={() => setDraft(d => ({ ...d, priority: p }))}>{draft.priority === p && <Check size={14}/>}{priorityLabels[p]}</button>)}</div></div>
         <div className="form-grid">
           <Field label="Target tanggal (opsional)"><Input type="date" value={draft.targetDate} min={today} onChange={event => setDraft(d => ({ ...d, targetDate: event.target.value }))}/></Field>

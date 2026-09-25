@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Emoji } from './emoji';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { colorPresets } from '@/lib/category-templates';
 import type { Category } from '@/lib/types';
@@ -153,7 +153,7 @@ export type BrandIcon = { key: string; label: string; text: string; bg: string; 
 export const brandIcons: BrandIcon[] = [
   // Prepaid cards first, so "e-money Mandiri" or "Brizzi BRI" suggest the card rather than the bank.
   { key: 'emoney', label: 'e-money Mandiri', text: 'e-money', bg: '#f5a800', fg: '#003d79', group: 'Uang elektronik', words: 'emoney money etoll' },
-  { key: 'flazz', label: 'Flazz BCA', text: 'flazz', bg: '#7ac143', fg: '#ffffff', group: 'Uang elektronik', words: 'flazz' },
+  { key: 'flazz', label: 'Flazz BCA', text: 'flazz', bg: '#005eb8', fg: '#ffffff', group: 'Uang elektronik', words: 'flazz' },
   { key: 'tapcash', label: 'TapCash BNI', text: 'TapCash', bg: '#005e6a', fg: '#f37021', group: 'Uang elektronik', words: 'tapcash tap' },
   { key: 'brizzi', label: 'Brizzi BRI', text: 'BRIZZI', bg: '#1b63c6', fg: '#ffffff', group: 'Uang elektronik', words: 'brizzi' },
   { key: 'bca', label: 'BCA', text: 'BCA', bg: '#0060af', fg: '#ffffff', group: 'Bank', words: 'bca bank central asia klikbca mybca' },
@@ -230,6 +230,12 @@ export function EmojiSearchButton({value,onPick,label='Cari lainnya'}:{value?:st
   </DialogContent></Dialog>
  </>;
 }
+/** Collapsed icon choice for forms: shows the current icon, opens the list when tapped. */
+export function IconChoice({value,onPick,options,label='Ikon'}:{value:string;onPick:(emoji:string)=>void;options:string[];label?:string}){
+ return <details className="look-picker"><summary><span className="look-preview"><Emoji e={value}/></span><span className="look-text"><strong>{label}</strong><small>Ketuk untuk mengubah</small></span><ChevronDown size={18} className="look-chevron" aria-hidden="true"/></summary>
+  <div className="look-body"><div className="emoji-head"><span/><EmojiSearchButton value={value} onPick={onPick}/></div><div className="wl-emoji-grid">{withCurrent(options,value).map(e=><button type="button" key={e} className={value===e?'active':''} aria-pressed={value===e} onClick={()=>onPick(e)}><Emoji e={e}/></button>)}</div></div>
+ </details>;
+}
 /** A short list of icons that always shows the current one, even when it was picked from the search. */
 export const withCurrent=(list:string[],current?:string)=>current&&!current.startsWith('brand:')&&!list.includes(current)?[current,...list]:list;
 
@@ -244,7 +250,7 @@ export function VisualPicker({icon,color,onIcon,onColor,kind,name='',inheritLabe
  const suggested=kind==='wallet'?brandForName(name):undefined;
  const brandButton=(brand:BrandIcon)=><button type="button" key={`b${brand.key}`} aria-label={`Ikon ${brand.label}`} title={brand.label} aria-pressed={icon===`brand:${brand.key}`} className={`brand-choice ${icon===`brand:${brand.key}`?'selected':''}`} onClick={()=>{onIcon(`brand:${brand.key}`);const hex=brand.bg.toLowerCase();if(!color||colorPresets.some(preset=>preset.hex.toLowerCase()===color.toLowerCase()))onColor(hex)}}><AppIcon icon={`brand:${brand.key}`}/></button>;
  const custom=Boolean(color)&&!colorPresets.some(preset=>preset.hex.toLowerCase()===color.toLowerCase());
- return <div className="visual-picker">
+ return <details className="look-picker"><summary><span className="look-preview" style={identityStyle(color||undefined)}><AppIcon icon={icon} fallback="🗂️"/></span><span className="look-text"><strong>Ikon & warna</strong><small>Ketuk untuk mengubah tampilan</small></span><ChevronDown size={18} className="look-chevron" aria-hidden="true"/></summary><div className="visual-picker">
   <div className="picker-heading"><strong>Ikon</strong><span className="picker-current"><AppIcon icon={icon} fallback="🗂️"/></span></div>
   {kind==='wallet'?<div className="emoji-library wallet-icon-library" role="group" aria-label="Pilih ikon">
    {suggested&&<section><h5>Disarankan untuk “{name.trim()}”</h5><div className="emoji-grid brand-grid">{brandButton(suggested)}</div></section>}
@@ -266,5 +272,5 @@ export function VisualPicker({icon,color,onIcon,onColor,kind,name='',inheritLabe
   </div>
   <details className="color-more" open={custom||undefined}><summary>Warna lainnya</summary><label className="custom-color"><input type="color" value={validHex(color)?color:'#267e73'} onChange={event=>onColor(event.target.value)} aria-label="Pilih warna lain"/><span>{custom?'Warna pilihan sendiri dipakai':'Pilih warna sendiri'}</span></label></details>
   <small>Tulisan di atas warna menyesuaikan otomatis agar tetap terbaca.</small>
- </div>;
+ </div></details>;
 }

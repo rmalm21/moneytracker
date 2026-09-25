@@ -8,7 +8,7 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input, Money } from './fields';
 import { Emoji } from './emoji';
-import { AppIcon, EmojiSearchButton, withCurrent } from './visual-identity';
+import { AppIcon, IconChoice } from './visual-identity';
 import { rupiah } from '@/lib/accounting';
 import { archiveOrDelete, saveRecord } from '@/lib/firestore';
 import { isEmergencyFund, isKantong, kantongAmount, kantongWallets, pocketEmoji, pocketIcons } from '@/lib/pockets';
@@ -107,7 +107,7 @@ export function PocketSheet({ open, onOpenChange, start = { mode: 'list' } }: { 
     {mode === 'form' && <form className="form-stack" onSubmit={event => { event.preventDefault(); save(); }}>
       <div className="ip-seg"><button type="button" className={kind === 'emergency' ? 'active' : ''} onClick={() => { setKind('emergency'); if (!name) setName('Dana darurat'); setIcon('🛟'); }}>🛟 Dana darurat</button><button type="button" className={kind === 'goal' ? 'active' : ''} onClick={() => { setKind('goal'); if (icon === '🛟') setIcon('🎯'); }}>🎯 Tabungan / tujuan</button></div>
       <Field label="Nama kantong"><Input required value={name} onChange={e => setName(e.target.value)} placeholder="contoh: Tabungan kuliah"/></Field>
-      <div className="wl-field"><span className="emoji-head">Ikon<EmojiSearchButton value={icon} onPick={setIcon}/></span><div className="wl-emoji-grid">{withCurrent(pocketIcons, icon).map(e => <button type="button" key={e} className={icon === e ? 'active' : ''} aria-pressed={icon === e} onClick={() => setIcon(e)}><Emoji e={e}/></button>)}</div></div>
+      <IconChoice value={icon} onPick={setIcon} options={pocketIcons}/>
       <div className="wl-field"><span>Dompet di kantong ini</span>
         <div className="pocket-wallet-pick" role="group" aria-label="Dompet di kantong ini">{wallets.map(w => { const on = picked.includes(w.id), owner = ownerOf(w.id); return <button type="button" key={w.id} role="checkbox" aria-checked={on} className={on ? 'active' : ''} onClick={() => toggle(w.id)}>
           <span className="tx-wallet-icon"><AppIcon icon={w.icon}/></span>

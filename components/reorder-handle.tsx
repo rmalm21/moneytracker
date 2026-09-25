@@ -5,11 +5,11 @@ import { GripVertical } from 'lucide-react';
 type DragState = { x: number; y: number; pointer: number; source: HTMLElement | null; ghost: HTMLElement | null; offsetX: number; offsetY: number; touch: boolean; armed: boolean; timer: number };
 
 /** How long a finger must rest on the handle before the row lifts (so scrolling past it never drags). */
-export const HOLD_MS = 2000;
+export const HOLD_MS = 450;
 
 /**
  * Use on a row inside an element with data-sort-id. Mouse: drag after a short move.
- * Touch: hold the handle for 2 seconds (a ring fills up) until the row floats, then move it;
+ * Touch: hold the handle briefly (a ring fills up) until the row floats, then move it;
  * moving earlier simply scrolls the page. Dropping it on another row moves it there.
  */
 export function ReorderHandle({id,onMove}:{id:string;onMove:(from:string,to:string)=>void}){

@@ -544,11 +544,11 @@ small.form-error { display: block; }
 .color-grid button i { width: 22px; height: 22px; border-radius: 7px; border: 1px solid #0002; }
 .sort-handle { position: relative; display: inline-grid; place-items: center; flex: none; min-width: 32px; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: grab; touch-action: pan-y; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 @media (pointer: fine) { .sort-handle { touch-action: none; } }
-/* Touch: a ring fills up during the 2-second hold, then the row lifts. */
+/* Touch: a ring fills up during the short hold, then the row lifts. */
 @property --hold { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 .sort-handle::after { content: ''; position: absolute; inset: 1px; border-radius: 50%; pointer-events: none; opacity: 0; background: conic-gradient(var(--accent) var(--hold), transparent 0); -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%); }
 .sort-handle.is-holding { color: var(--accent); background: var(--accent-soft); }
-.sort-handle.is-holding::after { opacity: 1; animation: hold-fill 2s linear forwards; }
+.sort-handle.is-holding::after { opacity: 1; animation: hold-fill .45s linear forwards; }
 @keyframes hold-fill { from { --hold: 0%; } to { --hold: 100%; } }
 .sort-handle:hover { color: var(--accent); background: var(--accent-soft); }
 .sort-handle:active { cursor: grabbing; }
@@ -3951,6 +3951,24 @@ html, body { overscroll-behavior-x: none; }
 .emoji-search-dialog.modal-content.app-dialog { width: min(94vw, 520px); }
 .emoji-search-library { max-height: min(56vh, 460px); overflow-y: auto; margin-top: 12px; }
 .emoji-search-library .emoji-grid button.selected { outline: 2px solid var(--accent); }
+
+/* 78. Collapsed icon & colour pickers in forms */
+.look-picker { border: 1px solid var(--line); border-radius: 16px; background: var(--paper); min-width: 0; }
+.look-picker > summary { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; border-radius: inherit; }
+.look-picker > summary::-webkit-details-marker { display: none; }
+.look-picker > summary:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.look-preview { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; overflow: hidden; background: color-mix(in srgb, var(--identity-color, var(--accent)) 16%, var(--paper)); font-size: 1.2rem; }
+.look-preview .emoji { width: 26px; height: 26px; }
+.look-preview > .brand-icon { width: 100%; height: 100%; border-radius: inherit; }
+.look-text { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.look-text strong { font-size: .92rem; }
+.look-text small { color: var(--muted); font-size: .76rem; }
+.look-chevron { flex: none; color: var(--muted); transition: rotate .2s ease; }
+.look-picker[open] > summary { border-bottom: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+.look-picker[open] .look-chevron { rotate: 180deg; }
+.look-picker > .visual-picker, .look-picker > .look-body { padding: 12px; }
+.look-body { display: grid; gap: 8px; }
+.look-picker .visual-picker .picker-current { display: none; }
 
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
