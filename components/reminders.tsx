@@ -70,7 +70,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
         await writeJson('/__reminders-fired.json', { date: day, fired: [...fired, ...consumed] });
         for (const kind of fire) {
           if (kind === 'balance') {
-            const title = 'Waktunya cek saldo 💰', body = `Cocokkan saldo ${data.wallets.filter(w => !w.isArchived).length} dompetmu dan catat transaksi yang terlewat hari ini.`;
+            const title = 'Waktunya perbarui saldo 💰', body = `Cocokkan saldo ${data.wallets.filter(w => !w.isArchived).length} dompetmu dan catat transaksi yang terlewat hari ini.`;
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=wallets', 'balance');
             push({ title, body, kind: 'info', action: { label: 'Buka dompet', run: () => navigate('wallets') }, history: !shown });
           } else if (profile) {
@@ -117,7 +117,7 @@ export function ReminderSettings() {
     <h3><BellRing size={18}/> Pengingat</h3>
     {permission !== 'granted' && <div className={`notice ${permission === 'default' ? 'notice-action' : ''}`}>{permission === 'unsupported' ? 'Browser ini belum mendukung notifikasi. Pengingat tetap muncul di dalam aplikasi.' : permission === 'denied' ? 'Notifikasi diblokir. Izinkan lewat pengaturan situs di browser agar pengingat muncul di HP.' : <><span>Izinkan notifikasi agar pengingat muncul di HP.</span><Button type="button" className="small" onClick={() => void allow()}>Izinkan</Button></>}</div>}
 
-    <label className="switch-row"><input type="checkbox" checked={draft.balanceEnabled} onChange={e => set({ balanceEnabled: e.target.checked })}/><span><strong>Ingatkan cek saldo</strong><small>Untuk mencocokkan saldo dan mencatat transaksi yang terlewat.</small></span></label>
+    <label className="switch-row"><input type="checkbox" checked={draft.balanceEnabled} onChange={e => set({ balanceEnabled: e.target.checked })}/><span><strong>Ingatkan perbarui saldo</strong><small>Untuk mencocokkan saldo dan mencatat transaksi yang terlewat.</small></span></label>
     {draft.balanceEnabled && <div className="reminder-block">
       <span className="field-caption">Berapa kali sehari</span>
       <div className="segment size-segment">{[1, 2, 3, 4].map(n => <button type="button" key={n} className={draft.times.length === n ? 'active' : ''} onClick={() => set({ times: presetTimes[n] })}><span>{n}×</span><small>{n === 1 ? 'sekali' : `${n} kali`}</small></button>)}</div>
@@ -131,7 +131,7 @@ export function ReminderSettings() {
       <Field label="Jam pengingat tagihan"><AppTimePicker value={draft.billTime} onChange={e => set({ billTime: e.target.value })} required/></Field>
     </div>}
 
-    <div className="settings-actions start"><Button type="button" disabled={!dirty} onClick={() => void save()}><Check size={16}/> Simpan pengingat</Button>{permission === 'granted' && <Button type="button" variant="secondary" onClick={() => void showSystemNotification('Contoh pengingat 💰', 'Waktunya cek saldo dompetmu.', '/?view=wallets', 'test')}><Send size={15}/> Coba kirim</Button>}</div>
+    <div className="settings-actions start"><Button type="button" disabled={!dirty} onClick={() => void save()}><Check size={16}/> Simpan pengingat</Button>{permission === 'granted' && <Button type="button" variant="secondary" onClick={() => void showSystemNotification('Contoh pengingat 💰', 'Waktunya perbarui saldo dompetmu.', '/?view=wallets', 'test')}><Send size={15}/> Coba kirim</Button>}</div>
     <small className="muted">Pengingat dikirim oleh aplikasi di perangkat ini. Agar tepat waktu, pasang Dompet Ajaib ke layar utama dan jangan tutup paksa. Jika aplikasi baru dibuka setelah jamnya lewat (maks. 3 jam), pengingat muncul saat dibuka. Di iPhone perlu iOS 16.4+ dengan aplikasi terpasang.</small>
   </div>;
 }

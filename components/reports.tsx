@@ -239,7 +239,7 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
             <div className="segment granularity">{(['auto', 'daily', 'weekly', 'monthly'] as Granularity[]).map(g => <button type="button" key={g} className={granularity === g ? 'active' : ''} onClick={() => void pair.save({ analyticsGranularity: g })}>{({ auto: 'Otomatis', daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan', yearly: 'Tahunan' } as Record<string, string>)[g]}</button>)}</div>
             <CashFlowChart items={pair.items} range={pair.range} granularity={granularity}/>
           </Section>
-          <Section icon={<TrendingUp size={18}/>} title="Laju belanja dibanding periode lalu" hint="Total pengeluaran berjalan dari hari pertama">
+          <Section icon={<TrendingUp size={18}/>} title="Laju belanja vs periode lalu" hint="Total pengeluaran berjalan dari hari pertama">
             <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={pace} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs><linearGradient id="pace-now" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
               <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
@@ -275,13 +275,13 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
             <Section icon={<Store size={18}/>} title="Tempat & keterangan teratas" hint="Berdasarkan nama tempat atau keterangan">
               {places.length ? <div className="report-table">{places.map((place, index) => <div key={place.name} className="report-row"><span className="rank">{index + 1}</span><span className="report-place"><strong>{place.name}</strong><small className="muted">{place.count}× · rata-rata {rupiah(Math.round(place.total / place.count))}</small></span><strong>{rupiah(place.total)}</strong></div>)}</div> : <Empty message="Isi nama tempat atau keterangan saat mencatat agar terlihat di sini."/>}
             </Section>
-            <Section icon={<Scale size={18}/>} title="Ukuran transaksi" hint="Seberapa sering belanja kecil dan besar">
+            <Section icon={<Scale size={18}/>} title="Ukuran transaksi" hint="Seberapa sering belanja kecil vs besar">
               <div className="report-table">{bands.map(band => <div key={band.label} className="report-row"><span><strong>{band.label}</strong><small className="muted">{band.count}× transaksi</small></span><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(band.total, Math.max(1, summary.expense)))}%` }}/></span><span className="report-row-value"><strong>{rupiah(band.total)}</strong><small>{pct(band.total, summary.expense)}%</small></span></div>)}</div>
             </Section>
           </div>
         </>}
         {tab === 'compare' && <>
-          <Section icon={<Scale size={18}/>} title="Ringkasan dibanding periode lalu" hint={`${periodLabel(pair.range)} dibanding ${periodLabel(pair.prevRange)}`}>
+          <Section icon={<Scale size={18}/>} title="Ringkasan dibanding periode lalu" hint={`${periodLabel(pair.range)} vs ${periodLabel(pair.prevRange)}`}>
             <div className="compare-summary">{([['Pemasukan', summary.income, prev.income, 'up'], ['Pengeluaran', summary.expense, prev.expense, 'down'], ['Selisih', summary.cashFlow, prev.cashFlow, 'up']] as [string, number, number, 'up' | 'down'][]).map(([label, now, before, good]) => <div key={label}><small>{label}</small><strong>{rupiah(now)}</strong><span className="muted">sebelumnya {rupiah(before)}</span>{pair.prevReady && <Delta current={now} previous={before} good={good} basis={pair.basis}/>}</div>)}</div>
           </Section>
           <Section icon={<Layers3 size={18}/>} title="Perubahan per kategori" hint="Diurutkan dari perubahan terbesar">
