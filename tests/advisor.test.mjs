@@ -28,7 +28,15 @@ const budget = (id, categoryId, amount) => ({ id, name: '', categoryId, subcateg
 let n = 0;
 const tx = (type, amount, date, categoryId = null, extra = {}) => ({ id: `t${n++}`, type, amount, date, walletId: 'A', destinationWalletId: null, categoryId, subcategoryId: null, merchant: '', description: '', notes: '', tags: [], claimId: null, debtId: null, receivableId: null, fundId: null, recurringTransactionId: null, draftId: null, adjustmentDirection: 'out', ...extra });
 
+function sampleData() {
+  n = 0;
+  return buildSample().data;
+}
 function sample() {
+  const { data, history } = buildSample();
+  return analyzeFinances({ data, history, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 5_000_000, reserved: 3_000_000, netWorth: 8_000_000, liabilities: 0 }, committed: 0 });
+}
+function buildSample() {
   const history = [];
   const starts = ['2026-03-25', '2026-04-25', '2026-05-25', '2026-06-25', '2026-07-25', '2026-08-25'];
   const jajan = [200_000, 200_000, 210_000, 200_000, 420_000, 500_000];
@@ -43,7 +51,7 @@ function sample() {
   // Current cycle, 18 days in: transport far below its usual pace.
   history.push(tx('income', 8_000_000, '2026-09-25'), tx('expense', 50_000, '2026-09-28', 'transport'), tx('expense', 900_000, '2026-10-01', 'food'));
   const data = { wallets: [], categories: [cat('food', 'Makan & Minum'), cat('transport', 'Transportasi'), cat('fun', 'Hiburan'), cat('snack', 'Jajan')], budgets: [budget('b-transport', 'transport', 1_000_000), budget('b-food', 'food', 1_000_000)], transactions: history, claims: [], receivables: [], debts: [], funds: [], recurring: [], drafts: [], plannedTransactions: [], categorizationRules: [], financialNotes: [], cycleSnapshots: [] };
-  return analyzeFinances({ data, history, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 5_000_000, reserved: 3_000_000, netWorth: 8_000_000, liabilities: 0 }, committed: 0 });
+  return { data, history };
 }
 
 test('advisor reads history and suggests what to cut, loosen and rebudget', () => {
@@ -84,4 +92,64 @@ test('advisor says when there is not enough history yet', () => {
   assert.equal(advice.enoughHistory, false);
   assert.equal(advice.cyclesUsed, 0);
   assert.ok(Number.isFinite(advice.score));
+});
+
+import { resolveInsightProfile, scoreRiskQuiz, suggestedEmergencyMonths } from '../lib/insight-profile.ts';
+import { allocation, futureValue } from '../lib/invest-plan.ts';
+
+test('insight profile fills defaults and sizes the emergency fund to the household', () => {
+  assert.equal(resolveInsightProfile(null).emergencyMonths, 3);
+  assert.equal(suggestedEmergencyMonths({ household: 'family', dependants: 2, income: 'fixed' }), 8);
+  assert.equal(suggestedEmergencyMonths({ household: 'single', dependants: 0, income: 'variable' }), 6);
+  assert.equal(resolveInsightProfile({ household: 'couple' }).emergencyMonths, 6);
+  assert.equal(resolveInsightProfile({ emergencyMonths: 9 }).emergencyMonths, 9);
+  const quiz = scoreRiskQuiz({ drop: 3, goal: 3, when: 3, exp: 3, share: 3 });
+  assert.deepEqual([quiz.risk, quiz.horizon, quiz.experience], ['agresif', 'long', 'experienced']);
+  assert.equal(scoreRiskQuiz({ drop: 1, goal: 1, when: 1, exp: 1, share: 2 }).risk, 'konservatif');
+});
+
+test('investment mix follows risk and horizon', () => {
+  const short = allocation('agresif', 'short', 'experienced', 10_000_000);
+  assert.deepEqual(short.map(i => i.key).sort(), ['deposito', 'rdpu']);
+  const bold = allocation('agresif', 'long', 'experienced', 10_000_000);
+  assert.equal(bold.find(i => i.key === 'saham').share, 55);
+  assert.equal(bold.reduce((n, i) => n + i.share, 0), 100);
+  const novice = allocation('agresif', 'long', 'none', 10_000_000);
+  assert.equal(novice.find(i => i.key === 'saham').share, 20);
+  assert.equal(novice.reduce((n, i) => n + i.share, 0), 100);
+  assert.ok(allocation('konservatif', 'long', 'basic', 1).every(i => i.key !== 'saham'));
+  assert.equal(futureValue(1_000_000, 0, 0, 5), 1_000_000);
+  assert.ok(futureValue(1_000_000, 100_000, .06, 1) > 2_200_000);
+});
+
+test('idle money is found and routed: emergency fund first, then investing by profile', () => {
+  const wallets = [
+    { id: 'op', name: 'BCA', type: 'bank', group: 'operational', cachedBalance: 20_000_000, isArchived: false, isReserved: false },
+    { id: 'sv', name: 'Tabungan', type: 'savings', group: 'savings', cachedBalance: 30_000_000, isArchived: false, isReserved: true },
+  ];
+  const run = (profile, sv = 30_000_000) => {
+    const data = { ...sampleData(), wallets: wallets.map(w => w.id === 'sv' ? { ...w, cachedBalance: sv } : w) };
+    return analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 20_000_000, reserved: sv, netWorth: 0, liabilities: 0 }, committed: 0, profile });
+  };
+  const a = run({ risk: 'moderat', horizon: 'long', emergencyMonths: 3, personalized: true });
+  assert.ok(a.idle.savingsExcess > 0 && a.idle.operational > 0);
+  assert.equal(a.idle.emergencyShortfall, 0);
+  assert.ok(a.wealth.some(f => f.id === 'idle-savings'));
+  assert.ok(a.invest && a.invest.amount > 0 && a.invest.items.some(i => i.key === 'saham'));
+  assert.ok(a.invest.sectors.length > 0);
+  assert.ok(a.invest.projection[2].invested > a.invest.projection[2].idle);
+  // A bigger emergency target swallows the savings excess before anything is invested.
+  const b = run({ risk: 'moderat', horizon: 'long', emergencyMonths: 12 }, 5_000_000);
+  assert.ok(b.idle.emergencyShortfall > 0);
+  assert.equal(b.idle.savingsExcess, 0);
+  assert.ok(b.idle.investable < a.idle.investable);
+  assert.ok(b.obligations.some(f => f.id === 'emergency'));
+  // Conservative profile never gets stocks.
+  const c = run({ risk: 'konservatif', horizon: 'long' });
+  assert.ok(c.invest.items.every(i => i.key !== 'saham') && c.invest.sectors === null);
+  // Paycheck plan adds up to the average income.
+  const total = a.paycheck.reduce((n, r) => n + r.amount, 0);
+  assert.ok(Math.abs(total - a.summary.avgIncome) < 10_000, `${total} vs ${a.summary.avgIncome}`);
+  // Savings target is personal.
+  assert.equal(run({ savingsTarget: .5 }).personal.savingsTarget, .5);
 });

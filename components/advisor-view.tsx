@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Star, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Star, UserRound, Layers, HandCoins, Sprout, SlidersHorizontal, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { usePeriodTransactions } from './period-selector';
@@ -9,7 +9,10 @@ import { AppIcon, identityStyle } from './visual-identity';
 import { analyzeFinances, pastCycles, type Advice, type Apply, type Finding, type Tone } from '@/lib/advisor';
 import { budgetWindow, metrics, rupiah } from '@/lib/accounting';
 import { commitments } from '@/lib/finance-control';
-import { saveRecord } from '@/lib/firestore';
+import { saveProfile, saveRecord } from '@/lib/firestore';
+import { InsightProfileSheet } from './insight-profile-sheet';
+import { priorityLabels, riskLabels, type InsightProfile } from '@/lib/insight-profile';
+import { INFLATION } from '@/lib/invest-plan';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { Budget } from '@/lib/types';
 
@@ -130,14 +133,20 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const [hidden, setHidden] = useState<string[]>(() => readHidden(user?.uid));
   const [showHidden, setShowHidden] = useState(false);
   const [busy, setBusy] = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
+  function saveInsightProfile(next: InsightProfile) {
+    if (!user) return;
+    setProfileOpen(false);
+    track(saveProfile(user.uid, { insightProfile: { ...next, updatedAt: today } }), { pending: 'Menyimpan profil…', success: 'Profil Insight disimpan. Saran sudah disesuaikan.', failure: 'Profil belum tersimpan' });
+  }
 
   const advice: Advice | null = useMemo(() => {
     if (history.loading) return null;
     const stat = metrics(data, cycle.start, cycle.end, salaryDay, day, Boolean(profile?.netWorthIncludesReceivables));
     const committed = profile?.excludeCommittedFromAvailable === false ? 0 : commitments(data, { start: today, end: cycle.end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0);
-    return analyzeFinances({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed });
+    return analyzeFinances({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, profile: profile?.insightProfile });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.monthlySalary]);
+  }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.monthlySalary, profile?.insightProfile]);
 
   function hide(id: string) { const next = [...new Set([...hidden, id])]; setHidden(next); if (user) try { localStorage.setItem(hiddenKey(user.uid), JSON.stringify(next)); } catch { /* per-device preference */ } }
   function restore() { setHidden([]); setShowHidden(false); if (user) try { localStorage.removeItem(hiddenKey(user.uid)); } catch { /* per-device preference */ } }
@@ -167,6 +176,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const hiddenCount = hidden.length;
   const topCats = advice.categories.filter(c => c.avg >= 10_000).slice(0, 8);
   const tabs: { key: string; label: string; icon: LucideIcon; hint: string; items?: Finding[]; empty: string }[] = [
+    { key: 'wealth', label: 'Investasi', icon: Sprout, hint: 'Uang menganggur, dana darurat yang bisa lebih produktif, dan investasi sesuai profil risikomu.', items: visible(advice.wealth), empty: 'Belum ada uang menganggur — semua saldo sedang terpakai sesuai kebutuhan.' },
     { key: 'reduce', label: 'Perlu dikurangi', icon: Scissors, hint: 'Pos keinginan yang besar, terus naik, atau siklus ini sudah melaju cepat.', items: visible(advice.reduce), empty: 'Tidak ada pos keinginan yang membengkak. Bagus!' },
     { key: 'loose', label: 'Masih longgar', icon: TrendingDown, hint: 'Dibanding siklus-siklus sebelumnya pada hari yang sama.', items: visible(advice.loose), empty: 'Belum ada kategori yang jelas di bawah kebiasaannya.' },
     { key: 'budget', label: 'Anggaran', icon: Wallet, hint: 'Ditekan bila jarang terpakai, dinaikkan bila selalu jebol, dibuat bila belum ada.', items: visible(advice.budgetTips), empty: 'Anggaranmu sudah pas dengan kebiasaan belanja.' },
@@ -203,6 +213,9 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       </div>
     </section>
 
+    <ProfileBar personal={advice.personal} onEdit={() => setProfileOpen(true)}/>
+    <InsightProfileSheet open={profileOpen} onOpenChange={setProfileOpen} saved={profile?.insightProfile} onSave={saveInsightProfile}/>
+
     <div className="ins-parts">{advice.parts.map(p => { const level = p.score >= 75 ? 'good' : p.score >= 50 ? 'warn' : 'bad'; const PartIcon = partIcons[p.key] || Gauge; return <div key={p.key} className={`ins-part tone-${level}`}>
       <div className="ins-part-top"><span className="ins-part-icon" aria-hidden="true"><PartIcon size={17}/></span><span className="ins-part-label">{p.label}</span><em>{level === 'good' ? 'Baik' : level === 'warn' ? 'Cukup' : 'Rendah'}</em></div>
       <strong>{p.value}</strong>
@@ -217,6 +230,9 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       {actions.length ? <div className="ins-grid">{actions.map((f, i) => card(f, i))}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya.</p>}
     </section>
 
+    <WealthSection advice={advice} onEdit={() => setProfileOpen(true)}/>
+    {advice.paycheck.length > 0 && <PaycheckPlan advice={advice}/>}
+
     {advice.enoughHistory && <div className="ins-duo">
       <section className="panel ins-box">
         <SectionHead icon={Gauge} title="Pola per siklus" hint="Pemasukan dan pengeluaran tiap siklus gaji."/>
@@ -227,12 +243,12 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
         <div className="ins-legend"><span><i className="in"/>Pemasukan</span><span><i className="out"/>Pengeluaran</span><span className="ins-legend-note">Kini = siklus berjalan</span></div>
       </section>
       {s.avgIncome > 0 && <section className="panel ins-box">
-        <SectionHead icon={Gauge} title="Porsi 50/30/20" hint="Rata-rata per siklus, dibanding pemasukan."/>
+        <SectionHead icon={Gauge} title="Porsi kebutuhan, keinginan & sisa" hint={`Rata-rata per siklus dibanding pemasukan, dengan batas sesuai profilmu.`}/>
         <div className="ins-split-bar" role="img" aria-label={`Kebutuhan ${pct(advice.split.needs)}, keinginan ${pct(advice.split.wants)}, sisa ${pct(advice.split.saved)}`}>
           <i className="needs" style={{ flex: advice.split.needs }}/><i className="wants" style={{ flex: advice.split.wants }}/><i className="saved" style={{ flex: advice.split.saved }}/>
         </div>
         <div className="ins-split-legend">
-          {([['needs', 'Kebutuhan', advice.split.needs, 'maks 50%', advice.split.needs > .5], ['wants', 'Keinginan', advice.split.wants, 'maks 30%', advice.split.wants > .3], ['saved', 'Sisa', advice.split.saved, 'min 20%', advice.split.saved < .2]] as const).map(([key, label, value, ideal, over]) => <div key={key} className={over ? 'over' : ''}>
+          {([['needs', 'Kebutuhan', advice.split.needs, `maks ${pct(advice.limits.needs)}`, advice.split.needs > advice.limits.needs], ['wants', 'Keinginan', advice.split.wants, `maks ${pct(advice.limits.wants)}`, advice.split.wants > advice.limits.wants], ['saved', 'Sisa', advice.split.saved, `min ${pct(advice.limits.savings)}`, advice.split.saved < advice.limits.savings]] as const).map(([key, label, value, ideal, over]) => <div key={key} className={over ? 'over' : ''}>
             <span><i className={key}/>{label}</span><strong>{pct(value)}</strong><small>{ideal}</small>
           </div>)}
         </div>
@@ -258,4 +274,79 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran diabaikan.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}
     <p className="ins-disclaimer">Insight adalah perhitungan otomatis dari catatanmu sendiri, bukan nasihat keuangan profesional. Kebutuhan dan keinginan ditebak dari nama kategori.</p>
   </div>;
+}
+
+/** Who the advice is tuned for, with a way to change it. */
+function ProfileBar({ personal, onEdit }: { personal: InsightProfile; onEdit: () => void }) {
+  if (!personal.personalized) return <section className="ins-personalize">
+    <span className="ins-personalize-icon" aria-hidden="true"><UserRound size={22}/></span>
+    <div><strong>Buat Insight sesuai dirimu</strong><small>Jawab kuis profil risiko dan isi target tabungan, dana darurat, serta prioritasmu (±1 menit). Saran investasi dan batas anggaran akan menyesuaikan.</small></div>
+    <Button onClick={onEdit}><SlidersHorizontal size={16}/> Mulai personalisasi</Button>
+  </section>;
+  const chips: [string, string][] = [['Profil risiko', riskLabels[personal.risk].label], ['Target tabungan', pct(personal.savingsTarget)], ['Dana darurat', `${personal.emergencyMonths} bulan`], ['Prioritas', priorityLabels[personal.priority]]];
+  return <section className="ins-profile-bar">
+    <span className="ins-personalize-icon" aria-hidden="true"><UserRound size={18}/></span>
+    <div className="ins-profile-chips">{chips.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>
+    <button type="button" className="link-button" onClick={onEdit}><SlidersHorizontal size={15}/> Ubah profil</button>
+  </section>;
+}
+
+const riskDots = (level: number) => <span className="ins-risk" aria-label={`Risiko ${level} dari 4`}>{[1, 2, 3, 4].map(i => <i key={i} className={i <= level ? 'on' : ''}/>)}</span>;
+const instrumentColors: Record<string, string> = { rdpu: 'var(--chart-1)', deposito: 'var(--chart-5)', sbn: 'var(--chart-3)', obligasi: 'var(--chart-4)', saham: 'var(--chart-2)', emas: '#c9a227' };
+
+/** Idle money, the order it should go (emergency → expensive debt → investing) and the investment mix. */
+function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void }) {
+  const { idle, invest, personal } = advice;
+  if (idle.total < 500_000 && !invest) return null;
+  const steps: [string, number, string][] = [
+    ['Lengkapi dana darurat', Math.min(idle.total, idle.emergencyShortfall), `target ${personal.emergencyMonths} bulan · taruh di RDPU/tabungan`],
+    ['Lunasi utang berbunga tinggi', idle.debtFirst, 'bunga ≥ 8% per tahun'],
+    ['Investasikan', idle.investable, `sesuai profil ${riskLabels[personal.risk].label}`],
+  ];
+  return <section className="ins-section">
+    <SectionHead icon={Sprout} title="Uang menganggur & investasi" hint={`Disesuaikan dengan profil ${riskLabels[personal.risk].label}, jangka ${personal.horizon === 'short' ? 'pendek' : personal.horizon === 'mid' ? 'menengah' : 'panjang'}.`}/>
+    <div className="ins-wealth">
+      <div className="panel ins-box ins-idle">
+        <div className="ins-idle-total"><small>Total uang menganggur</small><strong>{short(idle.total)}</strong><span>Nilai riilnya turun ±{short(idle.total * INFLATION)}/tahun kalau didiamkan (inflasi {Math.round(INFLATION * 100)}%).</span></div>
+        <div className="ins-idle-tiles">
+          <span><small>Di dompet harian</small><strong>{short(idle.operational)}</strong><em>saldo {short(idle.operationalBalance)} − kebutuhan {short(idle.operationalNeed)}</em></span>
+          <span><small>Tabungan di atas dana darurat</small><strong>{short(idle.savingsExcess)}</strong><em>tabungan {short(idle.liquidReserve)} · target {short(idle.emergencyTarget)}</em></span>
+          <span><small>Sudah diinvestasikan</small><strong>{short(idle.invested)}</strong><em>dompet grup Investasi</em></span>
+        </div>
+        <ol className="ins-flow">{steps.map(([label, amount, note], i) => <li key={label} className={amount > 0 ? 'on' : ''}><b>{i + 1}</b><span><strong>{label}</strong><small>{note}</small></span><em>{amount > 0 ? short(amount) : 'aman'}</em></li>)}</ol>
+      </div>
+      {invest && <div className="panel ins-box ins-plan">
+        <header className="ins-plan-head"><div><small>Rencana investasi · profil {riskLabels[personal.risk].label}</small><strong>{invest.amount > 0 ? short(invest.amount) : `${short(invest.monthly)}/bln`}</strong><span>{invest.amount > 0 && invest.monthly > 0 ? `+ rutin ${short(invest.monthly)}/bln · ` : ''}perkiraan ±{(invest.expectedReturn * 100).toFixed(1).replace('.', ',')}% per tahun</span></div>{!personal.personalized && <button type="button" className="link-button" onClick={onEdit}>Sesuaikan profil</button>}</header>
+        <div className="ins-alloc-bar" role="img" aria-label={invest.items.map(i => `${i.name} ${i.share}%`).join(', ')}>{invest.items.map(i => <i key={i.key} style={{ flex: i.share, background: instrumentColors[i.key] }} title={`${i.name} ${i.share}%`}/>)}</div>
+        <ul className="ins-alloc">{invest.items.map(i => <li key={i.key}>
+          <i style={{ background: instrumentColors[i.key] }} aria-hidden="true"/>
+          <div><strong>{i.name} <b>{i.share}%</b></strong><small>{i.why}</small><small className="ins-alloc-meta">{i.examples} · {i.liquidity}</small></div>
+          <span><strong>{invest.amount > 0 ? short(i.amount) : `${short(invest.monthly * i.share / 100)}/bln`}</strong><small>±{(i.ret * 100).toFixed(1).replace('.', ',')}%/thn</small>{riskDots(i.risk)}</span>
+        </li>)}</ul>
+        {invest.sectors && <details className="ins-sectors"><summary>Sebar bagian saham ke beberapa sektor</summary>
+          <p>Cara paling mudah: satu reksa dana indeks (IDX30/LQ45) yang sudah tersebar. Kalau memilih saham sendiri, sebar kira-kira seperti ini:</p>
+          <ul>{invest.sectors.map(sector => <li key={sector.name}><span><strong>{sector.name}</strong><small>{sector.note}</small></span><i><b style={{ width: `${sector.share * 3}%` }}/></i><em>{sector.share}% · {short(sector.amount)}</em></li>)}</ul>
+        </details>}
+        {invest.amount > 0 && <div className="ins-projection"><small>Perkiraan nilai {invest.monthly > 0 ? `(modal awal + rutin ${short(invest.monthly)}/bln)` : ''}</small>
+          <table><thead><tr><th>Waktu</th><th>Diinvestasikan</th><th>Didiamkan*</th></tr></thead><tbody>{invest.projection.map(p => <tr key={p.years}><td>{p.years} tahun</td><td><strong>{short(p.invested)}</strong></td><td>{short(p.idle)}</td></tr>)}</tbody></table>
+          <small>*nilai riil setelah inflasi {Math.round(INFLATION * 100)}%. Imbal hasil hanya perkiraan jangka panjang dan tidak dijamin.</small>
+        </div>}
+        <p className="ins-plan-note">Ini gambaran pembagian, bukan rekomendasi produk. Pilih produk yang terdaftar dan diawasi OJK, dan baca prospektusnya.</p>
+      </div>}
+    </div>
+  </section>;
+}
+
+/** How the next salary could be split, based on averages and the personal targets. */
+function PaycheckPlan({ advice }: { advice: Advice }) {
+  const rows = advice.paycheck;
+  const colors: Record<string, string> = { needs: 'var(--chart-3)', debt: 'var(--rose)', emergency: 'var(--chart-1)', goals: 'var(--chart-5)', invest: 'var(--chart-4)', extra: 'var(--positive)', wants: 'var(--chart-2)' };
+  return <section className="ins-section">
+    <SectionHead icon={HandCoins} title="Rencana gajian berikutnya" hint={`Pembagian dari rata-rata pemasukan ${short(advice.summary.avgIncome)} dengan target tabunganmu ${pct(advice.personal.savingsTarget)}.`}/>
+    <div className="panel ins-box ins-paycheck">
+      <div className="ins-alloc-bar" role="img" aria-label={rows.map(r => `${r.label} ${pct(r.share)}`).join(', ')}>{rows.map(r => <i key={r.key} style={{ flex: Math.max(r.share, .01), background: colors[r.key] }} title={`${r.label} ${pct(r.share)}`}/>)}</div>
+      <ul className="ins-pay">{rows.map(r => <li key={r.key} className={`tone-${r.tone}`}><i style={{ background: colors[r.key] }} aria-hidden="true"/><span><strong>{r.label}</strong><small>{r.note}</small></span><em><strong>{short(r.amount)}</strong><small>{pct(r.share)}</small></em></li>)}</ul>
+      <p className="ins-pay-tip"><Layers size={14} aria-hidden="true"/><span>Tips: pindahkan porsi tabungan &amp; investasi <b>di hari gajian</b>, sisanya baru dipakai belanja.</span></p>
+    </div>
+  </section>;
 }
