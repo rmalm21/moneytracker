@@ -224,19 +224,21 @@ test('kantong groups wallets: its amount is their balance and they are never idl
   assert.equal(a.idle.emergencyTarget, 15_000_000, 'kantong target is used');
   assert.equal(a.idle.emergencyShortfall, 3_000_000, 'emergency = Mandiri + BRI');
   assert.equal(a.idle.operationalBalance, 6_000_000, 'Mandiri is in a kantong, not daily money');
-  assert.equal(a.idle.savingsExcess, 1_000_000, 'savings outside kantong minus the 3M still missing in the emergency fund');
+  assert.equal(a.idle.savingsExcess, 4_000_000, 'savings outside kantong are the user\'s own choice');
 });
 
-test('short emergency kantong: savings outside it fill the gap first and are not called spare', () => {
+test('short emergency kantong: savings outside it are not forced in, and never called "dana darurat aman"', () => {
   const md = { id: 'md', name: 'Mandiri', type: 'bank', group: 'operational', cachedBalance: 300_000, isArchived: false };
   const sv = { id: 'sv', name: 'Jago', type: 'savings', group: 'savings', cachedBalance: 600_000, isArchived: false };
   const funds = [{ id: 'e', name: 'Dana darurat', kind: 'emergency', walletIds: ['md'], linkedWalletId: 'md', currentAmount: 0, targetAmount: 5_000_000, monthlyContribution: 0, targetDate: '', notes: '' }];
   const data = { ...sampleData(), wallets: [md, sv], funds };
-  const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 0, netWorth: 0, liabilities: 0 }, committed: 0 });
+  const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 0, netWorth: 0, liabilities: 0 }, committed: 0, profile: { idleMinimum: 100_000 } });
   assert.equal(a.idle.emergencyShortfall, 4_700_000);
-  assert.equal(a.idle.savingsExcess, 0, 'the 600k goes to the emergency fund');
-  assert.ok(!a.wealth.some(f => f.id === 'idle-savings'), 'no "savings above emergency fund" card while it is short');
-  assert.match(a.obligations.find(f => f.id === 'emergency').detail, /Pindahkan Rp600\.000 dari tabungan di luar kantong/);
+  assert.equal(a.idle.savingsExcess, 600_000, 'stays the user\'s own savings');
+  const card = a.wealth.find(f => f.id === 'idle-savings');
+  assert.ok(card && !/sudah aman|terpenuhi/.test(card.detail + card.stat.note), card && card.detail);
+  assert.match(card.title, /belum punya tujuan/);
+  assert.match(a.obligations.find(f => f.id === 'emergency').detail, /Sisihkan/);
 });
 
 test('older Tujuan dana inside a savings wallet: emergency fund counts; other goals are set aside; the rest is unallocated', () => {
@@ -249,6 +251,6 @@ test('older Tujuan dana inside a savings wallet: emergency fund counts; other go
   const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 30_000_000, netWorth: 0, liabilities: 0 }, committed: 0 });
   assert.equal(a.idle.emergencyTarget, 15_000_000, 'pocket target is used');
   assert.equal(a.idle.emergencyShortfall, 3_000_000, 'only the emergency pocket counts');
-  assert.equal(a.idle.savingsExcess, 5_000_000, 'unallocated savings after topping up the emergency fund; kuliah stays untouched');
+  assert.equal(a.idle.savingsExcess, 8_000_000, 'unallocated savings, kuliah stays untouched');
   assert.ok(a.obligations.some(f => f.id === 'emergency'));
 });
