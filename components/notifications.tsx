@@ -53,7 +53,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     busy.current++;
     const id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false });
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
-    task.then(() => { push({ id, title: labels.success, body: 'Tersimpan di cloud', kind: 'success' }); labels.after?.(); })
+    task.then(() => { push({ id, title: labels.success, body: navigator.onLine ? 'Tersimpan di cloud' : 'Tersimpan di perangkat · dikirim otomatis saat online', kind: 'success' }); labels.after?.(); })
       .catch(error => {
         const committed = (error as { committed?: boolean }).committed;
         if (committed) { push({ id, title: labels.success, body: (error as Error).message, kind: 'warning' }); labels.after?.(); return; }

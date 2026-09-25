@@ -2137,6 +2137,50 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   59. Catat cepat on wide screens: title | shortcuts | "Atur tombol" on one line
+   ========================================================================== */
+@media (min-width: 761px) {
+  .quick-strip .quick-panel .section-heading { display: contents; }
+  .quick-strip .quick-panel .section-heading > div { order: 1; flex: none; }
+  .quick-strip .quick-panel .quick-row { order: 2; }
+  .quick-strip .quick-panel .section-heading > .btn { order: 3; flex: none; margin-left: auto; white-space: nowrap; }
+}
+
+/* ==========================================================================
+   60. Anggaran Berjalan widget: percent used per budget
+   ========================================================================== */
+.budget-mini { align-items: center; padding: 8px 0; }
+.budget-mini > span { gap: 5px; }
+.bm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.bm-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 700; }
+.bm-pct { flex: none; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: .74rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bm-pct.warn { background: color-mix(in srgb, var(--amber) 16%, var(--paper)); color: var(--amber); }
+.bm-pct.over { background: color-mix(in srgb, var(--rose) 14%, var(--paper)); color: var(--rose); }
+.budget-mini .mini-bar { width: 100%; height: 6px; }
+.bm-meta { color: var(--muted); font-size: .74rem; }
+.budget-mini > strong { display: grid; justify-items: end; gap: 0; min-width: 96px; font-variant-numeric: tabular-nums; }
+.budget-mini > strong small { color: var(--muted); font-size: .7rem; font-weight: 600; }
+.budget-mini + .budget-mini { border-top: 1px solid var(--line); }
+
+/* ==========================================================================
+   61. Saldo Dompet widget: each wallet is a full-width row tinted with its colour
+   ========================================================================== */
+.widget-group-head b { text-transform: none; }
+.wallet-mini-list { display: grid; gap: 6px; }
+.wallet-mini { --identity-color: var(--accent); display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 7px 14px 7px 8px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--identity-color) 12%, var(--paper)); color: var(--ink); text-align: left; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.wallet-mini:hover { background: color-mix(in srgb, var(--identity-color) 19%, var(--paper)); }
+.wallet-mini:active { transform: scale(.99); }
+.wallet-mini:focus-visible { outline: 3px solid color-mix(in srgb, var(--identity-color) 45%, transparent); outline-offset: 2px; }
+.wallet-mini-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--identity-color) 22%, var(--paper)); font-size: 1.05rem; overflow: hidden; }
+.wallet-mini-icon .brand-icon { width: 100%; height: 100%; border-radius: inherit; display: grid; place-items: center; font-weight: 900; }
+.wallet-mini-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 700; font-size: .92rem; }
+.wallet-mini > strong { flex: none; font-variant-numeric: tabular-nums; font-size: .95rem; color: color-mix(in srgb, var(--identity-color) 55%, var(--ink)); }
+:root[data-theme='dark'] .wallet-mini { background: color-mix(in srgb, var(--identity-color) 20%, var(--paper)); }
+:root[data-theme='dark'] .wallet-mini:hover { background: color-mix(in srgb, var(--identity-color) 28%, var(--paper)); }
+:root[data-theme='dark'] .wallet-mini > strong { color: color-mix(in srgb, var(--identity-color) 35%, #fff); }
+.widget-wallet-group + .widget-wallet-group { margin-top: 14px; }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
@@ -2194,3 +2238,5 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 @media (max-width: 760px) { .wallet-group-head .group-hint { display: none; } }
 .wallet-tab .amount-short { display: none; }
 @media (max-width: 760px) { .wallet-tab .amount-full { display: none; } .wallet-tab .amount-short { display: inline; } }
+/* Wallet groups in the Beranda widget must shrink to the card, letting long names truncate. */
+.widget-body > .widget-wallet-group, .widget-wallet-group, .wallet-mini-list, .wallet-mini { min-width: 0; max-width: 100%; }
