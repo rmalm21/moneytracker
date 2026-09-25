@@ -1983,7 +1983,11 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .home-hero-edit { display: inline-flex; align-items: center; gap: 6px; min-width: 38px; height: 38px; justify-content: center; padding: 0 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.16); color: #fff; font-weight: 800; font-size: .82rem; cursor: pointer; backdrop-filter: blur(6px); transition: background .15s ease; }
 .home-hero-edit:hover, .home-hero-edit.active { background: rgba(255,255,255,.28); }
 .home-hero-amount { justify-self: start; padding: 0; border: 0; background: none; color: inherit; font: 800 clamp(2rem, 7vw, 2.7rem)/1.05 var(--font-head); letter-spacing: -.035em; font-variant-numeric: tabular-nums; cursor: pointer; text-align: left; }
-.home-hero-delta .delta, .home-hero-delta > * { background: rgba(255,255,255,.16) !important; color: #fff !important; }
+.home-hero-delta .delta, .stat-card.featured .delta { gap: 5px; padding: 4px 10px 4px 8px; border-radius: 99px; background: rgba(0, 0, 0, .22) !important; color: #fff !important; font-size: .76rem; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+.home-hero-delta .delta em, .stat-card.featured .delta em { opacity: 1; font-weight: 700; color: rgba(255, 255, 255, .88); }
+.home-hero-delta .delta i, .stat-card.featured .delta i { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: .56rem; background: rgba(255, 255, 255, .22); }
+.home-hero-delta .delta.is-good i, .stat-card.featured .delta.is-good i { background: #7ee2a8; color: #0d3b24; }
+.home-hero-delta .delta.is-bad i, .stat-card.featured .delta.is-bad i { background: #ffb3bf; color: #5a1422; }
 .home-hero-cycle { display: grid; gap: 7px; margin-top: 4px; }
 .home-hero-cycle > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .84rem; }
 .home-hero-cycle span { display: inline-flex; align-items: center; gap: 6px; opacity: .85; }
