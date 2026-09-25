@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ChartTooltip } from './chart-tooltip';
 import { Emoji, EmojiText, emojiAvatar } from './emoji';
 import { ArrowRight, CalendarClock, CalendarDays, Copy, Edit3, Gauge, History, Layers3, Pause, Play, Store, Target, Trash2, TrendingUp, Wallet as WalletIcon } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -86,10 +87,10 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
         <div className="bd-chart-legend"><span><i className="spent"/>Terpakai</span><span><i className="ideal"/>Laju ideal</span><span><i className="limit"/>Batas</span></div>
         <div className="report-chart short bd-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={detail.pace} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
           <defs><linearGradient id="bd-pace" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
           <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={16}/>
           <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={42} domain={[0, (max: number) => Math.max(max, status.available) * 1.05]} allowDecimals={false}/>
-          <Tooltip labelFormatter={(_, p) => p?.[0]?.payload?.date ? formatDate(p[0].payload.date) : ''} formatter={(v, name) => [v === null ? '–' : rupiah(Number(v)), name]} contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}/>
+          <Tooltip labelFormatter={(_, p) => p?.[0]?.payload?.date ? formatDate(p[0].payload.date) : ''} formatter={(v, name) => [v === null ? '–' : rupiah(Number(v)), name]} content={<ChartTooltip/>}/>
           <ReferenceLine y={status.available} stroke="var(--rose)" strokeDasharray="4 4"/>
           <Line type="linear" dataKey="ideal" name="Laju ideal" stroke="var(--muted)" strokeDasharray="5 4" dot={false} strokeWidth={1.5} isAnimationActive={false}/>
           <Area type="monotone" dataKey="spent" name="Terpakai" stroke="var(--accent)" fill="url(#bd-pace)" strokeWidth={3} dot={detail.elapsed <= 3 ? { r: 4, fill: 'var(--accent)', strokeWidth: 0 } : false} connectNulls={false} animationDuration={700}/>

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChartTooltip } from './chart-tooltip';
 import { ArrowRight, CalendarClock, RotateCcw, ShoppingBag, TrendingDown, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
@@ -59,11 +60,11 @@ function BalanceChart({ points, height, compact = false }: { points: { label: st
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={points} margin={{ top: 10, right: compact ? 4 : 12, bottom: 0, left: compact ? 4 : 0 }}>
         <defs><linearGradient id={compact ? 'fc-mini' : 'fc-main'} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-        {!compact && <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>}
+        {!compact && <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>}
         {!compact && <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} interval={0} height={30} tickMargin={6}/>}
         {!compact && <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={58}/>}
         {negative && <ReferenceLine y={0} stroke="var(--rose)" strokeDasharray="4 4"/>}
-        <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.full || ''} formatter={value => [rupiah(Number(value)), 'Perkiraan']} contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)' }}/>
+        <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.full || ''} formatter={value => [rupiah(Number(value)), 'Perkiraan']} content={<ChartTooltip/>}/>
         <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={compact ? 2.5 : 3} fill={`url(#${compact ? 'fc-mini' : 'fc-main'})`} dot={compact ? false : { r: 4, fill: 'var(--paper)', stroke: 'var(--accent)', strokeWidth: 2 }} activeDot={{ r: 6 }} animationDuration={900}/>
       </AreaChart>
     </ResponsiveContainer>

@@ -1967,6 +1967,92 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (prefers-reduced-motion: reduce) { .view-skeleton span, .chart-skeleton { animation: none; } }
 
 /* ==========================================================================
+   50. Beranda hero card
+   ========================================================================== */
+.home-hero { position: relative; overflow: hidden; display: grid; gap: 10px; margin-bottom: 18px; padding: 20px 22px 18px; border-radius: 24px; color: #fff;
+  background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 55%, #fff 0%) 0%, transparent 60%), linear-gradient(140deg, color-mix(in srgb, var(--accent) 88%, #0b1f24) 0%, color-mix(in srgb, var(--accent) 55%, #061318) 100%);
+  box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--accent) 70%, transparent), var(--elev-1); }
+.home-hero::before, .home-hero::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; }
+.home-hero::before { width: 260px; height: 260px; right: -90px; top: -110px; background: radial-gradient(circle, rgba(255,255,255,.18), transparent 70%); }
+.home-hero::after { width: 180px; height: 180px; left: -60px; bottom: -90px; background: radial-gradient(circle, rgba(255,255,255,.10), transparent 70%); }
+.home-hero > * { position: relative; z-index: 1; }
+.home-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.home-hero-hello { display: grid; gap: 2px; }
+.home-hero-hello span { font: 700 .95rem/1.3 var(--font-head); opacity: .92; }
+.home-hero-hello small { color: inherit; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .72; }
+.home-hero-edit { display: inline-flex; align-items: center; gap: 6px; min-width: 38px; height: 38px; justify-content: center; padding: 0 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.16); color: #fff; font-weight: 800; font-size: .82rem; cursor: pointer; backdrop-filter: blur(6px); transition: background .15s ease; }
+.home-hero-edit:hover, .home-hero-edit.active { background: rgba(255,255,255,.28); }
+.home-hero-amount { justify-self: start; padding: 0; border: 0; background: none; color: inherit; font: 800 clamp(2rem, 7vw, 2.7rem)/1.05 var(--font-head); letter-spacing: -.035em; font-variant-numeric: tabular-nums; cursor: pointer; text-align: left; }
+.home-hero-delta .delta, .home-hero-delta > * { background: rgba(255,255,255,.16) !important; color: #fff !important; }
+.home-hero-cycle { display: grid; gap: 7px; margin-top: 4px; }
+.home-hero-cycle > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .84rem; }
+.home-hero-cycle span { display: inline-flex; align-items: center; gap: 6px; opacity: .85; }
+.home-hero-cycle strong { font-weight: 800; }
+.home-hero-bar { display: block; height: 6px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.home-hero-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, rgba(255,255,255,.75), #fff); transform-origin: left; animation: bar-grow .7s var(--ease-out) both; }
+.home-hero-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.home-hero-chips button { display: grid; gap: 1px; justify-items: start; min-width: 0; padding: 9px 12px; border: 0; border-radius: 14px; text-align: left; background: rgba(255,255,255,.14); color: #fff; font-size: .78rem; cursor: pointer; transition: background .15s ease; }
+.home-hero-chips button:hover { background: rgba(255,255,255,.24); }
+.home-hero-chips span { opacity: .8; font-size: .74rem; }
+.home-hero-chips b { font-size: .9rem; }
+.widget-slot.metric-slot.metric-wide { grid-column: span 2; }
+@media (max-width: 760px) { .widget-slot.metric-slot.metric-wide { grid-column: 1 / -1; } }
+.home-hero-chips b { font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (min-width: 900px) { .home-hero { padding: 26px 28px 22px; } .home-hero-amount { font-size: 3rem; } }
+
+/* ==========================================================================
+   51. Softer surfaces: cards lift with a gentle shadow instead of a hairline border.
+   Light mode relies on shadow; dark mode keeps a faint edge because shadows vanish on dark.
+   ========================================================================== */
+:root { --card-edge: transparent; --elev-card: 0 1px 2px rgba(16, 42, 54, .05), 0 10px 28px -12px rgba(16, 42, 54, .16); }
+:root[data-theme='dark'] { --card-edge: color-mix(in srgb, var(--line) 55%, transparent); --elev-card: 0 1px 0 rgba(255, 255, 255, .035) inset, 0 12px 30px -14px rgba(0, 0, 0, .6); }
+.panel, .stat-card, .wallet-card, .set-card, .set-list, .bd-block, .bd-stats, .tx-day-group, .settings-links, .hub-tabs, .analysis-tabs, .dashboard-period, .fin-list > .receivable-entry, .fin-list > .data-row, .fin-list > div:not(.empty):not(.receivable-entry), .set-form > .panel { border-color: var(--card-edge); box-shadow: var(--elev-card); }
+/* Cards inside cards stay flat and keep a light outline so they don't merge with their parent. */
+.panel .panel, .panel .stat-card, .panel .settings-links, .set-card .settings-links, .set-card .panel, .bd-block .panel, .set-form > .panel .settings-links { box-shadow: none; border-color: var(--line); }
+.stat-card.featured { box-shadow: 0 16px 34px -16px color-mix(in srgb, var(--accent) 70%, transparent); }
+.stat-link:hover, .wallet-card.is-clickable:hover, .budget-card.is-clickable:hover { box-shadow: 0 2px 4px rgba(16, 42, 54, .06), 0 16px 36px -14px rgba(16, 42, 54, .22); }
+:root[data-theme='dark'] :is(.stat-link, .wallet-card.is-clickable, .budget-card.is-clickable):hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+
+/* ==========================================================================
+   52. Transaction rows: round category icon, category in the meta line (no duplicate chip)
+   ========================================================================== */
+.transaction-row .row-icon { width: 40px; height: 40px; border-radius: 50%; }
+.transaction-row .row-icon:has(.row-emoji) { background: color-mix(in srgb, var(--identity-color, var(--accent)) 18%, var(--paper)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--identity-color, var(--accent)) 22%, transparent); }
+.transaction-row .row-emoji { font-size: 1.2rem; }
+.transaction-row .data-row-main > strong { font-size: .95rem; }
+.tx-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin-top: 2px; color: var(--muted); font-size: .8rem; }
+.tx-meta > span + span::before { content: '·'; margin: 0 6px; opacity: .6; }
+.tx-meta .tx-cat { color: color-mix(in srgb, var(--identity-color, var(--accent)) 75%, var(--ink)); font-weight: 700; }
+.transaction-row .data-row-side { gap: 2px; }
+.transaction-row .data-row-side > strong { font-size: .98rem; font-variant-numeric: tabular-nums; }
+.transaction-row .data-row-side > small { font-size: .75rem; }
+@media (max-width: 760px) { .transaction-row .row-icon { width: 38px; height: 38px; } }
+
+/* ==========================================================================
+   53. Chart tooltip card
+   ========================================================================== */
+.chart-tip { min-width: 150px; max-width: 240px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(8px); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); box-shadow: 0 12px 30px -10px rgba(16, 42, 54, .28); color: var(--ink); font-size: .8rem; }
+.chart-tip > strong { display: block; margin-bottom: 6px; font-size: .78rem; color: var(--muted); font-weight: 800; }
+.chart-tip ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.chart-tip li { display: flex; align-items: center; gap: 8px; }
+.chart-tip li i { flex: none; width: 9px; height: 9px; border-radius: 3px; }
+.chart-tip li span { flex: 1; color: var(--muted); }
+.chart-tip li b { font-variant-numeric: tabular-nums; font-weight: 800; }
+:root[data-theme='dark'] .chart-tip { box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .7); }
+
+/* ==========================================================================
+   54. Dark mode polish: accents turn light in dark mode, so coloured hero surfaces
+   use the deep preset tones instead, keeping white text readable.
+   ========================================================================== */
+:root[data-theme='dark'] .home-hero { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 34%, transparent) 0%, transparent 60%), linear-gradient(140deg, color-mix(in srgb, var(--accent) 30%, var(--deep)) 0%, var(--deep) 100%); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .8); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+:root[data-theme='dark'] .home-hero-bar i { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent)); }
+:root[data-theme='dark'] .set-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, var(--deep)), var(--deep)); color: #fff; border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+:root[data-theme='dark'] .muted, :root[data-theme='dark'] small { color: color-mix(in srgb, var(--muted) 92%, #fff); }
+:root[data-theme='dark'] .tx-meta .tx-cat { color: color-mix(in srgb, var(--identity-color, var(--accent)) 55%, #fff); }
+:root[data-theme='dark'] .transaction-row .row-icon:has(.row-emoji) { background: color-mix(in srgb, var(--identity-color, var(--accent)) 26%, var(--paper)); }
+:root[data-theme='dark'] .chart-tip { background: color-mix(in srgb, var(--paper-2) 96%, transparent); }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }

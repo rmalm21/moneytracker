@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState, type ReactNode } from 'react';
+import { ChartTooltip } from './chart-tooltip';
 import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, Banknote, Printer, Receipt, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
@@ -69,14 +70,14 @@ function Section({ icon, title, hint, children, className = '' }: { icon: ReactN
 
 function CashFlowChart({ items, range, granularity = 'auto' }: { items: LedgerTx[]; range: DateRange; granularity?: Granularity }) {
   const rows = useMemo(() => groupTransactions(items, range, granularity), [items, range.start, range.end, granularity]);
-  return <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
-    <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+  return <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}><defs><linearGradient id="bar-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--positive)"/><stop offset="100%" stopColor="var(--positive)" stopOpacity={.55}/></linearGradient><linearGradient id="bar-out" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--rose)"/><stop offset="100%" stopColor="var(--rose)" stopOpacity={.55}/></linearGradient></defs>
+    <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
     <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} minTickGap={8}/>
     <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
-    <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} contentStyle={tooltipStyle} cursor={{ fill: 'var(--accent-soft)' }}/>
+    <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
     <Legend wrapperStyle={{ fontSize: 12 }}/>
-    <Bar dataKey="income" name="Pemasukan" fill="var(--positive)" radius={[5, 5, 0, 0]} animationDuration={700}/>
-    <Bar dataKey="expense" name="Pengeluaran" fill="var(--rose)" radius={[5, 5, 0, 0]} animationDuration={700}/>
+    <Bar dataKey="income" name="Pemasukan" fill="url(#bar-in)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
+    <Bar dataKey="expense" name="Pengeluaran" fill="url(#bar-out)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
   </BarChart></ResponsiveContainer></div>;
 }
 
@@ -242,10 +243,10 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
           <Section icon={<TrendingUp size={18}/>} title="Laju belanja vs periode lalu" hint="Total pengeluaran berjalan dari hari pertama">
             <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={pace} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs><linearGradient id="pace-now" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
-              <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+              <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} minTickGap={14}/>
               <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
-              <Tooltip formatter={(v, name) => [v === null ? '–' : rupiah(Number(v)), name]} contentStyle={tooltipStyle}/>
+              <Tooltip formatter={(v, name) => [v === null ? '–' : rupiah(Number(v)), name]} content={<ChartTooltip/>}/>
               <Legend wrapperStyle={{ fontSize: 12 }}/>
               <Area type="monotone" dataKey="before" name="Periode lalu" stroke="var(--muted)" strokeDasharray="5 4" fill="transparent" strokeWidth={2} dot={false} connectNulls animationDuration={700}/>
               <Area type="monotone" dataKey="now" name="Periode ini" stroke="var(--accent)" fill="url(#pace-now)" strokeWidth={3} dot={false} animationDuration={900}/>
@@ -259,11 +260,11 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
           <div className="report-two">
             <Section icon={<CalendarRange size={18}/>} title="Per hari dalam seminggu" hint="Rata-rata belanja untuk satu hari tersebut">
               <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><BarChart data={week} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+                <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
                 <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={48}/>
-                <Tooltip formatter={v => [rupiah(Number(v)), 'Rata-rata']} contentStyle={tooltipStyle} cursor={{ fill: 'var(--accent-soft)' }}/>
-                <Bar dataKey="average" radius={[6, 6, 0, 0]} animationDuration={700}>{week.map(row => <Cell key={row.label} fill={row.average === Math.max(...week.map(w => w.average)) ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 40%, var(--paper))'}/>)}</Bar>
+                <Tooltip formatter={v => [rupiah(Number(v)), 'Rata-rata']} content={<ChartTooltip/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
+                <Bar dataKey="average" radius={[10, 10, 4, 4]} maxBarSize={38} animationDuration={700}>{week.map(row => <Cell key={row.label} fill={row.average === Math.max(...week.map(w => w.average)) ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 40%, var(--paper))'}/>)}</Bar>
               </BarChart></ResponsiveContainer></div>
             </Section>
             <Section icon={<Clock3 size={18}/>} title="Waktu belanja" hint="Dari transaksi yang punya jam">
@@ -333,14 +334,14 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         <Kpi label="Rata-rata pemasukan per bulan" icon={Wallet2} value={Math.round(total.income / activeCount)} basis={basis} suffix={best ? `Bulan terbaik: ${best.label} (${rupiah(best.net)})` : undefined}/>
       </div>
       <Section icon={<BarChart3 size={18}/>} title="Bulan demi bulan" hint={costly ? `Pengeluaran terbesar di ${costly.label} (${rupiah(costly.expense)})` : undefined}>
-        <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={months} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 4"/>
+        <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={months} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="bar-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--positive)"/><stop offset="100%" stopColor="var(--positive)" stopOpacity={.55}/></linearGradient><linearGradient id="bar-out" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--rose)"/><stop offset="100%" stopColor="var(--rose)" stopOpacity={.55}/></linearGradient></defs>
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
           <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
-          <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} contentStyle={tooltipStyle} cursor={{ fill: 'var(--accent-soft)' }}/>
+          <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
           <Legend wrapperStyle={{ fontSize: 12 }}/>
-          <Bar dataKey="income" name="Pemasukan" fill="var(--positive)" radius={[5, 5, 0, 0]} animationDuration={700}/>
-          <Bar dataKey="expense" name="Pengeluaran" fill="var(--rose)" radius={[5, 5, 0, 0]} animationDuration={700}/>
+          <Bar dataKey="income" name="Pemasukan" fill="url(#bar-in)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
+          <Bar dataKey="expense" name="Pengeluaran" fill="url(#bar-out)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
           <Line type="monotone" dataKey="net" name="Selisih" stroke="var(--accent)" strokeWidth={3} dot={{ r: 3 }} animationDuration={900}/>
         </ComposedChart></ResponsiveContainer></div>
         <div className="year-table" role="table" aria-label="Ringkasan per bulan">
@@ -356,7 +357,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
             <span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, categories[0].amount))}%`, background: c.color || 'var(--accent)' }}/></span>
             <span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>±{rupiah(Math.round(c.amount / activeCount))}/bln {ready && <Delta current={c.amount} previous={last} good="down" basis={basis} compact/>}</small></span>
           </button>; })}</div>
-          {trend && <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="cat-year" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/><YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={48}/><Tooltip formatter={v => [rupiah(Number(v)), categories.find(c => c.id === focusCategory)?.name || '']} contentStyle={tooltipStyle}/><Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#cat-year)" strokeWidth={3} animationDuration={700}/></AreaChart></ResponsiveContainer></div>}
+          {trend && <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="cat-year" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/><YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={48}/><Tooltip formatter={v => [rupiah(Number(v)), categories.find(c => c.id === focusCategory)?.name || '']} content={<ChartTooltip/>}/><Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#cat-year)" strokeWidth={3} animationDuration={700}/></AreaChart></ResponsiveContainer></div>}
         </Section>
         <Section icon={<TrendingUp size={18}/>} title="Sumber pemasukan setahun">
           {incomes.length ? <div className="report-table">{incomes.map(c => <div key={c.id} className="report-row"><IdentityBadge icon={c.icon} color={c.color} label={c.name}/><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, incomes[0].amount))}%`, background: 'var(--positive)' }}/></span><span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>{pct(c.amount, total.income)}% · {c.count}×</small></span></div>)}</div> : <Empty message="Belum ada pemasukan tahun ini."/>}
