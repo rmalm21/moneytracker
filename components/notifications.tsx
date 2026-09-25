@@ -13,7 +13,8 @@ export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
 export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action };
 type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean };
-type TrackLabels = { pending: string; success: string; failure: string; retry?: Action; after?: () => void };
+/** `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail. */
+type TrackLabels = { pending: string; success: string; failure: string; retry?: Action; after?: () => void; quiet?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -24,7 +25,7 @@ const readHistory = (uid: string): Note[] => { try { return JSON.parse(localStor
 const failure = /gagal|tidak bisa|belum bisa|belum tersimpan|tidak valid|ditolak sistem|error|salah|tidak cocok|periksa/i;
 /** Guess the tone of a plain message from the older `notify(text)` calls. */
 function kindOf(message: string): NoteKind { return failure.test(message) ? 'error' : /sementara|offline|menunggu/i.test(message) ? 'warning' : 'success'; }
-const lifetime: Record<NoteKind, number> = { success: 4200, info: 5200, warning: 7000, error: 9000, progress: 0 };
+const lifetime: Record<NoteKind, number> = { success: 2600, info: 5200, warning: 7000, error: 9000, progress: 0 };
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user, sync } = useApp();
@@ -48,27 +49,35 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (life) timers.current.set(id, setTimeout(() => dismiss(id), life));
     return id;
   }, [dismiss]);
-  const notify = useCallback((message: string) => { if (message) push({ title: message, kind: kindOf(message) }); }, [push]);
+  const notify = useCallback((message: string) => { if (!message) return; const kind = kindOf(message); push({ title: message, kind, history: kind !== 'success' }); }, [push]);
   const track = useCallback((task: Promise<unknown>, labels: TrackLabels) => {
     busy.current++;
-    const id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false });
+    // The "saving…" card only appears if the save is actually slow, so quick saves don't flash two cards.
+    let id: string | undefined, settled = false;
+    const slow = setTimeout(() => { if (!settled && !labels.quiet) id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false }); }, 900);
+    const done = () => { settled = true; clearTimeout(slow); };
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
-    task.then(() => { push({ id, title: labels.success, body: navigator.onLine ? 'Tersimpan di cloud' : 'Tersimpan di perangkat · dikirim otomatis saat online', kind: 'success' }); labels.after?.(); })
-      .catch(error => {
-        const committed = (error as { committed?: boolean }).committed;
-        if (committed) { push({ id, title: labels.success, body: (error as Error).message, kind: 'warning' }); labels.after?.(); return; }
-        push({ id, title: labels.failure, body: (error as Error).message || 'Coba lagi.', kind: 'error', action: labels.retry });
-      });
-  }, [push]);
+    task.then(() => {
+      done();
+      if (labels.quiet) { if (id) dismiss(id); } else push({ id, title: labels.success, body: navigator.onLine ? undefined : 'Tersimpan di perangkat · dikirim otomatis saat online', kind: 'success', history: false });
+      labels.after?.();
+    }).catch(error => {
+      done();
+      const committed = (error as { committed?: boolean }).committed;
+      if (committed) { push({ id, title: labels.success, body: (error as Error).message, kind: 'warning' }); labels.after?.(); return; }
+      push({ id, title: labels.failure, body: (error as Error).message || 'Coba lagi.', kind: 'error', action: labels.retry });
+    });
+  }, [push, dismiss]);
 
   // A write that waits for the server shows a progress card until the data is synced.
-  const lastSync = useRef(sync), started = useRef(false);
+  const lastSync = useRef(sync), started = useRef(false), wasOffline = useRef(false);
   useEffect(() => {
     const previous = lastSync.current; lastSync.current = sync;
-    if (sync === 'synced') { if (started.current && previous !== 'synced' && !busy.current) push({ id: 'sync', title: 'Tersimpan di cloud', kind: 'success', history: false }); started.current = true; return; }
-    if (!started.current || busy.current) return;
-    if (sync === 'syncing') push({ id: 'sync', title: 'Menyinkronkan data…', body: 'Perubahan sedang dikirim ke cloud', kind: 'progress', history: false });
-    if (sync === 'offline') push({ id: 'sync', title: 'Sedang offline', body: 'Perubahan disimpan di perangkat dan dikirim saat online', kind: 'warning', history: false });
+    if (!started.current) { if (sync === 'synced') started.current = true; return; }
+    // Routine syncing stays silent; only going offline, coming back, and failures are worth a card.
+    if (sync === 'offline') wasOffline.current = true;
+    if (sync === 'synced' && wasOffline.current) { wasOffline.current = false; push({ id: 'sync', title: 'Kembali online', body: 'Perubahan yang tertunda sudah dikirim', kind: 'success', history: false }); }
+    if (sync === 'offline' && previous !== 'offline') push({ id: 'sync', title: 'Sedang offline', body: 'Perubahan disimpan di perangkat dan dikirim saat online', kind: 'warning', history: false });
     if (sync === 'error') push({ id: 'sync', title: 'Sinkronisasi gagal', body: 'Periksa koneksi, lalu buka ulang aplikasi', kind: 'error' });
   }, [sync, push]);
 

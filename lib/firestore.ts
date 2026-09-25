@@ -47,7 +47,7 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
       if(earliest<baseline||latest>baselineEnd)customStop=onSnapshot(query(coll(uid,'transactions'),where('date','>=',earliest),where('date','<',latest)),history=>{custom=history.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError);
     },onError));
   }
-  all.push(onSnapshot(query(coll(uid,'transactions'),orderBy('date','desc'),limit(60)),{includeMetadataChanges:true},s=>{recent=s.docs.map(d=>hydrate<LedgerTx>(d));emit();onSync?.(s.metadata.hasPendingWrites?'syncing':s.metadata.fromCache?'offline':'synced');},onError));
+  all.push(onSnapshot(query(coll(uid,'transactions'),orderBy('date','desc'),limit(60)),{includeMetadataChanges:true},s=>{recent=s.docs.map(d=>hydrate<LedgerTx>(d));emit();onSync?.(s.metadata.hasPendingWrites?(isOffline()?'offline':'syncing'):s.metadata.fromCache?(isOffline()?'offline':'syncing'):'synced');},onError));
   all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),s=>{cycle=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
   if(month.start!==start||month.end!==end)all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',month.start),where('date','<',month.end)),s=>{calendar=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
   return ()=>{all.forEach(stop=>stop());customStop?.();};
