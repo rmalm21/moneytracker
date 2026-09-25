@@ -3972,6 +3972,48 @@ html, body { overscroll-behavior-x: none; }
 
 .ip-override { margin: 0 0 8px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); color: var(--ink); }
 
+/* 79. Dompet: Kartu / Ringkas view */
+.wallet-group-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px 8px; }
+.wallet-group-bar .wallet-group-hint { margin: 0; min-width: 0; }
+.view-toggle { flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--line); }
+.view-toggle button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.view-toggle button.active { background: var(--paper); color: var(--accent); box-shadow: 0 2px 8px rgba(16, 42, 54, .12); }
+.wallet-slim-summary { display: flex; align-items: center; gap: 14px; margin: 0 0 14px; padding: 12px 16px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--paper)), var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); box-shadow: var(--card-shadow); }
+.wallet-slim-summary > span { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.wallet-slim-summary small { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.wallet-slim-summary strong { font: 800 1.08rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wallet-slim-summary strong.is-free { color: var(--positive, var(--accent)); }
+.wallet-slim-summary > i { flex: none; width: 1px; align-self: stretch; background: var(--line); }
+.wallet-compact { display: grid; gap: 10px; }
+.wallet-mix { display: flex; gap: 3px; height: 8px; padding: 0 2px; }
+.wallet-mix i { display: block; min-width: 6px; border-radius: 99px; background: var(--identity-color, var(--accent)); opacity: .85; }
+.wallet-rows { border-radius: 20px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 88%, transparent); box-shadow: var(--card-shadow); backdrop-filter: blur(10px); }
+.wallet-row { position: relative; display: flex; align-items: center; gap: 10px; min-height: 68px; padding: 10px 12px 10px 6px; cursor: pointer; transition: background .15s ease; }
+.wallet-row + .wallet-row { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.wallet-row:first-child { border-radius: 20px 20px 0 0; }
+.wallet-row:last-child { border-radius: 0 0 20px 20px; }
+.wallet-row:only-child { border-radius: 20px; }
+.wallet-row::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 0 3px 3px 0; background: var(--identity-color, var(--accent)); opacity: .9; }
+.wallet-row:hover { background: color-mix(in srgb, var(--identity-color, var(--accent)) 6%, transparent); }
+.wallet-row.sort-target { background: var(--accent-soft); }
+.wallet-row .sort-handle { min-width: 24px; opacity: .55; }
+.wallet-row-icon { flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; overflow: hidden; background: color-mix(in srgb, var(--identity-color, var(--accent)) 14%, var(--paper)); font-size: 1.3rem; }
+.wallet-row-icon .emoji { width: 26px; height: 26px; }
+.wallet-row-icon > .brand-icon { width: 100%; height: 100%; border-radius: inherit; font-size: 1.15rem; }
+.wallet-row-text { display: grid; gap: 1px; min-width: 0; flex: 1; justify-items: start; }
+.wallet-row-text strong { max-width: 100%; font-size: .95rem; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: normal; word-break: normal; }
+.wallet-row-text small { max-width: 100%; color: var(--muted); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wallet-row .kantong-tag { margin-top: 3px; padding: 1px 8px 1px 4px; font-size: .68rem; }
+.wallet-row .kantong-tag .emoji { width: 13px; height: 13px; }
+.wallet-row-share { display: none; }
+@media (min-width: 761px) { .wallet-row-share { display: block; flex: 0 1 260px; height: 6px; margin: 0 8px 0 auto; border-radius: 99px; background: var(--paper-2); overflow: hidden; } .wallet-row-share i { display: block; height: 100%; border-radius: inherit; background: var(--identity-color, var(--accent)); opacity: .8; } .wallet-row-amount { min-width: 130px; } .wallet-row { padding-left: 10px; } }
+.wallet-row-amount { flex: none; display: grid; justify-items: end; gap: 1px; text-align: right; }
+.wallet-row-amount strong { font: 800 .98rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.wallet-row-amount small { color: var(--muted); font-size: .7rem; font-weight: 700; }
+.wallet-row .more-actions > summary { min-width: 30px; min-height: 30px; padding: 0 6px; border-color: transparent; background: transparent; }
+.wallet-row .more-actions > summary span { display: none; }
+@media (max-width: 420px) { .view-toggle button span { display: none; } .view-toggle button { padding: 0 10px; } .wallet-row { gap: 8px; padding-right: 8px; } .wallet-row-amount strong { font-size: .9rem; } .wallet-row .more-actions > summary { min-width: 26px; padding: 0 4px; } }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

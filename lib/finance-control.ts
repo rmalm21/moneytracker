@@ -1,6 +1,7 @@
 import { budgetMonthly, budgetSpent, budgetWindow, effects, expenseAllocations, transactionExpense } from './accounting.ts';
 import { isKantong, kantongWalletIds } from './pockets.ts';
 import { nextDate, previousDate, type DateRange } from './period.ts';
+import { advanceSchedule, scheduleDay } from './recurring.ts';
 import type { Budget, Category, CycleSnapshot, Data, LedgerTx, PlannedTransaction, Profile, Recurring, Wallet } from './types';
 
 export const inRange=(date:string,range:DateRange)=>date>=range.start&&date<range.end;
@@ -16,7 +17,7 @@ export function commitments(data:Data,range?:DateRange):Commitment[]{
     let day=recurring.nextDate,count=0;
     while(day&&day<range.end&&count++<60){
       if(day>=range.start)items.push({id:`recurring:${recurring.id}:${day}`,title:recurring.name,date:day,amount:recurring.amount,categoryId:recurring.categoryId,subcategoryId:null,walletId:recurring.walletId,source:'recurring'});
-      day=advanceRecurring(day,recurring.frequency);
+      day=advanceSchedule(day,recurring.frequency,scheduleDay(recurring));
     }
   }
   return items.filter(item=>!range||inRange(item.date,range));
@@ -27,13 +28,6 @@ export function budgetCommitted(budget:Budget,data:Data,asOf:Date,salaryDay:numb
   const pending=[...commitments(data,window),...commitments(data).filter(item=>item.date<window.start)];
   return pending.filter(item=>budget.subcategoryId?item.subcategoryId===budget.subcategoryId:item.categoryId===budget.categoryId||children.has(item.categoryId||'')||children.has(item.subcategoryId||'')).reduce((sum,item)=>sum+item.amount,0);
 }
-function advanceRecurring(date:string,frequency:Recurring['frequency']){
-  if(frequency==='weekly'){let day=date;for(let i=0;i<7;i++)day=nextDate(day);return day;}
-  const d=new Date(`${date}T12:00:00`),day=d.getDate();
-  if(frequency==='monthly')d.setMonth(d.getMonth()+1,1);else d.setFullYear(d.getFullYear()+1,d.getMonth(),1);
-  d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 export type UpcomingEvent={id:string;date:string;title:string;amount:number;kind:'income'|'expense'|'debt'|'claim'|'receivable'|'fund'|'note';status:'planned'|'pending'|'actual';categoryId?:string|null;walletId?:string|null};
 export function upcomingEvents(data:Data,profile:Profile,range:DateRange):UpcomingEvent[]{
   const events:UpcomingEvent[]=[];
@@ -42,7 +36,7 @@ export function upcomingEvents(data:Data,profile:Profile,range:DateRange):Upcomi
   for(const draft of data.drafts.filter(x=>x.status==='pending'))add({id:`draft:${draft.id}`,date:draft.plannedDate,title:draft.name,amount:draft.type==='income'?draft.amount:-draft.amount,kind:draft.type==='income'?'income':'expense',status:'pending',categoryId:draft.categoryId,walletId:draft.walletId});
   for(const recurring of data.recurring.filter(x=>x.active)){
     let date=recurring.nextDate,count=0;
-    while(date&&date<range.end&&count++<60){add({id:`recurring:${recurring.id}:${date}`,date,title:recurring.name,amount:recurring.type==='income'?recurring.amount:-recurring.amount,kind:recurring.type==='income'?'income':'expense',status:'planned',categoryId:recurring.categoryId,walletId:recurring.walletId});date=advanceRecurring(date,recurring.frequency);}
+    while(date&&date<range.end&&count++<60){add({id:`recurring:${recurring.id}:${date}`,date,title:recurring.name,amount:recurring.type==='income'?recurring.amount:-recurring.amount,kind:recurring.type==='income'?'income':'expense',status:'planned',categoryId:recurring.categoryId,walletId:recurring.walletId});date=advanceSchedule(date,recurring.frequency,scheduleDay(recurring));}
   }
   for(const debt of data.debts.filter(x=>x.outstandingAmount>0&&x.dueDate))add({id:`debt:${debt.id}`,date:debt.dueDate,title:debt.name,amount:-Math.min(debt.installmentAmount||debt.outstandingAmount,debt.outstandingAmount),kind:'debt',status:'planned'});
   for(const claim of data.claims.filter(x=>x.remainingAmount>0&&x.expectedPaymentDate))add({id:`claim:${claim.id}`,date:claim.expectedPaymentDate,title:claim.name,amount:claim.remainingAmount,kind:'claim',status:'planned'});
