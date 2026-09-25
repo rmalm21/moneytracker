@@ -1715,6 +1715,55 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   43. Spacing around summary cards, budget detail sheet
+   ========================================================================== */
+* + .summary-grid { margin-top: 16px; }
+.summary-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.summary-grid + .section-heading { margin-top: 26px; }
+.budget-card.is-clickable { cursor: pointer; }
+.budget-card.is-clickable:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 2px; }
+.budget-open { margin-top: 4px; }
+.modal-content.app-dialog.budget-detail-dialog { width: min(94vw, 920px); }
+.budget-detail-dialog .modal-body { display: grid; gap: 16px; }
+.bd-hero { display: grid; gap: 6px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, var(--accent-soft), var(--paper) 75%); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); }
+.bd-hero.is-over { background: linear-gradient(135deg, color-mix(in srgb, var(--rose) 12%, var(--paper)), var(--paper) 75%); border-color: color-mix(in srgb, var(--rose) 35%, var(--line)); }
+.bd-hero.is-warn { background: linear-gradient(135deg, color-mix(in srgb, var(--amber) 14%, var(--paper)), var(--paper) 75%); }
+.bd-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.bd-hero > small { color: var(--muted); font-weight: 700; }
+.bd-hero > strong { font: 800 clamp(1.7rem, 5vw, 2.3rem)/1.1 var(--font-head); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.bd-stack { display: flex; height: 12px; border-radius: 99px; background: var(--paper-2); border: 1px solid var(--line); overflow: hidden; margin: 6px 0 2px; }
+.bd-stack i { display: block; height: 100%; transform-origin: left; animation: bar-grow .6s var(--ease-out) both; }
+.bd-stack i.used { background: var(--accent); }
+.bd-hero.is-over .bd-stack i.used { background: var(--rose); }
+.bd-stack i.planned { background: repeating-linear-gradient(45deg, var(--amber), var(--amber) 4px, color-mix(in srgb, var(--amber) 60%, var(--paper)) 4px, color-mix(in srgb, var(--amber) 60%, var(--paper)) 8px); }
+.bd-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .78rem; font-weight: 700; color: var(--muted); }
+.bd-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bd-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--paper-2); border: 1px solid var(--line-strong); }
+.bd-legend i.used { background: var(--accent); border-color: transparent; }
+.bd-legend i.planned { background: var(--amber); border-color: transparent; }
+.bd-summary { margin: 0 !important; }
+.bd-block { display: grid; gap: 12px; align-content: start; min-width: 0; padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); }
+.bd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.bd-row-label { display: flex !important; align-items: center; gap: 6px; font-weight: 700; font-size: .86rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bd-wallet { display: inline-flex; align-items: center; gap: 8px; }
+.bd-wallet .report-wallet-icon { width: 24px; height: 24px; border-radius: 7px; font-size: .85rem; }
+.report-row.bd-plain { grid-template-columns: minmax(0, 1fr) auto; }
+.bd-tx { box-shadow: none; }
+.bd-block > .link-button { justify-self: start; }
+.bd-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.bd-actions button { display: grid; justify-items: center; gap: 6px; padding: 12px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--ink); font-weight: 700; font-size: .8rem; cursor: pointer; transition: border-color .14s ease, background .14s ease, color .14s ease; }
+.bd-actions button svg { color: var(--accent); }
+.bd-actions button:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.bd-actions button.danger svg { color: var(--rose); }
+.bd-actions button.danger:hover { border-color: var(--rose); background: color-mix(in srgb, var(--rose) 10%, var(--paper)); color: var(--rose); }
+@media (max-width: 760px) {
+  .bd-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .bd-block { padding: 12px; }
+  .bd-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.2rem), 1fr)); }
+}
+
+/* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
        which floats in the middle). Kept last so no dialog-specific width can override it.
    ========================================================================== */

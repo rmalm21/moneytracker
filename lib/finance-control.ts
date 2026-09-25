@@ -68,7 +68,7 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
     const balances=owned.map(w=>({wallet:w,amount:walletAt(w,ledger,date)}));
     const assets=balances.reduce((sum,row)=>sum+Math.max(0,row.amount),0);
     const signed=balances.reduce((sum,row)=>sum+row.amount,0);
-    const unlinkedFunds=data.funds.filter(f=>!data.wallets.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((sum,f)=>sum+Math.max(0,f.currentAmount-ledger.filter(tx=>tx.fundId===f.id&&tx.type==='fund_contribution'&&tx.date>=date).reduce((n,tx)=>n+tx.amount,0)),0);
+    const unlinkedFunds=data.funds.filter(f=>!f.isArchived&&!data.wallets.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((sum,f)=>sum+Math.max(0,f.currentAmount-ledger.filter(tx=>tx.fundId===f.id&&tx.type==='fund_contribution'&&tx.date>=date).reduce((n,tx)=>n+tx.amount,0)),0);
     return {assets,netWorth:signed+claimsAt(data,ledger,date)+receivablesAt(data,ledger,date)-debtAt(data,ledger,date),reserved:balances.filter(row=>row.wallet.isReserved).reduce((sum,row)=>sum+Math.max(0,row.amount),0)+unlinkedFunds};
   };
   const opening=at(range.start),closing=at(range.end);

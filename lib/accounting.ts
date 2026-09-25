@@ -51,7 +51,7 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const liabilities = data.debts.reduce((n,d)=>n+Math.max(0,d.outstandingAmount),0);
   const receivables = data.claims.filter(c=>c.status!=='rejected').reduce((n,c)=>n+Math.max(0,c.remainingAmount),0)+data.receivables.reduce((n,r)=>n+Math.max(0,r.remainingAmount),0);
   const reserved = owned.filter(w=>w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
-  const unlinkedFunds = data.funds.filter(f=>!active.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((n,f)=>n+Math.max(0,f.currentAmount),0);
+  const unlinkedFunds = data.funds.filter(f=>!f.isArchived&&!active.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((n,f)=>n+Math.max(0,f.currentAmount),0);
   const free = liquid.filter(w=>!w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0)-unlinkedFunds;
   const cycle = data.transactions.filter(t=>t.date>=start&&t.date<end);
   const income = cycle.filter(t=>t.type==='income').reduce((n,t)=>n+t.amount,0);

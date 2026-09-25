@@ -105,3 +105,21 @@ test('reminders fire once per chosen time, catch up within 3 hours, and never re
   assert.deepEqual([tooLate.fire, tooLate.consumed], [[], ['balance@20:00']]);
   assert.deepEqual(dueReminders({ ...config, balanceEnabled: false, billsEnabled: false }, '20:00', []).fire, []);
 });
+
+import { budgetDetail, previousWindows } from '../lib/budget-detail.ts';
+test('budget detail works out pace, projection and breakdowns inside the budget period', () => {
+  const cats = [{ id: 'food', name: 'Makan', type: 'expense', parentId: null }, { id: 'lunch', name: 'Makan siang', type: 'expense', parentId: 'food' }, { id: 'fun', name: 'Hiburan', type: 'expense', parentId: null }];
+  const budget = { id: 'b', name: 'Makan', categoryId: 'food', subcategoryId: null, amount: 3_000_000, classification: 'living', cycleType: 'salary', active: true };
+  const items = [tx({ date: '2026-09-25', amount: 100_000, categoryId: 'food', subcategoryId: 'lunch', merchant: 'Warteg' }), tx({ date: '2026-09-26', amount: 50_000, categoryId: 'food', walletId: 'b' }), tx({ date: '2026-09-26', amount: 999_000, categoryId: 'fun' }), tx({ date: '2026-09-20', amount: 70_000, categoryId: 'food' })];
+  const d = budgetDetail(budget, items, cats, { start: '2026-09-25', end: '2026-10-25' }, '2026-09-26', 3_000_000);
+  assert.equal(d.spent, 150_000);
+  assert.deepEqual([d.totalDays, d.elapsed, d.daysLeft], [30, 2, 29]);
+  assert.equal(d.projected, 2_250_000);
+  assert.deepEqual(d.bySub.map(s => [s.id, s.amount]), [['lunch', 100_000]]);
+  assert.equal(d.unassigned, 50_000);
+  assert.deepEqual(d.byWallet, [{ walletId: 'a', amount: 100_000 }, { walletId: 'b', amount: 50_000 }]);
+  assert.deepEqual([d.pace[0].spent, d.pace[1].spent, d.pace[2].spent, d.pace[29].ideal], [100_000, 150_000, null, 3_000_000]);
+  assert.equal(d.weeks.length, 5);
+  const windows = previousWindows({ start: '2026-09-25' }, 3, date => { const y = date.getFullYear(), m = date.getMonth(); const start = new Date(y, date.getDate() >= 25 ? m : m - 1, 25), end = new Date(start.getFullYear(), start.getMonth() + 1, 25); const f = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-25`; return { start: f(start), end: f(end) }; });
+  assert.deepEqual(windows.map(w => w.start), ['2026-06-25', '2026-07-25', '2026-08-25']);
+});
