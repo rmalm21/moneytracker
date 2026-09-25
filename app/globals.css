@@ -2255,7 +2255,10 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .ins-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; align-items: stretch; }
 .ins-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px 18px; border-radius: var(--r-md); background: var(--paper); box-shadow: var(--elev-1); border-top: 3px solid var(--tone, var(--accent)); }
 .ins-card-head { display: flex; gap: 10px; align-items: flex-start; }
-.ins-card-head h3 { flex: 1; min-width: 0; margin: 3px 0 0; font-size: .98rem; line-height: 1.35; }
+.ins-card-title { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.ins-card-head h3 { margin: 3px 0 0; font-size: .98rem; line-height: 1.35; }
+.ins-tag { justify-self: start; padding: 1px 8px; border-radius: 99px; font-size: .68rem; font-weight: 700; letter-spacing: .02em; color: var(--tone, var(--accent)); background: color-mix(in srgb, var(--tone, var(--accent)) 12%, transparent); }
+.ins-tag + h3 { margin-top: 0; }
 .ins-card-icon, .ins-step { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent); }
 .ins-step { border-radius: 50%; font-weight: 800; font-size: .88rem; }
 .ins-hide { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin: -2px -6px 0 0; border: 0; border-radius: 9px; background: none; color: var(--muted); cursor: pointer; opacity: .65; }

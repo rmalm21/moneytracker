@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Star, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, Wallet, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { usePeriodTransactions } from './period-selector';
@@ -53,7 +53,7 @@ function Ring({ score, tone }: { score: number; tone: Tone }) {
   </div>;
 }
 
-function FindingCard({ finding, index, onApply, onGo, onHide, busy }: { finding: Finding; index?: number; onApply: (apply: Apply, finding: Finding) => void; onGo: (view: string, focus?: string) => void; onHide?: (id: string) => void; busy: boolean }) {
+function FindingCard({ finding, index, tag, onApply, onGo, onHide, busy }: { finding: Finding; index?: number; tag?: string; onApply: (apply: Apply, finding: Finding) => void; onGo: (view: string, focus?: string) => void; onHide?: (id: string) => void; busy: boolean }) {
   const Icon = toneIcon[finding.tone];
   const percent = finding.id.startsWith('shrink-') || finding.id.startsWith('tight-');
   const series = finding.series, labels = finding.seriesLabels;
@@ -61,7 +61,7 @@ function FindingCard({ finding, index, onApply, onGo, onHide, busy }: { finding:
   return <article className={`ins-card tone-${finding.tone}`}>
     <div className="ins-card-head">
       {index !== undefined ? <span className="ins-step" aria-hidden="true">{index + 1}</span> : <span className="ins-card-icon" aria-hidden="true"><Icon size={16}/></span>}
-      <h3>{finding.title}</h3>
+      <div className="ins-card-title">{tag && <span className="ins-tag">{tag}</span>}<h3>{finding.title}</h3></div>
       {onHide && <button type="button" className="ins-hide" aria-label={`Abaikan saran ${finding.title}`} title="Abaikan saran ini" onClick={() => onHide(finding.id)}><EyeOff size={15}/></button>}
     </div>
     <p><Rich text={finding.detail}/></p>
@@ -121,7 +121,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     track(task, { pending: 'Menyimpan anggaran…', success: action.kind === 'create-budget' ? `Anggaran ${action.name} dibuat.` : 'Anggaran diperbarui.', failure: 'Anggaran belum tersimpan', after: () => setBusy('') });
   }
 
-  const card = (f: Finding, i?: number) => <FindingCard key={f.id} finding={f} index={i} onApply={apply} onGo={navigate} onHide={hide} busy={busy === f.id}/>;
+  const card = (f: Finding, i?: number, tag?: string) => <FindingCard key={f.id} finding={f} index={i} tag={tag} onApply={apply} onGo={navigate} onHide={hide} busy={busy === f.id}/>;
   const heading = <div className="page-heading"><div><h1>Insight</h1><p>Saran otomatis dari riwayat transaksimu. Dihitung di perangkat ini, datamu tidak dikirim ke mana pun.</p></div></div>;
   if (!advice) return <>{heading}<div className="view-skeleton" aria-busy="true" aria-label="Menganalisis riwayat"><span/><span/><span/></div></>;
 
@@ -141,7 +141,13 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     { key: 'duty', label: 'Kewajiban', icon: Landmark, hint: 'Utang, piutang, tujuan dana, dan dana darurat.', items: visible(advice.obligations), empty: 'Semua kewajiban dan tujuan dana aman.' },
     { key: 'alerts', label: 'Peringatan', icon: AlertTriangle, hint: 'Transaksi tidak biasa dan bekal sampai gajian.', items: visible(advice.alerts), empty: 'Tidak ada peringatan.' },
   ];
-  const active = tabs.find(t => t.key === tab) || tabs.find(t => t.items?.length) || tabs[0];
+  // "Penting": every warning or urgent finding from all tabs in one list, most urgent first, so nothing needs hunting.
+  const source = new Map<string, string>();
+  tabs.forEach(t => t.items?.forEach(f => { if (!source.has(f.id)) source.set(f.id, t.label); }));
+  const urgency = (f: Finding) => (f.tone === 'bad' ? 2e12 : 1e12) + (f.saving || 0);
+  const important = [...source.keys()].map(id => tabs.flatMap(t => t.items || []).find(f => f.id === id)!).filter(f => f.tone === 'bad' || f.tone === 'warn').sort((a, b) => urgency(b) - urgency(a));
+  tabs.unshift({ key: 'important', label: 'Penting', icon: Star, hint: 'Semua peringatan dan hal mendesak dari setiap bagian di bawah, dikumpulkan jadi satu. Yang paling mendesak di atas.', items: important, empty: 'Tidak ada hal penting — semua bagian dalam kondisi aman.' });
+  const active = tabs.find(t => t.key === tab) || tabs[0];
 
   return <div className="insight-page">
     {heading}
@@ -210,7 +216,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
             <Spark values={[...c.history, c.projected]}/>
             <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
           </button>)}</div> : <p className="ins-empty">{active.empty}</p>
-          : active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f))}</div> : <p className="ins-empty">{active.empty}</p>}
+          : active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f, undefined, active.key === 'important' ? source.get(f.id) : undefined))}</div> : <p className="ins-empty">{active.empty}</p>}
       </div>
     </section>
 
