@@ -1824,7 +1824,7 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (max-width: 760px) { .budget-sort { flex: 1 1 100%; } .budget-sort .app-select, .budget-sort .app-select-trigger { flex: 1; min-width: 0; } }
 
 /* ==========================================================================
-   44. iOS emoji artwork (bundled in /public/emoji, same look on every device)
+   44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
 .emoji-grid button img.emoji { width: 1.45em; height: 1.45em; }

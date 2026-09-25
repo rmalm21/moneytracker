@@ -7,7 +7,7 @@ import { Check, ChevronDown } from 'lucide-react';
 type SelectChange = { target: { value: string } };
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & { onChange?: (event: SelectChange) => void };
 type Item = { value: string; label: ReactNode; text: string; disabled: boolean };
-/** Plain-text labels (e.g. "🍜 Makan") get the iOS emoji artwork; anything richer is shown as is. */
+/** Plain-text labels (e.g. "🍜 Makan") get the Fluent Emoji artwork; anything richer is shown as is. */
 const showLabel = (label: ReactNode) => { const parts = Array.isArray(label) ? label : [label]; return parts.every(part => typeof part === 'string' || typeof part === 'number') ? <EmojiText text={parts.join('')}/> : label; };
 type MenuPosition = { top: number; left: number; width: number; maxHeight: number };
 
