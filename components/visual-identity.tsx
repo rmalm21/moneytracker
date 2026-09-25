@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState, type CSSProperties } from 'react';
+import { Emoji } from './emoji';
 import { Search } from 'lucide-react';
 import { colorPresets } from '@/lib/category-templates';
 import type { Category } from '@/lib/types';
@@ -183,7 +184,7 @@ export function brandForName(name: string) { const words = name.toLowerCase().sp
 export function AppIcon({ icon, fallback = '💳', className = '' }: { icon?: string; fallback?: string; className?: string }) {
   const brand = brandOf(icon);
   if (brand) return <span className={`brand-icon ${className}`} style={{ background: brand.bg, color: brand.fg, fontSize: `${Math.max(.42, Math.min(.72, 2.6 / brand.text.length))}em` }} title={brand.label} aria-label={brand.label}>{brand.text}</span>;
-  return <span className={className} aria-hidden="true">{emojiOrFallback(icon, fallback)}</span>;
+  return <span className={className} aria-hidden="true"><Emoji e={emojiOrFallback(icon, fallback)}/></span>;
 }
 export const walletEmojis=['💳','🏦','💵','👛','👝','📱','🏧','💰','🪙','💸','💎','🏡','🌱','🔒','🎯','🚀','🧳','🏪','📈','📊','🛡️','🎓','🕌','🏝️','🚗','💍','🎁','🧧','⭐','❤️','🌙'];
 /** Kept for older records that stored a hex colour; the picker itself only shows named swatches. */
@@ -197,7 +198,7 @@ export function categoryColor(categories: Category[], category?: Category | null
   if (validHex(category.color)) return category.color;
   return categories.find(parent => parent.id === category.parentId)?.color;
 }
-export function IdentityBadge({icon,color,label}:{icon?:string;color?:string;label:string}){return <span className="identity-badge" style={identityStyle(color)}>{brandOf(icon)?<AppIcon icon={icon} className="badge-brand"/>:<span aria-hidden="true">{emojiOrFallback(icon)}</span>}<span>{label}</span></span>}
+export function IdentityBadge({icon,color,label}:{icon?:string;color?:string;label:string}){return <span className="identity-badge" style={identityStyle(color)}>{brandOf(icon)?<AppIcon icon={icon} className="badge-brand"/>:<span aria-hidden="true"><Emoji e={emojiOrFallback(icon)}/></span>}<span>{label}</span></span>}
 
 const recentKey = 'dompet-ajaib:recent-emoji';
 const readRecent = (): string[] => { try { return JSON.parse(localStorage.getItem(recentKey) || '[]').slice(0, 12); } catch { return []; } };
@@ -210,7 +211,7 @@ export function VisualPicker({icon,color,onIcon,onColor,kind,name='',inheritLabe
  const search=query.trim().toLowerCase();
  const found=search?emojiLibrary.flatMap(group=>group.items.filter(([,keys])=>keys.includes(search)||group.label.toLowerCase().includes(search))).map(([emoji])=>emoji).filter((emoji,index,list)=>list.indexOf(emoji)===index):[];
  const choose=(emoji:string)=>{rememberEmoji(emoji);onIcon(emoji)};
- const button=(emoji:string,key:string)=><button type="button" aria-label={`Ikon ${emoji}`} aria-pressed={icon===emoji} className={icon===emoji?'selected':''} onClick={()=>choose(emoji)} key={key}>{emoji}</button>;
+ const button=(emoji:string,key:string)=><button type="button" aria-label={`Ikon ${emoji}`} aria-pressed={icon===emoji} className={icon===emoji?'selected':''} onClick={()=>choose(emoji)} key={key}><Emoji e={emoji}/></button>;
  const suggested=kind==='wallet'?brandForName(name):undefined;
  const brandButton=(brand:BrandIcon)=><button type="button" key={`b${brand.key}`} aria-label={`Ikon ${brand.label}`} title={brand.label} aria-pressed={icon===`brand:${brand.key}`} className={`brand-choice ${icon===`brand:${brand.key}`?'selected':''}`} onClick={()=>{onIcon(`brand:${brand.key}`);const hex=brand.bg.toLowerCase();if(!color||colorPresets.some(preset=>preset.hex.toLowerCase()===color.toLowerCase()))onColor(hex)}}><AppIcon icon={`brand:${brand.key}`}/></button>;
  const custom=Boolean(color)&&!colorPresets.some(preset=>preset.hex.toLowerCase()===color.toLowerCase());

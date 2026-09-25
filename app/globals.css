@@ -1817,6 +1817,14 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 }
 
 /* ==========================================================================
+   44. iOS emoji artwork (bundled in /public/emoji, same look on every device)
+   ========================================================================== */
+img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.emoji-grid button img.emoji { width: 1.45em; height: 1.45em; }
+.fin-list .data-row-main[data-avatar][style*="--avatar-img"]::before { content: ''; background: var(--accent-soft) var(--avatar-img) center / 24px 24px no-repeat; }
+@media (max-width: 760px) { .fin-list .data-row-main[data-avatar][style*="--avatar-img"]::before { background-size: 22px 22px; } }
+
+/* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
        which floats in the middle). Kept last so no dialog-specific width can override it.
    ========================================================================== */

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Emoji, EmojiText, emojiAvatar } from './emoji';
 import { ArrowRight, CalendarClock, CalendarDays, Copy, Edit3, Gauge, History, Layers3, Pause, Play, Store, Target, Trash2, TrendingUp, Wallet as WalletIcon } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
@@ -106,7 +107,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
 
     {tab === 'breakdown' && <div className="bd-grid">
       {!budget.subcategoryId && <Block icon={<Layers3 size={16}/>} title="Per subkategori">
-        {detail.bySub.length || detail.unassigned ? <Bars total={detail.spent} rows={[...detail.bySub.map(s => ({ key: s.id, label: <><span className="bd-emoji">{emojiOrFallback(s.icon, '•')}</span>{s.name}</>, amount: s.amount })), ...(detail.unassigned ? [{ key: 'none', label: <span className="muted">Tanpa subkategori</span>, amount: detail.unassigned }] : [])]}/> : <p className="bd-empty">Belum ada pengeluaran.</p>}
+        {detail.bySub.length || detail.unassigned ? <Bars total={detail.spent} rows={[...detail.bySub.map(s => ({ key: s.id, label: <><span className="bd-emoji"><Emoji e={emojiOrFallback(s.icon, '•')}/></span>{s.name}</>, amount: s.amount })), ...(detail.unassigned ? [{ key: 'none', label: <span className="muted">Tanpa subkategori</span>, amount: detail.unassigned }] : [])]}/> : <p className="bd-empty">Belum ada pengeluaran.</p>}
       </Block>}
       <Block icon={<WalletIcon size={16}/>} title="Per dompet">
         {detail.byWallet.length ? <Bars total={detail.spent} rows={detail.byWallet.map(w => { const wallet = data.wallets.find(x => x.id === w.walletId); return { key: w.walletId, label: <><span className="bd-emoji"><AppIcon icon={wallet?.icon}/></span>{wallet?.name || 'Dompet'}</>, amount: w.amount }; })}/> : <p className="bd-empty">Belum ada pengeluaran.</p>}

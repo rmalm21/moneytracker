@@ -1,11 +1,14 @@
 'use client';
 import { Children, isValidElement, useEffect, useId, useRef, useState, type OptionHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { EmojiText } from '../emoji';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 type SelectChange = { target: { value: string } };
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & { onChange?: (event: SelectChange) => void };
 type Item = { value: string; label: ReactNode; text: string; disabled: boolean };
+/** Plain-text labels (e.g. "🍜 Makan") get the iOS emoji artwork; anything richer is shown as is. */
+const showLabel = (label: ReactNode) => { const parts = Array.isArray(label) ? label : [label]; return parts.every(part => typeof part === 'string' || typeof part === 'number') ? <EmojiText text={parts.join('')}/> : label; };
 type MenuPosition = { top: number; left: number; width: number; maxHeight: number };
 
 export function AppSelect({ children, value, defaultValue, onChange, disabled, required, name, className = '', title, style, 'aria-label': ariaLabel, ...rest }: Props) {
@@ -93,11 +96,11 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
 
   return <span className="app-select" style={style}>
     <button ref={trigger} type="button" role="combobox" aria-label={ariaLabel} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="listbox" aria-activedescendant={open ? `${id}-${active}` : undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} className={`input app-select-trigger ${!current ? 'is-placeholder' : ''} ${invalid ? 'is-invalid' : ''} ${className}`} title={title} disabled={disabled} onClick={() => { setActive(Math.max(0, options.findIndex(item => item.value === current && !item.disabled))); setOpen(wasOpen => !wasOpen); }} onKeyDown={keyDown}>
-      <span className="app-select-value">{selected?.label ?? 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
+      <span className="app-select-value">{selected ? showLabel(selected.label) : 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
     </button>
     <select {...rest} name={name} required={required} disabled={disabled} value={current} tabIndex={-1} aria-hidden="true" className="app-select-validation" onChange={event => onChange?.({ target: { value: event.target.value } })} onInvalid={event => { event.preventDefault(); setInvalid(true); trigger.current?.focus(); }}>{children}</select>
     {open && position && createPortal(<div ref={menu} id={id} role="listbox" aria-label={ariaLabel ?? title ?? 'Pilih opsi'} className="app-select-menu" style={{ position: host ? 'absolute' : 'fixed', ...position }}>
-      {options.map((item, index) => <button key={`${item.value}-${index}`} id={`${id}-${index}`} type="button" role="option" aria-selected={item.value === current} disabled={item.disabled} className={`app-select-option ${index === active ? 'active' : ''} ${item.value === current ? 'selected' : ''}`} onPointerMove={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(item)}><span>{item.label}</span>{item.value === current && <Check size={16} aria-hidden="true"/>}</button>)}
+      {options.map((item, index) => <button key={`${item.value}-${index}`} id={`${id}-${index}`} type="button" role="option" aria-selected={item.value === current} disabled={item.disabled} className={`app-select-option ${index === active ? 'active' : ''} ${item.value === current ? 'selected' : ''}`} onPointerMove={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(item)}><span>{showLabel(item.label)}</span>{item.value === current && <Check size={16} aria-hidden="true"/>}</button>)}
     </div>, host ?? document.body)}
   </span>;
 }

@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { EmojiText } from './emoji';
 import { AlertTriangle, Bell, CheckCircle2, CloudOff, Download, Info, Loader2, RefreshCw, Trash2, X, XCircle } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -94,7 +95,7 @@ function Toast({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
   function up() { if (!start.current) return; start.current = null; if (Math.abs(dx) > 70) { setLeaving(true); setDx(dx > 0 ? 480 : -480); setTimeout(onDismiss, 160); } else setDx(0); }
   return <div className={`toast-card is-${note.kind} ${leaving ? 'is-leaving' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: dx ? `translateX(${dx}px)` : undefined, opacity: dx ? Math.max(.2, 1 - Math.abs(dx) / 260) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <span className="toast-icon" aria-hidden="true"><Icon size={19}/></span>
-    <div className="toast-text"><strong>{note.title}</strong>{note.body && <small>{note.body}</small>}{note.action && <button type="button" className="toast-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}</div>
+    <div className="toast-text"><strong><EmojiText text={note.title}/></strong>{note.body && <small><EmojiText text={note.body}/></small>}{note.action && <button type="button" className="toast-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}</div>
     <button type="button" className="toast-close" aria-label="Tutup notifikasi" onClick={onDismiss}><X size={16}/></button>
     {(note.kind === 'progress' || note.kind === 'success') && <span className={`toast-progress ${note.kind === 'progress' ? 'is-running' : 'is-done'}`} aria-hidden="true"><i/></span>}
   </div>;
@@ -145,9 +146,9 @@ export function NotificationBell({ navigate }: { navigate: (view: string) => voi
   return <>
     <button type="button" className="bell-button" aria-label={unread ? `Notifikasi, ${unread} belum dibaca` : 'Notifikasi'} title="Notifikasi" onClick={() => show(true)}><Bell size={19}/>{unread > 0 && <b className="bell-count">{unread > 9 ? '9+' : unread}</b>}</button>
     <Dialog open={open} onOpenChange={show}><DialogContent title="Notifikasi" className="notification-dialog">
-      {attention.length > 0 && <section className="notif-section"><h3>Perlu perhatian</h3>{attention.map(item => { const Icon = item.id === 'offline' ? CloudOff : item.id === 'install' ? Download : item.id === 'update' ? RefreshCw : icons[item.kind]; return <div key={item.id} className={`notif-item is-${item.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong>{item.title}</strong><small>{item.body}</small></div>{item.action && <button type="button" className="link-button" onClick={item.action.run}>{item.action.label}</button>}</div>; })}</section>}
+      {attention.length > 0 && <section className="notif-section"><h3>Perlu perhatian</h3>{attention.map(item => { const Icon = item.id === 'offline' ? CloudOff : item.id === 'install' ? Download : item.id === 'update' ? RefreshCw : icons[item.kind]; return <div key={item.id} className={`notif-item is-${item.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong><EmojiText text={item.title}/></strong><small><EmojiText text={item.body}/></small></div>{item.action && <button type="button" className="link-button" onClick={item.action.run}>{item.action.label}</button>}</div>; })}</section>}
       <section className="notif-section"><div className="notif-head"><h3>Riwayat</h3>{center.history.length > 0 && <button type="button" className="link-button" onClick={() => center.setHistory([])}><Trash2 size={14}/> Hapus semua</button>}</div>
-        {center.history.length ? center.history.map(note => { const Icon = icons[note.kind]; return <SwipeRow key={note.id} onRemove={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><div className={`notif-item is-${note.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong>{note.title}</strong><small>{note.body ? `${note.body} · ` : ''}{ago(note.time)}</small></div><button type="button" className="icon-btn" aria-label="Hapus notifikasi" onClick={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><X size={15}/></button></div></SwipeRow>; }) : <p className="muted notif-empty">Belum ada notifikasi. Aktivitas seperti menyimpan transaksi akan muncul di sini.</p>}
+        {center.history.length ? center.history.map(note => { const Icon = icons[note.kind]; return <SwipeRow key={note.id} onRemove={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><div className={`notif-item is-${note.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{ago(note.time)}</small></div><button type="button" className="icon-btn" aria-label="Hapus notifikasi" onClick={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><X size={15}/></button></div></SwipeRow>; }) : <p className="muted notif-empty">Belum ada notifikasi. Aktivitas seperti menyimpan transaksi akan muncul di sini.</p>}
       </section>
     </DialogContent></Dialog>
   </>;

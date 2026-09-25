@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { Emoji, EmojiText, emojiAvatar } from './emoji';
 import { ArrowRight } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { Delta } from './delta';
@@ -65,19 +66,19 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
         </PieChart>
       </ResponsiveContainer>
       <div className="donut-center" aria-live="polite">
-        {active ? <><span className="donut-center-icon" aria-hidden="true">{emojiOrFallback(active.icon)}</span><small>{active.name}</small><strong>{rupiah(active.amount)}</strong><em>{percent(active.pct)} dari total</em></> : <><small>Total pengeluaran</small><strong>{rupiah(total)}</strong><em>{slices.length} kategori</em></>}
+        {active ? <><span className="donut-center-icon" aria-hidden="true"><Emoji e={emojiOrFallback(active.icon)}/></span><small>{active.name}</small><strong>{rupiah(active.amount)}</strong><em>{percent(active.pct)} dari total</em></> : <><small>Total pengeluaran</small><strong>{rupiah(total)}</strong><em>{slices.length} kategori</em></>}
       </div>
     </div>
     <div className="donut-legend">
       {rows.map(row => <div key={row.id} className={`donut-row ${selected === row.id ? 'is-selected' : ''} ${selected && selected !== row.id ? 'is-faded' : ''}`}>
         <button type="button" className="donut-row-main" aria-expanded={selected === row.id} onClick={() => toggle(row.id)}>
           <span className="donut-dot" style={{ background: row.fill }}/>
-          <span className="donut-name"><span aria-hidden="true">{emojiOrFallback(row.icon)}</span> {row.name}</span>
+          <span className="donut-name"><span aria-hidden="true"><Emoji e={emojiOrFallback(row.icon)}/></span> {row.name}</span>
           <span className="donut-amount"><strong>{rupiah(row.amount)}</strong><small>{percent(row.pct)}{previousReady && <> · <Delta current={row.amount} previous={previousOf(row)} good="down" basis={basis} compact/></>}</small></span>
           <span className="donut-bar" aria-hidden="true"><i style={{ width: `${Math.max(2, row.pct * 100)}%`, background: row.fill }}/></span>
         </button>
         {selected === row.id && <div className="donut-detail">
-          {row.subcategories.length > 0 ? row.subcategories.slice(0, 6).map(sub => <div key={sub.id} className="budget-line"><span>{emojiOrFallback(sub.icon, '•')} {sub.name}</span><span><strong>{rupiah(sub.amount)}</strong> <small className="muted">{row.amount ? percent(sub.amount / row.amount) : ''}</small></span></div>) : <small className="muted">{row.count} transaksi, tanpa subkategori.</small>}
+          {row.subcategories.length > 0 ? row.subcategories.slice(0, 6).map(sub => <div key={sub.id} className="budget-line"><span><Emoji e={emojiOrFallback(sub.icon, '•')}/> {sub.name}</span><span><strong>{rupiah(sub.amount)}</strong> <small className="muted">{row.amount ? percent(sub.amount / row.amount) : ''}</small></span></div>) : <small className="muted">{row.count} transaksi, tanpa subkategori.</small>}
           <div className="donut-detail-foot"><small className="muted">{previousReady ? `Periode lalu ${rupiah(previousOf(row))}` : ''}</small>{row.id !== 'other' && <button type="button" className="link-button" onClick={() => navigate('transactions', `category:${row.id}${rangeFocus}`)}>Lihat transaksi <ArrowRight size={14}/></button>}</div>
         </div>}
       </div>)}
