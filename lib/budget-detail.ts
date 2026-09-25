@@ -21,8 +21,14 @@ export function budgetDetail(budget: Budget, txs: LedgerTx[], categories: Catego
   for (const t of items) { const i = dayIndex(window.start, t.date); if (i >= 0 && i < totalDays) perDay[i] += transactionExpense(t); }
   let sum = 0;
   const pace = perDay.map((value, i) => { sum += value; const day = new Date(parseDate(window.start)); day.setDate(day.getDate() + i); return { day: `${day.getDate()}`, date: iso(day), spent: i < elapsed ? sum : null, ideal: Math.round(ideal * (i + 1)) }; });
-  const weeks: { label: string; amount: number }[] = [];
-  for (let i = 0; i < totalDays; i += 7) { const from = new Date(parseDate(window.start)); from.setDate(from.getDate() + i); weeks.push({ label: `Minggu ${weeks.length + 1} · ${from.getDate()}/${from.getMonth() + 1}`, amount: perDay.slice(i, i + 7).reduce((n, v) => n + v, 0) }); }
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const short = (d: Date) => `${d.getDate()} ${months[d.getMonth()]}`;
+  const weeks: { label: string; amount: number; current: boolean; future: boolean }[] = [];
+  for (let i = 0; i < totalDays; i += 7) {
+    const from = new Date(parseDate(window.start)); from.setDate(from.getDate() + i);
+    const to = new Date(from); to.setDate(to.getDate() + Math.min(6, totalDays - 1 - i));
+    weeks.push({ label: from.getTime() === to.getTime() ? short(from) : `${short(from)} – ${short(to)}`, amount: perDay.slice(i, i + 7).reduce((n, v) => n + v, 0), current: elapsed - 1 >= i && elapsed - 1 < i + 7, future: i > elapsed - 1 });
+  }
   const slices = categoryBreakdown(items, categories);
   const bySub = budget.subcategoryId ? [] : (slices.find(s => s.id === budget.categoryId)?.subcategories || []);
   const unassigned = budget.subcategoryId ? 0 : Math.max(0, spent - bySub.reduce((n, s) => n + s.amount, 0));
