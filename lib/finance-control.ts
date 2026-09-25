@@ -61,7 +61,7 @@ function walletAt(wallet:Wallet,ledger:LedgerTx[],cutoff:string){
 function debtAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.debts.reduce((sum,debt)=>{const created=debt.createdAt as {seconds?:number}|undefined;if(created?.seconds&&new Date(created.seconds*1000).toISOString().slice(0,10)>=cutoff)return sum;return sum+Math.max(0,debt.outstandingAmount+ledger.filter(tx=>tx.debtId===debt.id&&tx.type==='debt_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0));},0);}
 function claimsAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.claims.reduce((sum,claim)=>sum+(claim.submissionDate>=cutoff?0:Math.max(0,claim.remainingAmount+ledger.filter(tx=>tx.claimId===claim.id&&['claim_payment','claim_writeoff'].includes(tx.type)&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0))),0);}
 function receivablesAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.receivables.reduce((sum,item)=>sum+(item.date>=cutoff?0:Math.max(0,item.remainingAmount+ledger.filter(tx=>tx.receivableId===item.id&&tx.type==='receivable_payment'&&tx.date>=cutoff).reduce((n,tx)=>n+tx.amount,0))),0);}
-export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRange,previous?:CycleSnapshot):Omit<CycleSnapshot,'id'|'createdAt'|'updatedAt'>{
+export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRange,previous?:CycleSnapshot,includeReceivables=false):Omit<CycleSnapshot,'id'|'createdAt'|'updatedAt'>{
   const transactions=ledger.filter(tx=>inRange(tx.date,range));
   const at=(date:string)=>{
     const owned=data.wallets.filter(w=>w.includeInNetWorth!==false);
@@ -69,7 +69,7 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
     const assets=balances.reduce((sum,row)=>sum+Math.max(0,row.amount),0);
     const signed=balances.reduce((sum,row)=>sum+row.amount,0);
     const unlinkedFunds=data.funds.filter(f=>!f.isArchived&&!data.wallets.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((sum,f)=>sum+Math.max(0,f.currentAmount-ledger.filter(tx=>tx.fundId===f.id&&tx.type==='fund_contribution'&&tx.date>=date).reduce((n,tx)=>n+tx.amount,0)),0);
-    return {assets,netWorth:signed+claimsAt(data,ledger,date)+receivablesAt(data,ledger,date)-debtAt(data,ledger,date),reserved:balances.filter(row=>row.wallet.isReserved).reduce((sum,row)=>sum+Math.max(0,row.amount),0)+unlinkedFunds};
+    return {assets,netWorth:signed+(includeReceivables?claimsAt(data,ledger,date)+receivablesAt(data,ledger,date):0)-debtAt(data,ledger,date),reserved:balances.filter(row=>row.wallet.isReserved).reduce((sum,row)=>sum+Math.max(0,row.amount),0)+unlinkedFunds};
   };
   const opening=at(range.start),closing=at(range.end);
   const income=transactions.filter(tx=>tx.type==='income').reduce((sum,tx)=>sum+tx.amount,0);

@@ -46,7 +46,8 @@ export function budgetSpent(budget: Budget, txs: LedgerTx[], cats: Category[]) {
   const matches=(categoryId:string|null,subcategoryId:string|null)=>budget.subcategoryId?subcategoryId===budget.subcategoryId:ids.has(categoryId||'')||ids.has(subcategoryId||'');
   return txs.reduce((total,tx)=>total+expenseAllocations(tx).filter(line=>matches(line.categoryId,line.subcategoryId)).reduce((sum,line)=>sum+line.amount,0)+(['savings','sinking'].includes(budget.classification)&&tx.type==='fund_contribution'&&matches(tx.categoryId,tx.subcategoryId)?tx.amount:0),0);
 }
-export function metrics(data: Data, start: string, end: string, salaryDay=24, asOf = new Date()) {
+/** `includeReceivables`: whether unpaid receivables and office claims count toward Aset bersih (user setting, off by default). */
+export function metrics(data: Data, start: string, end: string, salaryDay=24, asOf = new Date(), includeReceivables = false) {
   const active = data.wallets.filter(w => !w.isArchived);
   const owned = active.filter(w => w.includeInNetWorth !== false);
   const liquid = active.filter(w => w.isSpendable !== false);
@@ -65,5 +66,5 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const totalBudget=nonOverlapping.reduce((n,b)=>n+b.amount+(b.rolloverEnabled?(b.rolloverCarry||0):0),0);
   const budgetRemaining=nonOverlapping.reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
   const discretionaryRemaining=nonOverlapping.filter(b=>b.classification==='living').reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
-  return {assets,liabilities,receivables,netWorth:signedAssets+receivables-liabilities,reserved:reserved+unlinkedFunds,free:Math.max(0,free),income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
+  return {assets,liabilities,receivables,netWorth:signedAssets+(includeReceivables?receivables:0)-liabilities,reserved:reserved+unlinkedFunds,free:Math.max(0,free),income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
 }

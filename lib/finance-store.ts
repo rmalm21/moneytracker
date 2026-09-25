@@ -44,11 +44,13 @@ async function fullSnapshotData(uid:string):Promise<{data:Data;ledger:LedgerTx[]
   return {data,ledger};
 }
 function verifyBalances(data:Data,ledger:LedgerTx[]){for(const wallet of data.wallets){if(walletBalance(wallet,ledger)!==wallet.cachedBalance)throw Error(`Saldo tersimpan ${wallet.name} berbeda dari transaksi. Buka Dompet → Hitung ulang saldo sebelum memperbarui laporan siklus.`)}}
+/** Snapshots follow the user's setting for counting receivables in Aset bersih. */
+async function countsReceivables(uid:string){try{return Boolean((await getDoc(doc(database(),'users',uid))).data()?.netWorthIncludesReceivables)}catch{return false}}
 export async function closeCycle(uid:string,range:DateRange,today:string){
   if(!range.start||range.start>=range.end||range.end>today)throw Error('Siklus baru bisa ditutup setelah tanggal akhirnya lewat.');
   const {data,ledger}=await fullSnapshotData(uid);
   verifyBalances(data,ledger);
-  const values=calculateCycleSnapshot(data,ledger,range),id=cycleId(range),r=ref(uid,'cycleSnapshots',id);
+  const values=calculateCycleSnapshot(data,ledger,range,undefined,await countsReceivables(uid)),id=cycleId(range),r=ref(uid,'cycleSnapshots',id);
   await runTx(database(),async trx=>{const existing=await trx.get(r);if(existing.exists())throw Error('Siklus ini sudah ditutup.');trx.set(r,{...values,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});});
   return id;
 }
@@ -58,7 +60,7 @@ export async function refreshCycleSnapshots(uid:string,affectedDate:string){
   if(!affected.length)return 0;
   const {data,ledger}=await fullSnapshotData(uid);
   verifyBalances(data,ledger);
-  for(let index=0;index<affected.length;index+=250){const batch=writeBatch(database());for(const snap of affected.slice(index,index+250)){const previous=hydrate<CycleSnapshot>(snap);const range={start:previous.startDate,end:previous.endDate};batch.update(snap.ref,{...calculateCycleSnapshot(data,ledger,range,previous),updatedAt:serverTimestamp()});}await settle(batch.commit());}
+  const withReceivables=await countsReceivables(uid);for(let index=0;index<affected.length;index+=250){const batch=writeBatch(database());for(const snap of affected.slice(index,index+250)){const previous=hydrate<CycleSnapshot>(snap);const range={start:previous.startDate,end:previous.endDate};batch.update(snap.ref,{...calculateCycleSnapshot(data,ledger,range,previous,withReceivables),updatedAt:serverTimestamp()});}await settle(batch.commit());}
   return affected.length;
 }
 export function subscribeCycleSnapshots(uid:string,onValue:(items:CycleSnapshot[])=>void,onError:(error:Error)=>void){return onSnapshot(coll(uid,'cycleSnapshots'),snap=>onValue(snap.docs.map(row=>hydrate<CycleSnapshot>(row)).sort((a,b)=>b.startDate.localeCompare(a.startDate))),onError);}

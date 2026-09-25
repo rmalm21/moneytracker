@@ -135,3 +135,16 @@ test('weekly budget windows start on the chosen weekday', () => {
   assert.equal(budgetMonthly({ amount: 300000, cycleType: 'weekly' }), 1300000);
   assert.equal(budgetMonthly({ amount: 300000, cycleType: 'salary' }), 300000);
 });
+
+import { metrics as netMetrics } from '../lib/accounting.ts';
+import { emptyData } from '../lib/types.ts';
+test('aset bersih leaves out unpaid receivables unless the setting is on', () => {
+  const data = { ...emptyData, wallets: [{ id: 'w', name: 'BCA', type: 'bank', openingBalance: 0, cachedBalance: 1_000_000, purpose: '', isReserved: false, isSpendable: true, includeInNetWorth: true, isArchived: false }],
+    receivables: [{ id: 'r', person: 'Andi', originalAmount: 300_000, remainingAmount: 200_000 }], claims: [{ id: 'c', name: 'Dinas', amount: 150_000, remainingAmount: 150_000, status: 'waiting' }],
+    debts: [{ id: 'd', name: 'Cicilan', originalAmount: 500_000, outstandingAmount: 100_000, status: 'open' }] };
+  const off = netMetrics(data, '2026-09-25', '2026-10-25', 25, new Date(2026, 8, 26));
+  const on = netMetrics(data, '2026-09-25', '2026-10-25', 25, new Date(2026, 8, 26), true);
+  assert.equal(off.netWorth, 900_000);
+  assert.equal(on.netWorth, 1_250_000);
+  assert.equal(off.receivables, 350_000);
+});

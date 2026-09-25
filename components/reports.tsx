@@ -99,7 +99,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
   const incomes = useMemo(() => incomeBreakdown(pair.items, data.categories), [pair.items, data.categories]);
   const wallets = useMemo(() => walletFlows(pair.items, data.wallets), [pair.items, data.wallets]);
   const biggest = useMemo(() => largestExpenses(pair.items, 5), [pair.items]);
-  const now = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, dateInTimeZone(new Date(), profile?.timeZone));
+  const now = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, dateInTimeZone(new Date(), profile?.timeZone), Boolean(profile?.netWorthIncludesReceivables));
   const length = daysInRange(pair.range), prevLength = Math.max(1, pair.prevRange.days || daysInRange(pair.prevRange));
   const savingsRate = summary.income ? Math.round(summary.cashFlow / summary.income * 100) : 0, prevRate = prev.income ? Math.round(prev.cashFlow / prev.income * 100) : 0;
   const count = pair.items.filter(t => transactionExpense(t) > 0).length, prevCount = pair.prevItems.filter(t => transactionExpense(t) > 0).length;

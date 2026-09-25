@@ -41,7 +41,7 @@ const monthLabel = (cycleEnd: string, index: number) => { const day = parseDate(
 function useForecastData(options: { salary?: number; overtime?: number; extra?: number; claim?: number; debtDue?: number; spendAdjust?: number } = {}) {
   const { data, profile, cycle } = useApp();
   const salaryDay = profile?.salaryCycleStartDay || 24;
-  const stat = useMemo(() => metrics(data, cycle.start, cycle.end, salaryDay, dateInTimeZone(new Date(), profile?.timeZone)), [data, cycle.start, cycle.end, salaryDay, profile?.timeZone]);
+  const stat = useMemo(() => metrics(data, cycle.start, cycle.end, salaryDay, dateInTimeZone(new Date(), profile?.timeZone), Boolean(profile?.netWorthIncludesReceivables)), [data, cycle.start, cycle.end, salaryDay, profile?.timeZone]);
   const lastCycle = resolvePeriodRange('salary_cycle', salaryDay, parseDate(previousDate(cycle.start)));
   const last = usePeriodTransactions(lastCycle);
   const lastDays = Math.max(1, Math.round((parseDate(lastCycle.end).getTime() - parseDate(lastCycle.start).getTime()) / 86400000));
