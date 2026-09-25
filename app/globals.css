@@ -3970,6 +3970,8 @@ html, body { overscroll-behavior-x: none; }
 .look-body { display: grid; gap: 8px; }
 .look-picker .visual-picker .picker-current { display: none; }
 
+.ip-override { margin: 0 0 8px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); color: var(--ink); }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

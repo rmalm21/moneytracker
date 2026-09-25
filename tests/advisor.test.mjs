@@ -10,7 +10,7 @@ test('suggested amounts are rounded up to friendly numbers', () => {
 });
 
 test('categories are split into needs and wants by name', () => {
-  for (const name of ['Makan & Minum', 'Transportasi', 'Tagihan Listrik', 'Belanja Dapur']) assert.equal(categoryKind(name), 'need', name);
+  for (const name of ['Makan & Minum', 'Transportasi', 'Tagihan Listrik', 'Belanja Dapur', 'Belanja Bulanan', 'Langganan Internet', 'Cicilan Gadget']) assert.equal(categoryKind(name), 'need', name);
   for (const name of ['Jajan', 'Hiburan', 'Kopi', 'Belanja Online']) assert.equal(categoryKind(name), 'want', name);
   // Giving is never treated as something to cut; unknown subcategories follow their parent.
   for (const name of ['Sedekah', 'Zakat', 'Donasi']) assert.equal(categoryKind(name), 'need', name);

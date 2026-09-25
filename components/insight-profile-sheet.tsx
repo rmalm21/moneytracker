@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { Money } from './fields';
 import { rupiah } from '@/lib/accounting';
+import { emergencyPockets } from '@/lib/pockets';
+import { useApp } from './app-provider';
 import { instrumentChoices } from '@/lib/invest-plan';
 import { budgetStyleLabels, defaultInsightProfile, experienceLabels, horizonLabels, householdLabels, incomeLabels, priorityLabels, resolveInsightProfile, riskLabels, riskQuestions, scoreRiskQuiz, suggestedEmergencyMonths, type InsightProfile } from '@/lib/insight-profile';
 
@@ -36,6 +38,9 @@ type Tab = typeof tabs[number]['key'];
 
 /** Sheet that personalises Insight. Everything has an automatic default; the user can override any of it. */
 export function InsightProfileSheet({ open, onOpenChange, saved, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; saved?: Partial<InsightProfile> | null; onSave: (profile: InsightProfile) => void }) {
+  const { data } = useApp();
+  // A target on the emergency kantong wins over this setting (one source of truth).
+  const kantongTarget = emergencyPockets(data.funds)?.target || 0;
   const [draft, setDraft] = useState<InsightProfile>(() => resolveInsightProfile(saved));
   const [tab, setTab] = useState<Tab>('risk');
   const [quizOpen, setQuizOpen] = useState(false);
@@ -61,7 +66,7 @@ export function InsightProfileSheet({ open, onOpenChange, saved, onSave }: { ope
       <div className="ip-summary">
         <span><small>Risiko</small><strong>{riskLabels[draft.risk].label}</strong></span>
         <span><small>Menabung</small><strong>{pct(draft.savingsTarget)}%</strong></span>
-        <span><small>Dana darurat</small><strong>{draft.emergencyMode === 'amount' ? shortRp(draft.emergencyAmount) : `${draft.emergencyMonths} bln`}</strong></span>
+        <span><small>Dana darurat</small><strong>{kantongTarget ? shortRp(kantongTarget) : draft.emergencyMode === 'amount' ? shortRp(draft.emergencyAmount) : `${draft.emergencyMonths} bln`}</strong></span>
       </div>
       <div className="ip-tabs" role="tablist">{tabs.map(t => <button type="button" role="tab" key={t.key} aria-selected={tab === t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}><t.icon size={15} aria-hidden="true"/>{t.label}</button>)}</div>
 
@@ -83,6 +88,7 @@ export function InsightProfileSheet({ open, onOpenChange, saved, onSave }: { ope
         {tab === 'target' && <>
           <Row label="Target menabung" hint="Porsi pemasukan yang disisihkan tiap gajian."><Percent label="Target menabung" value={pct(draft.savingsTarget)} min={1} max={80} onChange={v => set('savingsTarget', v / 100)}/><Choices label="Pilihan cepat" value={pct(draft.savingsTarget)} options={[10, 20, 30, 50].map(v => [v, `${v}%`])} onChange={v => set('savingsTarget', v / 100)}/></Row>
           <Row label="Dana darurat" hint="Tentukan dalam bulan pengeluaran, atau nominal pasti.">
+            {kantongTarget > 0 && <p className="ip-note ip-override">Target dari kantong/tujuan dana darurat dipakai: <b>{rupiah(kantongTarget)}</b>. Pengaturan di bawah hanya dipakai kalau target di sana dikosongkan.</p>}
             <div className="ip-seg"><button type="button" className={draft.emergencyMode === 'months' ? 'active' : ''} onClick={() => set('emergencyMode', 'months')}>Dalam bulan</button><button type="button" className={draft.emergencyMode === 'amount' ? 'active' : ''} onClick={() => set('emergencyMode', 'amount')}>Nominal sendiri</button></div>
             {draft.emergencyMode === 'months' ? <>
               <Percent label="Bulan dana darurat" value={draft.emergencyMonths} min={1} max={24} suffix=" bln" onChange={v => { setAutoEmergency(false); set('emergencyMonths', v); }}/>

@@ -65,7 +65,8 @@ function Metric({ finding }: { finding: Finding }) {
   const series = finding.series!, labels = finding.seriesLabels;
   const percent = finding.id.startsWith('shrink-') || finding.id.startsWith('tight-');
   const last = series[series.length - 1], lastLabel = labels?.[labels.length - 1] || '';
-  const earlier = series.slice(0, -1), avg = earlier.reduce((n, v) => n + v, 0) / Math.max(1, earlier.length);
+  // Budget usage: the average of every period, as the text says; money: the earlier cycles vs this one.
+  const earlier = percent ? series : series.slice(0, -1), avg = earlier.reduce((n, v) => n + v, 0) / Math.max(1, earlier.length);
   const change = avg > 0 ? last / avg - 1 : 0;
   const caption = percent ? `Terpakai · ${lastLabel === 'Kini' ? 'periode ini' : `periode ${lastLabel}`}` : lastLabel === 'Kini' ? 'Siklus ini' : `Siklus ${lastLabel}`;
   const compare = percent ? `rata-rata ${Math.round(avg)}%` : Math.abs(change) < .05 ? 'setara rata-rata' : `${change > 0 ? '▲' : '▼'} ${pct(Math.abs(change))} vs rata-rata`;
@@ -193,7 +194,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const everything = [...advice.actions, ...advice.wealth, ...advice.reduce, ...advice.loose, ...advice.budgetTips, ...advice.habits, ...advice.recurring, ...advice.obligations, ...advice.alerts];
   const pinnedCards = pinned.map(id => everything.find(f => f.id === id)).filter((f): f is Finding => Boolean(f));
   const actions = visible([...pinnedCards, ...advice.actions.filter(f => !pinned.includes(f.id))]);
-  const potential = advice.actions.reduce((n, f) => n + (f.saving || 0), 0);
+  const potential = advice.impact.monthly;
   const maxCycle = Math.max(1, ...advice.cycles.flatMap(c => [c.income, c.expense]));
   const hiddenCount = hidden.length;
   const topCats = advice.categories.filter(c => c.avg >= 10_000).slice(0, 8);
@@ -218,7 +219,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
 
   const sections: Record<string, React.ReactNode> = {
     profile: <>
-    <ProfileBar personal={advice.personal} onEdit={() => setProfileOpen(true)}/>
+    <ProfileBar personal={advice.personal} emergency={advice.idle.emergencyTargetText} onEdit={() => setProfileOpen(true)}/>
 
     </>,
     health: <>
@@ -318,13 +319,13 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
 }
 
 /** Who the advice is tuned for, with a way to change it. */
-function ProfileBar({ personal, onEdit }: { personal: InsightProfile; onEdit: () => void }) {
+function ProfileBar({ personal, emergency, onEdit }: { personal: InsightProfile; emergency: string; onEdit: () => void }) {
   if (!personal.personalized) return <section className="ins-personalize">
     <span className="ins-personalize-icon" aria-hidden="true"><UserRound size={22}/></span>
     <div><strong>Buat Insight sesuai dirimu</strong><small>Jawab kuis profil risiko dan isi target tabungan, dana darurat, serta prioritasmu (±1 menit). Saran investasi dan batas anggaran akan menyesuaikan.</small></div>
     <Button onClick={onEdit}><SlidersHorizontal size={16}/> Mulai personalisasi</Button>
   </section>;
-  const chips: [string, string][] = [['Profil risiko', riskLabels[personal.risk].label], ['Target tabungan', pct(personal.savingsTarget)], ['Dana darurat', personal.emergencyMode === 'amount' ? short(personal.emergencyAmount) : `${personal.emergencyMonths} bulan`], ['Prioritas', priorityLabels[personal.priority]]];
+  const chips: [string, string][] = [['Profil risiko', riskLabels[personal.risk].label], ['Target tabungan', pct(personal.savingsTarget)], ['Dana darurat', emergency], ['Prioritas', priorityLabels[personal.priority]]];
   return <section className="ins-profile-bar">
     <span className="ins-personalize-icon" aria-hidden="true"><UserRound size={18}/></span>
     <div className="ins-profile-chips">{chips.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>
@@ -338,11 +339,11 @@ const instrumentColors: Record<string, string> = { rdpu: 'var(--chart-1)', depos
 /** Idle money, the order it should go (emergency → expensive debt → investing) and the investment mix. */
 function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void }) {
   const { idle, invest, personal } = advice;
-  if (idle.total < 500_000 && !invest) return null;
+  if (idle.total < Math.max(1, personal.idleMinimum) && !invest) return null;
   const steps: [string, number, string][] = [
-    ['Lengkapi dana darurat', Math.min(idle.total, idle.emergencyShortfall), `target ${personal.emergencyMonths} bulan · taruh di RDPU/tabungan`],
+    ['Lengkapi dana darurat', Math.min(idle.total, idle.emergencyShortfall), `target ${idle.emergencyTargetText} · taruh di RDPU/tabungan`],
     ['Lunasi utang berbunga tinggi', idle.debtFirst, 'bunga ≥ 8% per tahun'],
-    ['Investasikan', idle.investable, `sesuai profil ${riskLabels[personal.risk].label}`],
+    ['Investasikan', idle.investable, idle.held ? 'ditahan dulu: uang tersedia kurang sampai gajian' : `sesuai profil ${riskLabels[personal.risk].label}`],
   ];
   return <section className="ins-section">
     <SectionHead icon={Sprout} title="Uang menganggur & investasi" hint={`Disesuaikan dengan profil ${riskLabels[personal.risk].label}, jangka ${personal.horizon === 'short' ? 'pendek' : personal.horizon === 'mid' ? 'menengah' : 'panjang'}.`}/>
@@ -351,12 +352,12 @@ function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void 
         <div className="ins-idle-total"><small>Total uang menganggur</small><strong>{short(idle.total)}</strong><span>Nilai riilnya turun ±{short(idle.total * INFLATION)}/tahun kalau didiamkan (inflasi {Math.round(INFLATION * 100)}%).</span></div>
         <div className="ins-idle-tiles">
           <span><small>Di dompet harian</small><strong>{short(idle.operational)}</strong><em>saldo {short(idle.operationalBalance)} − kebutuhan {short(idle.operationalNeed)}</em></span>
-          <span><small>Tabungan di atas dana darurat</small><strong>{short(idle.savingsExcess)}</strong><em>tabungan {short(idle.liquidReserve)} · target {short(idle.emergencyTarget)}</em></span>
+          <span><small>{idle.savingsLabel}</small><strong>{short(idle.savingsExcess)}</strong><em>{idle.savingsNote}</em></span>
           <span><small>Sudah diinvestasikan</small><strong>{short(idle.invested)}</strong><em>dompet grup Investasi</em></span>
         </div>
         {idle.needSource === 'salary' && <p className="ins-note-est">Riwayat pengeluaranmu belum cukup, jadi kebutuhan bulanan diperkirakan dari gaji: <b>{short(idle.monthlyNeed)}/bln</b>. Makin lengkap pencatatan, makin tepat angkanya.</p>}
-        <div className="ins-calcs"><CalcDetails rows={idle.opCalc} title="Hitungan dompet harian"/><CalcDetails rows={idle.savingsCalc} title="Hitungan kelebihan tabungan"/></div>
-        <ol className="ins-flow">{steps.map(([label, amount, note], i) => <li key={label} className={amount > 0 ? 'on' : ''}><b>{i + 1}</b><span><strong>{label}</strong><small>{note}</small></span><em>{amount > 0 ? short(amount) : 'aman'}</em></li>)}</ol>
+        <div className="ins-calcs"><CalcDetails rows={idle.opCalc} title="Hitungan dompet harian"/><CalcDetails rows={idle.savingsCalc} title={`Hitungan ${idle.savingsLabel.toLowerCase()}`}/></div>
+        <ol className="ins-flow">{steps.map(([label, amount, note], i) => <li key={label} className={amount > 0 ? 'on' : ''}><b>{i + 1}</b><span><strong>{label}</strong><small>{note}</small></span><em>{amount > 0 ? short(amount) : i === 2 ? (idle.held ? 'ditahan' : '–') : 'aman'}</em></li>)}</ol>
         <CalcDetails rows={idle.calc} title="Hitungan siap diinvestasikan"/>
       </div>
       {invest && <div className="panel ins-box ins-plan">
