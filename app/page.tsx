@@ -37,6 +37,7 @@ const CycleHistory = dynamic(() => pages.control().then(m => m.CycleHistory), { 
 const DataHealth = dynamic(() => pages.control().then(m => m.DataHealth), { loading: viewLoading });
 const AdvisorView = dynamic(() => pages.advisor().then(m => m.AdvisorView), { loading: viewLoading });
 import { Dashboard } from '@/components/dashboard-home';
+import { LoadingScreen } from '@/components/loading-screen';
 import { Sidebar } from '@/components/sidebar';
 import { MobileNavigation } from '@/components/mobile-navigation';
 import { TransactionForm } from '@/components/transaction-form';
@@ -88,7 +89,7 @@ function AppPage(){const {user,profile,data,loading,error,ready,sync}=useApp();c
  useReminderEngine(go);
  if(!ready)return <main className="loading-screen"><div className="panel"><h2>Dompet Ajaib belum terhubung</h2><p className="muted" style={{marginTop:8}}>Isi konfigurasi Firebase pada berkas .env.local sesuai panduan proyek, lalu jalankan ulang aplikasi.</p></div></main>;
  if(!loading&&user&&!profile&&error)return <main className="loading-screen"><div className="panel"><h2>Catatan keuangan belum bisa dibuka</h2><p className="form-error" style={{marginTop:12}}>{error}</p><p className="muted" style={{marginTop:12}}>Jika baru membuat link percobaan, buka Firebase Console → Firestore Database → Rules dan pastikan akunmu diberi akses ke datanya sendiri.</p><Button style={{marginTop:16}} onClick={()=>window.location.reload()}>Coba lagi</Button></div></main>;
- if(loading||!user||!profile)return <div className="loading-screen"><div><div className="spinner"/>Menyiapkan catatan keuangan…{error&&<p className="form-error">{error}</p>}</div></div>;
+ if(loading||!user||!profile)return <LoadingScreen stage={!user?0:!profile?1:2} error={error}/>;
  if(!profile.onboardingDone)return <Onboarding notify={setToast}/>;
  if(appLock.locked)return <PinLockScreen onUnlock={appLock.unlock}/>;
  const views:Record<string,React.ReactNode>={dashboard:<Dashboard openTx={openTx} navigate={go} notify={setToast}/>,transactions:<TransactionsView {...props} focus={focus}/>,inbox:<TransactionInbox openTx={openTx} notify={setToast}/>,budgets:<BudgetsView {...props} navigate={go}/>,wallets:<WalletsView {...props} focus={focus} navigate={go}/>,claims:<ClaimsView {...props}/>,receivables:<ReceivablesView {...props}/>,debts:<DebtsView {...props}/>,funds:<FundsView {...props}/>,recurring:<RecurringControl notify={setToast} navigateInbox={()=>go('inbox')}/>,upcoming:<UpcomingView openTx={openTx} notify={setToast}/>,calendar:<FinancialCalendar notify={setToast}/>,categories:<CategoriesView {...props}/>,forecast:<ForecastView/>,analytics:<AnalyticsView navigate={go}/>,report:<ReportView navigate={go}/>,cycles:<CycleHistory notify={setToast}/>,health:<DataHealth notify={setToast}/>,advisor:<AdvisorView navigate={go}/>,settings:<SettingsView notify={setToast} navigate={go} onLockNow={appLock.enabled?appLock.lock:undefined}/>};
