@@ -11,6 +11,7 @@ export type Range = { start: string; end: string };
 export type Tone = 'good' | 'warn' | 'bad' | 'info';
 export type Target = { view: string; focus?: string };
 export type Apply = { kind: 'set-budget'; budgetId: string; amount: number } | { kind: 'create-budget'; categoryId: string; name: string; amount: number };
+/** `detail` may mark key facts as **bold** and the suggested step as ==highlight==. */
 export type Finding = { id: string; tone: Tone; title: string; detail: string; saving?: number; target?: Target; apply?: Apply; series?: number[]; seriesLabels?: string[]; score?: number };
 export type CategoryStat = { id: string; name: string; icon?: string; color?: string; kind: 'need' | 'want'; history: number[]; avg: number; median: number; p75: number; current: number; projected: number; trend: number; share: number };
 export type BudgetStat = { budget: Budget; name: string; usage: number[]; avgUsage: number; overCount: number; windows: number; suggested: number; status: 'loose' | 'tight' | 'ok' | 'new' };
@@ -140,8 +141,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const cut = heavy ? .2 : .15;
     const saving = Math.round(((c.avg || c.projected) * cut) / 1000) * 1000;
     const already = c.current >= c.avg * 1.2;
-    const reasons = [hot && (already ? `siklus ini sudah ${rp(c.current)}, ${pct(c.current / c.avg - 1)} di atas rata-rata` : `siklus ini diperkirakan ${rp(c.projected)}, ${pct(c.projected / c.avg - 1)} di atas rata-rata`), rising && `naik ${pct(c.trend)} dibanding siklus-siklus sebelumnya`, heavy && `memakan ${pct(c.share)} dari seluruh pengeluaran`].filter(Boolean).join('; ');
-    reduce.push({ id: `cut-${c.id}`, tone: hot ? 'bad' : 'warn', title: `Kurangi ${c.name}`, detail: `Rata-rata ${rp(c.avg)} per siklus — ${reasons}. Potong ${pct(cut)} menghemat sekitar ${rp(saving)} per bulan.`, saving, target: catFocus(c.id), series: [...c.history, Math.max(c.current, c.projected)], seriesLabels: [...cycleLabels, 'Kini'] });
+    const reasons = [hot && (already ? `siklus ini sudah **${rp(c.current)}**, **${pct(c.current / c.avg - 1)} di atas rata-rata**` : `siklus ini diperkirakan **${rp(c.projected)}**, **${pct(c.projected / c.avg - 1)} di atas rata-rata**`), rising && `**naik ${pct(c.trend)}** dibanding siklus-siklus sebelumnya`, heavy && `memakan **${pct(c.share)}** dari seluruh pengeluaran`].filter(Boolean).join('; ');
+    reduce.push({ id: `cut-${c.id}`, tone: hot ? 'bad' : 'warn', title: `Kurangi ${c.name}`, detail: `Rata-rata **${rp(c.avg)}** per siklus — ${reasons}. ==Potong ${pct(cut)}== menghemat sekitar **${rp(saving)} per bulan**.`, saving, target: catFocus(c.id), series: [...c.history, Math.max(c.current, c.projected)], seriesLabels: [...cycleLabels, 'Kini'] });
   }
   reduce.sort((a, b) => (b.saving || 0) - (a.saving || 0));
 
@@ -152,7 +153,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     // What past cycles had spent by the same day, so lump-sum categories aren't misread.
     const expectedSoFar = mean(cycleItems.map((items, i) => { const until = iso(new Date(parse(covered[i].start).getTime() + elapsed * DAY)); return categoryBreakdown(items.filter(tx => tx.date < until), categories).find(s => s.id === c.id)?.amount || 0; }));
     if (expectedSoFar < 50_000) continue;
-    if (c.current < expectedSoFar * .7) loose.push({ id: `room-${c.id}`, tone: 'good', title: `${c.name} masih longgar`, detail: `Baru ${rp(c.current)} dari biasanya ${rp(expectedSoFar)} di titik siklus yang sama. Sisa ruang sekitar ${rp(c.avg - c.current)} kalau mengikuti rata-rata.`, target: catFocus(c.id), series: [...c.history, c.current], seriesLabels: [...cycleLabels, 'Kini'] });
+    if (c.current < expectedSoFar * .7) loose.push({ id: `room-${c.id}`, tone: 'good', title: `${c.name} masih longgar`, detail: `Baru **${rp(c.current)}** dari biasanya ${rp(expectedSoFar)} di titik siklus yang sama. ==Sisa ruang sekitar ${rp(c.avg - c.current)}== kalau mengikuti rata-rata.`, target: catFocus(c.id), series: [...c.history, c.current], seriesLabels: [...cycleLabels, 'Kini'] });
   }
 
   // 3. Budgets: shrink the loose ones, fix the tight ones, add the missing ones.
@@ -160,9 +161,9 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const monthlyAmount = budgetMonthly(b.budget);
     if (b.status === 'loose' && b.suggested < b.budget.amount) {
       const saving = budgetMonthly({ ...b.budget, amount: b.budget.amount - b.suggested });
-      budgetTips.push({ id: `shrink-${b.budget.id}`, tone: 'good', title: `Anggaran ${b.name} bisa ditekan`, detail: `Rata-rata hanya terpakai ${pct(b.avgUsage)} dalam ${b.windows} periode terakhir. Turunkan dari ${rp(b.budget.amount)} ke ${rp(b.suggested)} — selisih ${rp(saving)} per bulan bisa dialihkan ke tabungan.`, saving, apply: { kind: 'set-budget', budgetId: b.budget.id, amount: b.suggested }, series: b.usage.map(u => Math.round(u * 100)), seriesLabels: b.usage.map((_, i) => `P${i + 1}`) });
+      budgetTips.push({ id: `shrink-${b.budget.id}`, tone: 'good', title: `Anggaran ${b.name} bisa ditekan`, detail: `Rata-rata hanya **terpakai ${pct(b.avgUsage)}** dalam ${b.windows} periode terakhir. ==Turunkan dari ${rp(b.budget.amount)} ke ${rp(b.suggested)}== — selisih **${rp(saving)} per bulan** bisa dialihkan ke tabungan.`, saving, apply: { kind: 'set-budget', budgetId: b.budget.id, amount: b.suggested }, series: b.usage.map(u => Math.round(u * 100)), seriesLabels: b.usage.map((_, i) => `P${i + 1}`) });
     } else if (b.status === 'tight') {
-      budgetTips.push({ id: `tight-${b.budget.id}`, tone: 'bad', title: `Anggaran ${b.name} terlalu ketat`, detail: `Terlampaui ${b.overCount} dari 3 periode terakhir (rata-rata ${pct(b.avgUsage)}). Pilih salah satu: naikkan ke ${rp(b.suggested)} agar realistis, atau pangkas pengeluarannya sekitar ${rp(Math.max(0, b.suggested - b.budget.amount))} per periode.`, apply: b.suggested > b.budget.amount ? { kind: 'set-budget', budgetId: b.budget.id, amount: b.suggested } : undefined, series: b.usage.map(u => Math.round(u * 100)), seriesLabels: b.usage.map((_, i) => `P${i + 1}`) });
+      budgetTips.push({ id: `tight-${b.budget.id}`, tone: 'bad', title: `Anggaran ${b.name} terlalu ketat`, detail: `**Terlampaui ${b.overCount} dari 3 periode terakhir** (rata-rata ${pct(b.avgUsage)}). Pilih salah satu: ==naikkan ke ${rp(b.suggested)}== agar realistis, atau ==pangkas pengeluarannya sekitar ${rp(Math.max(0, b.suggested - b.budget.amount))}== per periode.`, apply: b.suggested > b.budget.amount ? { kind: 'set-budget', budgetId: b.budget.id, amount: b.suggested } : undefined, series: b.usage.map(u => Math.round(u * 100)), seriesLabels: b.usage.map((_, i) => `P${i + 1}`) });
     }
     void monthlyAmount;
   }
@@ -170,7 +171,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   for (const c of categoryStats) {
     if (!enoughHistory || budgeted.has(c.id) || isGiving(c.name) || c.share < .06 || c.avg < 150_000) continue;
     const amount = friendlyRound(Math.min(c.median, c.avg) * .95);
-    budgetTips.push({ id: `new-${c.id}`, tone: 'info', title: `Buat anggaran untuk ${c.name}`, detail: `Rata-rata ${rp(c.avg)} per siklus (${pct(c.share)} pengeluaran) tapi belum punya anggaran. Mulai dari ${rp(amount)} — sedikit di bawah biasanya agar ada dorongan berhemat.`, saving: Math.max(0, Math.round(c.avg - amount)), apply: { kind: 'create-budget', categoryId: c.id, name: c.name, amount }, series: c.history, seriesLabels: cycleLabels });
+    budgetTips.push({ id: `new-${c.id}`, tone: 'info', title: `Buat anggaran untuk ${c.name}`, detail: `Rata-rata **${rp(c.avg)}** per siklus (${pct(c.share)} pengeluaran) tapi **belum punya anggaran**. ==Mulai dari ${rp(amount)}== — sedikit di bawah biasanya agar ada dorongan berhemat.`, saving: Math.max(0, Math.round(c.avg - amount)), apply: { kind: 'create-budget', categoryId: c.id, name: c.name, amount }, series: c.history, seriesLabels: cycleLabels });
   }
 
   // 4. Small leaks: many small purchases that add up.
@@ -186,7 +187,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   for (const leak of [...leakMap.values()].sort((a, b) => b.total - a.total).slice(0, 3)) {
     const perMonth = leak.total / spanCycles, perCount = leak.count / spanCycles;
     if (perMonth < 150_000 || perCount < 6) continue;
-    habits.push({ id: `leak-${leak.categoryId}`, tone: 'warn', title: `Kebocoran kecil di ${leak.label}`, detail: `Sekitar ${Math.round(perCount)} transaksi kecil (≤ Rp50rb) per siklus, totalnya ${rp(perMonth)}. Mengurangi separuhnya menghemat ${rp(perMonth / 2)} per bulan.`, saving: Math.round(perMonth / 2 / 1000) * 1000, target: catFocus(leak.categoryId) });
+    habits.push({ id: `leak-${leak.categoryId}`, tone: 'warn', title: `Kebocoran kecil di ${leak.label}`, detail: `Sekitar **${Math.round(perCount)} transaksi kecil** (≤ Rp50rb) per siklus, totalnya **${rp(perMonth)}**. ==Kurangi separuhnya== untuk menghemat **${rp(perMonth / 2)} per bulan**.`, saving: Math.round(perMonth / 2 / 1000) * 1000, target: catFocus(leak.categoryId) });
   }
 
   // 5. Habits: weekends, late nights, the days right after payday.
@@ -195,21 +196,21 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   if (totalAll > 0 && allExpenses.length >= 20) {
     const weekend = sum(allExpenses.filter(tx => [0, 6].includes(parse(tx.date).getDay())).map(transactionExpense));
     const weekendDaily = weekend / 2, weekdayDaily = (totalAll - weekend) / 5;
-    if (weekendDaily > weekdayDaily * 1.6) habits.push({ id: 'weekend', tone: 'warn', title: 'Akhir pekan paling boros', detail: `Per hari, belanja Sabtu–Minggu ${pct(weekendDaily / weekdayDaily - 1)} lebih tinggi dari hari kerja. Tentukan batas akhir pekan, misalnya ${rp(friendlyRound(weekdayDaily * 1.3 / Math.max(1, spanCycles * 4.3) * 2))} per akhir pekan.` });
+    if (weekendDaily > weekdayDaily * 1.6) habits.push({ id: 'weekend', tone: 'warn', title: 'Akhir pekan paling boros', detail: `Per hari, belanja Sabtu–Minggu **${pct(weekendDaily / weekdayDaily - 1)} lebih tinggi** dari hari kerja. ==Tentukan batas akhir pekan==, misalnya **${rp(friendlyRound(weekdayDaily * 1.3 / Math.max(1, spanCycles * 4.3) * 2))}** per akhir pekan.` });
     const timed = allExpenses.filter(tx => /^\d{2}:\d{2}$/.test(tx.time || ''));
     const night = timed.filter(tx => { const h = Number(tx.time!.slice(0, 2)); return h >= 21 || h < 4; });
     const nightShare = timed.length ? sum(night.map(transactionExpense)) / sum(timed.map(transactionExpense)) : 0;
-    if (timed.length >= 15 && nightShare >= .2) habits.push({ id: 'night', tone: 'warn', title: 'Sering belanja larut malam', detail: `${pct(nightShare)} pengeluaran yang punya jam terjadi di atas pukul 21.00 — biasanya pesan antar atau belanja impulsif. Coba aturan "tunda sampai besok" untuk belanja malam.` });
+    if (timed.length >= 15 && nightShare >= .2) habits.push({ id: 'night', tone: 'warn', title: 'Sering belanja larut malam', detail: `**${pct(nightShare)} pengeluaran** yang punya jam terjadi **di atas pukul 21.00** — biasanya pesan antar atau belanja impulsif. Coba aturan =="tunda sampai besok"== untuk belanja malam.` });
     const firstWeek = cycleItems.map((items, i) => { const start = covered[i].start; const cut = iso(new Date(parse(start).getTime() + 7 * DAY)); const e = expenseOf(items); return e ? expenseOf(items.filter(tx => tx.date < cut)) / e : 0; }).filter(v => v > 0);
     const payday = mean(firstWeek);
-    if (firstWeek.length >= 2 && payday >= .4) habits.push({ id: 'payday', tone: 'warn', title: 'Efek gajian terasa', detail: `${pct(payday)} pengeluaran siklus habis di 7 hari pertama setelah gajian (normalnya sekitar 25%). Pisahkan dulu tabungan di hari gajian sebelum belanja.` });
+    if (firstWeek.length >= 2 && payday >= .4) habits.push({ id: 'payday', tone: 'warn', title: 'Efek gajian terasa', detail: `**${pct(payday)} pengeluaran** siklus habis **di 7 hari pertama** setelah gajian (normalnya sekitar 25%). ==Pisahkan dulu tabungan di hari gajian== sebelum belanja.` });
   }
 
   // 6. Recurring costs and repeats that aren't scheduled yet.
   const monthlyOf = (amount: number, frequency: string) => frequency === 'weekly' ? amount * 52 / 12 : frequency === 'yearly' ? amount / 12 : amount;
   const scheduled = data.recurring.filter(r => r.active && r.type === 'expense');
   const fixedMonthly = sum(scheduled.map(r => monthlyOf(r.amount, r.frequency)));
-  if (scheduled.length) recurring.push({ id: 'fixed', tone: avgIncome && fixedMonthly / avgIncome > .5 ? 'bad' : 'info', title: `Pengeluaran rutin ${rp(fixedMonthly)} per bulan`, detail: `${scheduled.length} jadwal rutin${avgIncome ? ` — ${pct(fixedMonthly / avgIncome)} dari pemasukan` : ''}. Tinjau satu per satu: mana yang masih dipakai, mana yang bisa dihentikan atau diganti paket lebih murah.`, target: { view: 'recurring' } });
+  if (scheduled.length) recurring.push({ id: 'fixed', tone: avgIncome && fixedMonthly / avgIncome > .5 ? 'bad' : 'info', title: `Pengeluaran rutin ${rp(fixedMonthly)} per bulan`, detail: `${scheduled.length} jadwal rutin${avgIncome ? ` — **${pct(fixedMonthly / avgIncome)} dari pemasukan**` : ''}. ==Tinjau satu per satu==: mana yang masih dipakai, mana yang bisa dihentikan atau diganti paket lebih murah.`, target: { view: 'recurring' } });
   const scheduledNames = new Set(scheduled.map(r => normalize(r.name)));
   const groups = new Map<string, { label: string; cycles: Set<number>; amounts: number[] }>();
   cycleItems.forEach((items, index) => items.filter(tx => tx.type === 'expense' && (tx.description || tx.merchant)).forEach(tx => { const key = normalize(tx.description || tx.merchant); if (!key || key.length < 3) return; const row = groups.get(key) || { label: tx.description || tx.merchant, cycles: new Set<number>(), amounts: [] }; row.cycles.add(index); row.amounts.push(tx.amount); groups.set(key, row); }));
@@ -217,7 +218,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     if (row.cycles.size < 3 || scheduledNames.has(key)) continue;
     const med = quantile(row.amounts, .5); const steady = row.amounts.filter(a => Math.abs(a - med) <= med * .15).length >= row.cycles.size;
     if (!steady || row.amounts.length > row.cycles.size * 2) continue;
-    recurring.push({ id: `repeat-${key}`, tone: 'info', title: `“${row.label}” muncul tiap siklus`, detail: `Tercatat di ${row.cycles.size} siklus dengan nominal sekitar ${rp(med)}. Jadikan jadwal rutin agar masuk perkiraan dan tidak terlewat.`, target: { view: 'recurring' } });
+    recurring.push({ id: `repeat-${key}`, tone: 'info', title: `“${row.label}” muncul tiap siklus`, detail: `Tercatat di **${row.cycles.size} siklus** dengan nominal sekitar **${rp(med)}**. ==Jadikan jadwal rutin== agar masuk perkiraan dan tidak terlewat.`, target: { view: 'recurring' } });
   }
 
   // 7. Obligations: debts, receivables, goals.
@@ -227,14 +228,14 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   if (openDebts.length) {
     const order = [...openDebts].sort((a, b) => (b.interestRate || 0) - (a.interestRate || 0) || a.outstandingAmount - b.outstandingAmount);
     const first = order[0];
-    obligations.push({ id: 'debt', tone: dsr > .4 ? 'bad' : dsr > .3 ? 'warn' : 'info', title: `Cicilan ${pct(dsr)} dari pemasukan`, detail: `${openDebts.length} utang aktif, sisa ${rp(sum(openDebts.map(d => d.outstandingAmount)))}. ${dsr > .3 ? 'Di atas batas sehat 30% — hindari utang baru dulu.' : 'Masih di bawah batas sehat 30%.'} Prioritaskan melunasi “${first.name}”${first.interestRate ? ` (bunga ${first.interestRate}%)` : ' (sisa terkecil)'} lebih cepat.`, target: { view: 'debts' } });
+    obligations.push({ id: 'debt', tone: dsr > .4 ? 'bad' : dsr > .3 ? 'warn' : 'info', title: `Cicilan ${pct(dsr)} dari pemasukan`, detail: `${openDebts.length} utang aktif, sisa **${rp(sum(openDebts.map(d => d.outstandingAmount)))}**. ${dsr > .3 ? '**Di atas batas sehat 30%** — ==hindari utang baru dulu==.' : 'Masih di bawah batas sehat 30%.'} ==Prioritaskan melunasi “${first.name}”==${first.interestRate ? ` (bunga ${first.interestRate}%)` : ' (sisa terkecil)'} lebih cepat.`, target: { view: 'debts' } });
   }
   const overdue = data.receivables.filter(r => r.remainingAmount > 0 && r.dueDate && r.dueDate < today);
-  if (overdue.length) obligations.push({ id: 'receivable', tone: 'warn', title: `${overdue.length} piutang lewat jatuh tempo`, detail: `Total ${rp(sum(overdue.map(r => r.remainingAmount)))} belum kembali, termasuk dari ${overdue.slice(0, 3).map(r => r.person).join(', ')}. Tagih pelan-pelan sekarang, sebelum makin lama.`, target: { view: 'receivables' } });
+  if (overdue.length) obligations.push({ id: 'receivable', tone: 'warn', title: `${overdue.length} piutang lewat jatuh tempo`, detail: `Total **${rp(sum(overdue.map(r => r.remainingAmount)))} belum kembali**, termasuk dari ${overdue.slice(0, 3).map(r => r.person).join(', ')}. ==Tagih pelan-pelan sekarang==, sebelum makin lama.`, target: { view: 'receivables' } });
   const monthlySurplus = Math.max(0, avgIncome - avgExpense);
   for (const fund of data.funds.filter(f => !f.isArchived)) {
     const plan = savingsPlan(fund, today);
-    if (plan.status === 'behind' || plan.status === 'overdue') obligations.push({ id: `fund-${fund.id}`, tone: plan.status === 'overdue' ? 'bad' : 'warn', title: `Tujuan “${fund.name}” tertinggal`, detail: `Perlu ${rp(plan.perMonth)} per bulan agar tepat waktu, rencana saat ini ${rp(fund.monthlyContribution || 0)}. ${plan.perMonth <= monthlySurplus ? `Masih muat dari rata-rata sisa uang ${rp(monthlySurplus)} per bulan.` : `Sisa uang rata-rata hanya ${rp(monthlySurplus)} — mundurkan tenggat atau kecilkan target.`}`, target: { view: 'funds' } });
+    if (plan.status === 'behind' || plan.status === 'overdue') obligations.push({ id: `fund-${fund.id}`, tone: plan.status === 'overdue' ? 'bad' : 'warn', title: `Tujuan “${fund.name}” tertinggal`, detail: `Perlu **${rp(plan.perMonth)} per bulan** agar tepat waktu, rencana saat ini ${rp(fund.monthlyContribution || 0)}. ${plan.perMonth <= monthlySurplus ? `==Naikkan setoran ke ${rp(plan.perMonth)} per bulan== — masih muat dari rata-rata sisa uang ${rp(monthlySurplus)}.` : `Sisa uang rata-rata **hanya ${rp(monthlySurplus)}** — ==mundurkan tenggat atau kecilkan target==.`}`, target: { view: 'funds' } });
   }
 
   // 8. Alerts: unusually large spends this cycle, and whether cash lasts until payday.
@@ -242,11 +243,11 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const spend = transactionExpense(tx); if (spend < 100_000) continue;
     const peers = cycleItems.flat().filter(o => o.categoryId === tx.categoryId && transactionExpense(o) > 0).map(transactionExpense);
     const med = quantile(peers, .5);
-    if (peers.length >= 5 && spend > med * 4) alerts.push({ id: `odd-${tx.id}`, tone: 'warn', title: `Transaksi tidak biasa: ${tx.description || tx.merchant || categories.find(c => c.id === tx.categoryId)?.name || 'pengeluaran'}`, detail: `${rp(spend)} pada ${parse(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} — ${Math.round(spend / med)}× dari biasanya di kategori ini. Pastikan nominalnya benar.`, target: { view: 'transactions', focus: tx.id } });
+    if (peers.length >= 5 && spend > med * 4) alerts.push({ id: `odd-${tx.id}`, tone: 'warn', title: `Transaksi tidak biasa: ${tx.description || tx.merchant || categories.find(c => c.id === tx.categoryId)?.name || 'pengeluaran'}`, detail: `**${rp(spend)}** pada ${parse(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} — **${Math.round(spend / med)}× dari biasanya** di kategori ini. ==Pastikan nominalnya benar==.`, target: { view: 'transactions', focus: tx.id } });
   }
   const available = input.stat.free - input.committed;
   const needUntilPayday = Math.max(0, projectedSpend - currentExpense);
-  if (daysLeft > 0 && needUntilPayday > available) alerts.unshift({ id: 'runway', tone: 'bad', title: 'Uang tersedia diperkirakan kurang sampai gajian', detail: `Dengan laju sekarang, ${daysLeft} hari ke depan butuh sekitar ${rp(needUntilPayday)}, sedangkan uang tersedia ${rp(Math.max(0, available))}. Batasi belanja harian ke ${rp(Math.max(0, available) / daysLeft)} agar cukup.` });
+  if (daysLeft > 0 && needUntilPayday > available) alerts.unshift({ id: 'runway', tone: 'bad', title: 'Uang tersedia diperkirakan kurang sampai gajian', detail: `Dengan laju sekarang, ${daysLeft} hari ke depan butuh sekitar **${rp(needUntilPayday)}**, sedangkan uang tersedia **${rp(Math.max(0, available))}**. ==Batasi belanja harian ke ${rp(Math.max(0, available) / daysLeft)}== agar cukup.` });
 
   // Health score.
   const emergencyMonths = avgExpense ? input.stat.reserved / avgExpense : 0;
@@ -267,14 +268,14 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const verdict = score >= 75 ? 'Keuanganmu sehat. Pertahankan kebiasaan baik dan arahkan sisa uang ke tujuan jangka panjang.' : score >= 55 ? 'Cukup baik, tapi ada beberapa hal yang bisa dirapikan untuk menambah tabungan.' : score >= 40 ? 'Perlu perhatian. Fokus ke rencana aksi di bawah untuk menambah ruang napas.' : 'Waspada. Kurangi pengeluaran tidak penting dulu dan amankan kebutuhan sampai gajian.';
 
   // Emergency fund and saving rate as findings too.
-  if (avgExpense && emergencyMonths < 3) obligations.push({ id: 'emergency', tone: emergencyMonths < 1 ? 'bad' : 'warn', title: 'Dana darurat belum cukup', detail: `Dompet Disimpan setara ${emergencyMonths.toFixed(1).replace('.', ',')} bulan pengeluaran. Target minimal 3 bulan = ${rp(avgExpense * 3)}; kurang ${rp(avgExpense * 3 - input.stat.reserved)}. Sisihkan ${rp(friendlyRound(Math.max(0, avgExpense * 3 - input.stat.reserved) / 12))} per bulan untuk mencapainya dalam setahun.`, target: { view: 'wallets' } });
-  if (enoughHistory && savingsRate < .1) obligations.push({ id: 'saving-rate', tone: savingsRate < 0 ? 'bad' : 'warn', title: savingsRate < 0 ? 'Pengeluaran melebihi pemasukan' : 'Tabungan tipis', detail: `Rata-rata hanya ${pct(Math.max(0, savingsRate))} pemasukan tersisa per siklus${savingsRate < 0 ? ` (defisit ${rp(avgExpense - avgIncome)})` : ''}. Targetkan minimal 10–20%: pangkas ${rp(Math.max(0, avgExpense - avgIncome * .8))} per bulan dari pos yang tidak penting.` });
+  if (avgExpense && emergencyMonths < 3) obligations.push({ id: 'emergency', tone: emergencyMonths < 1 ? 'bad' : 'warn', title: 'Dana darurat belum cukup', detail: `Dompet Disimpan setara **${emergencyMonths.toFixed(1).replace('.', ',')} bulan** pengeluaran. Target minimal 3 bulan = ${rp(avgExpense * 3)}; **kurang ${rp(avgExpense * 3 - input.stat.reserved)}**. ==Sisihkan ${rp(friendlyRound(Math.max(0, avgExpense * 3 - input.stat.reserved) / 12))} per bulan== untuk mencapainya dalam setahun.`, target: { view: 'wallets' } });
+  if (enoughHistory && savingsRate < .1) obligations.push({ id: 'saving-rate', tone: savingsRate < 0 ? 'bad' : 'warn', title: savingsRate < 0 ? 'Pengeluaran melebihi pemasukan' : 'Tabungan tipis', detail: `Rata-rata hanya **${pct(Math.max(0, savingsRate))} pemasukan tersisa** per siklus${savingsRate < 0 ? ` (**defisit ${rp(avgExpense - avgIncome)}**)` : ''}. Targetkan minimal 10–20%: ==pangkas ${rp(Math.max(0, avgExpense - avgIncome * .8))} per bulan== dari pos yang tidak penting.` });
 
   // Needs / wants / saved split (50/30/20 check).
   const needs = sum(categoryStats.filter(c => c.kind === 'need').map(c => c.avg)), wants = sum(categoryStats.filter(c => c.kind === 'want').map(c => c.avg));
   const base = avgIncome || needs + wants;
   const split = base ? { needs: needs / base, wants: wants / base, saved: Math.max(0, 1 - (needs + wants) / base) } : { needs: 0, wants: 0, saved: 0 };
-  if (enoughHistory && base && split.wants > .35) reduce.push({ id: 'split', tone: 'warn', title: 'Porsi keinginan terlalu besar', detail: `Keinginan (jajan, hiburan, belanja) memakan ${pct(split.wants)} pemasukan — pedoman 50/30/20 menyarankan maksimal 30%. Selisihnya sekitar ${rp((split.wants - .3) * base)} per bulan.`, saving: Math.round((split.wants - .3) * base / 1000) * 1000 });
+  if (enoughHistory && base && split.wants > .35) reduce.push({ id: 'split', tone: 'warn', title: 'Porsi keinginan terlalu besar', detail: `Keinginan (jajan, hiburan, belanja) memakan **${pct(split.wants)} pemasukan** — pedoman 50/30/20 menyarankan maksimal 30%. ==Kurangi sekitar ${rp((split.wants - .3) * base)} per bulan==.`, saving: Math.round((split.wants - .3) * base / 1000) * 1000 });
 
   // Action plan: the most valuable steps first.
   const rank = (f: Finding) => (f.tone === 'bad' ? 3e9 : f.tone === 'warn' ? 2e9 : 1e9) + (f.saving || 0);

@@ -23,6 +23,11 @@ const toneIcon: Record<Tone, LucideIcon> = { good: CircleCheck, warn: AlertTrian
 const hiddenKey = (uid: string) => `dompet-ajaib:insight-hidden:${uid}`;
 const readHidden = (uid?: string): string[] => { if (!uid) return []; try { return JSON.parse(localStorage.getItem(hiddenKey(uid)) || '[]'); } catch { return []; } };
 
+/** Renders **bold** key facts and ==highlighted== suggested steps from the advisor text. */
+function Rich({ text }: { text: string }) {
+  return <>{text.split(/(\*\*[^*]+\*\*|==[^=]+==)/g).map((part, i) => part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <strong key={i}>{part.slice(2, -2)}</strong> : part.startsWith('==') && part.endsWith('==') && part.length > 4 ? <mark key={i}>{part.slice(2, -2)}</mark> : part)}</>;
+}
+
 function Spark({ values, labels, percent }: { values: number[]; labels?: string[]; percent?: boolean }) {
   if (values.length < 2) return null;
   const w = 132, h = 38, pad = 4, max = Math.max(...values, percent ? 100 : 0, 1);
@@ -59,7 +64,7 @@ function FindingCard({ finding, index, onApply, onGo, onHide, busy }: { finding:
       <h3>{finding.title}</h3>
       {onHide && <button type="button" className="ins-hide" aria-label={`Abaikan saran ${finding.title}`} title="Abaikan saran ini" onClick={() => onHide(finding.id)}><EyeOff size={15}/></button>}
     </div>
-    <p>{finding.detail}</p>
+    <p><Rich text={finding.detail}/></p>
     {series && series.length > 1 && <div className="ins-evidence">
       <Spark values={series} percent={percent}/>
       <span><small>{labels?.[0]} – {labels?.[labels.length - 1]}</small><strong>{labels?.[labels.length - 1]}: {percent ? `${last}%` : short(last || 0)}</strong></span>

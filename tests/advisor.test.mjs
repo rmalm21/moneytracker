@@ -71,6 +71,11 @@ test('advisor reads history and suggests what to cut, loosen and rebudget', () =
   assert.ok(advice.loose.some(f => f.id === 'room-transport'));
   assert.ok(advice.actions.length > 0 && advice.actions.length <= 6);
   assert.equal(advice.cycles.at(-1).label, 'Kini');
+  // Emphasis markers in the explanations always come in pairs.
+  for (const f of [...advice.reduce, ...advice.loose, ...advice.budgetTips, ...advice.habits, ...advice.recurring, ...advice.obligations, ...advice.alerts]) {
+    assert.equal(f.detail.split('**').length % 2, 1, f.id);
+    assert.equal(f.detail.split('==').length % 2, 1, f.id);
+  }
 });
 
 test('advisor says when there is not enough history yet', () => {
