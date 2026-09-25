@@ -1824,6 +1824,46 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (max-width: 760px) { .budget-sort { flex: 1 1 100%; } .budget-sort .app-select, .budget-sort .app-select-trigger { flex: 1; min-width: 0; } }
 
 /* ==========================================================================
+   45. Settings: consistent action rows, link rows, file picker, sign out
+   ========================================================================== */
+.settings-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.settings-actions.start { justify-content: flex-start; border-top: 0; padding-top: 0; }
+.settings-actions .btn { min-height: 42px; padding-inline: 18px; border-radius: 12px; gap: 8px; }
+.form-stack > .settings-actions { margin-top: 2px; }
+.settings-links { display: grid; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.settings-link { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background .14s ease; }
+.settings-link + .settings-link { border-top: 1px solid var(--line); }
+.settings-link:hover { background: var(--accent-soft); }
+.settings-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -3px; }
+.settings-link-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); }
+.settings-link-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.settings-link-text strong { font-size: .92rem; }
+.settings-link-text small { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+.settings-link-arrow { flex: none; color: var(--muted); transition: transform .14s ease, color .14s ease; }
+.settings-link:hover .settings-link-arrow { color: var(--accent); transform: translateX(2px); }
+.settings-inline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.settings-inline .btn { min-height: 44px; border-radius: 12px; gap: 6px; }
+.file-pick { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1.5px dashed var(--line-strong); border-radius: 14px; background: var(--paper); cursor: pointer; transition: border-color .14s ease, background .14s ease; }
+.file-pick:hover, .file-pick:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+.file-pick.has-file { border-style: solid; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.file-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.file-pick-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.file-pick-text { display: grid; gap: 1px; min-width: 0; }
+.file-pick-text strong { font-size: .9rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.file-pick-text small { color: var(--muted); font-size: .78rem; }
+.notice.notice-action { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.notice.notice-action .btn { flex: none; }
+.settings-logout { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: 1px solid color-mix(in srgb, var(--rose) 35%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--rose) 7%, var(--paper)); color: var(--rose); font-weight: 800; font-size: .92rem; cursor: pointer; transition: background .14s ease, border-color .14s ease; }
+.settings-logout:hover { background: color-mix(in srgb, var(--rose) 14%, var(--paper)); border-color: var(--rose); }
+.settings-footer > small { display: block; }
+.settings-section .form-stack > .switch-row { margin: 0; }
+@media (max-width: 760px) {
+  .settings-actions { justify-content: stretch; }
+  .settings-actions > .btn, .settings-actions > button { flex: 1 1 auto; }
+  .settings-actions.start > .btn, .settings-actions.start > button { flex: 1 1 auto; }
+}
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
@@ -1869,7 +1909,7 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .settings-body > .dashboard-split { margin: 0; }
 .settings-body > .panel, .settings-body .dashboard-split > .panel { box-shadow: none; background: var(--paper-2); }
 .settings-body > .panel { margin: 0; }
-.settings-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 22px; padding: 16px 18px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); }
+.settings-footer { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--paper); text-align: center; }
 @media (max-width: 760px) {
   .settings-list > .settings-section > summary { min-height: 66px; padding: 12px 14px; gap: 12px; }
   .settings-body { padding: 2px 12px 14px; }

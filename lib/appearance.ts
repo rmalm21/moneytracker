@@ -2,13 +2,13 @@ import type { ColorMode, Profile, ThemePreset } from './types';
 
 export const themes: { value: ThemePreset; label: string; color: string }[] = [
   { value: 'default', label: 'Dompet Ajaib', color: '#267e73' },
-  { value: 'peach', label: 'Soft Peach', color: '#ad594d' },
+  { value: 'peach', label: 'Peach Lembut', color: '#ad594d' },
   { value: 'blush', label: 'Pink Pastel', color: '#e38aaa' },
   { value: 'lavender', label: 'Lavender', color: '#7762a6' },
   { value: 'sage', label: 'Sage', color: '#53795c' },
-  { value: 'ocean', label: 'Ocean', color: '#386e9a' },
-  { value: 'rose', label: 'Rose', color: '#a35170' },
-  { value: 'monochrome', label: 'Monochrome', color: '#3d5059' },
+  { value: 'ocean', label: 'Samudra', color: '#386e9a' },
+  { value: 'rose', label: 'Mawar', color: '#a35170' },
+  { value: 'monochrome', label: 'Monokrom', color: '#3d5059' },
 ];
 const channel = (value: number) => { const n = value / 255; return n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; };
 const light = (hex: string) => { const [r, g, b] = [1, 3, 5].map(index => channel(parseInt(hex.slice(index, index + 2), 16))); return .2126 * r + .7152 * g + .0722 * b; };

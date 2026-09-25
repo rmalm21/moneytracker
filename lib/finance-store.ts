@@ -21,18 +21,18 @@ export async function repairWalletCache(uid:string,id:string,expected:number){
   const preview=await walletBalancePreview(uid,id);
   if(preview.cached!==expected)throw Error('Saldo berubah. Periksa ulang sebelum menyamakan saldo.');
   await runTransaction(database(),async trx=>{const r=ref(uid,'wallets',id),snap=await trx.get(r);if(!snap.exists()||snap.data().cachedBalance!==expected)throw Error('Saldo berubah. Periksa ulang dahulu.');trx.update(r,{cachedBalance:preview.calculated,updatedAt:serverTimestamp()});});
-  try{await refreshCycleSnapshots(uid,'0000-01-01');return {balance:preview.calculated,warning:''}}catch(error){console.error(error);return {balance:preview.calculated,warning:'Saldo sudah disamakan, tetapi ringkasan siklus belum dapat diperbarui. Buka Riwayat Siklus → Perbarui Laporan.'}}
+  try{await refreshCycleSnapshots(uid,'0000-01-01');return {balance:preview.calculated,warning:''}}catch(error){console.error(error);return {balance:preview.calculated,warning:'Saldo sudah disamakan, tetapi ringkasan siklus belum dapat diperbarui. Buka Riwayat Siklus → Perbarui laporan.'}}
 }
 export async function reconcileWallet(uid:string,id:string,expectedCached:number,actual:number,notes:string,date?:string){
   if(!Number.isSafeInteger(actual)||actual<0)throw Error('Saldo aktual harus berupa Rupiah yang valid.');
   const preview=await walletBalancePreview(uid,id);
-  if(preview.cached!==preview.calculated)throw Error('Saldo tersimpan berbeda dari catatan transaksi. Jalankan Hitung Ulang Saldo dahulu.');
+  if(preview.cached!==preview.calculated)throw Error('Saldo tersimpan berbeda dari catatan transaksi. Jalankan Hitung ulang saldo dahulu.');
   if(preview.cached!==expectedCached)throw Error('Saldo berubah. Periksa ulang sebelum menyesuaikan.');
   const delta=actual-preview.cached;if(!delta)throw Error('Saldo sudah cocok; tidak diperlukan penyesuaian.');
   const record=newTx({type:'adjustment',walletId:id,amount:Math.abs(delta),adjustmentDirection:delta>0?'in':'out',reconciliationReason:'Balance Reconciliation',description:'Cocokkan saldo',notes,date});
   const r=doc(coll(uid,'transactions'));
   await runTransaction(database(),async trx=>{const walletRef=ref(uid,'wallets',id),snap=await trx.get(walletRef);if(!snap.exists()||snap.data().cachedBalance!==expectedCached)throw Error('Saldo berubah. Periksa ulang dahulu.');const {id:_id,...fields}=record;trx.set(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(walletRef,{cachedBalance:increment(delta),updatedAt:serverTimestamp()});});
-  try{await refreshCycleSnapshots(uid,record.date);return {id:r.id,warning:''}}catch(error){console.error(error);return {id:r.id,warning:'Penyesuaian sudah dicatat, tetapi laporan siklus belum dapat diperbarui. Buka Riwayat Siklus → Perbarui Laporan.'}}
+  try{await refreshCycleSnapshots(uid,record.date);return {id:r.id,warning:''}}catch(error){console.error(error);return {id:r.id,warning:'Penyesuaian sudah dicatat, tetapi laporan siklus belum dapat diperbarui. Buka Riwayat Siklus → Perbarui laporan.'}}
 }
 
 async function fullSnapshotData(uid:string):Promise<{data:Data;ledger:LedgerTx[]}>{
@@ -42,7 +42,7 @@ async function fullSnapshotData(uid:string):Promise<{data:Data;ledger:LedgerTx[]
   snapshots.forEach((snapshot,index)=>{(data as unknown as Record<string,unknown>)[keys[index]]=snapshot.docs.map(row=>({id:row.id,...row.data()}));});
   return {data,ledger};
 }
-function verifyBalances(data:Data,ledger:LedgerTx[]){for(const wallet of data.wallets){if(walletBalance(wallet,ledger)!==wallet.cachedBalance)throw Error(`Saldo tersimpan ${wallet.name} berbeda dari transaksi. Buka Dompet → Hitung Ulang Saldo sebelum memperbarui laporan siklus.`)}}
+function verifyBalances(data:Data,ledger:LedgerTx[]){for(const wallet of data.wallets){if(walletBalance(wallet,ledger)!==wallet.cachedBalance)throw Error(`Saldo tersimpan ${wallet.name} berbeda dari transaksi. Buka Dompet → Hitung ulang saldo sebelum memperbarui laporan siklus.`)}}
 export async function closeCycle(uid:string,range:DateRange,today:string){
   if(!range.start||range.start>=range.end||range.end>today)throw Error('Siklus baru bisa ditutup setelah tanggal akhirnya lewat.');
   const {data,ledger}=await fullSnapshotData(uid);

@@ -114,7 +114,7 @@ export function ForecastView() {
         <small className="muted">Tiap bulan: pemasukan {rupiah(result.income)} − pengeluaran {rupiah(result.monthlyOut)} ({stat.totalBudget > 0 ? 'total anggaran' : 'pola belanja'}).</small>
       </section>
       <section className="panel forecast-panel">
-        <div className="forecast-panel-head"><h3>Atur skenario</h3><button type="button" className="link-button" onClick={() => setInput(defaults)}><RotateCcw size={14}/> Reset</button></div>
+        <div className="forecast-panel-head"><h3>Atur skenario</h3><button type="button" className="link-button" onClick={() => setInput(defaults)}><RotateCcw size={14}/> Kembalikan</button></div>
         <div className="forecast-slider">
           <div className="forecast-slider-head"><span>Pola belanja</span><strong className={input.spendAdjust < 0 ? 'amount-positive' : input.spendAdjust > 0 ? 'amount-negative' : ''}>{adjustLabel}</strong></div>
           <input type="range" min={-50} max={50} step={5} value={input.spendAdjust} onChange={event => set({ spendAdjust: Number(event.target.value) })} aria-label="Pola belanja" style={{ ['--fill' as string]: `${(input.spendAdjust + 50)}%` }}/>
@@ -148,7 +148,7 @@ export function ForecastView() {
     <div className="section-heading"><h2><ShoppingBag size={19}/> Kalau beli ini?</h2></div>
     <div className="forecast-grid">
       <section className="panel forecast-panel"><div className="form-grid">
-        <Field label="Barang"><Input value={item} onChange={e => setItem(e.target.value)} placeholder="Misalnya smartwatch"/></Field>
+        <Field label="Barang"><Input value={item} onChange={e => setItem(e.target.value)} placeholder="Misalnya: sepatu baru"/></Field>
         <Field label="Harga"><Money value={purchase} onChange={setPurchase}/></Field>
         <Field label="Dompet sumber"><Select value={walletId} onChange={e => setWalletId(e.target.value)}><option value="">Pilih dompet</option>{data.wallets.filter(w => !w.isArchived).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></Field>
       </div></section>

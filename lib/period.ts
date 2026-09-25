@@ -8,7 +8,7 @@ export const periodOptions: { value: PeriodPreset; label: string }[] = [
   { value: 'salary_cycle', label: 'Siklus gaji' }, { value: 'calendar_month', label: 'Bulan ini' },
   { value: 'last_7_days', label: '7 hari terakhir' }, { value: 'last_30_days', label: '30 hari terakhir' },
   { value: 'last_3_months', label: '3 bulan terakhir' }, { value: 'year_to_date', label: 'Tahun ini' },
-  { value: 'custom', label: 'Rentang sendiri' },
+  { value: 'custom', label: 'Pilih tanggal sendiri' },
 ];
 export const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 export function dateInTimeZone(now = new Date(), timeZone: TimeZone = 'Asia/Jakarta') {

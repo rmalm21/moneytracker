@@ -10,7 +10,7 @@ export const CATEGORY_TEMPLATE_VERSION = 1;
 export type ColorPreset = 'peach'|'rose'|'red'|'orange'|'amber'|'yellow'|'green'|'sage'|'teal'|'cyan'|'blue'|'indigo'|'purple'|'pink'|'slate'|'gray';
 export const colorPresets: { key: ColorPreset; label: string; hex: string }[] = [
   { key: 'peach', label: 'Peach', hex: '#d9825f' },
-  { key: 'rose', label: 'Rose', hex: '#c2577a' },
+  { key: 'rose', label: 'Mawar', hex: '#c2577a' },
   { key: 'red', label: 'Merah', hex: '#c9463d' },
   { key: 'orange', label: 'Oranye', hex: '#dd7324' },
   { key: 'amber', label: 'Kuning tua', hex: '#c28a0c' },

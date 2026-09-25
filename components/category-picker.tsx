@@ -34,7 +34,7 @@ export function CategoryPicker({type,categoryId,subcategoryId,onChange,required=
    <span className={selectedParent?'':'muted'}>{selectedParent?<><Emoji e={emojiOrFallback(selectedParent.icon)}/> {selectedParent.name}{selectedChild&&<> › <Emoji e={emojiOrFallback(selectedChild.icon)}/> {selectedChild.name}</>}</>:'Pilih kategori'}</span><Tags size={17} aria-hidden="true"/>
   </button>
   <input type="text" value={categoryId} readOnly required={required} tabIndex={-1} aria-hidden="true" className="app-select-validation" onInvalid={event=>{event.preventDefault();setInvalid(true);(event.currentTarget.previousElementSibling as HTMLButtonElement)?.focus()}}/>
-  <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Pilih Kategori" className="mobile-sheet category-picker-dialog">
+  <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Pilih kategori" className="mobile-sheet category-picker-dialog">
    <label className="emoji-search"><Search size={16}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Cari kategori" aria-label="Cari kategori"/></label>
    {search?<div className="picker-list">{results.length?results.map(c=>item(c,pathOf(c)?<small>{pathOf(c)}</small>:null)):<p className="muted">Kategori tidak ditemukan.</p>}</div>
    :viewing?<>

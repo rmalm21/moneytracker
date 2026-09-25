@@ -8,7 +8,7 @@ import { Empty } from './fields';
 import { rupiah, transactionExpense } from '@/lib/accounting';
 import type { LedgerTx } from '@/lib/types';
 
-export const typeLabels:Record<string,string>={expense:'Pengeluaran',income:'Pemasukan',transfer:'Transfer',adjustment:'Koreksi',borrowing:'Pinjaman',debt_payment:'Bayar utang',claim_advance:'Talangan kantor',claim_payment:'Klaim cair',claim_writeoff:'Klaim ditolak',receivable_issue:'Talangan personal',receivable_payment:'Piutang dibayar',fund_contribution:'Isi tujuan dana'};
+export const typeLabels:Record<string,string>={expense:'Pengeluaran',income:'Pemasukan',transfer:'Transfer',adjustment:'Koreksi',borrowing:'Pinjaman',debt_payment:'Bayar utang',claim_advance:'Talangan kantor',claim_payment:'Klaim cair',claim_writeoff:'Klaim ditolak',receivable_issue:'Talangan teman',receivable_payment:'Piutang dibayar',fund_contribution:'Isi tujuan dana'};
 const moves=new Set(['transfer','fund_contribution']);
 const listDate=(date:string)=>{const day=new Date(`${date}T12:00:00`);return day.toLocaleDateString('id-ID',day.getFullYear()===new Date().getFullYear()?{day:'numeric',month:'short'}:{day:'numeric',month:'short',year:'numeric'});};
 const dayLabel=(date:string)=>new Date(`${date}T12:00:00`).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:new Date(`${date}T12:00:00`).getFullYear()===new Date().getFullYear()?undefined:'numeric'});

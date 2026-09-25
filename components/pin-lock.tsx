@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Delete, Lock, LockKeyhole, Sparkles } from 'lucide-react';
+import { Delete, KeyRound, Lock, LockKeyhole, Sparkles } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -113,8 +113,8 @@ export function PinSettings({ notify, onLockNow }: { notify: (message: string) =
     <p className="muted">{enabled ? 'Aplikasi meminta PIN saat dibuka dan setelah ditinggal beberapa saat.' : 'Opsional. Kunci aplikasi dengan 4 angka agar orang lain tidak bisa melihat keuanganmu di perangkat ini.'}</p>
     {enabled ? <>
       <Field label="Kunci otomatis setelah"><Select value={String(profile?.pinLockAfter ?? 1)} onChange={event => { if (user) void saveProfile(user.uid, { pinLockAfter: Number(event.target.value) }).then(() => notify('Waktu kunci otomatis disimpan.')); }}><option value="0">Langsung saat aplikasi ditinggal</option><option value="1">1 menit</option><option value="5">5 menit</option><option value="15">15 menit</option></Select></Field>
-      <div className="toolbar-row"><Button variant="secondary" onClick={() => begin('change')}>Ganti PIN</Button>{onLockNow && <Button variant="secondary" onClick={onLockNow}><Lock size={15}/> Kunci sekarang</Button>}{passwordVerified() ? <Button variant="ghost" onClick={() => { if (user) void saveProfile(user.uid, { pinHash: null, pinSalt: null }).then(() => notify('PIN aplikasi dinonaktifkan.')); }}>Nonaktifkan PIN</Button> : <Button variant="ghost" onClick={() => begin('off')}>Nonaktifkan PIN</Button>}</div>
-    </> : <Button onClick={() => begin('set')}><LockKeyhole size={16}/> Aktifkan PIN</Button>}
+      <div className="settings-actions start"><Button variant="secondary" onClick={() => begin('change')}><KeyRound size={15}/> Ganti PIN</Button>{onLockNow && <Button variant="secondary" onClick={onLockNow}><Lock size={15}/> Kunci sekarang</Button>}{passwordVerified() ? <Button variant="ghost" onClick={() => { if (user) void saveProfile(user.uid, { pinHash: null, pinSalt: null }).then(() => notify('PIN aplikasi dinonaktifkan.')); }}>Nonaktifkan PIN</Button> : <Button variant="ghost" onClick={() => begin('off')}>Nonaktifkan PIN</Button>}</div>
+    </> : <div className="settings-actions start"><Button onClick={() => begin('set')}><LockKeyhole size={16}/> Aktifkan PIN</Button></div>}
     <Dialog open={mode !== null} onOpenChange={next => { if (!next) setMode(null); }}><DialogContent title={mode === 'off' ? 'Nonaktifkan PIN' : mode === 'change' ? 'Ganti PIN' : 'Aktifkan PIN'} className="pin-dialog">
       <p className="pin-prompt">{prompt}</p>
       <PinPad key={`${mode}-${step}`} onComplete={complete}/>

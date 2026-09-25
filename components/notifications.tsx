@@ -53,7 +53,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     busy.current++;
     const id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false });
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
-    task.then(() => { push({ id, title: labels.success, body: 'Data sudah sinkron', kind: 'success' }); labels.after?.(); })
+    task.then(() => { push({ id, title: labels.success, body: 'Tersimpan di cloud', kind: 'success' }); labels.after?.(); })
       .catch(error => {
         const committed = (error as { committed?: boolean }).committed;
         if (committed) { push({ id, title: labels.success, body: (error as Error).message, kind: 'warning' }); labels.after?.(); return; }
@@ -65,7 +65,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const lastSync = useRef(sync), started = useRef(false);
   useEffect(() => {
     const previous = lastSync.current; lastSync.current = sync;
-    if (sync === 'synced') { if (started.current && previous !== 'synced' && !busy.current) push({ id: 'sync', title: 'Data sudah sinkron', kind: 'success', history: false }); started.current = true; return; }
+    if (sync === 'synced') { if (started.current && previous !== 'synced' && !busy.current) push({ id: 'sync', title: 'Tersimpan di cloud', kind: 'success', history: false }); started.current = true; return; }
     if (!started.current || busy.current) return;
     if (sync === 'syncing') push({ id: 'sync', title: 'Menyinkronkan data…', body: 'Perubahan sedang dikirim ke cloud', kind: 'progress', history: false });
     if (sync === 'offline') push({ id: 'sync', title: 'Sedang offline', body: 'Perubahan disimpan di perangkat dan dikirim saat online', kind: 'warning', history: false });
