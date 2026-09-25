@@ -203,3 +203,20 @@ test('personal overrides: fixed emergency amount, monthly need, buffer, idle min
   assert.ok(!high.wealth.some(f => f.id === 'idle-operational' || f.id === 'idle-savings'));
   assert.equal(run({ monthlyIncome: 12_000_000 }).summary.avgIncome, 12_000_000);
 });
+
+import { walletPockets } from '../lib/pockets.ts';
+test('savings pockets: emergency pocket is the emergency fund; other pockets are set aside; the rest is unallocated', () => {
+  const sv = { id: 'sv', name: 'Tabungan', type: 'savings', group: 'savings', cachedBalance: 30_000_000, isArchived: false };
+  const funds = [
+    { id: 'e', name: 'Dana darurat', kind: 'emergency', linkedWalletId: 'sv', currentAmount: 12_000_000, targetAmount: 15_000_000, monthlyContribution: 0, targetDate: '', notes: '' },
+    { id: 'k', name: 'Tabungan kuliah', kind: 'goal', linkedWalletId: 'sv', currentAmount: 10_000_000, targetAmount: 20_000_000, monthlyContribution: 0, targetDate: '', notes: '' },
+  ];
+  const p = walletPockets(sv, funds);
+  assert.deepEqual([p.allocated, p.unallocated, p.pockets[0].id], [22_000_000, 8_000_000, 'e']);
+  const data = { ...sampleData(), wallets: [sv], funds };
+  const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 30_000_000, netWorth: 0, liabilities: 0 }, committed: 0 });
+  assert.equal(a.idle.emergencyTarget, 15_000_000, 'pocket target is used');
+  assert.equal(a.idle.emergencyShortfall, 3_000_000, 'only the emergency pocket counts');
+  assert.equal(a.idle.savingsExcess, 8_000_000, 'unallocated savings, kuliah stays untouched');
+  assert.ok(a.obligations.some(f => f.id === 'emergency'));
+});

@@ -3745,6 +3745,128 @@ html, body { overscroll-behavior-x: none; }
 .notif-guide > small { display: block; padding-bottom: 12px; color: var(--muted); font-size: .78rem; }
 
 /* ==========================================================================
+   73. Modern popups everywhere: frosted backdrop, rounded sheet, calm header,
+       softer fields and an action bar that stays at the bottom
+   ========================================================================== */
+.modal-overlay { background: color-mix(in srgb, var(--deep) 45%, transparent); backdrop-filter: blur(6px) saturate(1.1); -webkit-backdrop-filter: blur(6px) saturate(1.1); }
+.modal-content.app-dialog { border-radius: 26px; border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--paper)) 0, var(--paper) 120px); box-shadow: 0 30px 80px rgba(5, 22, 32, .28), 0 2px 8px rgba(5, 22, 32, .08); }
+.app-dialog .modal-heading h2 { font-size: 1.15rem; letter-spacing: -.01em; }
+.app-dialog .modal-heading .icon-btn { width: 34px; height: 34px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--muted); }
+.app-dialog .modal-heading .icon-btn:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); color: var(--ink); transform: none; }
+.app-dialog .field > span:first-child { font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .01em; }
+.app-dialog .input { border-radius: 14px; min-height: 46px; background: color-mix(in srgb, var(--paper-2) 55%, var(--paper)); border-color: color-mix(in srgb, var(--accent) 8%, var(--line-strong)); }
+.app-dialog .input:focus, .app-dialog .input:focus-visible { background: var(--paper); }
+/* Buttons at the bottom of a popup stay visible while its content scrolls. */
+.app-dialog .modal-body:has(> form > .modal-actions:last-child), .app-dialog .modal-body:has(> .modal-actions:last-child) { padding-bottom: 0; }
+.app-dialog .modal-body > form > .modal-actions:last-child, .app-dialog .modal-body > .modal-actions:last-child { position: sticky; bottom: 0; z-index: 3; margin: 18px -24px 0; padding: 12px 24px max(14px, env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+.app-dialog .modal-actions .btn { min-height: 46px; border-radius: 14px; }
+@media (max-width: 760px) {
+  .modal-content.app-dialog { border-radius: 26px 26px 0 0; }
+  .app-dialog .modal-body > form > .modal-actions:last-child, .app-dialog .modal-body > .modal-actions:last-child { margin-inline: -18px; padding-inline: 18px; flex-wrap: nowrap; }
+  .app-dialog .modal-actions .btn { flex: 1; }
+}
+.modal-content.confirm { border-radius: 24px; }
+
+/* Transaction form */
+.tx-form { display: grid; gap: 16px; }
+.tx-form { --tone: var(--accent); }
+.tx-form.tone-out { --tone: var(--rose); }
+.tx-form.tone-in { --tone: var(--positive); }
+.tx-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 4px; padding: 4px; border-radius: 16px; background: var(--paper-2); border: 1px solid var(--line); }
+.tx-types > button, .tx-type-more { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; min-width: 0; padding: 0 6px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.tx-types > button.active { background: var(--paper); color: var(--tone); box-shadow: 0 2px 8px rgba(16, 42, 54, .12); }
+.tx-type-more { padding: 0 12px; }
+.tx-type-more span { overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.tx-types:has(.tx-type-more.active) { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr); }
+.tx-type-more.active { background: var(--paper); color: var(--accent); box-shadow: 0 2px 8px rgba(16, 42, 54, .12); }
+.tx-type-more select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 16px; }
+.tx-amount { display: grid; justify-items: center; gap: 8px; padding: 18px 14px 14px; border-radius: 22px; background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 12%, var(--paper)), color-mix(in srgb, var(--tone) 4%, var(--paper))); border: 1px solid color-mix(in srgb, var(--tone) 22%, var(--line)); }
+.tx-amount > span { font-size: .78rem; font-weight: 700; color: var(--tone); text-transform: uppercase; letter-spacing: .05em; }
+.tx-amount-input { width: 100%; }
+.tx-amount-input .input { border: 0; background: transparent; min-height: 56px; padding: 0; text-align: center; font: 800 clamp(1.9rem, 8vw, 2.4rem)/1.1 var(--font-head); letter-spacing: -.03em; color: var(--ink); box-shadow: none; }
+.tx-amount-input .input:focus { box-shadow: none; }
+.tx-amount-input .input::placeholder { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.tx-quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tx-quick button { padding: 5px 11px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--tone) 25%, var(--line)); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.tx-quick button:active { transform: scale(.94); }
+.tx-quick .tx-clear { display: grid; place-items: center; width: 30px; padding: 0; color: var(--muted); }
+.tx-section { display: grid; gap: 8px; min-width: 0; }
+.tx-section > h4 { margin: 0; font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .01em; }
+.tx-span { grid-column: 1 / -1; }
+.tx-recent { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.tx-recent::-webkit-scrollbar { display: none; }
+.tx-recent button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; }
+.tx-recent button .app-icon, .tx-recent button img, .tx-recent button .emoji { width: 20px; height: 20px; font-size: 1rem; }
+.tx-recent button.active { border-color: var(--tone); background: color-mix(in srgb, var(--tone) 10%, var(--paper)); color: var(--tone); }
+.tx-wallets { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; margin: 0 -2px; scroll-snap-type: x proximity; }
+.tx-wallets::-webkit-scrollbar { display: none; }
+.tx-wallets button { flex: none; scroll-snap-align: start; display: flex; align-items: center; gap: 9px; min-width: 150px; max-width: 200px; padding: 10px 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.tx-wallets button > span { display: grid; min-width: 0; }
+.tx-wallets strong { font-size: .86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-wallets small { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tx-wallets button .app-icon, .tx-wallets button > img, .tx-wallets button > .emoji { flex: none; width: 30px; height: 30px; font-size: 1.3rem; }
+.tx-wallets button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--paper)); box-shadow: 0 0 0 1px var(--accent) inset, 0 6px 16px color-mix(in srgb, var(--accent) 16%, transparent); }
+.tx-wallets button:active { transform: scale(.97); }
+.tx-hidden-required { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.tx-when { display: flex; flex-wrap: wrap; gap: 6px; }
+.tx-when > button { display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; }
+.tx-when > button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); color: var(--accent); }
+.tx-date { display: inline-flex; }
+.tx-date .datetime-trigger.tx-date-trigger { min-height: 38px; width: auto; gap: 8px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); font-size: .84rem; font-weight: 700; }
+.tx-date.active .datetime-trigger.tx-date-trigger { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); color: var(--accent); }
+.tx-more { border-radius: 16px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper-2) 40%, var(--paper)); padding: 0 14px; }
+.tx-more > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; cursor: pointer; list-style: none; font-size: .88rem; font-weight: 700; }
+.tx-more > summary::-webkit-details-marker { display: none; }
+.tx-more > summary small { margin-left: auto; font-weight: 500; color: var(--muted); font-size: .76rem; }
+.tx-more > summary svg { color: var(--muted); transition: transform .2s; }
+.tx-more[open] > summary svg { transform: rotate(180deg); }
+.tx-more[open] { padding-bottom: 14px; }
+.tx-actions .btn-primary { gap: 8px; }
+.tx-save-amount { padding: 2px 8px; border-radius: 99px; background: rgba(255, 255, 255, .2); font-size: .8rem; }
+
+/* ==========================================================================
+   74. Savings pockets (kantong) inside Tabungan wallets
+   ========================================================================== */
+.pocket-strip { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: color-mix(in srgb, var(--paper) 72%, transparent); border: 1px solid color-mix(in srgb, var(--identity-color, var(--accent)) 18%, var(--line)); }
+.wallet-solid .pocket-strip { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .2); }
+.pocket-bar { display: flex; gap: 2px; height: 8px; border-radius: 99px; overflow: hidden; background: var(--paper-2); }
+.pocket-bar i { display: block; min-width: 3px; }
+.pocket-bar i.free { background: repeating-linear-gradient(45deg, var(--line-strong) 0 4px, transparent 4px 8px); }
+.pocket-strip ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pocket-strip li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: .84rem; }
+.pocket-strip li.is-free { grid-template-columns: auto minmax(0, 1fr) auto; color: var(--muted); }
+.wallet-solid .pocket-strip li.is-free { color: rgba(255, 255, 255, .78); }
+.wallet-solid .pocket-dot.free { background: rgba(255, 255, 255, .6); }
+.wallet-solid .pocket-name b { background: rgba(255, 255, 255, .25); color: #fff; }
+.pocket-strip li .emoji { width: 18px; height: 18px; }
+.pocket-dot { width: 8px; height: 8px; border-radius: 50%; }
+.pocket-dot.free { background: var(--line-strong); }
+.pocket-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pocket-name b, .pocket-info em, .pocket-tag { margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-size: .64rem; font-style: normal; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--accent-on); background: var(--accent); vertical-align: 1px; }
+.pocket-strip li strong { font-variant-numeric: tabular-nums; }
+.pocket-strip .link-button { justify-self: start; }
+.pocket-empty { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 8px 12px; border-radius: 12px; border: 1px dashed color-mix(in srgb, var(--identity-color, var(--accent)) 40%, var(--line)); background: transparent; color: inherit; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; opacity: .9; }
+.pocket-dialog.modal-content.app-dialog { width: min(94vw, 560px); }
+.pocket-head { display: grid; gap: 2px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 14%, var(--paper)), color-mix(in srgb, var(--accent) 4%, var(--paper))); border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); }
+.pocket-head small { color: var(--muted); font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.pocket-head strong { font: 800 1.6rem/1.15 var(--font-head); letter-spacing: -.03em; }
+.pocket-head span { font-size: .84rem; color: var(--muted); }
+.pocket-head span b { color: var(--ink); }
+.pocket-list { display: grid; gap: 8px; margin: 14px 0 10px; }
+.pocket-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; border: 1px solid var(--line); border-left: 4px solid var(--pocket); background: var(--paper); }
+.pocket-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: color-mix(in srgb, var(--pocket) 14%, var(--paper)); }
+.pocket-icon .emoji { width: 26px; height: 26px; }
+.pocket-info { display: grid; gap: 3px; min-width: 0; }
+.pocket-info strong { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; font-size: .92rem; line-height: 1.3; }
+.pocket-info > span { font-weight: 800; font-variant-numeric: tabular-nums; }
+.pocket-info > span small { font-weight: 500; color: var(--muted); }
+.pocket-progress { display: block; height: 6px; border-radius: 99px; background: var(--paper-2); overflow: hidden; }
+.pocket-progress b { display: block; height: 100%; border-radius: inherit; background: var(--pocket); }
+.pocket-actions { display: flex; gap: 2px; }
+.pocket-note { font-size: .78rem; line-height: 1.45; margin: 0; }
+.budget-name h3 .emoji { width: 20px; height: 20px; vertical-align: -3px; }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }

@@ -8,6 +8,7 @@ import { savingsPlan } from './savings.ts';
 import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
 import { allocation, blendedReturn, equitySectors, futureValue, INFLATION, realValueIdle, type PlanItem } from './invest-plan.ts';
 import { walletGroup } from './wallet-groups.ts';
+import { emergencyPockets, isEmergencyFund } from './pockets.ts';
 import type { Budget, Category, Data, LedgerTx } from './types';
 
 export type Range = { start: string; end: string };
@@ -273,9 +274,14 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   // Liquid reserve for emergencies: Tabungan wallets (falls back to all Disimpan wallets).
   const liveWallets = data.wallets.filter(w => !w.isArchived && w.type !== 'credit');
   const savingsWallets = liveWallets.filter(w => walletGroup(w) === 'savings');
-  const earmarked = sum(data.funds.filter(f => !f.isArchived && savingsWallets.some(w => w.id === f.linkedWalletId)).map(f => Math.max(0, f.currentAmount || 0)));
+  // Savings wallets can be split into pockets (funds linked to them). An emergency pocket is the emergency fund;
+  // other pockets are set aside for their goals; the rest of the balance is unallocated.
+  const inSavings = data.funds.filter(f => !f.isArchived && savingsWallets.some(w => w.id === f.linkedWalletId));
+  const earmarked = sum(inSavings.filter(f => !isEmergencyFund(f)).map(f => Math.max(0, f.currentAmount || 0)));
+  const pocketsEmergency = emergencyPockets(data.funds);
+  const unallocatedSavings = Math.max(0, sum(savingsWallets.map(w => Math.max(0, w.cachedBalance))) - sum(inSavings.map(f => Math.max(0, f.currentAmount || 0))));
   const liquidReserve = savingsWallets.length ? sum(savingsWallets.map(w => Math.max(0, w.cachedBalance))) : input.stat.reserved;
-  const emergencyCash = Math.max(0, liquidReserve - earmarked);
+  const emergencyCash = pocketsEmergency ? pocketsEmergency.total : Math.max(0, liquidReserve - earmarked);
   // What a month of living really costs. With little history (few cycles, or spending not recorded)
   // the average is far too low and everything would look idle, so fall back to salary minus the savings target.
   const incomeBase = avgIncome || input.monthlySalary || 0;
@@ -286,9 +292,11 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const needNote = needSource === 'profile' ? 'kamu tentukan sendiri di Personalisasi Insight' : needSource === 'salary' ? `perkiraan: gaji ${rp(incomeBase)} − target tabungan ${pct(me.savingsTarget)}, karena riwayat pengeluaran belum cukup` : needSource === 'history' ? `rata-rata pengeluaran ${covered.length} siklus terakhir` : 'belum ada data';
   // Health score.
   // Target in months; with a fixed amount, expressed as months of the monthly need.
-  const target = me.emergencyMode === 'amount' && monthlyNeed ? Math.round(me.emergencyAmount / monthlyNeed * 10) / 10 : me.emergencyMonths;
+  // A target set on the emergency pocket is used unless the Insight profile sets its own.
+  const pocketTarget = pocketsEmergency && me.emergencyMode !== 'amount' && !input.profile?.emergencyMonths ? pocketsEmergency.target : 0;
+  const target = pocketTarget && monthlyNeed ? Math.round(pocketTarget / monthlyNeed * 10) / 10 : me.emergencyMode === 'amount' && monthlyNeed ? Math.round(me.emergencyAmount / monthlyNeed * 10) / 10 : me.emergencyMonths;
   const emergencyMonths = monthlyNeed ? emergencyCash / monthlyNeed : 0;
-  const targetText = me.emergencyMode === 'amount' ? rp(me.emergencyAmount) : `${target} bulan`;
+  const targetText = pocketTarget ? rp(pocketTarget) : me.emergencyMode === 'amount' ? rp(me.emergencyAmount) : `${target} bulan`;
   const lastUsage = budgetStats.filter(b => b.usage.length).map(b => b.usage[b.usage.length - 1]);
   const adherence = lastUsage.length ? lastUsage.filter(u => u <= 1).length / lastUsage.length : 1;
   const runwayRatio = needUntilPayday > 0 ? Math.max(0, available) / needUntilPayday : 1.5;
@@ -306,9 +314,10 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const verdict = score >= 75 ? 'Keuanganmu sehat. Pertahankan kebiasaan baik dan arahkan sisa uang ke tujuan jangka panjang.' : score >= 55 ? 'Cukup baik, tapi ada beberapa hal yang bisa dirapikan untuk menambah tabungan.' : score >= 40 ? 'Perlu perhatian. Fokus ke rencana aksi di bawah untuk menambah ruang napas.' : 'Waspada. Kurangi pengeluaran tidak penting dulu dan amankan kebutuhan sampai gajian.';
 
   // Emergency fund and saving rate as findings too.
-  const emergencyTarget = me.emergencyMode === 'amount' ? me.emergencyAmount : monthlyNeed * target, emergencyShortfall = Math.max(0, emergencyTarget - emergencyCash);
+  const emergencyTarget = me.emergencyMode === 'amount' ? me.emergencyAmount : pocketTarget || monthlyNeed * target, emergencyShortfall = Math.max(0, emergencyTarget - emergencyCash);
   const targetRows: CalcRow[] = me.emergencyMode === 'amount' ? [{ label: 'Target dana darurat (nominal pilihanmu)', amount: emergencyTarget, note: `setara ${String(target).replace('.', ',')} bulan kebutuhan` }, { op: '=' as const, label: 'Target dana darurat', amount: emergencyTarget }] : [{ label: 'Kebutuhan hidup per bulan', amount: monthlyNeed, note: needNote }, { op: '×' as const, label: `Target dana darurat`, amount: 0, text: `${targetText}` }, { op: '=' as const, label: 'Target dana darurat', amount: emergencyTarget }];
-  const emergencyCalc: CalcRow[] = [...targetRows, { label: 'Saldo dompet Tabungan', amount: liquidReserve }, ...(earmarked ? [{ op: '-' as const, label: 'Sudah dipakai untuk tujuan dana', amount: earmarked }] : []), { op: '=', label: 'Dana darurat yang ada', amount: emergencyCash }];
+  if (pocketTarget) targetRows.splice(0, targetRows.length, { label: 'Target di kantong dana darurat', amount: pocketTarget }, { op: '=', label: 'Target dana darurat', amount: pocketTarget });
+  const emergencyCalc: CalcRow[] = pocketsEmergency ? [...targetRows, ...pocketsEmergency.list.map(f => ({ label: `Kantong ${f.name}`, amount: Math.max(0, f.currentAmount || 0), note: 'kantong dana darurat' })), { op: '=', label: 'Dana darurat yang ada', amount: emergencyCash }] : [...targetRows, { label: 'Saldo dompet Tabungan', amount: liquidReserve }, ...(earmarked ? [{ op: '-' as const, label: 'Sudah dipakai untuk tujuan dana', amount: earmarked }] : []), { op: '=', label: 'Dana darurat yang ada', amount: emergencyCash }];
   if (monthlyNeed && emergencyMonths < target) obligations.push({ calc: [...emergencyCalc, { op: '=', label: 'Masih kurang', amount: emergencyShortfall }], id: 'emergency', tone: emergencyMonths < Math.min(1, target / 3) ? 'bad' : 'warn', stat: { label: 'Dana darurat', value: `${emergencyMonths.toFixed(1).replace('.', ',')} bulan`, note: `targetmu ${targetText}`, progress: Math.min(1, emergencyMonths / target), progressLabel: `${pct(Math.min(1, emergencyMonths / target))} dari target` }, title: 'Dana darurat belum cukup', detail: `Tabungan setara **${emergencyMonths.toFixed(1).replace('.', ',')} bulan** pengeluaran. Targetmu ${targetText} = ${rp(emergencyTarget)}${me.income === 'variable' ? ' (lebih besar karena penghasilan tidak tetap)' : ''}; **kurang ${rp(emergencyShortfall)}**. ==Sisihkan ${rp(friendlyRound(emergencyShortfall / 12))} per bulan== untuk mencapainya dalam setahun.`, target: { view: 'wallets' } });
   if (enoughHistory && savingsRate < me.savingsTarget * .5) obligations.push({ id: 'saving-rate', tone: savingsRate < 0 ? 'bad' : 'warn', stat: { label: 'Sisa per siklus', value: pct(Math.max(0, savingsRate)), note: `targetmu ${pct(me.savingsTarget)}` }, title: savingsRate < 0 ? 'Pengeluaran melebihi pemasukan' : 'Tabungan jauh di bawah target', detail: `Rata-rata hanya **${pct(Math.max(0, savingsRate))} pemasukan tersisa** per siklus${savingsRate < 0 ? ` (**defisit ${rp(avgExpense - avgIncome)}**)` : ''}, targetmu ${pct(me.savingsTarget)}. ==Pangkas ${rp(Math.max(0, avgExpense - avgIncome * (1 - me.savingsTarget)))} per bulan== dari pos yang tidak penting.` });
 
@@ -337,7 +346,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const rawOperational = needSource === 'none' ? 0 : Math.max(0, operationalBalance - operationalNeed);
   // Money set aside for wishes sits in these wallets too: take it out of "idle" first.
   const wishFromOp = Math.min(wishSaved, rawOperational), idleOperational = rawOperational - wishFromOp;
-  const savingsExcess = Math.max(0, emergencyCash - emergencyTarget - (wishSaved - wishFromOp));
+  const savingsExcess = pocketsEmergency ? Math.max(0, unallocatedSavings + Math.max(0, emergencyCash - emergencyTarget) - (wishSaved - wishFromOp)) : Math.max(0, emergencyCash - emergencyTarget - (wishSaved - wishFromOp));
   const spendLabel = spendReserve === budgetReserve && budgetReserve > 0 ? 'Sisa anggaran periode ini' : expenseReliable ? 'Perkiraan belanja sampai gajian' : 'Perkiraan belanja sampai gajian (dari gaji)';
   const spendNote = spendReserve === budgetReserve && budgetReserve > 0 ? `${data.budgets.filter(b => b.active).length} anggaran aktif yang belum terpakai` : expenseReliable ? `laju belanja siklus ini, ${daysLeft} hari lagi` : `${rp(monthlyNeed)}/bln × ${daysLeft} dari ${total} hari`;
   const opCalc: CalcRow[] = [
@@ -350,7 +359,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     ...(wishFromOp ? [{ op: '-' as const, label: 'Uang yang sudah disisihkan untuk wish list', amount: wishFromOp }] : []),
     { op: '=', label: 'Menganggur di dompet harian', amount: idleOperational },
   ];
-  const savingsCalc: CalcRow[] = [...emergencyCalc.slice(targetRows.length), { op: '-', label: `Target dana darurat (${targetText})`, amount: emergencyTarget, note: needNote }, ...(wishSaved - wishFromOp > 0 ? [{ op: '-' as const, label: 'Disisihkan untuk wish list', amount: wishSaved - wishFromOp }] : []), { op: '=', label: 'Kelebihan tabungan', amount: savingsExcess }];
+  const savingsCalc: CalcRow[] = pocketsEmergency ? [{ label: 'Tabungan belum dialokasikan ke kantong', amount: unallocatedSavings }, { op: '+', label: 'Kelebihan kantong dana darurat', amount: Math.max(0, emergencyCash - emergencyTarget), note: `di atas target ${targetText}` }, ...(wishSaved - wishFromOp > 0 ? [{ op: '-' as const, label: 'Disisihkan untuk wish list', amount: wishSaved - wishFromOp }] : []), { op: '=', label: 'Kelebihan tabungan', amount: savingsExcess }] : [...emergencyCalc.slice(targetRows.length), { op: '-', label: `Target dana darurat (${targetText})`, amount: emergencyTarget, note: needNote }, ...(wishSaved - wishFromOp > 0 ? [{ op: '-' as const, label: 'Disisihkan untuk wish list', amount: wishSaved - wishFromOp }] : []), { op: '=', label: 'Kelebihan tabungan', amount: savingsExcess }];
   const invested = sum(liveWallets.filter(w => walletGroup(w) === 'investment').map(w => Math.max(0, w.cachedBalance)));
   const lastUse = new Map<string, string>();
   for (const tx of history) for (const id of [tx.walletId, tx.destinationWalletId]) if (id && (!lastUse.has(id) || tx.date > lastUse.get(id)!)) lastUse.set(id, tx.date);
