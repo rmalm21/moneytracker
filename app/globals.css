@@ -1754,7 +1754,7 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .bd-stat.is-bad strong { color: var(--rose); }
 .bd-stat.is-bad .bd-stat-label > span { color: var(--rose); }
 .analysis-tabs.bd-tabs { position: static; box-shadow: none; }
-.analysis-tabs.bd-tabs button { flex: 1 1 0; min-height: 38px; padding: 0 8px; }
+.analysis-tabs.bd-tabs button { flex: 1 1 0; min-height: 38px; padding: 0 6px; white-space: nowrap; }
 .bd-block { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); }
 .bd-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; }
 .bd-block-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .95rem; }
@@ -1815,6 +1815,13 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
   .bd-actions button { flex-direction: column; gap: 3px; min-height: 52px; font-size: .74rem; }
   .summary-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.2rem), 1fr)); }
 }
+
+.budget-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; margin: 18px 0 12px; }
+.budget-sort { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: .86rem; color: var(--muted); }
+.budget-sort .app-select, .budget-sort .app-select-trigger { min-width: 13.5rem; }
+.budget-card .budget-line > .sort-handle { flex: 0 0 auto; margin-left: -6px; }
+.budget-card .budget-line > .budget-name { flex: 1 1 auto; }
+@media (max-width: 760px) { .budget-sort { flex: 1 1 100%; } .budget-sort .app-select, .budget-sort .app-select-trigger { flex: 1; min-width: 0; } }
 
 /* ==========================================================================
    44. iOS emoji artwork (bundled in /public/emoji, same look on every device)

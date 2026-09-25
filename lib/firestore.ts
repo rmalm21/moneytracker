@@ -65,9 +65,9 @@ export async function archiveOrDelete(uid:string,name:Name,id:string,data:Data) 
   throw Error('Catatan keuangan harus diproses lewat alur transaksi.');
 }
 export async function saveRecord<T extends Category|Budget|Fund|Recurring>(uid:string,name:'categories'|'budgets'|'funds'|'recurring',record:Partial<T>,id?:string) { const r=id?ref(uid,name,id):doc(coll(uid,name)); const {id:_ignored,createdAt:_created,updatedAt:_updated,...fields}=record; if(id) await updateDoc(r,{...fields,updatedAt:serverTimestamp()});else await setDoc(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});return r.id; }
-export async function saveDisplayOrder(uid:string,name:'categories'|'wallets',ids:string[]){
+export async function saveDisplayOrder(uid:string,name:'categories'|'wallets'|'budgets',ids:string[]){
  if(ids.length>400||new Set(ids).size!==ids.length)throw Error('Urutan tidak valid.');
- const batch=writeBatch(database());ids.forEach((id,index)=>batch.update(ref(uid,name,id),{[name==='categories'?'sortOrder':'displayOrder']:index,updatedAt:serverTimestamp()}));await batch.commit();
+ const batch=writeBatch(database());ids.forEach((id,index)=>batch.update(ref(uid,name,id),{[name==='wallets'?'displayOrder':'sortOrder']:index,updatedAt:serverTimestamp()}));await batch.commit();
 }
 export async function changeContextNote(uid:string,collectionName:'receivables'|'claims'|'debts'|'funds'|'wallets',documentId:string,change:{kind:'add';text:string}|{kind:'edit';id:string;text:string}|{kind:'pin'|'delete';id:string}){
  const r=ref(uid,collectionName,documentId);await runTransaction(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())throw Error('Catatan terkait tidak ditemukan.');const entries=(snap.data().contextNotes||[]) as import('./types').ContextNote[];const now=new Date().toISOString();let next:typeof entries;
@@ -142,7 +142,7 @@ export async function settleBudgets(uid:string,budgets:Budget[],salaryDay:number
     if(!budget.lastSettledStart){await updateDoc(ref(uid,'budgets',budget.id),{lastSettledStart:current.start,rolloverCarry:0,updatedAt:serverTimestamp()});continue;}
     if(budget.lastSettledStart>=current.start)continue;
     let cursor=budget.lastSettledStart,carry=budget.rolloverCarry||0,steps=0;
-    while(cursor<current.start&&steps++<36){const d=new Date(cursor+'T12:00:00');const y=d.getFullYear(),m=d.getMonth()+1,day=budget.cycleType==='calendar'?1:budget.cycleType==='custom'?budget.cycleStartDay||salaryDay:salaryDay;const nextDate=new Date(y,m,Math.min(day,new Date(y,m+1,0).getDate()));const next=nextDate.toLocaleDateString('en-CA');if(next<=cursor)throw Error('Periode rollover tidak dapat dihitung.');const snap=await getDocs(query(coll(uid,'transactions'),where('date','>=',cursor),where('date','<',next)));const tx=snap.docs.map(x=>hydrate<LedgerTx>(x));const cats=await getDocs(coll(uid,'categories'));carry+=budget.amount-budgetSpent(budget,tx,cats.docs.map(x=>hydrate<Category>(x)));cursor=next;}
+    while(cursor<current.start&&steps++<(budget.cycleType==='weekly'?160:36)){const next=budgetWindow(budget,new Date(cursor+'T12:00:00'),salaryDay).end;if(next<=cursor)throw Error('Periode rollover tidak dapat dihitung.');const snap=await getDocs(query(coll(uid,'transactions'),where('date','>=',cursor),where('date','<',next)));const tx=snap.docs.map(x=>hydrate<LedgerTx>(x));const cats=await getDocs(coll(uid,'categories'));carry+=budget.amount-budgetSpent(budget,tx,cats.docs.map(x=>hydrate<Category>(x)));cursor=next;}
     if(cursor<current.start)throw Error('Riwayat anggaran terlalu panjang untuk dihitung sekaligus.');
     await runTransaction(database(),async trx=>{const r=ref(uid,'budgets',budget.id),snap=await trx.get(r);if(!snap.exists()||snap.data().lastSettledStart!==budget.lastSettledStart)return;trx.update(r,{rolloverCarry:carry,lastSettledStart:current.start,updatedAt:serverTimestamp()});});
   }

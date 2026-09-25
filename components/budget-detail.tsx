@@ -55,7 +55,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
   const historyRows = history.map(w => ({ ...w, spent: budgetSpent(budget, past.items.filter(t => t.date >= w.start && t.date < w.end), data.categories) }));
   const pastWithData = historyRows.filter(w => w.spent > 0), pastAverage = pastWithData.length ? Math.round(pastWithData.reduce((n, w) => n + w.spent, 0) / pastWithData.length) : 0;
   // A few days in, the pace says little; lean on the average of earlier periods instead.
-  const early = detail.elapsed < 7 && pastAverage > 0 && !past.loading;
+  const early = detail.elapsed < Math.min(7, Math.ceil(detail.totalDays / 4)) && pastAverage > 0 && !past.loading;
   const projected = early ? Math.max(detail.spent, pastAverage) : detail.projected;
   const projectedOver = projected - status.available;
   const children = new Set(data.categories.filter(c => c.parentId === budget.categoryId).map(c => c.id));
@@ -76,7 +76,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
       <Stat icon={<CalendarClock size={14}/>} label="Jatah aman/hari" value={rupiah(Math.max(0, Math.floor(available / Math.max(1, detail.daysLeft))))} hint={`${detail.daysLeft} hari tersisa`}/>
       <Stat icon={<Gauge size={14}/>} label="Rata-rata/hari" value={rupiah(Math.round(detail.dailyAvg))} hint={`Ideal ${rupiah(Math.round(detail.ideal))}`} tone={detail.dailyAvg > detail.ideal ? 'bad' : 'good'}/>
       <Stat icon={<TrendingUp size={14}/>} label="Perkiraan akhir" value={rupiah(projected)} hint={`${projectedOver > 0 ? `Lebih ${rupiah(projectedOver)}` : `Sisa ±${rupiah(-projectedOver)}`}${early ? ' · rata-rata 3 periode' : ''}`} tone={projectedOver > 0 ? 'bad' : 'good'}/>
-      <Stat icon={<Target size={14}/>} label="Batas anggaran" value={rupiah(status.available)} hint={budget.rolloverEnabled && budget.rolloverCarry ? `Termasuk sisa lalu ${rupiah(budget.rolloverCarry)}` : budget.amount !== status.available ? `Dasar ${rupiah(budget.amount)}` : 'Per periode'}/>
+      <Stat icon={<Target size={14}/>} label="Batas anggaran" value={rupiah(status.available)} hint={budget.rolloverEnabled && budget.rolloverCarry ? `Termasuk sisa lalu ${rupiah(budget.rolloverCarry)}` : budget.amount !== status.available ? `Dasar ${rupiah(budget.amount)}` : budget.cycleType === 'weekly' ? 'Per minggu' : 'Per periode'}/>
     </div>
 
     <div className="analysis-tabs bd-tabs" role="tablist" aria-label="Bagian rincian">{([['summary', 'Ringkasan'], ['breakdown', 'Rincian'], ['tx', `Transaksi (${detail.items.length})`]] as const).map(([key, label]) => <button type="button" role="tab" key={key} aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
@@ -112,9 +112,11 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
       <Block icon={<WalletIcon size={16}/>} title="Per dompet">
         {detail.byWallet.length ? <Bars total={detail.spent} rows={detail.byWallet.map(w => { const wallet = data.wallets.find(x => x.id === w.walletId); return { key: w.walletId, label: <><span className="bd-emoji"><AppIcon icon={wallet?.icon}/></span>{wallet?.name || 'Dompet'}</>, amount: w.amount }; })}/> : <p className="bd-empty">Belum ada pengeluaran.</p>}
       </Block>
-      <Block icon={<CalendarDays size={16}/>} title="Per minggu">
+      {budget.cycleType === 'weekly' ? <Block icon={<CalendarDays size={16}/>} title="Per hari">
+        <Bars total={detail.spent} rows={detail.pace.map((d, i) => ({ key: d.date, label: <>{formatDate(d.date, false)}{i === detail.elapsed - 1 && <span className="bd-now">hari ini</span>}</>, amount: d.spent === null ? 0 : d.spent - (i ? detail.pace[i - 1].spent || 0 : 0), muted: d.spent === null, current: i === detail.elapsed - 1 }))}/>
+      </Block> : <Block icon={<CalendarDays size={16}/>} title="Per minggu">
         <Bars total={detail.spent} rows={detail.weeks.map((w, i) => ({ key: `${i}`, label: <>{w.label}{w.current && <span className="bd-now">minggu ini</span>}</>, amount: w.amount, muted: w.future, current: w.current }))}/>
-      </Block>
+      </Block>}
       <Block icon={<Store size={16}/>} title="Tempat teratas">
         {detail.places.length ? <Bars total={detail.spent} rows={detail.places.map(p => ({ key: p.name, label: p.name, amount: p.amount, note: `${p.count}×` }))}/> : <p className="bd-empty">Isi nama tempat atau keterangan saat mencatat agar terlihat di sini.</p>}
       </Block>

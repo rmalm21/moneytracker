@@ -123,3 +123,15 @@ test('budget detail works out pace, projection and breakdowns inside the budget 
   const windows = previousWindows({ start: '2026-09-25' }, 3, date => { const y = date.getFullYear(), m = date.getMonth(); const start = new Date(y, date.getDate() >= 25 ? m : m - 1, 25), end = new Date(start.getFullYear(), start.getMonth() + 1, 25); const f = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-25`; return { start: f(start), end: f(end) }; });
   assert.deepEqual(windows.map(w => w.start), ['2026-06-25', '2026-07-25', '2026-08-25']);
 });
+
+import { weeklyCycle, budgetWindow as bw, budgetMonthly } from '../lib/accounting.ts';
+test('weekly budget windows start on the chosen weekday', () => {
+  // 25 Sep 2026 is a Friday.
+  assert.deepEqual([weeklyCycle(new Date(2026, 8, 25), 1).start, weeklyCycle(new Date(2026, 8, 25), 1).end], ['2026-09-21', '2026-09-28']);
+  assert.equal(weeklyCycle(new Date(2026, 8, 25), 5).start, '2026-09-25');
+  assert.equal(weeklyCycle(new Date(2026, 8, 25), 6).start, '2026-09-19');
+  assert.equal(weeklyCycle(new Date(2026, 8, 27), 7).start, '2026-09-27');
+  assert.equal(bw({ cycleType: 'weekly', cycleStartDay: 1 }, new Date(2026, 11, 30), 24).end, '2027-01-04');
+  assert.equal(budgetMonthly({ amount: 300000, cycleType: 'weekly' }), 1300000);
+  assert.equal(budgetMonthly({ amount: 300000, cycleType: 'salary' }), 300000);
+});

@@ -1,4 +1,4 @@
-import { budgetSpent, budgetWindow, effects, expenseAllocations, transactionExpense } from './accounting.ts';
+import { budgetMonthly, budgetSpent, budgetWindow, effects, expenseAllocations, transactionExpense } from './accounting.ts';
 import { nextDate, previousDate, type DateRange } from './period.ts';
 import type { Budget, Category, CycleSnapshot, Data, LedgerTx, PlannedTransaction, Profile, Recurring, Wallet } from './types';
 
@@ -75,7 +75,7 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
   const income=transactions.filter(tx=>tx.type==='income').reduce((sum,tx)=>sum+tx.amount,0);
   const expense=transactions.reduce((sum,tx)=>sum+transactionExpense(tx),0);
   const budgets=previous?.budgetDefinitions||data.budgets.filter(b=>b.active&&(!b.createdDate||b.createdDate<range.end));
-  const budgetTotal=previous?.budgetTotal??budgets.reduce((sum,b)=>sum+b.amount,0);
+  const budgetTotal=previous?.budgetTotal??budgets.reduce((sum,b)=>sum+budgetMonthly(b),0);
   const budgetUsed=budgets.reduce((sum,b)=>sum+budgetSpent(b,transactions,data.categories),0);
   return {startDate:range.start,endDate:range.end,openingAssets:opening.assets,closingAssets:closing.assets,openingNetWorth:opening.netWorth,closingNetWorth:closing.netWorth,income,expense,cashFlow:income-expense,budgetTotal,budgetSpent:budgetUsed,budgetRemaining:budgetTotal-budgetUsed,budgetDefinitions:budgets,reservedMoney:closing.reserved,debtOutstanding:debtAt(data,ledger,range.end),claimsOutstanding:claimsAt(data,ledger,range.end),savings:transactions.filter(tx=>tx.type==='fund_contribution').reduce((sum,tx)=>sum+tx.amount,0),debtPaid:transactions.filter(tx=>tx.type==='debt_payment').reduce((sum,tx)=>sum+tx.amount,0),claimReceived:transactions.filter(tx=>tx.type==='claim_payment').reduce((sum,tx)=>sum+tx.amount,0),notes:previous?.notes||''};
 }
