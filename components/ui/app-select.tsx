@@ -5,13 +5,14 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 type SelectChange = { target: { value: string } };
-type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & { onChange?: (event: SelectChange) => void };
+/** `render` draws a richer label (e.g. an icon and a balance) for a value in the trigger or the menu; '' is the empty state. */
+type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & { onChange?: (event: SelectChange) => void; render?: (value: string, place: 'trigger' | 'menu') => ReactNode; menuClassName?: string; menuWidth?: number };
 type Item = { value: string; label: ReactNode; text: string; disabled: boolean };
 /** Plain-text labels (e.g. "🍜 Makan") get the Fluent Emoji artwork; anything richer is shown as is. */
 const showLabel = (label: ReactNode) => { const parts = Array.isArray(label) ? label : [label]; return parts.every(part => typeof part === 'string' || typeof part === 'number') ? <EmojiText text={parts.join('')}/> : label; };
 type MenuPosition = { top: number; left: number; width: number; maxHeight: number };
 
-export function AppSelect({ children, value, defaultValue, onChange, disabled, required, name, className = '', title, style, 'aria-label': ariaLabel, ...rest }: Props) {
+export function AppSelect({ children, value, defaultValue, onChange, disabled, required, name, className = '', title, style, render, menuClassName = '', menuWidth = 0, 'aria-label': ariaLabel, ...rest }: Props) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -44,9 +45,10 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
     const maxHeight = Math.max(90, Math.min(264, upwards ? above : below));
     const visibleHeight = Math.min(height, maxHeight);
     const top = Math.max(8, Math.min(upwards ? rect.top - visibleHeight - 7 : rect.bottom + 7, window.innerHeight - visibleHeight - 8));
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8));
+    const width = Math.min(window.innerWidth - 16, Math.max(rect.width, menuWidth));
+    const left = Math.max(8, Math.min(rect.right - width, rect.left, window.innerWidth - width - 8));
     const parentRect = dialog?.getBoundingClientRect();
-    setPosition({ top: top - (parentRect?.top ?? 0), left: left - (parentRect?.left ?? 0), width: rect.width, maxHeight });
+    setPosition({ top: top - (parentRect?.top ?? 0), left: left - (parentRect?.left ?? 0), width, maxHeight });
     const outside = (event: PointerEvent) => {
       if (!anchor.contains(event.target as Node) && !menu.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -60,7 +62,7 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
     window.addEventListener('scroll', scroll, true);
     window.addEventListener('resize', resize);
     return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('keydown', escape, true); window.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', resize); };
-  }, [open, options.length]);
+  }, [open, options.length, menuWidth]);
 
   function choose(item: Item) {
     if (item.disabled) return;
@@ -96,11 +98,11 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
 
   return <span className="app-select" style={style}>
     <button ref={trigger} type="button" role="combobox" aria-label={ariaLabel} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="listbox" aria-activedescendant={open ? `${id}-${active}` : undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} className={`input app-select-trigger ${!current ? 'is-placeholder' : ''} ${invalid ? 'is-invalid' : ''} ${className}`} title={title} disabled={disabled} onClick={() => { setActive(Math.max(0, options.findIndex(item => item.value === current && !item.disabled))); setOpen(wasOpen => !wasOpen); }} onKeyDown={keyDown}>
-      <span className="app-select-value">{selected ? showLabel(selected.label) : 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
+      <span className="app-select-value">{render ? render(selected ? selected.value : '', 'trigger') : selected ? showLabel(selected.label) : 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
     </button>
     <select {...rest} name={name} required={required} disabled={disabled} value={current} tabIndex={-1} aria-hidden="true" className="app-select-validation" onChange={event => onChange?.({ target: { value: event.target.value } })} onInvalid={event => { event.preventDefault(); setInvalid(true); trigger.current?.focus(); }}>{children}</select>
-    {open && position && createPortal(<div ref={menu} id={id} role="listbox" aria-label={ariaLabel ?? title ?? 'Pilih opsi'} className="app-select-menu" style={{ position: host ? 'absolute' : 'fixed', ...position }}>
-      {options.map((item, index) => <button key={`${item.value}-${index}`} id={`${id}-${index}`} type="button" role="option" aria-selected={item.value === current} disabled={item.disabled} className={`app-select-option ${index === active ? 'active' : ''} ${item.value === current ? 'selected' : ''}`} onPointerMove={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(item)}><span>{showLabel(item.label)}</span>{item.value === current && <Check size={16} aria-hidden="true"/>}</button>)}
+    {open && position && createPortal(<div ref={menu} id={id} role="listbox" aria-label={ariaLabel ?? title ?? 'Pilih opsi'} className={`app-select-menu ${menuClassName}`} style={{ position: host ? 'absolute' : 'fixed', ...position }}>
+      {options.map((item, index) => <button key={`${item.value}-${index}`} id={`${id}-${index}`} type="button" role="option" aria-selected={item.value === current} disabled={item.disabled} className={`app-select-option ${index === active ? 'active' : ''} ${item.value === current ? 'selected' : ''}`} onPointerMove={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(item)}><span>{render ? render(item.value, 'menu') : showLabel(item.label)}</span>{item.value === current && <Check size={16} aria-hidden="true"/>}</button>)}
     </div>, host ?? document.body)}
   </span>;
 }
