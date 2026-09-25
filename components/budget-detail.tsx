@@ -132,7 +132,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
       <button type="button" onClick={() => onEdit(budget)}><Edit3 size={17}/><span>Ubah</span></button>
       <button type="button" onClick={() => onToggle(budget)}>{budget.active ? <Pause size={17}/> : <Play size={17}/>}<span>{budget.active ? 'Jeda' : 'Aktifkan'}</span></button>
       <button type="button" onClick={() => onCopy(budget)}><Copy size={17}/><span>Salin</span></button>
-      <Confirm title="Hapus anggaran?" description="Transaksi tetap ada. Hanya batas anggarannya yang dihapus." onConfirm={() => onDelete(budget)}><button type="button" className="danger"><Trash2 size={17}/><span>Hapus</span></button></Confirm>
+      <button type="button" className="danger" onClick={() => onDelete(budget)}><Trash2 size={17}/><span>Hapus</span></button>
     </div>
   </DialogContent></Dialog>;
 }

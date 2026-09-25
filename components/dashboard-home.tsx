@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Emoji } from './emoji';
 import { ArrowDown, ArrowLeftRight, ArrowUp, CalendarCheck, CalendarClock, CalendarDays, CreditCard, Landmark, Lock, Banknote, Scale, Settings2, Sparkles, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import dynamic from 'next/dynamic';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Empty, Select } from './fields';
@@ -12,8 +12,11 @@ import { PeriodSelector, usePeriodTransactions } from './period-selector';
 import { dropRow, ReorderHandle, reorder } from './reorder-handle';
 import { IdentityBadge } from './visual-identity';
 import { Delta } from './delta';
-import { CategoryDonut } from './category-donut';
-import { ForecastWidget } from './forecast';
+// Charts load after Beranda shows its numbers, keeping the chart library out of the first download.
+const chartLoading = () => <div className="chart-skeleton" aria-hidden="true"/>;
+const TrendMiniChart = dynamic(() => import('./trend-mini-chart'), { ssr: false, loading: chartLoading });
+const ForecastWidget = dynamic(() => import('./forecast').then(m => m.ForecastWidget), { ssr: false, loading: () => <div className="panel"><div className="chart-skeleton" aria-hidden="true"/></div> });
+const CategoryDonut = dynamic(() => import('./category-donut').then(m => m.CategoryDonut), { ssr: false, loading: chartLoading });
 import { budgetCurrent, metrics, rupiah } from '@/lib/accounting';
 import { budgetCommitted, commitments, upcomingEvents } from '@/lib/finance-control';
 import { categoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
@@ -53,7 +56,7 @@ function AnalyticsWidget({id,navigate,defaultPeriod,open}:{id:'topCategories'|'c
  const title=id==='topCategories'?'Kategori Teratas':id==='categoryDonut'?'Grafik Kategori':'Tren Pengeluaran';
  const total=categories.reduce((n,c)=>n+c.amount,0),prevTotal=previous.reduce((n,c)=>n+c.amount,0);
  if(id==='categoryDonut')return <section className="panel widget-details widget-static donut-widget"><div className="widget-head"><span><strong>Grafik Kategori</strong><small>{periodLabel(range)} · ketuk kategori untuk detail{!prevHistory.loading&&total>0&&<> · <Delta current={total} previous={prevTotal} good="down" basis={basis}/></>}</small></span><button type="button" className="link-button" onClick={()=>navigate('analytics')}>Analisis →</button></div><div className="widget-body">{history.error&&<p className="form-error" role="alert">{history.error}</p>}{categories.length?<CategoryDonut slices={categories} previous={previous} previousReady={!prevHistory.loading} navigate={navigate} basis={basis} rangeFocus={`@${range.start}..${range.end}`}/>:<Empty message={history.loading?'Memuat…':'Belum ada pengeluaran pada periode ini.'}/>}</div></section>;
- return <details className="panel widget-details" open={open||undefined}><summary><strong>{title}</strong><small>{periodLabel(range)}</small></summary><div className="widget-body">{history.error&&<p className="form-error" role="alert">{history.error}</p>}{id==='topCategories'?categories.slice(0,6).map(c=><button type="button" className="budget-line row-link" key={c.id} onClick={()=>navigate('transactions',`category:${c.id}@${range.start}..${range.end}`)}><IdentityBadge icon={c.icon} color={c.color} label={c.name}/><span className="row-amount"><strong>{rupiah(c.amount)}</strong>{!prevHistory.loading&&<Delta current={c.amount} previous={previous.find(p=>p.id===c.id)?.amount||0} good="down" basis={basis} compact/>}</span></button>):id==='expenseTrend'&&trend.length&&categories.length?<div className="chart-box"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend}><XAxis dataKey="label" tick={{fontSize:10,fill:'var(--muted)'}}/><Tooltip formatter={v=>rupiah(Number(v))}/><Line dataKey="expense" name="Pengeluaran" stroke="var(--accent)" strokeWidth={3}/></LineChart></ResponsiveContainer></div>:null}{!categories.length&&<Empty message={history.loading?'Memuat…':'Belum ada pengeluaran.'}/>}<button type="button" className="link-button" onClick={()=>navigate('analytics')}>Buka analisis →</button></div></details>;
+ return <details className="panel widget-details" open={open||undefined}><summary><strong>{title}</strong><small>{periodLabel(range)}</small></summary><div className="widget-body">{history.error&&<p className="form-error" role="alert">{history.error}</p>}{id==='topCategories'?categories.slice(0,6).map(c=><button type="button" className="budget-line row-link" key={c.id} onClick={()=>navigate('transactions',`category:${c.id}@${range.start}..${range.end}`)}><IdentityBadge icon={c.icon} color={c.color} label={c.name}/><span className="row-amount"><strong>{rupiah(c.amount)}</strong>{!prevHistory.loading&&<Delta current={c.amount} previous={previous.find(p=>p.id===c.id)?.amount||0} good="down" basis={basis} compact/>}</span></button>):id==='expenseTrend'&&trend.length&&categories.length?<div className="chart-box"><TrendMiniChart data={trend}/></div>:null}{!categories.length&&<Empty message={history.loading?'Memuat…':'Belum ada pengeluaran.'}/>}<button type="button" className="link-button" onClick={()=>navigate('analytics')}>Buka analisis →</button></div></details>;
 }
 
 export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;navigate:(view:string,focus?:string)=>void;notify:(message:string)=>void}){
