@@ -1490,8 +1490,6 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 .report-title h2 { font-size: clamp(1.25rem, 3vw, 1.6rem); letter-spacing: -.02em; }
 .report-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .analysis-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.report-kpi .stat-label { display: inline-flex; align-items: center; gap: 6px; }
-.report-kpi .stat-label svg { color: var(--accent); }
 .report-section { display: grid; gap: 14px; align-content: start; min-width: 0; animation: rise-in .28s var(--ease-out) both; }
 .report-section-head { display: flex; align-items: center; gap: 12px; }
 .report-section-head h3 { font-size: 1.02rem; }
@@ -1655,15 +1653,29 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .toast-progress i { background: var(--accent); box-shadow: none; border-radius: 0 2px 2px 0; }
 @media (max-width: 760px) { .toast-stack { left: 50%; right: auto; transform: translateX(-50%); width: min(360px, calc(100vw - 32px)); } }
 
-/* Icon in the corner of each summary card */
-.stat-card.stat-link { position: relative; }
-.stat-card.stat-link > .stat-label { padding-right: 40px; }
-.metric-icon { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); transition: transform .16s var(--ease-out); }
-.stat-card.stat-link:hover .metric-icon { transform: scale(1.08) rotate(-4deg); }
-.metric-icon.is-income { background: color-mix(in srgb, var(--positive) 14%, var(--paper)); color: var(--positive); }
-.metric-icon.is-expenses, .metric-icon.is-liabilities { background: color-mix(in srgb, var(--rose) 12%, var(--paper)); color: var(--rose); }
+/* Summary cards: the icon sits in the title row, so it always has its own space and never covers text. */
+.stat-head { display: flex; flex-wrap: wrap-reverse; align-items: flex-start; justify-content: space-between; gap: 4px 10px; min-width: 0; }
+/* The title never shrinks below its longest word; if that word and the icon do not fit side by side,
+   the icon moves up onto its own line (still on the right) instead of squeezing or covering the title. */
+.stat-head > .stat-label { flex: 1 1 0; min-width: min(100%, min-content); padding-top: 6px; overflow-wrap: break-word; }
+.stat-head > .metric-icon { margin-left: auto; }
+.metric-icon { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin: -2px -4px 0 0; border-radius: 10px; background: var(--accent-soft); color: var(--accent); transition: transform .16s var(--ease-out); }
+.stat-card:hover .metric-icon { transform: scale(1.08) rotate(-4deg); }
+.metric-icon.is-income, .metric-icon.is-in { background: color-mix(in srgb, var(--positive) 14%, var(--paper)); color: var(--positive); }
+.metric-icon.is-expenses, .metric-icon.is-liabilities, .metric-icon.is-out { background: color-mix(in srgb, var(--rose) 12%, var(--paper)); color: var(--rose); }
 .stat-card.featured .metric-icon { background: #ffffff26; color: #fff; }
-@media (max-width: 760px) { .metric-icon { top: 11px; right: 11px; width: 30px; height: 30px; border-radius: 10px; } .metric-icon svg { width: 16px; height: 16px; } .stat-card.stat-link > .stat-label { padding-right: 34px; } }
+.stat-head + .stat-value { margin-top: 4px; }
+@media (max-width: 760px) { .metric-icon { width: 28px; height: 28px; border-radius: 9px; margin: -2px -3px 0 0; } .metric-icon svg { width: 15px; height: 15px; } .stat-head > .stat-label { padding-top: 5px; } }
+
+/* The change label may wrap on very narrow cards instead of sticking out. */
+.stat-card > .delta { max-width: 100%; flex-wrap: wrap; white-space: normal; }
+.stat-card { min-width: 0; }
+
+/* Summary-card grids: as many columns as fit while each card keeps enough room for its title and icon.
+   The minimum grows with the text size, so large text drops to fewer, wider cards instead of squeezing. */
+@media (max-width: 760px) {
+  .report-kpis, .analysis-kpis, .metric-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.2rem), 1fr)) !important; }
+}
 
 /* ==========================================================================
    99. Phones: every dialog is a full-width bottom sheet (except the notification centre,
