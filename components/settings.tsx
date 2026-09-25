@@ -1,4 +1,5 @@
 'use client';
+import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
 import { BellRing, Check, ChevronLeft, ChevronRight, DatabaseBackup, Download, FileJson, History, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, ShieldCheck, SlidersHorizontal, Smartphone, Upload, UserRound, Wallet, type LucideIcon } from 'lucide-react';
@@ -77,7 +78,7 @@ export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>v
  const r=reminderConfig(profile);
  const summaries:Record<Section,string>={
   profile:`Gajian tanggal ${profile?.salaryCycleStartDay||24} · ${rupiah(profile?.monthlySalary||0)}`,
-  security:`${profile?.pinHash?'PIN aktif':'PIN belum aktif'} · password`,
+  security:`${profile?.pinHash?(biometricEnabled(user?.uid||'')?'PIN & sidik jari aktif':'PIN aktif'):'PIN belum aktif'} · password`,
   reminders:[r.balanceEnabled?`Perbarui saldo ${r.times.length}× sehari`:'Perbarui saldo mati',r.billsEnabled?'tagihan aktif':'tagihan mati'].join(' · '),
   appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${(profile?.fontSize||'m').toUpperCase()}`,
   app:pwa.installed?'Terpasang di perangkat ini':'Pasang ke layar utama',

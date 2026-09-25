@@ -3407,6 +3407,45 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 @media (prefers-reduced-motion: reduce) { .btn, .link-button, .icon-btn { transition: none; } .btn-primary::after { display: none; } }
 
 /* ==========================================================================
+   67. Fingerprint / face unlock
+   ========================================================================== */
+.bio-button { position: relative; display: grid; place-items: center; width: 132px; height: 132px; margin: 18px 0 6px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.bio-core { position: relative; z-index: 1; display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #7b5cff 0%, var(--accent) 55%, #2fb7a3 100%); box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 2px 0 rgba(255, 255, 255, .3), inset 0 -6px 14px rgba(0, 0, 0, .12); transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .3s ease, box-shadow .3s ease; }
+.bio-core::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, transparent 40%, rgba(255, 255, 255, .55) 50%, transparent 60%); background-size: 100% 220%; background-position: 0 -120%; opacity: 0; pointer-events: none; }
+.bio-button:hover .bio-core { transform: scale(1.04); }
+.bio-button:active .bio-core { transform: scale(.94); }
+.bio-rings { position: absolute; inset: 0; }
+.bio-rings i { position: absolute; inset: 18px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); opacity: 0; animation: bio-pulse 2.4s ease-out infinite; }
+.bio-rings i:nth-child(2) { animation-delay: .8s; }
+.bio-rings i:nth-child(3) { animation-delay: 1.6s; }
+.bio-button.is-scanning .bio-core::after { opacity: 1; animation: bio-scan 1.1s ease-in-out infinite; }
+.bio-button.is-scanning .bio-rings i { animation-duration: 1.2s; }
+.bio-button.is-ok .bio-core { background: linear-gradient(135deg, #34c38f, var(--positive)); box-shadow: 0 14px 34px color-mix(in srgb, var(--positive) 45%, transparent); animation: bio-pop .42s cubic-bezier(.2, .8, .2, 1); }
+.bio-button.is-ok .bio-rings i { border-color: color-mix(in srgb, var(--positive) 55%, transparent); }
+.bio-button.is-fail .bio-core { background: linear-gradient(135deg, #f07b8a, var(--rose)); box-shadow: 0 14px 34px color-mix(in srgb, var(--rose) 40%, transparent); animation: bio-shake .38s ease; }
+.bio-button.is-fail .bio-rings i { animation: none; }
+.bio-button:disabled { cursor: default; }
+.bio-message { min-height: 1.4em; }
+.bio-switch { margin-top: 4px; }
+@keyframes bio-pulse { 0% { transform: scale(.85); opacity: .75; } 100% { transform: scale(1.35); opacity: 0; } }
+@keyframes bio-scan { 0% { background-position: 0 -120%; } 100% { background-position: 0 120%; } }
+@keyframes bio-pop { 0% { transform: scale(.9); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes bio-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 50% { transform: translateX(7px); } 75% { transform: translateX(-4px); } }
+@media (prefers-reduced-motion: reduce) { .bio-rings i, .bio-core, .bio-core::after { animation: none !important; } }
+
+/* Settings block */
+.bio-settings { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 14px; padding: 14px 16px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); background: linear-gradient(120deg, color-mix(in srgb, #7b5cff 7%, var(--paper)), color-mix(in srgb, var(--accent) 6%, var(--paper))); }
+.bio-settings.is-on { border-color: color-mix(in srgb, var(--positive) 35%, var(--line)); background: linear-gradient(120deg, color-mix(in srgb, var(--positive) 9%, var(--paper)), color-mix(in srgb, var(--accent) 5%, var(--paper))); }
+.bio-settings-icon { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; color: #fff; background: linear-gradient(135deg, #7b5cff, var(--accent) 60%, #2fb7a3); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent); }
+.bio-settings.is-on .bio-settings-icon { background: linear-gradient(135deg, #34c38f, var(--positive)); }
+.bio-settings-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.bio-settings-text strong { font-size: .95rem; }
+.bio-settings-text small { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.bio-settings.is-on .bio-settings-text small { color: var(--positive); font-weight: 700; }
+.bio-hint { display: flex; align-items: center; gap: 6px; font-size: .8rem; }
+@media (max-width: 1100px) { .bio-settings { grid-template-columns: auto minmax(0, 1fr); } .bio-settings .btn { grid-column: 1 / -1; width: 100%; } }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
