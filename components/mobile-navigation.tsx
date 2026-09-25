@@ -14,7 +14,7 @@ const tabs: { key: string; label: string; icon: LucideIcon }[] = [
 ];
 const groups = [
   { label: 'Keuangan', items: ['advisor', 'budgets', 'funds', 'wishlist', 'owed', 'schedule'] },
-  { label: 'Laporan & lainnya', items: ['reports', 'categories', 'settings'] },
+  { label: 'Laporan & lainnya', items: ['reports', 'categories', 'settings', 'help'] },
 ];
 
 export function MobileNavigation({ view, items, onNavigate, openTx }: { view: string; items: { key: string; label: string; icon: LucideIcon }[]; onNavigate: (key: string) => void; openTx: (preset?: Partial<LedgerTx>) => void }) {

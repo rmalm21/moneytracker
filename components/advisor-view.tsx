@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { AppIcon, identityStyle } from './visual-identity';
 import { analyzeFinances, pastCycles, type Advice, type Apply, type CalcRow, type Finding, type Tone } from '@/lib/advisor';
 import { budgetWindow, metrics, rupiah } from '@/lib/accounting';
-import { commitments } from '@/lib/finance-control';
+import { committedAmount } from '@/lib/finance-control';
 import { saveProfile, saveRecord } from '@/lib/firestore';
 import { InsightProfileSheet } from './insight-profile-sheet';
 import { InsightLayoutSheet, defaultSections } from './insight-layout-sheet';
@@ -163,10 +163,10 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const advice: Advice | null = useMemo(() => {
     if (history.loading) return null;
     const stat = metrics(data, cycle.start, cycle.end, salaryDay, day, Boolean(profile?.netWorthIncludesReceivables));
-    const committed = profile?.excludeCommittedFromAvailable === false ? 0 : commitments(data, { start: today, end: cycle.end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0);
+    const committed = committedAmount(data, today, cycle.end, profile || {}) + Math.max(0, profile?.freeMoneyBuffer || 0);
     return analyzeFinances({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, profile: profile?.insightProfile });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.monthlySalary, profile?.insightProfile]);
+  }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.commitmentHorizon, profile?.freeMoneyBuffer, profile?.monthlySalary, profile?.insightProfile]);
 
   function hide(id: string) { const next = [...new Set([...hidden, id])]; setHidden(next); if (user) try { localStorage.setItem(hiddenKey(user.uid), JSON.stringify(next)); } catch { /* per-device preference */ } }
   function restore() { setHidden([]); setShowHidden(false); if (user) try { localStorage.removeItem(hiddenKey(user.uid)); } catch { /* per-device preference */ } }

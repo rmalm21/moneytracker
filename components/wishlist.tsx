@@ -11,7 +11,7 @@ import { Emoji, emojiKey } from './emoji';
 import { ReorderHandle, reorder } from './reorder-handle';
 import { IconChoice } from './visual-identity';
 import { metrics, rupiah } from '@/lib/accounting';
-import { commitments } from '@/lib/finance-control';
+import { availableMoney, committedAmount } from '@/lib/finance-control';
 import { deleteWish, saveDisplayOrder, saveWish } from '@/lib/firestore';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { coolingDays, coolingLeft, daysBetween, eta, monthlyForDate, priorityLabels, progress, readiness, remaining, sortWishes, wishColors, wishEmojis, wishSummary } from '@/lib/wishlist';
@@ -45,7 +45,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
   const [order, setOrder] = useState<string[] | null>(null);
   const all = data.wishlist || [];
   const summary = wishSummary(all);
-  const freeAfterBills = useMemo(() => { const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day); const committed = commitments(data, { start: today, end: cycle.end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0); return stat.free - committed; }, [data, cycle.start, cycle.end, profile?.salaryCycleStartDay, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const freeAfterBills = useMemo(() => { const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day); return availableMoney(stat.free, committedAmount(data, today, cycle.end, profile || {}), profile || {}); }, [data, cycle.start, cycle.end, profile?.salaryCycleStartDay, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const active = all.filter(w => w.status === 'active'), bought = all.filter(w => w.status === 'bought').sort((a, b) => (b.boughtDate || '').localeCompare(a.boughtDate || ''));
   const sorted = sortWishes(active, sort, today);
   const shown = tab === 'bought' ? bought : order && sort === 'manual' ? order.map(id => sorted.find(w => w.id === id)).filter((w): w is WishItem => Boolean(w)).concat(sorted.filter(w => !order.includes(w.id))) : sorted;

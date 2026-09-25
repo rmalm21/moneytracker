@@ -22,6 +22,20 @@ export function commitments(data:Data,range?:DateRange):Commitment[]{
   }
   return items.filter(item=>!range||inRange(item.date,range));
 }
+/** Settings that turn Uang bebas into Uang tersedia. */
+export type AvailabilitySettings = { excludeCommittedFromAvailable?: boolean; commitmentHorizon?: 'week'|'cycle'|'month'; freeMoneyBuffer?: number };
+export const horizonLabels: Record<NonNullable<AvailabilitySettings['commitmentHorizon']>, string> = { week: '7 hari ke depan', cycle: 'Sampai gajian', month: '30 hari ke depan' };
+/** Unpaid bills and plans that count against free money: overdue ones plus those within the chosen horizon. */
+export function committedAmount(data: Data, today: string, cycleEnd: string, settings: AvailabilitySettings = {}) {
+  if (settings.excludeCommittedFromAvailable === false) return 0;
+  const shift = (days: number) => { let d = today; for (let i = 0; i < days; i++) d = nextDate(d); return d; };
+  const end = settings.commitmentHorizon === 'week' ? shift(7) : settings.commitmentHorizon === 'month' ? shift(30) : cycleEnd;
+  return commitments(data, { start: today, end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0);
+}
+/** Uang tersedia = uang bebas − tagihan & rencana (per the horizon) − cadangan aman. */
+export function availableMoney(free: number, committed: number, settings: AvailabilitySettings = {}) {
+  return free - committed - Math.max(0, settings.freeMoneyBuffer || 0);
+}
 export function budgetCommitted(budget:Budget,data:Data,asOf:Date,salaryDay:number){
   const window=budgetWindow(budget,asOf,salaryDay);
   const children=new Set(data.categories.filter(c=>c.parentId===budget.categoryId).map(c=>c.id));
