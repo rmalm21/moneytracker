@@ -152,6 +152,16 @@ export function ReminderSettings() {
     <label className="switch-row"><input type="checkbox" checked={draft.budgetAlerts !== false} onChange={e => set({ budgetAlerts: e.target.checked })}/><span><strong>Peringatan anggaran</strong><small>Saat anggaran mencapai batas peringatan dan saat terlampaui (sekali per periode).</small></span></label>
 
     <div className="settings-actions start"><Button type="button" disabled={!dirty} onClick={() => void save()}><Check size={16}/> Simpan pengingat</Button>{permission === 'granted' && <Button type="button" variant="secondary" onClick={() => { void showSystemNotification('Contoh pengingat 💰', 'Waktunya perbarui saldo dompetmu.', '/?view=wallets', 'test'); push({ title: 'Contoh pengingat 💰', body: 'Waktunya perbarui saldo dompetmu.', kind: 'info', app: true, history: false }); }}><Send size={15}/> Coba kirim</Button>}</div>
+    <details className="notif-guide">
+      <summary>Notifikasi hanya muncul di bilah atas? Buat melayang seperti WhatsApp</summary>
+      <ol>
+        <li>Buka <b>Pengaturan HP → Aplikasi → Dompet Ajaib</b> (kalau belum dipasang ke layar utama: aplikasi <b>Chrome</b>).</li>
+        <li>Pilih <b>Notifikasi</b>, lalu ketuk kategori notifikasi Dompet Ajaib (di Chrome: <b>Situs → dompetajaib…</b>).</li>
+        <li>Aktifkan <b>Tampilkan sebagai pop-up</b> / <b>Pop on screen</b> dan pilih suara. Di HP Samsung: gaya <b>Peringatan</b>; di Xiaomi: <b>Notifikasi mengambang</b>.</li>
+        <li>Tekan <b>Coba kirim</b> di atas lalu keluar dari aplikasi untuk mengecek.</li>
+      </ol>
+      <small>Android menyimpan pilihan "melayang" per aplikasi, jadi harus diatur sekali dari pengaturan HP — aplikasi web tidak bisa mengubahnya sendiri.</small>
+    </details>
     <small className="muted">Pengingat dikirim oleh aplikasi di perangkat ini. Agar tepat waktu, pasang Dompet Ajaib ke layar utama dan jangan tutup paksa. Jika aplikasi baru dibuka setelah jamnya lewat (maks. 3 jam), pengingat muncul saat dibuka. Di iPhone perlu iOS 16.4+ dengan aplikasi terpasang.</small>
   </div>;
 }

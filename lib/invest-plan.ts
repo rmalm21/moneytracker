@@ -34,13 +34,31 @@ export const equitySectors: { name: string; share: number; note: string }[] = [
 
 export type PlanItem = Instrument & { share: number; amount: number };
 /** Allocation for a lump sum. Short horizons stay in cash-like instruments whatever the risk profile. */
-export function allocation(risk: RiskProfile, horizon: Horizon, experience: Experience, amount: number): PlanItem[] {
+/** Sharia-compliant names and examples for the same kinds of instruments. */
+const syariahNames: Partial<Record<InstrumentKey, Pick<Instrument, 'name' | 'examples'>>> = {
+  rdpu: { name: 'Reksa dana pasar uang syariah', examples: 'RDPU syariah di aplikasi terdaftar OJK' },
+  deposito: { name: 'Deposito syariah', examples: 'Deposito mudharabah bank syariah (dijamin LPS)' },
+  sbn: { name: 'SBSN ritel (sukuk)', examples: 'Sukuk Ritel (SR) dan Sukuk Tabungan (ST)' },
+  obligasi: { name: 'Reksa dana sukuk / pendapatan tetap syariah', examples: 'Reksa dana sukuk negara/korporasi' },
+  saham: { name: 'Saham syariah / reksa dana indeks syariah', examples: 'Indeks ISSI, JII, JII70' },
+  emas: { name: 'Emas', examples: 'Emas batangan atau emas digital syariah' },
+};
+export const instrumentChoices = (Object.keys(instruments) as InstrumentKey[]).map(key => ({ key, name: instruments[key].name }));
+
+export function allocation(risk: RiskProfile, horizon: Horizon, experience: Experience, amount: number, prefs: { syariah?: boolean; excluded?: string[] } = {}): PlanItem[] {
   let mix: Partial<Record<InstrumentKey, number>> = { ...base[risk] };
   if (horizon === 'short') mix = { rdpu: 60, deposito: 40 };
   else if (horizon === 'mid' && (mix.saham || 0) > 30) { const move = (mix.saham || 0) - 30; mix.saham = 30; mix.obligasi = (mix.obligasi || 0) + move; }
   // First-time investors start smaller in stocks; the rest goes to steadier funds.
   if (experience === 'none' && (mix.saham || 0) > 20) { const move = (mix.saham || 0) - 20; mix.saham = 20; mix.rdpu = (mix.rdpu || 0) + Math.round(move / 2); mix.obligasi = (mix.obligasi || 0) + move - Math.round(move / 2); }
-  const items = (Object.entries(mix) as [InstrumentKey, number][]).filter(([, share]) => share > 0).map(([key, share]) => ({ ...instruments[key], share, amount: Math.round(amount * share / 100 / 1000) * 1000 }));
+  // Instruments the user doesn't want: share their part among the rest (money market as the last resort).
+  const excluded = new Set(prefs.excluded || []);
+  let removed = 0;
+  for (const key of Object.keys(mix) as InstrumentKey[]) if (excluded.has(key)) { removed += mix[key] || 0; delete mix[key]; }
+  const kept = Object.keys(mix) as InstrumentKey[];
+  if (!kept.length) { const fallback = (Object.keys(instruments) as InstrumentKey[]).find(k => !excluded.has(k)) || 'rdpu'; mix = { [fallback]: 100 }; removed = 0; }
+  else if (removed) { const total = kept.reduce((n, k) => n + (mix[k] || 0), 0); let given = 0; kept.forEach((k, i) => { const add = i === kept.length - 1 ? removed - given : Math.round(removed * (mix[k] || 0) / total); given += add; mix[k] = (mix[k] || 0) + add; }); }
+  const items = (Object.entries(mix) as [InstrumentKey, number][]).filter(([, share]) => share > 0).map(([key, share]) => ({ ...instruments[key], ...(prefs.syariah ? syariahNames[key] : {}), share, amount: Math.round(amount * share / 100 / 1000) * 1000 }));
   return items.sort((a, b) => b.share - a.share);
 }
 export const blendedReturn = (items: { share: number; ret: number }[]) => items.reduce((n, i) => n + i.share / 100 * i.ret, 0);

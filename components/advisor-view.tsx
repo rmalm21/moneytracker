@@ -324,7 +324,7 @@ function ProfileBar({ personal, onEdit }: { personal: InsightProfile; onEdit: ()
     <div><strong>Buat Insight sesuai dirimu</strong><small>Jawab kuis profil risiko dan isi target tabungan, dana darurat, serta prioritasmu (±1 menit). Saran investasi dan batas anggaran akan menyesuaikan.</small></div>
     <Button onClick={onEdit}><SlidersHorizontal size={16}/> Mulai personalisasi</Button>
   </section>;
-  const chips: [string, string][] = [['Profil risiko', riskLabels[personal.risk].label], ['Target tabungan', pct(personal.savingsTarget)], ['Dana darurat', `${personal.emergencyMonths} bulan`], ['Prioritas', priorityLabels[personal.priority]]];
+  const chips: [string, string][] = [['Profil risiko', riskLabels[personal.risk].label], ['Target tabungan', pct(personal.savingsTarget)], ['Dana darurat', personal.emergencyMode === 'amount' ? short(personal.emergencyAmount) : `${personal.emergencyMonths} bulan`], ['Prioritas', priorityLabels[personal.priority]]];
   return <section className="ins-profile-bar">
     <span className="ins-personalize-icon" aria-hidden="true"><UserRound size={18}/></span>
     <div className="ins-profile-chips">{chips.map(([label, value]) => <span key={label}><small>{label}</small><strong>{value}</strong></span>)}</div>

@@ -103,9 +103,10 @@ test('insight profile fills defaults and sizes the emergency fund to the househo
   assert.equal(suggestedEmergencyMonths({ household: 'single', dependants: 0, income: 'variable' }), 6);
   assert.equal(resolveInsightProfile({ household: 'couple' }).emergencyMonths, 6);
   assert.equal(resolveInsightProfile({ emergencyMonths: 9 }).emergencyMonths, 9);
-  const quiz = scoreRiskQuiz({ drop: 3, goal: 3, when: 3, exp: 3, share: 3 });
-  assert.deepEqual([quiz.risk, quiz.horizon, quiz.experience], ['agresif', 'long', 'experienced']);
-  assert.equal(scoreRiskQuiz({ drop: 1, goal: 1, when: 1, exp: 1, share: 2 }).risk, 'konservatif');
+  const quiz = scoreRiskQuiz({ drop: 3, when: 3, share: 3 });
+  assert.deepEqual([quiz.risk, quiz.horizon, quiz.score, quiz.max], ['agresif', 'long', 9, 9]);
+  assert.equal(scoreRiskQuiz({ drop: 1, when: 1, share: 2 }).risk, 'konservatif');
+  assert.equal(scoreRiskQuiz({ drop: 2, when: 2, share: 2 }).risk, 'moderat');
 });
 
 test('investment mix follows risk and horizon', () => {
@@ -184,4 +185,21 @@ test('unspent budgets, goal set-asides and wish list money are not idle; the bre
   const bigBudget = run({ budgets: [{ id: 'bb', name: '', categoryId: 'fun', subcategoryId: null, amount: 12_000_000, classification: 'living', cycleType: 'salary', rolloverEnabled: false, active: true }] });
   assert.ok(bigBudget.idle.budgetReserve > 11_000_000);
   assert.ok(bigBudget.idle.operational < plain.idle.operational);
+});
+
+test('personal overrides: fixed emergency amount, monthly need, buffer, idle minimum, syariah and excluded instruments', () => {
+  const wallets = [{ id: 'op', name: 'BCA', type: 'bank', group: 'operational', cachedBalance: 20_000_000, isArchived: false }, { id: 'sv', name: 'Tabungan', type: 'savings', group: 'savings', cachedBalance: 30_000_000, isArchived: false }];
+  const run = profile => { const data = { ...sampleData(), wallets }; return analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 20_000_000, reserved: 30_000_000, netWorth: 0, liabilities: 0 }, committed: 0, profile }); };
+  const a = run({ emergencyMode: 'amount', emergencyAmount: 25_000_000, monthlyNeed: 5_000_000, buffer: .3, risk: 'agresif', horizon: 'long', syariah: true, excluded: ['saham'] });
+  assert.equal(a.idle.emergencyTarget, 25_000_000);
+  assert.equal(a.idle.monthlyNeed, 5_000_000);
+  assert.equal(a.idle.needSource, 'profile');
+  assert.equal(a.idle.savingsExcess, 5_000_000);
+  assert.ok(a.idle.opCalc.some(r => r.label.includes('30%') && r.amount === 1_500_000));
+  assert.ok(a.invest.items.every(i => i.key !== 'saham'));
+  assert.equal(a.invest.items.reduce((n, i) => n + i.share, 0), 100);
+  assert.ok(a.invest.items.some(i => /sukuk|syariah/i.test(i.name)));
+  const high = run({ idleMinimum: 100_000_000 });
+  assert.ok(!high.wealth.some(f => f.id === 'idle-operational' || f.id === 'idle-savings'));
+  assert.equal(run({ monthlyIncome: 12_000_000 }).summary.avgIncome, 12_000_000);
 });

@@ -3678,6 +3678,73 @@ html, body { overscroll-behavior-x: none; }
 @media (prefers-reduced-motion: reduce) { .heads-up { animation: none; } }
 
 /* ==========================================================================
+   72. Insight personalisation sheet v2: summary, tabs, risk cards, sliders, switches
+   ========================================================================== */
+.insight-profile-dialog .modal-body { display: flex; flex-direction: column; gap: 14px; padding-bottom: 0; }
+.insight-profile-dialog .ip-actions { position: sticky; bottom: 0; z-index: 3; margin: 0 -24px; padding: 12px 24px max(14px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); box-shadow: 0 -10px 24px color-mix(in srgb, var(--paper) 80%, transparent); }
+@media (max-width: 760px) { .insight-profile-dialog .ip-actions { margin-inline: -18px; padding-inline: 18px; } }
+.ip-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ip-summary span { display: grid; gap: 1px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); min-width: 0; }
+.ip-summary small { font-size: .7rem; color: var(--muted); font-weight: 600; }
+.ip-summary strong { font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ip-tabs { position: sticky; top: -1px; z-index: 2; flex: none; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.ip-tabs::-webkit-scrollbar { display: none; }
+.ip-tabs button { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 0 8px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.ip-tabs button.active { background: var(--paper); color: var(--accent); box-shadow: 0 2px 8px rgba(16, 42, 54, .1); }
+.ip-panel { flex: 1 0 auto; display: grid; gap: 16px; min-height: 280px; align-content: start; animation: fade-panel .2s ease both; }
+@keyframes fade-panel { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ip-row { display: grid; gap: 8px; }
+.ip-row-head { display: grid; gap: 2px; }
+.ip-row-head strong { font-size: .9rem; }
+.ip-row-head small { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+.ip-risk-cards { display: grid; gap: 8px; }
+.ip-risk { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; row-gap: 2px; align-items: center; padding: 12px 40px 12px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.ip-risk strong { font-size: .95rem; }
+.ip-risk small { grid-column: 2; font-size: .78rem; color: var(--muted); line-height: 1.4; }
+.ip-risk-bars { grid-row: span 2; display: flex; align-items: flex-end; gap: 3px; height: 26px; padding: 0 2px; }
+.ip-risk-bars i { width: 6px; border-radius: 3px; background: var(--line-strong); }
+.ip-risk-bars i:nth-child(1) { height: 10px; } .ip-risk-bars i:nth-child(2) { height: 17px; } .ip-risk-bars i:nth-child(3) { height: 24px; }
+.ip-risk-bars i.on { background: var(--accent); }
+.ip-risk.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ip-risk-check { position: absolute; right: 14px; top: 50%; margin-top: -8px; color: var(--accent); }
+.ip-quiz-box { border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.ip-quiz-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 11px 14px; border: 0; background: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; }
+.ip-quiz-toggle svg:last-child { margin-left: auto; transition: transform .2s; }
+.ip-quiz-box.open .ip-quiz-toggle svg:last-child { transform: rotate(180deg); }
+.ip-quiz-box .ip-quiz { padding: 0 14px 14px; gap: 12px; }
+.ip-quiz-result { display: block !important; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); font-size: .84rem; color: var(--ink); }
+.ip-seg { display: inline-flex; padding: 3px; gap: 3px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--line); justify-self: start; }
+.ip-seg button { min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.ip-seg button.active { background: var(--paper); color: var(--accent); box-shadow: 0 2px 6px rgba(16, 42, 54, .1); }
+.ip-slider { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.ip-slider output { min-width: 3.6em; padding: 5px 10px; border-radius: 10px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); color: var(--accent); }
+.ip-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--accent) var(--p), color-mix(in srgb, var(--accent) 14%, var(--paper-2)) var(--p)); outline: none; }
+.ip-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--paper); border: 3px solid var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, .2); cursor: pointer; }
+.ip-slider input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--paper); border: 3px solid var(--accent); cursor: pointer; }
+.ip-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ip-switch > span { display: grid; gap: 2px; min-width: 0; }
+.ip-switch strong { font-size: .9rem; }
+.ip-switch small { font-size: .76rem; color: var(--muted); }
+.ip-switch > i { flex: none; position: relative; width: 44px; height: 26px; border-radius: 99px; background: var(--line-strong); transition: background .2s; }
+.ip-switch > i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s; }
+.ip-switch.on > i { background: var(--accent); }
+.ip-switch.on > i::after { transform: translateX(18px); }
+.ip-instruments { display: grid; gap: 6px; }
+.ip-instruments button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--muted); font: inherit; font-size: .86rem; font-weight: 600; text-align: left; cursor: pointer; text-decoration: line-through; }
+.ip-instruments button.active { color: var(--ink); text-decoration: none; border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--paper)); }
+.ip-instruments button svg { color: var(--accent); flex: none; }
+.ip-off { width: 14px; height: 14px; flex: none; border-radius: 4px; border: 2px solid var(--line-strong); }
+.ip-note { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; color: var(--muted); font-size: .8rem; }
+.ip-actions { display: flex; align-items: center; gap: 8px; }
+.ip-actions > .link-button { margin-right: auto; }
+@media (max-width: 760px) { .ip-actions .btn { flex: 1; } .ip-actions > .link-button { flex: none; } .ip-tabs button { flex-direction: column; gap: 1px; min-height: 46px; font-size: .7rem; border-radius: 16px; } .ip-tabs { border-radius: 20px; } }
+
+.notif-guide { border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--paper)); padding: 0 14px; }
+.notif-guide > summary { padding: 12px 0; font-weight: 700; font-size: .88rem; color: var(--accent); cursor: pointer; }
+.notif-guide ol { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 6px; font-size: .84rem; line-height: 1.45; }
+.notif-guide > small { display: block; padding-bottom: 12px; color: var(--muted); font-size: .78rem; }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
