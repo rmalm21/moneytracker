@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useBackHandler } from './back-guard';
 import { BellRing, Check, ChevronLeft, ChevronRight, DatabaseBackup, Download, FileJson, History, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, ShieldCheck, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
@@ -40,6 +41,7 @@ export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>v
  const [section,setSection]=useState<Section|null>(null),[wide,setWide]=useState(false);
  useEffect(()=>{const media=window.matchMedia('(min-width: 900px)');const update=()=>setWide(media.matches);update();media.addEventListener('change',update);return ()=>media.removeEventListener('change',update)},[]);
  const active=section??(wide?'profile':null);
+ useBackHandler(Boolean(section)&&!wide,()=>setSection(null));
  function open(key:Section){setSection(key);setError('');if(!wide)window.scrollTo({top:0})}
  const r=reminderConfig(profile);
  const summaries:Record<Section,string>={
