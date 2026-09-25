@@ -153,3 +153,35 @@ test('idle money is found and routed: emergency fund first, then investing by pr
   // Savings target is personal.
   assert.equal(run({ savingsTarget: .5 }).personal.savingsTarget, .5);
 });
+
+const calcTotal = rows => rows.reduce((n, r) => r.op === '-' ? n - r.amount : r.op === '=' || r.op === '×' ? n : n + r.amount, 0);
+
+test('thin history does not call the whole balance idle: salary-based needs and budgets are reserved', () => {
+  n = 0;
+  // Only a few small expenses recorded this cycle, salary known.
+  const history = [tx('expense', 20_000, '2026-09-26', 'food'), tx('expense', 15_000, '2026-09-27', 'snack')];
+  const wallets = [{ id: 'op', name: 'BCA', type: 'bank', group: 'operational', cachedBalance: 5_476_000, isArchived: false }, { id: 'sv', name: 'Tabungan', type: 'savings', group: 'savings', cachedBalance: 912_000, isArchived: false }];
+  const data = { ...sampleData(), wallets, transactions: history, budgets: [] };
+  const a = analyzeFinances({ data, history, today: '2026-09-27', salaryDay: 25, monthlySalary: 8_500_000, warnPercent: 80, stat: { free: 5_476_000, reserved: 912_000, netWorth: 0, liabilities: 0 }, committed: 0 });
+  assert.equal(a.idle.needSource, 'salary');
+  assert.equal(a.idle.monthlyNeed, 6_800_000);
+  assert.equal(a.idle.operational, 0, 'nothing idle: salary-based needs until payday exceed the balance');
+  assert.ok(!a.wealth.some(f => f.id === 'idle-operational'));
+  assert.ok(a.idle.emergencyTarget >= 6_800_000 * 3);
+});
+
+test('unspent budgets, goal set-asides and wish list money are not idle; the breakdown adds up', () => {
+  const base = sampleData();
+  const wallets = [{ id: 'op', name: 'BCA', type: 'bank', group: 'operational', cachedBalance: 20_000_000, isArchived: false }];
+  const run = extra => { const data = { ...base, wallets, ...extra }; return analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 20_000_000, reserved: 0, netWorth: 0, liabilities: 0 }, committed: 0 }); };
+  const plain = run({});
+  const withWish = run({ wishlist: [{ id: 'w1', name: 'Laptop', emoji: '💻', price: 15_000_000, saved: 3_000_000, monthly: 1_000_000, priority: 1, status: 'active', addedDate: '2026-09-01', history: [] }] });
+  assert.ok(withWish.idle.operational <= plain.idle.operational - 3_000_000 - 1_000_000 + 1, `${withWish.idle.operational} vs ${plain.idle.operational}`);
+  assert.ok(withWish.paycheck.some(r => r.key === 'wish'));
+  const f = withWish.wealth.find(x => x.id === 'idle-operational');
+  assert.ok(f && f.calc.length >= 4);
+  assert.equal(Math.round(calcTotal(f.calc.slice(0, -1))), Math.round(f.calc.at(-1).amount));
+  const bigBudget = run({ budgets: [{ id: 'bb', name: '', categoryId: 'fun', subcategoryId: null, amount: 12_000_000, classification: 'living', cycleType: 'salary', rolloverEnabled: false, active: true }] });
+  assert.ok(bigBudget.idle.budgetReserve > 11_000_000);
+  assert.ok(bigBudget.idle.operational < plain.idle.operational);
+});
