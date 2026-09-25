@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BellRing, Check, ChevronLeft, ChevronRight, DatabaseBackup, Download, FileJson, History, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, ShieldCheck, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { BellRing, Check, ChevronLeft, ChevronRight, DatabaseBackup, Download, FileJson, History, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, ShieldCheck, SlidersHorizontal, Smartphone, Upload, UserRound, Wallet, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
 import { Field, FormActions, Input, Money, Select } from './fields';
@@ -14,7 +14,9 @@ import { changePassword, friendlyError, logout } from '@/lib/auth';
 import { exportData, importData, saveProfile, validateBackup } from '@/lib/firestore';
 import type { TimeZone } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
-import { rupiah } from '@/lib/accounting';
+import { metrics, rupiah } from '@/lib/accounting';
+import { commitments } from '@/lib/finance-control';
+import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { themes } from '@/lib/appearance';
 /** A tappable row that jumps to another page. */
 function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick?: () => void }) {
@@ -30,11 +32,40 @@ const sections: { key: Section; title: string; detail: string; icon: LucideIcon;
   { key: 'reminders', title: 'Pengingat', detail: 'Jam pengingat perbarui saldo dan tagihan.', icon: BellRing, group: 'Aplikasi', tone: 'amber' },
   { key: 'appearance', title: 'Tampilan', detail: 'Tema warna, mode layar, dan ukuran teks.', icon: Palette, group: 'Aplikasi', tone: 'pink' },
   { key: 'app', title: 'Aplikasi di perangkat', detail: 'Pasang ke layar utama agar bisa dibuka offline.', icon: Smartphone, group: 'Aplikasi', tone: 'violet' },
-  { key: 'control', title: 'Kontrol keuangan', detail: 'Cara menghitung uang bebas dan batas transaksi besar.', icon: SlidersHorizontal, group: 'Keuangan & data', tone: 'green' },
+  { key: 'control', title: 'Kontrol keuangan', detail: 'Cara menghitung uang bebas dan aset bersih.', icon: SlidersHorizontal, group: 'Keuangan & data', tone: 'green' },
   { key: 'data', title: 'Data & cadangan', detail: 'Unduh cadangan atau pulihkan data dari file.', icon: DatabaseBackup, group: 'Keuangan & data', tone: 'slate' },
 ];
 
-export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void}){const {user,profile,data}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[threshold,setThreshold]=useState(profile?.largeTransactionThreshold||500000),[current,setCurrent]=useState(''),[newPass,setNewPass]=useState(''),[repeat,setRepeat]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
+/** Uang bebas explained with the user's own numbers, plus the two switches that change it. */
+function FreeMoneyCard({ perform, navigate }: { perform: (fn: () => Promise<unknown>, message: string) => Promise<void>; navigate?: (key: string) => void }) {
+  const { data, profile, user, cycle } = useApp();
+  const today = todayInTimeZone(profile?.timeZone), day = dateInTimeZone(new Date(), profile?.timeZone);
+  const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day, Boolean(profile?.netWorthIncludesReceivables));
+  const usableWallets = data.wallets.filter(w => !w.isArchived && w.isSpendable !== false && !w.isReserved);
+  const usable = usableWallets.reduce((n, w) => n + Math.max(0, w.cachedBalance), 0);
+  const funds = Math.max(0, usable - stat.free), keptWallets = Math.max(0, stat.reserved - funds);
+  const committed = commitments(data, { start: today, end: cycle.end }).reduce((n, x) => n + x.amount, 0) + commitments(data).filter(x => x.date < today).reduce((n, x) => n + x.amount, 0);
+  const subtract = profile?.excludeCommittedFromAvailable !== false;
+  const rows: [string, number, string][] = [
+    [`Saldo dompet yang bisa dipakai (${usableWallets.length} dompet)`, usable, 'base'],
+    ...(funds > 0 ? [['Tujuan dana yang belum punya dompet sendiri', -funds, 'minus'] as [string, number, string]] : []),
+    ['Uang bebas', stat.free, 'total'],
+    [`Tagihan & rencana belum dibayar sampai gajian${subtract ? '' : ' (tidak dikurangi)'}`, subtract ? -committed : 0, subtract ? 'minus' : 'off'],
+    ['Uang tersedia', stat.free - (subtract ? committed : 0), 'total'],
+  ];
+  return <div className="set-card"><h3>Uang bebas</h3>
+    <p>Uang bebas adalah uang yang aman dipakai sekarang. Dompet yang ditandai <b>Disimpan</b> (tabungan, investasi) tidak ikut dihitung.</p>
+    <div className="free-breakdown">{rows.map(([label, value, kind]) => <div key={label} className={`free-row is-${kind}`}><span>{label}</span><strong>{kind === 'minus' ? `− ${rupiah(-value)}` : kind === 'off' ? rupiah(committed) : rupiah(value)}</strong></div>)}
+      <div className="free-row is-note"><span>Tidak dihitung: dompet Disimpan</span><strong>{rupiah(keptWallets)}</strong></div></div>
+    <div className="set-switches">
+      <label className="switch-row"><input type="checkbox" checked={subtract} onChange={e => { if (user) void perform(() => saveProfile(user.uid, { excludeCommittedFromAvailable: e.target.checked }), ''); }}/><span><strong>Kurangi dengan tagihan & rencana</strong><small>Tagihan rutin dan rencana pengeluaran sampai gajian dianggap sudah terpakai, walau belum dibayar. Hasilnya tampil sebagai <b>Uang tersedia</b> di Beranda.</small></span></label>
+      <label className="switch-row"><input type="checkbox" checked={Boolean(profile?.realisticMode)} onChange={e => { if (user) void perform(() => saveProfile(user.uid, { realisticMode: e.target.checked }), ''); }}/><span><strong>Redupkan kartu Total Aset di Beranda</strong><small>Supaya perhatian tertuju ke uang bebas, bukan total saldo yang sebagian sudah disimpan.</small></span></label>
+    </div>
+    <div className="settings-links"><SettingsLink icon={Wallet} title="Atur dompet yang Disimpan" detail="Ubah dompet, lalu centang “Disimpan” atau pilih kelompok Tabungan/Investasi" onClick={() => navigate?.('wallets')}/></div>
+  </div>;
+}
+
+export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void}){const {user,profile,data}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[current,setCurrent]=useState(''),[newPass,setNewPass]=useState(''),[repeat,setRepeat]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
  async function perform(fn:()=>Promise<unknown>,message:string){setError('');setBusy(true);try{await fn();notify(message);}catch(e){setError((e as Error).message||'Pengaturan belum tersimpan.');}finally{setBusy(false);}}
  async function handleFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setError('');setFileName(file.name);try{if(file.size>25_000_000)throw Error('File cadangan terlalu besar (maksimal 25 MB).');const parsed=JSON.parse(await file.text()) as unknown;const result=validateBackup(parsed);setImportFile(parsed);setCounts(result.counts);}catch(e){setError((e as Error).message);setImportFile(null);}}
  async function exportJson(){if(!user)return;await perform(async()=>{const backup=await exportData(user.uid);const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`dompet-ajaib-backup-${new Date().toLocaleDateString('en-CA')}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);},'File cadangan diunduh.');}
@@ -50,7 +81,7 @@ export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>v
   reminders:[r.balanceEnabled?`Perbarui saldo ${r.times.length}× sehari`:'Perbarui saldo mati',r.billsEnabled?'tagihan aktif':'tagihan mati'].join(' · '),
   appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${(profile?.fontSize||'m').toUpperCase()}`,
   app:pwa.installed?'Terpasang di perangkat ini':'Pasang ke layar utama',
-  control:`${profile?.realisticMode?'Mode realistis aktif':'Mode realistis mati'} · transaksi besar ≥ ${rupiah(profile?.largeTransactionThreshold||500000)}`,
+  control:`Uang bebas${profile?.excludeCommittedFromAvailable===false?'':' · dikurangi tagihan'} · aset bersih ${profile?.netWorthIncludesReceivables?'+ piutang':'tanpa piutang'}`,
   data:'Unduh dan pulihkan cadangan',
  };
  const page=active&&sections.find(item=>item.key===active)!;
@@ -85,12 +116,9 @@ export function SettingsView({notify,navigate,onLockNow}:{notify:(msg:string)=>v
    {page.key==='app'&&<div className="set-form"><InstallPanel/></div>}
 
    {page.key==='control'&&<div className="set-form">
-    <div className="set-card"><h3>Uang bebas</h3><div className="set-switches">
-     <label className="switch-row"><input type="checkbox" checked={Boolean(profile?.realisticMode)} onChange={e=>{if(user)void perform(()=>saveProfile(user.uid,{realisticMode:e.target.checked}),"")}}/><span><strong>Mode realistis</strong><small>Beranda mengutamakan uang bebas, komitmen, dan tagihan terdekat.</small></span></label>
-     <label className="switch-row"><input type="checkbox" checked={profile?.excludeCommittedFromAvailable!==false} onChange={e=>{if(user)void perform(()=>saveProfile(user.uid,{excludeCommittedFromAvailable:e.target.checked}),"")}}/><span><strong>Kurangi Uang Tersedia dengan komitmen</strong><small>Tagihan dan rencana yang sudah pasti dianggap terpakai walau belum dibayar.</small></span></label>
-    </div></div>
+    <FreeMoneyCard perform={perform} navigate={navigate}/>
     <div className="set-card"><h3>Aset bersih</h3><div className="set-switches"><label className="switch-row"><input type="checkbox" checked={Boolean(profile?.netWorthIncludesReceivables)} onChange={e=>{if(user)void perform(()=>saveProfile(user.uid,{netWorthIncludesReceivables:e.target.checked}),"")}}/><span><strong>Hitung piutang & klaim kantor</strong><small>{profile?.netWorthIncludesReceivables?'Piutang dan klaim yang belum lunas ikut menambah aset bersih.':'Mati: aset bersih = saldo dompet − utang. Piutang baru dihitung setelah benar-benar dibayar.'}</small></span></label></div></div>
-    <div className="set-card"><h3>Transaksi besar</h3><p>Transaksi sebesar ini atau lebih ditampilkan sebagai peristiwa penting di Riwayat Siklus.</p><div className="settings-inline"><Field label="Batas transaksi besar"><Money value={threshold} onChange={setThreshold}/></Field><Button variant="secondary" disabled={busy||!threshold||threshold===(profile?.largeTransactionThreshold||500000)} onClick={()=>{if(user)void perform(()=>saveProfile(user.uid,{largeTransactionThreshold:threshold}),"Batas transaksi besar diperbarui.")}}><Check size={16}/> Simpan</Button></div></div>
+    
     <div className="set-card"><h3>Alat</h3><div className="settings-links"><SettingsLink icon={ShieldCheck} title="Periksa Data" detail="Cari saldo yang tidak cocok dan catatan yang janggal" onClick={()=>navigate?.('health')}/><SettingsLink icon={History} title="Riwayat Siklus" detail="Ringkasan setiap siklus gaji yang sudah ditutup" onClick={()=>navigate?.('cycles')}/></div></div>
     {errorText}
    </div>}

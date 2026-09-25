@@ -163,7 +163,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
       </Section>
 
       {!filtered && <Section icon={<CalendarRange size={18}/>} title="Posisi keuangan saat ini" hint="Bukan dihitung ulang dari periode di atas">
-        <div className="report-position">{([['Aset bersih', now.netWorth], ['Uang bebas', now.free], ['Total aset', now.assets], ['Dana dicadangkan', now.reserved], ['Klaim & piutang', now.receivables], ['Sisa utang', -now.liabilities], ['Sisa anggaran', now.budgetRemaining]] as [string, number][]).map(([label, value]) => <div key={label}><small>{label}</small><strong className={value < 0 ? 'amount-negative' : ''}>{rupiah(value)}</strong></div>)}</div>
+        <div className="report-position">{([['Aset bersih', now.netWorth], ['Uang bebas', now.free], ['Total aset', now.assets], ['Dana disimpan', now.reserved], ['Klaim & piutang', now.receivables], ['Sisa utang', -now.liabilities], ['Sisa anggaran', now.budgetRemaining]] as [string, number][]).map(([label, value]) => <div key={label}><small>{label}</small><strong className={value < 0 ? 'amount-negative' : ''}>{rupiah(value)}</strong></div>)}</div>
       </Section>}
 
       {notes.length > 0 && <Section icon={<ScrollText size={18}/>} title="Catatan periode"><div className="mini-list">{notes.map(note => <div key={note.id}><span><strong>{note.title}</strong>{note.description && <small>{note.description}</small>}</span><small>{formatDate(note.date)}</small></div>)}</div></Section>}

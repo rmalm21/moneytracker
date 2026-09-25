@@ -2181,6 +2181,21 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .widget-wallet-group + .widget-wallet-group { margin-top: 14px; }
 
 /* ==========================================================================
+   62. Uang bebas breakdown in Pengaturan
+   ========================================================================== */
+.free-breakdown { display: grid; gap: 0; padding: 6px 14px; border-radius: 14px; background: var(--paper-2); }
+.free-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: .86rem; }
+.free-row span { color: var(--muted); }
+.free-row strong { flex: none; font-variant-numeric: tabular-nums; }
+.free-row.is-minus strong { color: var(--rose); }
+.free-row.is-off strong { color: var(--muted); text-decoration: line-through; font-weight: 600; }
+.free-row.is-total { border-top: 1px solid var(--line-strong); }
+.free-row.is-total span { color: var(--ink); font-weight: 800; }
+.free-row.is-total strong { font: 800 1rem/1.2 var(--font-head); color: var(--accent); }
+.free-row.is-note { border-top: 1px dashed var(--line); font-size: .78rem; }
+.free-row.is-note strong { color: var(--muted); font-weight: 700; }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }

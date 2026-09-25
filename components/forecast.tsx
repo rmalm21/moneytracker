@@ -80,7 +80,7 @@ export function ForecastView() {
   const [purchase, setPurchase] = useState(0), [item, setItem] = useState(''), [walletId, setWalletId] = useState('');
   const wallet = data.wallets.find(w => w.id === walletId);
   const share = stat.free > 0 ? Math.min(100, Math.round(purchase / stat.free * 100)) : purchase ? 100 : 0;
-  const verdict = !purchase ? null : wallet?.isReserved ? ['warn', 'Memakai dana tercadangkan'] : purchase > stat.free ? ['bad', 'Melebihi uang bebas'] : result.before - purchase < 0 ? ['warn', 'Bisa, tapi minus sebelum gajian'] : ['good', 'Aman, masih dalam uang bebas'];
+  const verdict = !purchase ? null : wallet?.isReserved ? ['warn', 'Memakai dana yang disimpan'] : purchase > stat.free ? ['bad', 'Melebihi uang bebas'] : result.before - purchase < 0 ? ['warn', 'Bisa, tapi minus sebelum gajian'] : ['good', 'Aman, masih dalam uang bebas'];
   const adjustLabel = input.spendAdjust === 0 ? 'Seperti biasa' : input.spendAdjust < 0 ? `Hemat ${-input.spendAdjust}%` : `Lebih boros ${input.spendAdjust}%`;
   const steps: { label: string; value: number; tone: 'base' | 'in' | 'out' | 'total'; note?: string }[] = [
     { label: 'Uang bebas sekarang', value: stat.free, tone: 'base' },
