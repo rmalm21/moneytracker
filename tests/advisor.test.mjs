@@ -204,15 +204,35 @@ test('personal overrides: fixed emergency amount, monthly need, buffer, idle min
   assert.equal(run({ monthlyIncome: 12_000_000 }).summary.avgIncome, 12_000_000);
 });
 
-import { walletPockets } from '../lib/pockets.ts';
-test('savings pockets: emergency pocket is the emergency fund; other pockets are set aside; the rest is unallocated', () => {
+import { kantongAmount, kantongWalletIds, resolveFunds } from '../lib/pockets.ts';
+test('kantong groups wallets: its amount is their balance and they are never idle', () => {
+  const op = { id: 'op', name: 'BCA', type: 'bank', group: 'operational', cachedBalance: 6_000_000, isArchived: false };
+  const mandiri = { id: 'md', name: 'Mandiri', type: 'bank', group: 'operational', cachedBalance: 9_000_000, isArchived: false };
+  const bri = { id: 'bri', name: 'BRI', type: 'bank', group: 'savings', cachedBalance: 3_000_000, isArchived: false };
+  const sv = { id: 'sv', name: 'Jago', type: 'savings', group: 'savings', cachedBalance: 4_000_000, isArchived: false };
+  const funds = [
+    { id: 'e', name: 'Dana darurat', kind: 'emergency', walletIds: ['md', 'bri'], linkedWalletId: '', currentAmount: 0, targetAmount: 15_000_000, monthlyContribution: 0, targetDate: '', notes: '' },
+    { id: 'old', name: 'Dana Darurat lama', kind: 'emergency', linkedWalletId: 'op', currentAmount: 300_000, targetAmount: 0, monthlyContribution: 0, targetDate: '', notes: '' },
+  ];
+  assert.equal(kantongAmount(funds[0], [op, mandiri, bri, sv]), 12_000_000);
+  assert.deepEqual([...kantongWalletIds(funds)].sort(), ['bri', 'md']);
+  const resolved = resolveFunds(funds, [op, mandiri, bri, sv]);
+  assert.deepEqual([resolved[0].currentAmount, resolved[0].linkedWalletId], [12_000_000, 'md']);
+  assert.deepEqual(resolveFunds(resolved, [op, mandiri, bri, sv]), resolved, 'idempotent');
+  const data = { ...sampleData(), wallets: [op, mandiri, bri, sv], funds };
+  const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 0, netWorth: 0, liabilities: 0 }, committed: 0 });
+  assert.equal(a.idle.emergencyTarget, 15_000_000, 'kantong target is used');
+  assert.equal(a.idle.emergencyShortfall, 3_000_000, 'emergency = Mandiri + BRI');
+  assert.equal(a.idle.operationalBalance, 6_000_000, 'Mandiri is in a kantong, not daily money');
+  assert.equal(a.idle.savingsExcess, 4_000_000, 'only savings outside kantong');
+});
+
+test('older Tujuan dana inside a savings wallet: emergency fund counts; other goals are set aside; the rest is unallocated', () => {
   const sv = { id: 'sv', name: 'Tabungan', type: 'savings', group: 'savings', cachedBalance: 30_000_000, isArchived: false };
   const funds = [
     { id: 'e', name: 'Dana darurat', kind: 'emergency', linkedWalletId: 'sv', currentAmount: 12_000_000, targetAmount: 15_000_000, monthlyContribution: 0, targetDate: '', notes: '' },
     { id: 'k', name: 'Tabungan kuliah', kind: 'goal', linkedWalletId: 'sv', currentAmount: 10_000_000, targetAmount: 20_000_000, monthlyContribution: 0, targetDate: '', notes: '' },
   ];
-  const p = walletPockets(sv, funds);
-  assert.deepEqual([p.allocated, p.unallocated, p.pockets[0].id], [22_000_000, 8_000_000, 'e']);
   const data = { ...sampleData(), wallets: [sv], funds };
   const a = analyzeFinances({ data, history: data.transactions, today: '2026-10-12', salaryDay: 25, monthlySalary: 8_000_000, warnPercent: 80, stat: { free: 0, reserved: 30_000_000, netWorth: 0, liabilities: 0 }, committed: 0 });
   assert.equal(a.idle.emergencyTarget, 15_000_000, 'pocket target is used');

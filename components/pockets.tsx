@@ -1,94 +1,133 @@
 'use client';
-import { useState, type CSSProperties } from 'react';
-import { ArrowRightLeft, Check, Layers, Pencil, Plus } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { Check, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
-import { Field, Input, Money, Select } from './fields';
+import { Confirm } from './ui/alert-dialog';
+import { Field, Input, Money } from './fields';
 import { Emoji } from './emoji';
+import { AppIcon, EmojiSearchButton, withCurrent } from './visual-identity';
 import { rupiah } from '@/lib/accounting';
-import { movePocketMoney, saveRecord } from '@/lib/firestore';
-import { isEmergencyFund, pocketEmoji, pocketIcons, walletPockets } from '@/lib/pockets';
+import { archiveOrDelete, saveRecord } from '@/lib/firestore';
+import { isEmergencyFund, isKantong, kantongAmount, kantongWallets, pocketEmoji, pocketIcons } from '@/lib/pockets';
 import type { Fund, Wallet } from '@/lib/types';
 
 const short = (n: number) => n >= 1e6 ? `Rp${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} jt` : n >= 1e3 ? `Rp${Math.round(n / 1e3)} rb` : rupiah(n);
 const colors = ['var(--chart-1)', 'var(--chart-3)', 'var(--chart-2)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)'];
-const UNALLOCATED = '';
+const byPurpose = (a: Fund, b: Fund) => Number(isEmergencyFund(b)) - Number(isEmergencyFund(a)) || a.name.localeCompare(b.name);
 
-/** Compact view on a Tabungan wallet card: one bar split by pocket and the list of pockets. */
-export function PocketStrip({ wallet, onManage }: { wallet: Wallet; onManage: () => void }) {
+export type PocketStart = { mode: 'list' } | { mode: 'form'; fundId?: string; walletId?: string };
+
+/** Active kantong, emergency first. */
+export function useKantong() {
   const { data } = useApp();
-  const { pockets, unallocated, balance } = walletPockets(wallet, data.funds);
-  if (!pockets.length) return <button type="button" className="pocket-empty" onClick={onManage}><Layers size={15}/> Bagi saldo ke kantong (dana darurat, kuliah, …)</button>;
-  return <div className="pocket-strip">
-    <div className="pocket-bar" role="img" aria-label={pockets.map(p => `${p.name} ${rupiah(p.currentAmount)}`).join(', ')}>{pockets.map((p, i) => <i key={p.id} style={{ flex: Math.max(0, p.currentAmount), background: colors[i % colors.length] }}/>)}{unallocated > 0 && <i className="free" style={{ flex: unallocated }}/>}</div>
-    <ul>{pockets.map((p, i) => <li key={p.id}><span className="pocket-dot" style={{ background: colors[i % colors.length] }}/><Emoji e={pocketEmoji(p)}/><span className="pocket-name">{p.name}{isEmergencyFund(p) && <b>darurat</b>}</span><strong>{short(p.currentAmount || 0)}</strong></li>)}
-      {unallocated > 0 && <li className="is-free"><span className="pocket-dot free"/><span className="pocket-name">Belum dialokasikan</span><strong>{short(unallocated)}</strong></li>}</ul>
-    <button type="button" className="link-button" onClick={onManage}><Layers size={14}/> Kelola kantong{balance ? '' : ''}</button>
-  </div>;
+  return data.funds.filter(f => !f.isArchived && isKantong(f)).sort(byPurpose);
 }
 
-/** Sheet to create pockets and move money between them (no wallet transactions: the money stays in the wallet). */
-export function PocketSheet({ wallet, open, onOpenChange }: { wallet: Wallet | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+/** Row of kantong on the Dompet page: each shows its total and the wallets inside. */
+export function KantongStrip({ onOpen }: { onOpen: (start: PocketStart) => void }) {
+  const { data } = useApp();
+  const list = useKantong();
+  if (!list.length) return null;
+  return <section className="kantong-strip" aria-label="Kantong">
+    {list.map((k, i) => { const members = kantongWallets(k, data.wallets); const pct = k.targetAmount ? Math.min(1, k.currentAmount / k.targetAmount) : 0; return <button type="button" key={k.id} className="kantong-mini" style={{ '--pocket': colors[i % colors.length] } as CSSProperties} onClick={() => onOpen({ mode: 'form', fundId: k.id })}>
+      <span className="kantong-mini-top"><Emoji e={pocketEmoji(k)}/><strong>{k.name}</strong></span>
+      <b>{short(k.currentAmount)}</b>
+      {k.targetAmount > 0 ? <i className="pocket-progress"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i> : null}
+      <small>{members.map(w => w.name).join(' + ') || 'Belum ada dompet'}</small>
+    </button>; })}
+    <button type="button" className="kantong-mini is-add" onClick={() => onOpen({ mode: 'form' })}><Plus size={18}/><span>Kantong baru</span></button>
+  </section>;
+}
+
+/** Sheet to create and edit kantong: pick a name, an icon and the wallets it groups. */
+export function PocketSheet({ open, onOpenChange, start = { mode: 'list' } }: { open: boolean; onOpenChange: (open: boolean) => void; start?: PocketStart }) {
   const { data, user } = useApp();
   const { track } = useNotify();
-  const [mode, setMode] = useState<'list' | 'form' | 'move'>('list');
+  const kantong = useKantong();
+  const wallets = data.wallets.filter(w => !w.isArchived);
+  const [mode, setMode] = useState<'list' | 'form'>('list');
   const [editing, setEditing] = useState<Fund | null>(null);
-  const [name, setName] = useState(''), [icon, setIcon] = useState('🎯'), [kind, setKind] = useState<'emergency' | 'goal'>('goal'), [target, setTarget] = useState(0), [date, setDate] = useState(''), [start, setStart] = useState(0);
-  const [from, setFrom] = useState(UNALLOCATED), [to, setTo] = useState(UNALLOCATED), [amount, setAmount] = useState(0);
-  if (!wallet) return null;
-  const { pockets, unallocated, balance, overAllocated } = walletPockets(wallet, data.funds);
-  const available = (id: string) => id === UNALLOCATED ? unallocated : Math.max(0, pockets.find(p => p.id === id)?.currentAmount || 0);
-  const label = (id: string) => id === UNALLOCATED ? 'Belum dialokasikan' : pockets.find(p => p.id === id)?.name || '';
-  function reset(next: 'list' | 'form' | 'move') { setMode(next); }
-  function openForm(p?: Fund) { setEditing(p || null); setName(p?.name || ''); setIcon(p ? pocketEmoji(p) : pockets.some(isEmergencyFund) ? '🎯' : '🛟'); setKind(p ? (isEmergencyFund(p) ? 'emergency' : 'goal') : pockets.some(isEmergencyFund) ? 'goal' : 'emergency'); setTarget(p?.targetAmount || 0); setDate(p?.targetDate || ''); setStart(0); reset('form'); }
-  function openMove(toId: string, fromId = UNALLOCATED) { setFrom(fromId); setTo(toId); setAmount(0); reset('move'); }
-  function saveForm() {
-    if (!user || !wallet || !name.trim()) return;
-    const fields: Partial<Fund> = { name: name.trim(), icon, kind, targetAmount: target, targetDate: date, linkedWalletId: wallet.id, monthlyContribution: editing?.monthlyContribution || 0, notes: editing?.notes || '' };
-    if (!editing) fields.currentAmount = Math.min(start, unallocated);
-    reset('list');
-    track(saveRecord<Fund>(user.uid, 'funds', fields, editing?.id), { pending: 'Menyimpan kantong…', success: editing ? 'Kantong diperbarui.' : `Kantong ${name.trim()} dibuat.`, failure: 'Kantong belum tersimpan' });
+  const [name, setName] = useState(''), [icon, setIcon] = useState('🎯'), [kind, setKind] = useState<'emergency' | 'goal'>('goal'), [target, setTarget] = useState(0), [date, setDate] = useState(''), [picked, setPicked] = useState<string[]>([]);
+
+  function openForm(fund?: Fund, walletId?: string) {
+    const firstEmergency = !fund && !kantong.some(isEmergencyFund);
+    setEditing(fund || null);
+    setName(fund?.name || (firstEmergency ? 'Dana darurat' : ''));
+    setIcon(fund ? pocketEmoji(fund) : firstEmergency ? '🛟' : '🎯');
+    setKind(fund ? (isEmergencyFund(fund) ? 'emergency' : 'goal') : firstEmergency ? 'emergency' : 'goal');
+    setTarget(fund?.targetAmount || 0); setDate(fund?.targetDate || '');
+    setPicked(fund?.walletIds?.length ? fund.walletIds.filter(id => wallets.some(w => w.id === id)) : walletId ? [walletId] : []);
+    setMode('form');
   }
-  function saveMove() {
-    if (!user || amount <= 0 || from === to) return;
-    const value = Math.min(amount, available(from));
-    reset('list');
-    track(movePocketMoney(user.uid, from || null, to || null, value), { pending: 'Memindahkan…', success: `${short(value)} dipindah ke ${label(to)}.`, failure: 'Belum dipindahkan' });
+  useEffect(() => {
+    if (!open) return;
+    if (start.mode === 'form') openForm(start.fundId ? data.funds.find(f => f.id === start.fundId) : undefined, start.walletId);
+    else setMode('list');
+    // Only when the sheet opens: later data updates must not reset what the user is typing.
+  }, [open]);
+
+  const ownerOf = (walletId: string) => kantong.find(k => k.id !== editing?.id && k.walletIds!.includes(walletId));
+  const toggle = (id: string) => setPicked(list => list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
+  const total = kantongAmount({ walletIds: picked }, wallets);
+
+  function save() {
+    if (!user || !name.trim() || !picked.length) return;
+    const fields: Partial<Fund> = { name: name.trim(), icon, kind, walletIds: picked, linkedWalletId: picked[0], targetAmount: target, targetDate: date, monthlyContribution: editing?.monthlyContribution || 0, notes: editing?.notes || '' };
+    if (!editing) fields.currentAmount = 0;
+    // A wallet sits in one kantong only: picking it here takes it out of the other one.
+    const moved = kantong.filter(k => k.id !== editing?.id && k.walletIds!.some(id => picked.includes(id)));
+    setMode('list');
+    track(Promise.all([saveRecord<Fund>(user.uid, 'funds', fields, editing?.id), ...moved.map(k => { const rest = k.walletIds!.filter(id => !picked.includes(id)); return saveRecord<Fund>(user.uid, 'funds', { walletIds: rest, linkedWalletId: rest[0] || k.linkedWalletId }, k.id); })]), { pending: 'Menyimpan kantong…', success: editing ? 'Kantong diperbarui.' : `Kantong ${name.trim()} dibuat.`, failure: 'Kantong belum tersimpan' });
+  }
+  function remove() {
+    if (!user || !editing) return;
+    const fund = editing;
+    setMode('list');
+    track(archiveOrDelete(user.uid, 'funds', fund.id, data), { pending: 'Menghapus kantong…', success: `Kantong ${fund.name} dihapus. Dompetnya tetap ada.`, failure: 'Kantong belum terhapus' });
   }
 
-  return <Dialog open={open} onOpenChange={value => { if (!value) setMode('list'); onOpenChange(value); }}><DialogContent title={mode === 'form' ? (editing ? 'Ubah kantong' : 'Kantong baru') : mode === 'move' ? 'Pindahkan uang' : `Kantong · ${wallet.name}`} className="pocket-dialog">
+  const grand = kantong.reduce((n, k) => n + k.currentAmount, 0);
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent title={mode === 'form' ? (editing ? `Ubah kantong` : 'Kantong baru') : 'Kantong'} className="pocket-dialog">
     {mode === 'list' && <>
-      <div className="pocket-head"><small>Saldo {wallet.name}</small><strong>{rupiah(balance)}</strong><span>Belum dialokasikan <b>{rupiah(unallocated)}</b></span>{overAllocated > 0 && <p className="form-error">Isi kantong melebihi saldo sebesar {rupiah(overAllocated)}. Kurangi salah satu kantong.</p>}</div>
-      <div className="pocket-list">{pockets.map((p, i) => { const pct = p.targetAmount ? Math.min(1, (p.currentAmount || 0) / p.targetAmount) : 0; return <article key={p.id} className="pocket-card" style={{ '--pocket': colors[i % colors.length] } as CSSProperties}>
-        <span className="pocket-icon"><Emoji e={pocketEmoji(p)}/></span>
-        <div className="pocket-info"><strong>{p.name}{isEmergencyFund(p) && <em>Dana darurat</em>}</strong><span>{rupiah(p.currentAmount || 0)}{p.targetAmount ? <small> / {rupiah(p.targetAmount)}</small> : null}</span>{p.targetAmount > 0 && <i className="pocket-progress"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i>}</div>
-        <div className="pocket-actions"><button type="button" className="icon-btn" aria-label={`Isi ${p.name}`} title="Isi dari belum dialokasikan" onClick={() => openMove(p.id)}><Plus size={17}/></button><button type="button" className="icon-btn" aria-label={`Pindahkan dari ${p.name}`} title="Pindahkan ke kantong lain" onClick={() => openMove(UNALLOCATED, p.id)}><ArrowRightLeft size={16}/></button><button type="button" className="icon-btn" aria-label={`Ubah ${p.name}`} onClick={() => openForm(p)}><Pencil size={15}/></button></div>
+      <div className="pocket-head"><small>Total di kantong</small><strong>{rupiah(grand)}</strong><span>{kantong.length ? `${kantong.length} kantong · saldonya mengikuti dompet di dalamnya` : 'Belum ada kantong'}</span></div>
+      <div className="pocket-list">{kantong.map((k, i) => { const members = kantongWallets(k, data.wallets); const pct = k.targetAmount ? Math.min(1, k.currentAmount / k.targetAmount) : 0; return <article key={k.id} className="pocket-card" style={{ '--pocket': colors[i % colors.length] } as CSSProperties}>
+        <span className="pocket-icon"><Emoji e={pocketEmoji(k)}/></span>
+        <div className="pocket-info"><strong>{k.name}{isEmergencyFund(k) && <em>Dana darurat</em>}</strong><span>{rupiah(k.currentAmount)}{k.targetAmount ? <small> / {rupiah(k.targetAmount)}</small> : null}</span>{k.targetAmount > 0 && <i className="pocket-progress"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i>}
+          <div className="pocket-members">{members.map(w => <span key={w.id}><span className="pocket-member-icon"><AppIcon icon={w.icon}/></span>{w.name}<b>{short(Math.max(0, w.cachedBalance))}</b></span>)}</div></div>
+        <div className="pocket-actions"><button type="button" className="icon-btn" aria-label={`Ubah ${k.name}`} onClick={() => openForm(k)}><Pencil size={15}/></button></div>
       </article>; })}
-        {!pockets.length && <p className="ins-empty">Belum ada kantong. Buat kantong <b>Dana darurat</b> dulu supaya tidak tercampur dengan tabungan lain.</p>}
+        {!kantong.length && <div className="pocket-intro"><span className="pocket-intro-icon"><Layers size={22}/></span><strong>Kelompokkan dompet per tujuan</strong><p>Contoh: kantong <b>Dana darurat</b> berisi Mandiri dan BRI. Saldo kedua dompet itu otomatis dijumlah jadi saldo dana daruratmu, dan tidak dihitung sebagai uang harian.</p></div>}
       </div>
-      <p className="muted pocket-note">Memindahkan uang antar kantong tidak membuat transaksi — uangnya tetap di {wallet.name}, hanya ditandai untuk keperluan tertentu. Untuk menambah saldo dari dompet lain, catat transfer atau “Isi tujuan dana”.</p>
+      {kantong.length > 0 && <p className="muted pocket-note">Saldo kantong = total saldo dompet di dalamnya. Untuk menambah isi kantong, transfer ke salah satu dompetnya.</p>}
       <div className="modal-actions"><Button variant="secondary" onClick={() => onOpenChange(false)}>Tutup</Button><Button onClick={() => openForm()}><Plus size={16}/> Kantong baru</Button></div>
     </>}
-    {mode === 'form' && <form className="form-stack" onSubmit={event => { event.preventDefault(); saveForm(); }}>
-      <div className="ip-seg"><button type="button" className={kind === 'emergency' ? 'active' : ''} onClick={() => { setKind('emergency'); if (!name) setName('Dana darurat'); setIcon('🛟'); }}>🛟 Dana darurat</button><button type="button" className={kind === 'goal' ? 'active' : ''} onClick={() => setKind('goal')}>🎯 Tabungan / tujuan</button></div>
+    {mode === 'form' && <form className="form-stack" onSubmit={event => { event.preventDefault(); save(); }}>
+      <div className="ip-seg"><button type="button" className={kind === 'emergency' ? 'active' : ''} onClick={() => { setKind('emergency'); if (!name) setName('Dana darurat'); setIcon('🛟'); }}>🛟 Dana darurat</button><button type="button" className={kind === 'goal' ? 'active' : ''} onClick={() => { setKind('goal'); if (icon === '🛟') setIcon('🎯'); }}>🎯 Tabungan / tujuan</button></div>
       <Field label="Nama kantong"><Input required value={name} onChange={e => setName(e.target.value)} placeholder="contoh: Tabungan kuliah"/></Field>
-      <div className="wl-field"><span>Ikon</span><div className="wl-emoji-grid">{pocketIcons.map(e => <button type="button" key={e} className={icon === e ? 'active' : ''} aria-pressed={icon === e} onClick={() => setIcon(e)}><Emoji e={e}/></button>)}</div></div>
-      <div className="form-grid"><Field label="Target (opsional)"><Money value={target} onChange={setTarget}/></Field><Field label="Tenggat (opsional)"><Input type="date" value={date} onChange={e => setDate(e.target.value)}/></Field></div>
-      {!editing && unallocated > 0 && <Field label={`Isi awal dari belum dialokasikan (maks ${rupiah(unallocated)})`}><Money value={start} onChange={v => setStart(Math.min(v, unallocated))}/></Field>}
-      {kind === 'emergency' && <small className="muted">Kantong dana darurat dipakai Insight untuk menghitung dana daruratmu, terpisah dari tabungan lain.</small>}
-      <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => reset('list')}>Kembali</Button><Button type="submit" disabled={!name.trim()}><Check size={16}/> Simpan</Button></div>
-    </form>}
-    {mode === 'move' && <form className="form-stack" onSubmit={event => { event.preventDefault(); saveMove(); }}>
-      <div className="form-grid">
-        <Field label="Dari"><Select value={from} onChange={e => setFrom(e.target.value)}><option value={UNALLOCATED}>Belum dialokasikan · {short(unallocated)}</option>{pockets.map(p => <option key={p.id} value={p.id}>{p.name} · {short(p.currentAmount || 0)}</option>)}</Select></Field>
-        <Field label="Ke"><Select value={to} onChange={e => setTo(e.target.value)}><option value={UNALLOCATED}>Belum dialokasikan</option>{pockets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+      <div className="wl-field"><span className="emoji-head">Ikon<EmojiSearchButton value={icon} onPick={setIcon}/></span><div className="wl-emoji-grid">{withCurrent(pocketIcons, icon).map(e => <button type="button" key={e} className={icon === e ? 'active' : ''} aria-pressed={icon === e} onClick={() => setIcon(e)}><Emoji e={e}/></button>)}</div></div>
+      <div className="wl-field"><span>Dompet di kantong ini</span>
+        <div className="pocket-wallet-pick" role="group" aria-label="Dompet di kantong ini">{wallets.map(w => { const on = picked.includes(w.id), owner = ownerOf(w.id); return <button type="button" key={w.id} role="checkbox" aria-checked={on} className={on ? 'active' : ''} onClick={() => toggle(w.id)}>
+          <span className="tx-wallet-icon"><AppIcon icon={w.icon}/></span>
+          <span className="pocket-pick-text"><strong>{w.name}</strong><small>{rupiah(w.cachedBalance)}{owner ? on ? ` · dipindah dari ${owner.name}` : ` · di kantong ${owner.name}` : ''}</small></span>
+          <span className="pocket-check">{on && <Check size={15}/>}</span>
+        </button>; })}</div>
+        {!wallets.length && <small className="muted">Tambah dompet dulu.</small>}
       </div>
-      <Field label={`Jumlah (tersedia ${rupiah(available(from))})`}><Money value={amount} onChange={setAmount} required/></Field>
-      <div className="ip-choices">{[100_000, 500_000, 1_000_000].filter(v => v <= available(from)).map(v => <button type="button" key={v} className={amount === v ? 'active' : ''} onClick={() => setAmount(v)}>{short(v)}</button>)}{available(from) > 0 && <button type="button" className={amount === available(from) ? 'active' : ''} onClick={() => setAmount(available(from))}>Semua {short(available(from))}</button>}</div>
-      {from === to && <p className="form-error">Pilih kantong tujuan yang berbeda.</p>}
-      <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => reset('list')}>Kembali</Button><Button type="submit" disabled={amount <= 0 || from === to || !available(from)}><ArrowRightLeft size={16}/> Pindahkan</Button></div>
+      <div className="pocket-total"><span>Saldo kantong</span><strong>{rupiah(total)}</strong><small>{picked.length ? `dari ${picked.length} dompet, otomatis mengikuti saldonya` : 'Pilih minimal satu dompet'}</small></div>
+      <div className="form-grid"><Field label="Target (opsional)"><Money value={target} onChange={setTarget}/></Field><Field label="Tenggat (opsional)"><Input type="date" value={date} onChange={e => setDate(e.target.value)}/></Field></div>
+      {kind === 'emergency' && <small className="muted">Insight memakai saldo kantong ini sebagai dana daruratmu, dan dompetnya tidak dihitung sebagai uang yang bisa dipakai sehari-hari.</small>}
+      <div className="modal-actions">{editing && <Confirm title={`Hapus kantong ${editing.name}?`} description="Dompet di dalamnya tidak ikut terhapus dan saldonya tetap." confirmLabel="Ya, hapus" onConfirm={remove}><Button type="button" variant="ghost" className="pocket-delete"><Trash2 size={16}/> Hapus</Button></Confirm>}<Button type="button" variant="secondary" onClick={() => editing || start.mode === 'list' ? setMode('list') : onOpenChange(false)}>{editing || start.mode === 'list' ? 'Kembali' : 'Batal'}</Button><Button type="submit" disabled={!name.trim() || !picked.length}><Check size={16}/> Simpan</Button></div>
     </form>}
   </DialogContent></Dialog>;
+}
+
+/** Small tag on a wallet card telling which kantong it belongs to. */
+export function KantongTag({ wallet, onOpen }: { wallet: Pick<Wallet, 'id'>; onOpen: (start: PocketStart) => void }) {
+  const list = useKantong();
+  const k = list.find(f => f.walletIds!.includes(wallet.id));
+  if (!k) return null;
+  return <button type="button" className="kantong-tag" onClick={() => onOpen({ mode: 'form', fundId: k.id })}><Emoji e={pocketEmoji(k)}/>{k.name}</button>;
 }

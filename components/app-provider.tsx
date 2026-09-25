@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, configured } from '@/lib/firebase';
 import { emptyData, type Data, type Profile } from '@/lib/types';
@@ -26,6 +27,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(user&&profile&&data.budgets.some(b=>b.rolloverEnabled))void settleBudgets(user.uid,data.budgets,profile.salaryCycleStartDay,dateInTimeZone(new Date(),profile.timeZone)).catch(e=>setError(e.message));},[user,profile?.uid,profile?.salaryCycleStartDay,profile?.timeZone,data.budgets]);
   useEffect(()=>{if(user&&data.recurring.length&&typeof navigator!=='undefined'&&navigator.onLine)void createDueDrafts(user.uid,data.recurring,todayInTimeZone(profile?.timeZone)).catch(e=>setError(e.message));},[user,profile?.timeZone,data.recurring]);
   useEffect(()=>{if(user&&data.drafts.some(d=>d.status==='pending'&&d.mode==='auto')&&typeof navigator!=='undefined'&&navigator.onLine)void postAutoDrafts(user.uid,data.drafts);},[user,data.drafts]);
-  const value={user,profile,data,loading,error,cycle,sync,ready:configured};return <Context.Provider value={value}>{children}</Context.Provider>;
+  const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
+  const value={user,profile,data:view,loading,error,cycle,sync,ready:configured};return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useApp(){const context=useContext(Context);if(!context)throw Error('AppProvider missing');return context;}

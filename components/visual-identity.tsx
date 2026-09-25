@@ -2,6 +2,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Emoji } from './emoji';
 import { Search } from 'lucide-react';
+import { Dialog, DialogContent } from './ui/dialog';
 import { colorPresets } from '@/lib/category-templates';
 import type { Category } from '@/lib/types';
 
@@ -148,8 +149,13 @@ export const emojiLibrary: EmojiGroup[] = [
 ];
 export const categoryEmojis = emojiLibrary.flatMap(group => group.items.map(([emoji]) => emoji));
 /** Bank and e-wallet marks, drawn as brand-coloured name tiles (stored as `brand:<key>`). */
-export type BrandIcon = { key: string; label: string; text: string; bg: string; fg: string; group: 'Bank' | 'Bank digital' | 'E-wallet' | 'Investasi'; words: string };
+export type BrandIcon = { key: string; label: string; text: string; bg: string; fg: string; group: 'Bank' | 'Bank digital' | 'E-wallet' | 'Uang elektronik' | 'Investasi'; words: string };
 export const brandIcons: BrandIcon[] = [
+  // Prepaid cards first, so "e-money Mandiri" or "Brizzi BRI" suggest the card rather than the bank.
+  { key: 'emoney', label: 'e-money Mandiri', text: 'e-money', bg: '#f5a800', fg: '#003d79', group: 'Uang elektronik', words: 'emoney money etoll' },
+  { key: 'flazz', label: 'Flazz BCA', text: 'flazz', bg: '#7ac143', fg: '#ffffff', group: 'Uang elektronik', words: 'flazz' },
+  { key: 'tapcash', label: 'TapCash BNI', text: 'TapCash', bg: '#005e6a', fg: '#f37021', group: 'Uang elektronik', words: 'tapcash tap' },
+  { key: 'brizzi', label: 'Brizzi BRI', text: 'BRIZZI', bg: '#1b63c6', fg: '#ffffff', group: 'Uang elektronik', words: 'brizzi' },
   { key: 'bca', label: 'BCA', text: 'BCA', bg: '#0060af', fg: '#ffffff', group: 'Bank', words: 'bca bank central asia klikbca mybca' },
   { key: 'mandiri', label: 'Mandiri', text: 'mandiri', bg: '#003d79', fg: '#ffb700', group: 'Bank', words: 'mandiri livin' },
   { key: 'bri', label: 'BRI', text: 'BRI', bg: '#00529c', fg: '#ffffff', group: 'Bank', words: 'bri brimo rakyat' },
@@ -189,7 +195,7 @@ export function AppIcon({ icon, fallback = '💳', className = '' }: { icon?: st
 export const walletEmojis=['💳','🏦','💵','👛','👝','📱','🏧','💰','🪙','💸','💎','🏡','🌱','🔒','🎯','🚀','🧳','🏪','📈','📊','🛡️','🎓','🕌','🏝️','🚗','💍','🎁','🧧','⭐','❤️','🌙'];
 /** Kept for older records that stored a hex colour; the picker itself only shows named swatches. */
 export const identityColors = colorPresets.map(preset => preset.hex);
-export function emojiOrFallback(value:string|undefined,fallback='🗂️'){if(value==='🐷')return '💰';if(value?.startsWith('brand:'))return brandOf(value)?.group==='E-wallet'?'📱':brandOf(value)?.group==='Investasi'?'📈':'🏦';return value&&/\p{Extended_Pictographic}/u.test(value)?value:fallback;}
+export function emojiOrFallback(value:string|undefined,fallback='🗂️'){if(value==='🐷')return '💰';if(value?.startsWith('brand:'))return brandOf(value)?.group==='E-wallet'?'📱':brandOf(value)?.group==='Uang elektronik'?'💳':brandOf(value)?.group==='Investasi'?'📈':'🏦';return value&&/\p{Extended_Pictographic}/u.test(value)?value:fallback;}
 const validHex = (color?: string) => /^#[\da-fA-F]{6}$/.test(color || '');
 export function identityStyle(color?:string):CSSProperties{return {'--identity-color':validHex(color)?color:'var(--accent)'} as CSSProperties;}
 /** Subcategories without their own colour use the colour of their main category. */
@@ -203,6 +209,29 @@ export function IdentityBadge({icon,color,label}:{icon?:string;color?:string;lab
 const recentKey = 'dompet-ajaib:recent-emoji';
 const readRecent = (): string[] => { try { return JSON.parse(localStorage.getItem(recentKey) || '[]').slice(0, 12); } catch { return []; } };
 function rememberEmoji(emoji: string) { try { localStorage.setItem(recentKey, JSON.stringify([emoji, ...readRecent().filter(item => item !== emoji)].slice(0, 12))); } catch { /* Recent icons are optional. */ } }
+
+/** Small "Cari lainnya" button next to a short emoji list: opens the whole library with search. */
+export function EmojiSearchButton({value,onPick,label='Cari lainnya'}:{value?:string;onPick:(emoji:string)=>void;label?:string}){
+ const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[recent,setRecent]=useState<string[]>([]);
+ const search=query.trim().toLowerCase();
+ const found=search?emojiLibrary.flatMap(group=>group.items.filter(([,keys])=>keys.includes(search)||group.label.toLowerCase().includes(search))).map(([emoji])=>emoji).filter((emoji,index,list)=>list.indexOf(emoji)===index):[];
+ const pick=(emoji:string)=>{rememberEmoji(emoji);onPick(emoji);setOpen(false)};
+ const button=(emoji:string,key:string)=><button type="button" key={key} aria-label={`Ikon ${emoji}`} aria-pressed={value===emoji} className={value===emoji?'selected':''} onClick={()=>pick(emoji)}><Emoji e={emoji}/></button>;
+ return <>
+  <button type="button" className="emoji-more-btn" onClick={()=>{setQuery('');setRecent(readRecent());setOpen(true)}}><Search size={14}/> {label}</button>
+  <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Cari ikon" className="emoji-search-dialog">
+   <label className="emoji-search"><Search size={16}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} placeholder="Cari, mis. kopi, rumah, liburan, gaji" aria-label="Cari ikon"/></label>
+   <div className="emoji-library emoji-search-library" role="group" aria-label="Pilih ikon">
+    {search?<section><h5>Hasil pencarian</h5><div className="emoji-grid">{found.length?found.map(emoji=>button(emoji,`s${emoji}`)):<small>Tidak ada ikon yang cocok. Coba kata lain.</small>}</div></section>:<>
+     {recent.length>0&&<section><h5>Terakhir dipakai</h5><div className="emoji-grid">{recent.map(emoji=>button(emoji,`h${emoji}`))}</div></section>}
+     {emojiLibrary.map(group=><section key={group.label}><h5>{group.label}</h5><div className="emoji-grid">{group.items.map(([emoji])=>button(emoji,`${group.label}${emoji}`))}</div></section>)}
+    </>}
+   </div>
+  </DialogContent></Dialog>
+ </>;
+}
+/** A short list of icons that always shows the current one, even when it was picked from the search. */
+export const withCurrent=(list:string[],current?:string)=>current&&!current.startsWith('brand:')&&!list.includes(current)?[current,...list]:list;
 
 export function VisualPicker({icon,color,onIcon,onColor,kind,name='',inheritLabel}:{icon:string;color:string;onIcon:(value:string)=>void;onColor:(value:string)=>void;kind:'wallet'|'category';name?:string;inheritLabel?:string}){
  const [query,setQuery]=useState(''),[recent]=useState<string[]>(()=>typeof window==='undefined'?[]:readRecent());
@@ -219,8 +248,8 @@ export function VisualPicker({icon,color,onIcon,onColor,kind,name='',inheritLabe
   <div className="picker-heading"><strong>Ikon</strong><span className="picker-current"><AppIcon icon={icon} fallback="🗂️"/></span></div>
   {kind==='wallet'?<div className="emoji-library wallet-icon-library" role="group" aria-label="Pilih ikon">
    {suggested&&<section><h5>Disarankan untuk “{name.trim()}”</h5><div className="emoji-grid brand-grid">{brandButton(suggested)}</div></section>}
-   {(['Bank','Bank digital','E-wallet','Investasi'] as const).map(group=><section key={group}><h5>{group}</h5><div className="emoji-grid brand-grid">{brandIcons.filter(brand=>brand.group===group).map(brandButton)}</div></section>)}
-   <section><h5>Emoji</h5><div className="emoji-grid">{walletEmojis.map(emoji=>button(emoji,emoji))}</div></section>
+   {(['Bank','Bank digital','E-wallet','Uang elektronik','Investasi'] as const).map(group=><section key={group}><h5>{group}</h5><div className="emoji-grid brand-grid">{brandIcons.filter(brand=>brand.group===group).map(brandButton)}</div></section>)}
+   <section><h5 className="emoji-head">Emoji<EmojiSearchButton value={icon} onPick={choose}/></h5><div className="emoji-grid">{withCurrent(walletEmojis,icon).map(emoji=>button(emoji,emoji))}</div></section>
   </div>:<>
    <label className="emoji-search"><Search size={16}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Cari ikon, mis. kopi, bensin, gaji" aria-label="Cari ikon"/></label>
    <div className="emoji-library" role="group" aria-label="Pilih ikon">

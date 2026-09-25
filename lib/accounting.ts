@@ -1,4 +1,5 @@
 import type { Budget, Category, Data, LedgerTx, Wallet } from './types';
+import { isKantong, kantongWalletIds } from './pockets.ts';
 export function rupiah(value: number) { const rounded = Math.round(value || 0); return (rounded < 0 ? '-Rp' : 'Rp') + Math.abs(rounded).toLocaleString('id-ID'); }
 export function readMoney(value: string) { const n = Number(value.replace(/\D/g, '')); return Number.isSafeInteger(n) ? n : 0; }
 /** Newest first: by date, then time, then when it was recorded (unsaved local writes count as newest). */
@@ -56,7 +57,10 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const liabilities = data.debts.reduce((n,d)=>n+Math.max(0,d.outstandingAmount),0);
   const receivables = data.claims.filter(c=>c.status!=='rejected').reduce((n,c)=>n+Math.max(0,c.remainingAmount),0)+data.receivables.reduce((n,r)=>n+Math.max(0,r.remainingAmount),0);
   const reserved = owned.filter(w=>w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
-  const unlinkedFunds = data.funds.filter(f=>!f.isArchived&&!active.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((n,f)=>n+Math.max(0,f.currentAmount),0);
+  // Wallets in a kantong are set aside as a whole; other Tujuan dana set aside their recorded amount.
+  const inKantong = kantongWalletIds(data.funds);
+  const kantongMoney = owned.filter(w=>!w.isReserved&&inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
+  const unlinkedFunds = data.funds.filter(f=>!f.isArchived&&!isKantong(f)&&!active.find(w=>w.id===f.linkedWalletId)?.isReserved).reduce((n,f)=>n+Math.max(0,f.currentAmount),0)+kantongMoney;
   const free = liquid.filter(w=>!w.isReserved).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0)-unlinkedFunds;
   const cycle = data.transactions.filter(t=>t.date>=start&&t.date<end);
   const income = cycle.filter(t=>t.type==='income').reduce((n,t)=>n+t.amount,0);
