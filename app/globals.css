@@ -2074,6 +2074,18 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 :root[data-theme='dark'] .suggest-list { box-shadow: 0 16px 34px -12px rgba(0, 0, 0, .7); }
 
 /* ==========================================================================
+   56. Arus kas: empty range with the next plan, section notes
+   ========================================================================== */
+.plan-empty { display: grid; gap: 12px; justify-items: start; }
+.plan-empty > p { margin: 0; color: var(--muted); }
+.plan-next { display: grid; gap: 2px; width: 100%; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); }
+.plan-next > span { color: var(--accent); font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.plan-next > strong { font-size: 1rem; }
+.plan-next > small { color: var(--muted); }
+.section-heading > p.muted { margin: 2px 0 0; font-size: .84rem; }
+.plan-actions { flex-wrap: wrap; gap: 6px; }
+
+/* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
 img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em; vertical-align: -.22em; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
