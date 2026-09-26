@@ -5116,15 +5116,47 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .donut-flow { display: flex; width: 100%; margin-bottom: 10px; }
 .donut-flow button { flex: 1; min-height: 32px; font-size: .8rem; }
 
-/* 100. Ketik cepat: a sentence becomes a filled-in transaction */
-.quick-entry { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-bottom: 14px; padding: 5px 5px 5px 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
+/* 100. Ketik cepat: a sentence becomes a transaction or a record (debt, receivable, claim, target) */
+.quick-entry-wrap { display: grid; gap: 8px; margin-bottom: 14px; }
+.quick-entry { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 5px 5px 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
 .quick-entry:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .quick-entry-icon { display: grid; place-items: center; color: var(--accent); }
 .quick-entry input { min-width: 0; height: 36px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .88rem; outline: none; }
 .quick-entry input::placeholder { color: var(--muted); }
 .quick-entry button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-on); cursor: pointer; }
 .quick-entry button:disabled { opacity: .4; cursor: default; }
-.quick-entry-hint { grid-column: 1 / -1; padding: 0 4px 3px; color: var(--rose); font-size: .76rem; }
+.quick-entry-hint { padding: 0 4px; color: var(--rose); font-size: .76rem; }
+.quick-groups { display: flex; gap: 6px; overflow-x: auto; padding: 1px 1px 3px; scrollbar-width: none; }
+.quick-groups::-webkit-scrollbar { display: none; }
+.quick-groups button { flex: none; min-height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font-size: .78rem; font-weight: 600; cursor: pointer; }
+.quick-groups button.is-detected { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent); }
+.quick-groups button.active { border-color: var(--accent); background: var(--accent); color: var(--accent-on); }
+.quick-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.quick-examples small { color: var(--muted); font-size: .72rem; }
+.quick-examples button { min-height: 26px; padding: 0 9px; border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 999px; background: transparent; color: var(--ink); font-size: .74rem; cursor: pointer; }
+.quick-preview { --qp: var(--accent); display: grid; gap: 9px; padding: 11px 12px 12px; border: 1px solid color-mix(in srgb, var(--qp) 30%, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--qp) 5%, var(--paper)); animation: view-in .18s var(--ease-out); }
+.quick-preview.tone-out { --qp: var(--rose); }
+.quick-preview.tone-in { --qp: var(--positive); }
+.qp-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.qp-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--qp) 14%, var(--paper)); color: var(--qp); }
+.qp-title { display: grid; min-width: 0; }
+.qp-title small { color: var(--muted); font-size: .72rem; font-weight: 600; }
+.qp-title strong { font: 700 1.08rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; }
+.qp-switch { font-size: .74rem; white-space: nowrap; }
+.qp-facts { display: flex; flex-wrap: wrap; gap: 5px; }
+.qp-facts span { padding: 3px 9px; border-radius: 999px; background: var(--paper-2); font-size: .74rem; }
+.qp-facts .qp-cat { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); font-weight: 600; }
+.qp-facts .qp-missing { background: color-mix(in srgb, var(--rose) 10%, var(--paper)); color: var(--rose); }
+.qp-fields { display: grid; gap: 7px; }
+.qp-fields:empty { display: none; }
+.qp-field { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; }
+.qp-field > span { color: var(--muted); font-size: .74rem; font-weight: 600; }
+.qp-field :is(.input, .app-select-trigger) { min-height: 36px; height: 36px; font-size: .84rem; border-radius: 10px; }
+.qp-note { color: var(--muted); font-size: .72rem; padding-left: 104px; }
+.qp-warn { color: var(--rose); font-size: .74rem; }
+.qp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.qp-actions .btn { min-height: 36px; padding: 0 16px; font-size: .84rem; }
+@media (max-width: 400px) { .qp-field { grid-template-columns: 1fr; gap: 4px; } .qp-note { padding-left: 0; } }
 
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
