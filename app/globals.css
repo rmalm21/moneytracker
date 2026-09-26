@@ -4716,6 +4716,12 @@ html, body { overscroll-behavior-x: none; }
 .dx-legend { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 44px; align-items: center; gap: 8px; padding: 6px 2px; font-size: .84rem; }
 .dx-legend i { width: 12px; height: 12px; border-radius: 4px; }
 .dx-legend.is-debt i { background: var(--rose); }
+.dx-legend.is-plus i { background: var(--chart-5, var(--accent)); }
+.wallet-mini > strong.amount-negative, :root[data-theme='dark'] .wallet-mini > strong.amount-negative { color: var(--rose); }
+.dx-legend span em { display: block; overflow: hidden; color: var(--muted); font-size: .74rem; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.dx-legend.is-total { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line-strong, var(--line)); }
+.dx-legend.is-total i { background: none; }
+.dx-legend.is-total span { font-weight: 700; }
 .dx-legend b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .dx-legend small { color: var(--muted); text-align: right; }
 .dx-goal { display: grid; gap: 4px; margin: 2px 0 6px; }

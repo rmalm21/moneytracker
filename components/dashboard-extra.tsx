@@ -21,7 +21,7 @@ import type { LedgerTx } from '@/lib/types';
  */
 export const extraWidgets = ['savingsRate', 'weekSpend', 'bigExpenses', 'topMerchants', 'categoryChanges', 'budgetAlerts', 'kantong', 'assetMix', 'emergency', 'wishlist', 'debts', 'bills', 'notes', 'lastCycle'] as const;
 export type ExtraWidgetId = typeof extraWidgets[number];
-export type ExtraContext = { navigate: (view: string, focus?: string) => void; openTx: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; range: DateRange; items: LedgerTx[]; prevItems: LedgerTx[]; loading: boolean; basis: string; today: string };
+export type ExtraContext = { navigate: (view: string, focus?: string) => void; openTx: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; range: DateRange; items: LedgerTx[]; prevItems: LedgerTx[]; loading: boolean; basis: string; today: string; /** Same Aset bersih as the hero card (receivables only when the user counts them). */ worth: { netWorth: number; receivables: number } };
 
 const short = (value: number) => { const n = Math.abs(value), sign = value < 0 ? '-' : ''; return n >= 1e9 ? `${sign}Rp${(n / 1e9).toFixed(1).replace('.', ',').replace(',0', '')} M` : n >= 1e6 ? `${sign}Rp${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} jt` : n >= 1e3 ? `${sign}Rp${Math.round(n / 1e3)} rb` : rupiah(value); };
 const shift = (date: string, days: number) => { const d = parseDate(date); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -123,12 +123,17 @@ function AssetMix({ ctx }: { ctx: ExtraContext }) {
   const live = data.wallets.filter(w => !w.isArchived && w.includeInNetWorth !== false);
   const groups = walletGroups.map(g => ({ ...g, amount: live.filter(w => walletGroup(w) === g.key).reduce((n, w) => n + Math.max(0, w.cachedBalance), 0) }));
   const total = groups.reduce((n, g) => n + g.amount, 0), debt = data.debts.reduce((n, d) => n + Math.max(0, d.outstandingAmount), 0);
+  // Wallets below zero lower Aset bersih but not the total above, so they get their own row and the rows add up.
+  const overdrawn = live.filter(w => w.cachedBalance < 0), minus = overdrawn.reduce((n, w) => n - w.cachedBalance, 0), { netWorth, receivables } = ctx.worth;
   const colors: Record<string, string> = { operational: 'var(--chart-1)', savings: 'var(--chart-3)', investment: 'var(--chart-4)' };
   return <Card title="Komposisi Aset" sub="Operasional, tabungan, dan investasi" value={rupiah(total)} link={['Buka Dompet', () => ctx.navigate('wallets')]}>
     {total > 0 ? <>
       <div className="dx-stack" role="img" aria-label={groups.map(g => `${g.label} ${Math.round(g.amount / total * 100)}%`).join(', ')}>{groups.filter(g => g.amount > 0).map(g => <i key={g.key} style={{ flex: g.amount, background: colors[g.key] }}/>)}</div>
       {groups.map(g => <div key={g.key} className="dx-legend"><i style={{ background: colors[g.key] }}/><span>{g.label}</span><b>{rupiah(g.amount)}</b><small>{Math.round(g.amount / total * 100)}%</small></div>)}
+      {minus > 0 && <div className="dx-legend is-debt"><i/><span>Saldo minus<em>{overdrawn.map(w => w.name).join(', ')}</em></span><b className="amount-negative">−{rupiah(minus)}</b><small>{Math.round(minus / total * 100)}%</small></div>}
+      {receivables > 0 && <div className="dx-legend is-plus"><i/><span>Piutang</span><b>+{rupiah(receivables)}</b><small>{Math.round(receivables / total * 100)}%</small></div>}
       {debt > 0 && <div className="dx-legend is-debt"><i/><span>Utang</span><b className="amount-negative">−{rupiah(debt)}</b><small>{Math.round(debt / total * 100)}%</small></div>}
+      {(minus > 0 || receivables > 0 || debt > 0) && <div className="dx-legend is-total"><i/><span>Aset bersih</span><b className={netWorth < 0 ? 'amount-negative' : undefined}>{rupiah(netWorth)}</b><small/></div>}
     </> : <Empty>Belum ada saldo dompet.</Empty>}
   </Card>;
 }
