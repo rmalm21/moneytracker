@@ -4662,9 +4662,7 @@ html, body { overscroll-behavior-x: none; }
 .widget-picker-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .widget-picker-head h3 { margin: 0; }
 .widget-picker-head small { color: var(--muted); font-size: .8rem; }
-.widget-picker-group { display: grid; gap: 8px; }
-.widget-picker-group h4 { margin: 0; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
-.widget-picker-group .widget-picker-grid { margin-top: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.wp-list .widget-picker-grid { margin-top: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
 .widget-picker-grid button.widget-option { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); text-align: left; font: inherit; font-weight: 400; cursor: pointer; transition: border-color .15s ease, background .15s ease, transform .12s ease; }
 @media (hover: hover) { .widget-picker-grid button.widget-option:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); color: var(--ink); } }
 .widget-picker-grid button.widget-option:active { transform: scale(.98); }
@@ -4746,6 +4744,140 @@ html, body { overscroll-behavior-x: none; }
 .font-choice-sample { font-size: .88rem; font-variant-numeric: tabular-nums; }
 .font-choices small { color: var(--muted); font-size: .72rem; line-height: 1.35; }
 @media (max-width: 420px) { .font-choices { grid-template-columns: minmax(0, 1fr); } .font-choices button { min-height: 0; } }
+
+/* 90. Akun: lupa & ganti password, buat password baru, reset semua data, hapus akun */
+.auth-badge { --tone: var(--accent); position: relative; flex: none; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 20px; color: var(--tone); background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 22%, var(--paper)), color-mix(in srgb, var(--tone) 7%, var(--paper))); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 24%, transparent), 0 12px 26px -16px color-mix(in srgb, var(--tone) 85%, transparent); }
+.auth-badge.tone-green { --tone: var(--positive); }
+.auth-badge.tone-rose { --tone: var(--rose); }
+.auth-badge.tone-amber { --tone: var(--amber); }
+.auth-badge.is-small { width: 44px; height: 44px; border-radius: 14px; }
+.auth-badge.is-pulse::after { content: ''; position: absolute; inset: -6px; border-radius: 25px; border: 2px solid color-mix(in srgb, var(--tone) 45%, transparent); animation: auth-pulse 1.8s ease-out infinite; }
+.auth-badge.is-busy svg { animation: auth-spin .9s linear infinite; }
+@keyframes auth-pulse { 0% { opacity: .9; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.2); } }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+.auth-flow { display: grid; gap: 14px; animation: view-in .3s var(--ease-out) both; }
+.auth-flow.is-center { justify-items: center; text-align: center; }
+.auth-flow.is-center .auth-actions, .auth-flow.is-center > .btn { width: 100%; }
+.auth-copy { display: grid; gap: 6px; }
+.auth-copy .eyebrow { margin: 0; }
+.auth-copy h2, .auth-copy h3 { margin: 0; font: 800 1.35rem/1.2 var(--font-head); letter-spacing: -.01em; }
+.auth-copy p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }
+.auth-copy p b { color: var(--ink); overflow-wrap: anywhere; }
+.auth-dest { display: flex; align-items: center; gap: 10px; margin-top: -4px; padding: 11px 13px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 8%, var(--paper-2)); color: var(--muted); font-size: .84rem; line-height: 1.4; }
+.auth-dest svg { flex: none; color: var(--accent); }
+.auth-dest b { color: var(--ink); overflow-wrap: anywhere; }
+.auth-steps { list-style: none; counter-reset: auth-step; margin: 0; padding: 0; display: grid; gap: 8px; text-align: left; }
+.auth-steps li { counter-increment: auth-step; display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 11px 13px; border-radius: 16px; background: var(--paper-2); }
+.auth-steps li::before { content: counter(auth-step); grid-row: span 2; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--paper); color: var(--accent); font-size: .86rem; font-weight: 800; box-shadow: var(--elev-1); }
+.auth-steps b { font-size: .9rem; }
+.auth-steps small { color: var(--muted); font-size: .78rem; line-height: 1.4; }
+.auth-note { margin: 0; color: var(--muted); font-size: .8rem; text-align: center; }
+.auth-note b { color: var(--ink); }
+.auth-actions { display: grid; gap: 8px; }
+.auth-back { justify-self: center; display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; }
+/* The sheet keeps its title for screen readers; the badge and heading inside say the same thing. */
+.auth-dialog .modal-heading { justify-content: flex-end; }
+.auth-dialog .modal-heading h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.auth-dialog .modal-body { padding-top: 0; }
+.auth-dialog .auth-flow > .auth-badge { justify-self: center; }
+.auth-dialog .auth-copy { text-align: center; }
+.login-card .auth-flow { margin-top: 4px; }
+.login-notice { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; padding: 12px 14px; border-radius: 14px; font-size: .86rem; line-height: 1.5; animation: view-in .3s var(--ease-out) both; }
+.login-notice svg { flex: none; margin-top: 2px; }
+.login-notice.is-done { border: 1px solid color-mix(in srgb, var(--positive) 26%, transparent); background: color-mix(in srgb, var(--positive) 10%, var(--paper)); color: color-mix(in srgb, var(--positive) 78%, var(--ink)); }
+.login-notice.is-warn { border: 1px solid var(--warn-line); background: var(--warn-soft); color: var(--warn-ink); }
+.pw-meter { display: grid; gap: 9px; margin-top: -4px; padding: 12px 14px; border-radius: 16px; background: var(--paper-2); }
+.pw-meter-top { display: flex; align-items: center; gap: 12px; }
+.pw-bars { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.pw-bars i { height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 22%, transparent); transition: background .25s ease; }
+.pw-meter.s1 .pw-bars i.on { background: var(--rose); }
+.pw-meter.s2 .pw-bars i.on { background: var(--amber); }
+.pw-meter.s3 .pw-bars i.on, .pw-meter.s4 .pw-bars i.on { background: var(--positive); }
+.pw-meter-top b { min-width: 78px; color: var(--muted); font-size: .8rem; text-align: right; }
+.pw-meter.s1 .pw-meter-top b { color: var(--rose); }
+.pw-meter.s2 .pw-meter-top b { color: var(--amber); }
+.pw-meter.s3 .pw-meter-top b, .pw-meter.s4 .pw-meter-top b { color: var(--positive); }
+.pw-checks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 5px 12px; }
+.pw-checks li { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: .78rem; transition: color .15s ease; }
+.pw-checks li i { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--muted) 55%, transparent); }
+.pw-checks li svg { flex: none; width: 14px; height: 14px; padding: 2px; border-radius: 50%; background: var(--positive); color: #fff; }
+.pw-checks li.ok { color: var(--ink); }
+.pw-match { display: flex; align-items: center; gap: 6px; margin-top: -6px; color: var(--rose); font-size: .78rem; font-weight: 600; }
+.pw-match.ok { color: var(--positive); }
+.pw-card { display: grid; gap: 14px; }
+.pw-card-head { display: flex; align-items: center; gap: 12px; }
+.pw-card-head h3 { margin: 0; }
+.pw-card-head p { margin: 2px 0 0; color: var(--muted); font-size: .84rem; }
+.pw-card-head p b { color: var(--ink); overflow-wrap: anywhere; }
+.pw-card .settings-actions { margin-top: 2px; }
+.pw-forgot { padding-top: 12px; border-top: 1px dashed var(--line-strong); }
+.pw-forgot p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.pw-forgot .link-button { font-size: .84rem; }
+.pw-forgot.is-sent p { flex-wrap: nowrap; align-items: flex-start; color: var(--ink); }
+.pw-forgot.is-sent svg { flex: none; margin-top: 3px; color: var(--positive); }
+.set-row-icon.tone-orange { background: #d97a2b; }
+.set-row-icon.tone-red { background: #c8445a; }
+.set-row.is-danger .set-row-text strong { color: var(--rose); }
+.danger-flow { display: grid; gap: 14px; }
+.danger-hero { --tone: var(--amber); display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--tone) 26%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 14%, var(--paper)), color-mix(in srgb, var(--tone) 4%, var(--paper))); }
+.danger-hero.tone-rose { --tone: var(--rose); }
+.danger-hero .auth-badge { width: 52px; height: 52px; border-radius: 17px; }
+.danger-hero strong { display: block; font-size: 1rem; }
+.danger-hero small { display: block; margin-top: 3px; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+.danger-hero small b { color: var(--ink); overflow-wrap: anywhere; }
+.danger-list h4 { margin: 0 0 8px; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.danger-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.danger-list li { padding: 5px 11px; border-radius: 99px; background: var(--paper-2); font-size: .8rem; font-weight: 600; }
+.danger-check { display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.danger-check input { flex: none; width: 20px; height: 20px; margin-top: 1px; accent-color: var(--rose); }
+.danger-check strong { display: block; font-size: .88rem; }
+.danger-check small { display: block; margin-top: 2px; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.danger-check:has(input:checked) { border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); background: color-mix(in srgb, var(--rose) 6%, var(--paper)); }
+.danger-backup { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--accent) 7%, var(--paper-2)); }
+.danger-backup-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--paper); color: var(--accent); box-shadow: var(--elev-1); }
+.danger-backup.is-done .danger-backup-icon { color: var(--positive); }
+.danger-backup-text { flex: 1; min-width: 0; }
+.danger-backup-text strong { display: block; font-size: .88rem; }
+.danger-backup-text small { display: block; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.danger-backup .btn { flex: none; }
+.danger-flow > .modal-actions .btn-secondary { flex: 0 0 auto; min-width: 96px; }
+.danger-flow > .modal-actions .btn-danger { flex: 1 1 auto; white-space: nowrap; }
+/* While records are being deleted the sheet cannot be closed, so its close button is hidden. */
+.danger-dialog.is-busy .modal-heading .icon-btn { visibility: hidden; }
+.danger-progress { display: grid; justify-items: center; gap: 12px; padding: 18px 4px 24px; text-align: center; }
+.danger-progress strong { font-size: 1.02rem; }
+.danger-progress small { color: var(--muted); font-size: .8rem; }
+.danger-bar { width: min(100%, 320px); height: 8px; overflow: hidden; border-radius: 99px; background: var(--paper-2); }
+.danger-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--amber), var(--rose)); transition: width .35s ease; }
+@media (prefers-reduced-motion: reduce) { .auth-badge.is-pulse::after, .auth-badge.is-busy svg { animation: none; } }
+
+/* 91. Beranda → Tambah kartu: categories that open like dropdowns, with search */
+/* Grid children may shrink below their content width, so the search row never pushes the panel past the screen. */
+.widget-picker > * { min-width: 0; }
+.wp-tools { display: flex; align-items: center; gap: 12px; }
+.wp-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--muted); transition: border-color .15s ease, box-shadow .15s ease; }
+.wp-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.wp-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--ink); font: inherit; font-size: .9rem; }
+.wp-tools .link-button { flex: none; font-size: .82rem; }
+.wp-added { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--positive) 11%, var(--paper)); color: var(--positive); font-size: .82rem; font-weight: 700; animation: view-in .25s var(--ease-out) both; }
+.wp-groups { display: grid; gap: 8px; }
+.wp-group { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); transition: border-color .15s ease, box-shadow .15s ease; }
+.wp-group.is-open { border-color: color-mix(in srgb, var(--accent) 32%, var(--line)); box-shadow: var(--elev-1); }
+.wp-group-head { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 12px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+div.wp-group-head { cursor: default; }
+.wp-group-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; color: var(--accent); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 20%, var(--paper)), color-mix(in srgb, var(--accent) 7%, var(--paper))); }
+.wp-group-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.wp-group-text strong { font-size: .92rem; transition: color .15s ease; }
+.wp-group-text small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.wp-count { display: inline-block; margin-left: 4px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: .68rem; font-weight: 800; line-height: 1.5; vertical-align: 2px; white-space: nowrap; }
+.wp-count.is-full { background: var(--paper-2); color: var(--muted); }
+.wp-chevron { flex: none; color: var(--muted); transition: transform .2s var(--ease-out); }
+.wp-group.is-open .wp-chevron { transform: rotate(180deg); }
+.wp-list { padding: 0 12px 12px; animation: view-in .22s var(--ease-out) both; }
+.wp-list .widget-picker-grid button.widget-option { border-color: transparent; background: var(--paper-2); }
+@media (max-width: 400px) { .wp-group-head { gap: 10px; padding: 10px; } .wp-group-icon { width: 36px; height: 36px; border-radius: 12px; } .wp-list { padding: 0 10px 10px; } }
+.wp-empty { margin: 0; padding: 4px 4px 2px; color: var(--muted); font-size: .82rem; }
+@media (hover: hover) { .wp-group-head:hover .wp-group-text strong { color: var(--accent); } .wp-list .widget-picker-grid button.widget-option:hover { border-color: var(--accent); } }
 
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device

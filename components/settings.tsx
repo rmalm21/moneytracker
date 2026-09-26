@@ -2,7 +2,7 @@
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
 import { Field, FormActions, Input, Money, Select } from './fields';
@@ -11,8 +11,11 @@ import { Confirm } from './ui/alert-dialog';
 import { PinSettings } from './pin-lock';
 import { ReminderSettings, reminderConfig } from './reminders';
 import { applyUpdate, promptInstall, usePwa } from '@/lib/pwa';
-import { changePassword, friendlyError, logout } from '@/lib/auth';
-import { exportData, importData, saveProfile, validateBackup } from '@/lib/firestore';
+import { friendlyError, logout } from '@/lib/auth';
+import { importData, saveProfile, validateBackup } from '@/lib/firestore';
+import { downloadBackup } from '@/lib/account';
+import { AccountDangerZone } from './account-danger';
+import { PasswordCard } from './password-ui';
 import type { TimeZone } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
 import { rupiah } from '@/lib/accounting';
@@ -37,10 +40,10 @@ const sections: { key: Section; title: string; detail: string; icon: LucideIcon;
   { key: 'data', title: 'Data & cadangan', detail: 'Unduh cadangan atau pulihkan data dari file.', icon: DatabaseBackup, group: 'Keuangan & data', tone: 'slate' },
 ];
 
-export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void;focus?:string}){const {user,profile,data}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[current,setCurrent]=useState(''),[newPass,setNewPass]=useState(''),[repeat,setRepeat]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
+export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void;focus?:string}){const {user,profile,data}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
  async function perform(fn:()=>Promise<unknown>,message:string){setError('');setBusy(true);try{await fn();notify(message);}catch(e){setError((e as Error).message||'Pengaturan belum tersimpan.');}finally{setBusy(false);}}
  async function handleFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setError('');setFileName(file.name);try{if(file.size>25_000_000)throw Error('File cadangan terlalu besar (maksimal 25 MB).');const parsed=JSON.parse(await file.text()) as unknown;const result=validateBackup(parsed);setImportFile(parsed);setCounts(result.counts);}catch(e){setError((e as Error).message);setImportFile(null);}}
- async function exportJson(){if(!user)return;await perform(async()=>{const backup=await exportData(user.uid);const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`dompet-ajaib-backup-${new Date().toLocaleDateString('en-CA')}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);},'File cadangan diunduh.');}
+ async function exportJson(){if(!user)return;await perform(()=>downloadBackup(user.uid),'File cadangan diunduh.');}
  const [section,setSection]=useState<Section|null>(sections.some(item=>item.key===focus)?focus as Section:null),[wide,setWide]=useState(false);
  useEffect(()=>{const media=window.matchMedia('(min-width: 900px)');const update=()=>setWide(media.matches);update();media.addEventListener('change',update);return ()=>media.removeEventListener('change',update)},[]);
  const active=section??(wide?'profile':null);
@@ -65,6 +68,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>
    {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
    {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button></div></section>}
+   <AccountDangerZone notify={notify}/>
    <div className="set-group"><Confirm title="Keluar dari akun?" description="Kamu perlu masuk lagi dengan username dan password untuk membuka catatan keuangan ini." confirmLabel="Ya, keluar" onConfirm={()=>logout()}><button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari akun</button></Confirm><small className="set-version">Dompet Ajaib · Versi {APP_VERSION}</small></div>
   </aside>
   {page&&<section className="set-page" key={page.key} aria-labelledby="set-page-title">
@@ -79,7 +83,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
 
    {page.key==='security'&&<div className="set-form">
     <PinSettings notify={notify} onLockNow={onLockNow}/>
-    <form className="set-card" onSubmit={e=>{e.preventDefault();if(!user)return;if(newPass!==repeat){setError('Konfirmasi password tidak cocok.');return;}void perform(async()=>{await changePassword(user,current,newPass);setCurrent('');setNewPass('');setRepeat('');},'Password berhasil diubah.')}}><h3>Password</h3><p>Masukkan password saat ini untuk menggantinya.</p><div className="form-grid"><Field label="Password saat ini"><Input type="password" autoComplete="current-password" required value={current} onChange={e=>setCurrent(e.target.value)}/></Field><Field label="Password baru"><Input type="password" autoComplete="new-password" required minLength={8} value={newPass} onChange={e=>setNewPass(e.target.value)}/></Field><Field label="Ulangi password baru"><Input type="password" autoComplete="new-password" required value={repeat} onChange={e=>setRepeat(e.target.value)}/></Field></div>{errorText}<div className="settings-actions"><Button disabled={busy} type="submit"><LockKeyhole size={16}/> Ganti password</Button></div></form>
+    <PasswordCard user={user} notify={notify}/>
    </div>}
 
    {page.key==='reminders'&&<div className="set-form"><ReminderSettings/></div>}
