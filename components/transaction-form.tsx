@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, MoreHorizontal, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, MoreHorizontal, Sparkles, X } from 'lucide-react';
 import { AppIcon } from './visual-identity';
 import { EmojiText } from './emoji';
 import { SuggestInput, forgetTyped, rememberTyped, useTypedSuggestions, type Suggestion } from './suggest-input';
@@ -19,6 +19,7 @@ const labels:Record<TxType,string>={expense:'Pengeluaran',income:'Pemasukan',tra
 const visible:TxType[]=['expense','income','transfer','debt_payment','claim_payment','receivable_payment','fund_contribution','adjustment'];
 export function TransactionForm({onDone,onCancel,preset,editing,background,onQuick}:{onDone:(message:string)=>void;onCancel:()=>void;preset?:Partial<LedgerTx>;editing?:LedgerTx|null;onQuick?:(preset:Partial<LedgerTx>)=>void;background?:(run:()=>Promise<unknown>,info:{message:string;detail?:string;retry:{preset?:Partial<LedgerTx>;editing?:LedgerTx}})=>void}){
  const {data,user,profile}=useApp();const initial=editing||preset;const [type,setType]=useState<TxType>(initial?.type||'expense'),[amount,setAmount]=useState(initial?.amount||0),[walletId,setWallet]=useState(initial?.walletId||''),[destination,setDest]=useState(initial?.destinationWalletId||''),[categoryId,setCategory]=useState(initial?.categoryId||(initial?.type==='income'?profile?.salaryIncomeCategoryId:'')||''),[subcategoryId,setSubcategory]=useState(initial?.subcategoryId||''),[date,setDate]=useState(initial?.date||todayInTimeZone(profile?.timeZone)),[time,setTime]=useState(editing?editing.time||'':initial?.time||timeInTimeZone(profile?.timeZone)),[merchant,setMerchant]=useState(initial?.merchant||''),[description,setDescription]=useState(initial?.description||''),[notes,setNotes]=useState(initial?.notes||''),[tags,setTags]=useState((initial?.tags||[]).join(', ')),[direction,setDirection]=useState(initial?.adjustmentDirection||'in'),[claimId,setClaim]=useState(initial?.claimId||''),[receivableId,setReceivable]=useState(initial?.receivableId||''),[debtId,setDebt]=useState(initial?.debtId||''),[fundId,setFund]=useState(initial?.fundId||''),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ const [quick,setQuick]=useState(false);
  const [splits,setSplits]=useState<SplitLine[]>(initial?.splits||[]),[fee,setFee]=useState(initial?.transferFee||0),[feeCategory,setFeeCategory]=useState(initial?.transferFeeCategoryId||''),[closedAcknowledged,setClosedAcknowledged]=useState(false);
  const splitTotal=splits.reduce((sum,line)=>sum+line.amount,0),splitDifference=amount-splitTotal;
  const closed=isCycleClosed(editing?.date||date,data.cycleSnapshots||[])||isCycleClosed(date,data.cycleSnapshots||[]);
@@ -49,7 +50,7 @@ export function TransactionForm({onDone,onCancel,preset,editing,background,onQui
  const walletChips=(list:typeof data.wallets,value:string,set:(id:string)=>void,label:string)=><Select className="tx-wallet-select" menuClassName="tx-wallet-menu" required aria-label={label} value={value} onChange={e=>set(e.target.value)} render={(id,place)=>walletView(list.find(w=>w.id===id),place)}>{list.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</Select>;
  const sourceLabel=type==='adjustment'?'Dompet yang dikoreksi':['income','claim_payment','receivable_payment','borrowing'].includes(type)?'Masuk ke dompet':'Dari dompet';
  const tone=type==='income'||type==='claim_payment'||type==='receivable_payment'?'in':type==='expense'||type==='debt_payment'?'out':'move';
- return <>{!editing&&onQuick&&<QuickEntryBox onOpenForm={onQuick} onDone={onCancel}/>}<form className={`tx-form tone-${tone}`} onSubmit={submit}>
+ return <>{!editing&&onQuick&&(quick?<QuickEntryBox autoFocus onOpenForm={onQuick} onDone={onCancel}/>:<button type="button" className="auto-entry-button slim" onClick={()=>setQuick(true)}><Sparkles size={18}/><span className="aeb-text"><strong>Catat otomatis</strong><small>Ketik saja, mis. “beli kopi 25rb”</small></span><ChevronRight size={17}/></button>)}<form className={`tx-form tone-${tone}`} onSubmit={submit}>
   {closed&&<div className="notice"><strong>Transaksi ini berada dalam siklus yang sudah ditutup.</strong><p>Mengubahnya akan menghitung ulang laporan siklus terkait.</p><label className="check-row"><input type="checkbox" checked={closedAcknowledged} onChange={e=>setClosedAcknowledged(e.target.checked)}/> Saya ingin melanjutkan perubahan</label></div>}
   <div className="tx-types" role="tablist" aria-label="Jenis transaksi">
    {main.map(([key,label,Icon])=><button type="button" role="tab" key={key} aria-selected={type===key} disabled={locked} className={type===key?'active':''} onClick={()=>chooseType(key)}><Icon size={16}/>{label}</button>)}

@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '68', date: '26 Sep 2026', title: 'Tombol Catat otomatis', items: [
+    ['🚀', 'Tombol khusus “Catat otomatis” di atas Pengeluaran dan Pemasukan: ketik, cek pratinjau, lalu “Sesuai, simpan”.'],
+  ] },
   { version: '67', date: '26 Sep 2026', title: 'Ketik cepat makin pintar', items: [
     ['🚀', 'Ketik cepat kini paham utang, piutang, klaim kantor, target, dan wish list, bukan hanya masuk dan keluar.'],
     ['✅', 'Pratinjau langsung saat mengetik, lalu Simpan sekali ketuk. Salah tebak? Ketuk “Bukan?” atau pilih jenisnya.'],

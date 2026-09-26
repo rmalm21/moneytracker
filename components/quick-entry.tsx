@@ -144,7 +144,7 @@ export function QuickEntryBox({ onOpenForm, onDone, autoFocus = false }: { onOpe
         {kind === 'target' && fund && <small className="qp-note">Masuk ke {walletName(destination) || 'dompet target'}</small>}
       </div>
       {(missing || error) && <small className="qp-warn" role="status">{error || missing}</small>}
-      <div className="qp-actions">{txKinds.has(kind) && <Button type="button" variant="secondary" onClick={openForm}>Ubah detail</Button>}<Button type="button" onClick={save} disabled={Boolean(missing)}>Simpan</Button></div>
+      <div className="qp-actions">{txKinds.has(kind) && <Button type="button" variant="secondary" onClick={openForm}>Ubah detail</Button>}<Button type="button" onClick={save} disabled={Boolean(missing)}>Sesuai, simpan</Button></div>
     </div>}
   </div>;
 }

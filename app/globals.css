@@ -5158,6 +5158,17 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .qp-actions .btn { min-height: 36px; padding: 0 16px; font-size: .84rem; }
 @media (max-width: 400px) { .qp-field { grid-template-columns: 1fr; gap: 4px; } .qp-note { padding-left: 0; } }
 
+/* 101. "Catat otomatis": a full-width special button above the kinds, and the typing screen it opens */
+.mobile-menu-grid.add-menu button.auto-entry-button { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; min-height: 66px; padding: 12px 14px; border-radius: 18px; }
+.auto-entry-button .aeb-text { display: grid; gap: 2px; min-width: 0; }
+.auto-entry-button .aeb-text strong { font-size: .95rem; }
+.auto-entry-button .aeb-text small { font-size: .74rem; font-weight: 500; opacity: .92; line-height: 1.35; }
+.auto-entry-button.slim { position: relative; overflow: hidden; isolation: isolate; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 50px; margin-bottom: 14px; padding: 8px 14px; border: 0; border-radius: 14px; color: #fff; text-align: left; cursor: pointer; background: linear-gradient(115deg, #7b5cff, #2fb7a3, #f2a33a, #e2558f, #7b5cff); background-size: 320% 100%; animation: special-flow 9s ease-in-out infinite; box-shadow: 0 8px 20px rgba(123, 92, 255, .22); }
+.auto-entry-button.slim svg { filter: drop-shadow(0 0 6px rgba(255, 255, 255, .55)); }
+.auto-entry { display: grid; gap: 4px; }
+.auto-back { justify-self: start; display: inline-flex; align-items: center; gap: 4px; margin: -4px 0 4px; font-size: .8rem; }
+@media (prefers-reduced-motion: reduce) { .auto-entry-button.slim { animation: none; } }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
