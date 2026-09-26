@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeftRight, ArrowRight, CreditCard, Gift, HandCoins, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, ArrowUpLeft, CreditCard, Gift, HandCoins, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
@@ -21,16 +21,50 @@ import type { LedgerTx, Wallet } from '@/lib/types';
 const icons: Record<QuickKind, LucideIcon> = { expense: TrendingDown, income: TrendingUp, transfer: ArrowLeftRight, debt_new: CreditCard, debt_payment: CreditCard, receivable_new: HandCoins, receivable_payment: HandCoins, claim_new: ShieldCheck, claim_payment: ShieldCheck, target: Target, wish: Gift };
 /** The other side of each kind ("new" ↔ "paid"), offered as a one-tap correction. */
 const sibling: Partial<Record<QuickKind, QuickKind>> = { debt_new: 'debt_payment', debt_payment: 'debt_new', receivable_new: 'receivable_payment', receivable_payment: 'receivable_new', claim_new: 'claim_payment', claim_payment: 'claim_new', target: 'wish', wish: 'target' };
-const examples: Record<QuickGroup, string[]> = {
-  auto: ['beli kopi 25rb', 'pinjam 500rb dari budi', 'andi bayar 50rb', 'nabung 1jt ke dana darurat', 'klaim taksi 80rb'],
-  expense: ['makan siang 30rb', 'bensin 50rb pake gopay', 'pulsa 100rb kemarin'],
-  income: ['gaji 7,5jt masuk bca', 'bonus 500rb', 'jual sepatu 300rb'],
-  transfer: ['tf 200rb dari bca ke gopay', 'pindahin 1jt dari bca ke tabungan'],
-  debt: ['pinjam 500rb dari budi', 'bayar cicilan 750rb', 'lunasin utang budi'],
-  receivable: ['pinjemin andi 100rb', 'bayarin sinta makan 50rb', 'andi bayar 50rb'],
-  claim: ['klaim taksi 80rb', 'reimburse hotel 1,2jt', 'klaim cair 900rb'],
-  target: ['nabung 500rb ke dana darurat', 'sisihkan 100rb buat headphone'],
+/** Tap-to-try examples: the sentence and what it becomes. */
+type Example = { text: string; kind: QuickKind; result: string };
+const examples: Record<QuickGroup, Example[]> = {
+  auto: [
+    { text: 'beli kopi 25rb di kenangan', kind: 'expense', result: 'di Kopi Kenangan, kategorinya terisi sendiri' },
+    { text: 'gaji 7,5jt masuk bca', kind: 'income', result: 'Rp7.500.000 masuk ke BCA' },
+    { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
+    { text: 'andi bayar 50rb', kind: 'receivable_payment', result: 'sisa utang Andi ke kamu berkurang' },
+    { text: 'nabung 1jt ke dana darurat', kind: 'target', result: 'uangnya masuk ke Dana Darurat' },
+  ],
+  expense: [
+    { text: 'makan siang 30rb', kind: 'expense', result: 'kategori makan terisi sendiri' },
+    { text: 'bensin 50rb pake gopay', kind: 'expense', result: 'dibayar dari GoPay' },
+    { text: 'pulsa 100rb kemarin', kind: 'expense', result: 'dicatat di tanggal kemarin' },
+  ],
+  income: [
+    { text: 'gaji 7,5jt masuk bca', kind: 'income', result: 'langsung masuk ke BCA' },
+    { text: 'bonus 500rb', kind: 'income', result: 'ke dompet utama, hari ini' },
+    { text: 'jual sepatu 300rb', kind: 'income', result: 'hasil jual barang' },
+  ],
+  transfer: [
+    { text: 'tf 200rb dari bca ke gopay', kind: 'transfer', result: 'pindah dari BCA ke GoPay' },
+    { text: 'topup 100rb dari bca ke gopay', kind: 'transfer', result: 'isi saldo e-wallet' },
+  ],
+  debt: [
+    { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
+    { text: 'bayar cicilan laptop 750rb', kind: 'debt_payment', result: 'mencicil utang “Cicilan laptop”' },
+    { text: 'lunasin utang budi', kind: 'debt_payment', result: 'seluruh sisanya dibayar' },
+  ],
+  receivable: [
+    { text: 'pinjemin andi 100rb', kind: 'receivable_new', result: 'Andi berutang ke kamu' },
+    { text: 'bayarin sinta makan 50rb', kind: 'receivable_new', result: 'kamu menalangi Sinta' },
+    { text: 'andi bayar 50rb', kind: 'receivable_payment', result: 'Andi mencicil ke kamu' },
+  ],
+  claim: [
+    { text: 'klaim taksi 80rb', kind: 'claim_new', result: 'kamu menalangi kantor' },
+    { text: 'klaim cair 900rb', kind: 'claim_payment', result: 'kantor sudah mengganti' },
+  ],
+  target: [
+    { text: 'nabung 500rb ke dana darurat', kind: 'target', result: 'uangnya masuk ke Dana Darurat' },
+    { text: 'sisihkan 100rb buat headphone', kind: 'wish', result: 'untuk impian di wish list' },
+  ],
 };
+const toneOf = (kind: QuickKind) => ['income', 'receivable_payment', 'claim_payment'].includes(kind) ? 'in' : ['transfer', 'target', 'wish'].includes(kind) ? 'move' : 'out';
 const txKinds = new Set<QuickKind>(['expense', 'income', 'transfer', 'debt_payment', 'receivable_payment', 'claim_payment', 'target']);
 /** Kinds where money comes into the wallet (the default wallet is the income one). */
 const incoming = new Set<QuickKind>(['income', 'receivable_payment', 'claim_payment', 'debt_new']);
@@ -68,15 +102,15 @@ export function QuickEntryBox({ onOpenForm, onDone, autoFocus = false }: { onOpe
   const category = data.categories.find(c => c.id === (result?.preset.subcategoryId || result?.preset.categoryId));
 
   // What still stops a direct save (the form can always be opened instead).
-  const missing = !result ? '' : kind === 'expense' && !result.preset.categoryId ? 'Kategori belum terbaca. Pilih di formulir, atau sebut kategorinya.'
-    : txKinds.has(result.kind) && !walletId ? 'Pilih dompetnya.'
-    : kind === 'transfer' && (!destination || destination === walletId) ? 'Sebut dua dompet: “dari bca ke gopay”.'
-    : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId ? 'Pilih catatannya di bawah.'
-    : kind === 'target' && !linkId ? 'Pilih targetnya di bawah.'
-    : kind === 'target' && (!destination || destination === walletId) ? 'Target ini perlu dompet tujuan lain; lanjutkan di formulir.'
+  const missing = !result ? '' : kind === 'expense' && !result.preset.categoryId ? 'Kategorinya belum ketemu. Sebut kategorinya (mis. “makan”), atau tekan Ubah detail.'
+    : txKinds.has(result.kind) && !walletId ? 'Pilih dompetnya dulu.'
+    : kind === 'transfer' && (!destination || destination === walletId) ? 'Sebut dompet asal dan tujuan, mis. “dari bca ke gopay”.'
+    : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId ? 'Pilih catatan yang dimaksud di atas.'
+    : kind === 'target' && !linkId ? 'Pilih tujuan dananya di atas.'
+    : kind === 'target' && (!destination || destination === walletId) ? 'Tujuan dana ini belum punya dompet sendiri. Tekan Ubah detail untuk memilih dompet tujuan.'
     : kind === 'receivable_new' && !person.trim() ? 'Tulis nama orangnya.'
-    : kind === 'claim_new' && (!name.trim() || !walletId) ? 'Isi nama klaim dan dompet asalnya.'
-    : kind === 'debt_new' && !name.trim() ? 'Isi nama utangnya.' : '';
+    : kind === 'claim_new' && (!name.trim() || !walletId) ? 'Lengkapi nama klaim dan dompet asalnya.'
+    : kind === 'debt_new' && !name.trim() ? 'Beri nama utangnya.' : '';
 
   function preset(): Partial<LedgerTx> {
     if (!result) return {};
@@ -117,30 +151,30 @@ export function QuickEntryBox({ onOpenForm, onDone, autoFocus = false }: { onOpe
   const Icon = kind ? icons[kind] : Sparkles;
   const other = kind ? sibling[kind] : undefined;
   const hasOther = other && (other !== 'wish' || data.wishlist.some(w => w.status === 'active')) && (other !== 'target' || data.funds.some(f => !f.isArchived));
-  const tone = kind && (incoming.has(kind) && kind !== 'debt_new' ? 'in' : kind === 'transfer' || kind === 'target' || kind === 'wish' ? 'move' : 'out');
+  const tone = kind && toneOf(kind);
 
   return <div className="quick-entry-wrap">
     <form className="quick-entry" onSubmit={submit}>
       <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
-      <input value={text} onChange={e => { setText(e.target.value); setError(''); }} placeholder={`Ketik cepat: ${examples[activeGroup as QuickGroup]?.[0] || examples.auto[0]}`} aria-label="Ketik cepat transaksi" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
+      <input value={text} onChange={e => { setText(e.target.value); setError(''); }} placeholder="Tulis transaksimu di sini…" aria-label="Tulis transaksi dalam satu kalimat" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={result && !missing ? 'Simpan' : 'Lanjut'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form>
     <div className="quick-groups" role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.map(([key, label]) => <button type="button" role="radio" aria-checked={activeGroup === key} key={key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={() => setMode(key)}>{label}</button>)}</div>
-    {!text.trim() && <div className="quick-examples"><small>Contoh:</small>{(examples[activeGroup as QuickGroup] || examples.auto).map(example => <button type="button" key={example} onClick={() => setText(example)}>{example}</button>)}</div>}
+    {!text.trim() && <div className="quick-examples"><span className="qe-title">Ketuk contoh untuk mencoba</span>{(examples[activeGroup as QuickGroup] || examples.auto).map(example => { const ExampleIcon = icons[example.kind]; return <button type="button" key={example.text} className={`qe-item tone-${toneOf(example.kind)}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button>; })}</div>}
     {text.trim() && !result && <small className="quick-entry-hint" role="alert">{error || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
     {result && kind && <div className={`quick-preview tone-${tone}`}>
-      <div className="qp-head"><span className="qp-icon" aria-hidden="true"><Icon size={18}/></span><span className="qp-title"><small>{QUICK_LABELS[kind]}</small><strong>{rupiah(result.amount)}</strong></span>{hasOther && other && <button type="button" className="link-button qp-switch" onClick={() => setMode(other)}>Bukan? {QUICK_LABELS[other]}</button>}</div>
+      <div className="qp-head"><span className="qp-icon" aria-hidden="true"><Icon size={18}/></span><span className="qp-title"><small>{QUICK_LABELS[kind]}</small><strong>{rupiah(result.amount)}</strong></span>{hasOther && other && <button type="button" className="qp-switch" onClick={() => setMode(other)}><small>Bukan ini?</small>{QUICK_LABELS[other]}</button>}</div>
       <div className="qp-facts">
         {(kind === 'expense' || kind === 'income') && <>{result.preset.description && <span>{result.preset.description}</span>}{result.preset.merchant && <span>{result.preset.merchant}</span>}{category ? <span className="qp-cat">{category.name}</span> : kind === 'expense' && <span className="qp-missing">Tanpa kategori</span>}</>}
         {kind === 'transfer' && <span>{walletName(walletId) || '?'} → {walletName(destination) || '?'}</span>}
         <span>{result.date === today ? 'Hari ini' : formatDate(result.date, false)}</span>
       </div>
       <div className="qp-fields">
-        {(kind === 'debt_new' || kind === 'receivable_new') && <label className="qp-field"><span>{kind === 'debt_new' ? 'Dari siapa' : 'Siapa'}</span><Input value={person} onChange={e => setEdit(v => ({ ...v, person: e.target.value }))} placeholder="Nama orang"/></label>}
+        {(kind === 'debt_new' || kind === 'receivable_new') && <label className="qp-field"><span>{kind === 'debt_new' ? 'Dipinjam dari' : 'Dipinjam oleh'}</span><Input value={person} onChange={e => setEdit(v => ({ ...v, person: e.target.value }))} placeholder="Nama orang"/></label>}
         {(kind === 'debt_new' || kind === 'claim_new') && <label className="qp-field"><span>{kind === 'debt_new' ? 'Nama utang' : 'Nama klaim'}</span><Input value={name} onChange={e => setEdit(v => ({ ...v, name: e.target.value }))}/></label>}
-        {kind === 'receivable_new' && <label className="qp-field"><span>Untuk</span><Input value={description} onChange={e => setEdit(v => ({ ...v, description: e.target.value }))} placeholder="Opsional, mis. makan"/></label>}
+        {kind === 'receivable_new' && <label className="qp-field"><span>Keperluan</span><Input value={description} onChange={e => setEdit(v => ({ ...v, description: e.target.value }))} placeholder="Opsional, mis. makan siang"/></label>}
         {linkOptions.length > 0 && <label className="qp-field"><span>{kind === 'debt_payment' ? 'Utang' : kind === 'receivable_payment' ? 'Piutang' : kind === 'claim_payment' ? 'Klaim' : kind === 'wish' ? 'Wish list' : 'Target'}</span><Select value={linkId} onChange={e => setEdit(v => ({ ...v, linkId: e.target.value }))}><option value="">Pilih…</option>{linkOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</Select></label>}
-        {kind !== 'wish' && <label className="qp-field"><span>{kind === 'transfer' || kind === 'target' ? 'Dari dompet' : kind && incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet'}</span><Select value={walletId} onChange={e => setEdit(v => ({ ...v, walletId: e.target.value }))}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">Pilih dompet</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></label>}
+        {kind !== 'wish' && <label className="qp-field"><span>{kind === 'debt_new' ? 'Uangnya masuk ke' : kind === 'receivable_new' ? 'Uangnya keluar dari' : kind && incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet'}</span><Select value={walletId} onChange={e => setEdit(v => ({ ...v, walletId: e.target.value }))}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">Pilih dompet</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></label>}
         {kind === 'target' && fund && <small className="qp-note">Masuk ke {walletName(destination) || 'dompet target'}</small>}
       </div>
       {(missing || error) && <small className="qp-warn" role="status">{error || missing}</small>}

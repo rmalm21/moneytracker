@@ -19,7 +19,7 @@ import type { Category, Claim, Debt, Fund, LedgerTx, Receivable, TxType, Wallet,
 export type QuickKind = 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish';
 export type QuickGroup = 'auto' | 'expense' | 'income' | 'transfer' | 'debt' | 'receivable' | 'claim' | 'target';
 export const QUICK_GROUPS: [QuickGroup, string][] = [['auto', 'Otomatis'], ['expense', 'Keluar'], ['income', 'Masuk'], ['transfer', 'Transfer'], ['debt', 'Utang'], ['receivable', 'Piutang'], ['claim', 'Klaim'], ['target', 'Target']];
-export const QUICK_LABELS: Record<QuickKind, string> = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', debt_new: 'Utang baru', debt_payment: 'Bayar utang', receivable_new: 'Piutang baru', receivable_payment: 'Piutang dibayar', claim_new: 'Klaim kantor baru', claim_payment: 'Klaim cair', target: 'Isi target', wish: 'Sisihkan untuk wish list' };
+export const QUICK_LABELS: Record<QuickKind, string> = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', debt_new: 'Utang baru', debt_payment: 'Bayar utang', receivable_new: 'Piutang baru', receivable_payment: 'Piutang dibayar', claim_new: 'Klaim kantor baru', claim_payment: 'Klaim cair', target: 'Isi tujuan dana', wish: 'Tabungan wish list' };
 export const groupOf = (kind: QuickKind): Exclude<QuickGroup, 'auto'> => kind.startsWith('debt') ? 'debt' : kind.startsWith('receivable') ? 'receivable' : kind.startsWith('claim') ? 'claim' : kind === 'wish' ? 'target' : kind as 'expense' | 'income' | 'transfer' | 'target';
 
 export type QuickResult = {
