@@ -5112,6 +5112,10 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .book-widget .book-more { font-size: .7rem; }
 .book-widget .book-link { min-height: 34px; font-size: .8rem; font-weight: 600; border-radius: 10px; }
 
+/* 99. Grafik Kategori: switch between spending and income */
+.donut-flow { display: flex; width: 100%; margin-bottom: 10px; }
+.donut-flow button { flex: 1; min-height: 32px; font-size: .8rem; }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

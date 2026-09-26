@@ -5,7 +5,7 @@ import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
-import { Field, Input, Money, Select } from './fields';
+import { Field, Input, Money, Select, categoryOptions } from './fields';
 import { AppDatePicker } from './ui/date-time-picker';
 import { newTx, settleWithoutWallet, undoManualPayment, upsertTransaction, validateTx } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
@@ -19,10 +19,10 @@ export type SettleTarget = { kind: 'receivables' | 'debts'; id: string; name: st
 export function SettleDialog({ target, onClose }: { target: SettleTarget | null; onClose: () => void }) {
   const { user, data, profile } = useApp();
   const { track } = useNotify();
-  const [amount, setAmount] = useState(0), [date, setDate] = useState(''), [mode, setMode] = useState<'wallet' | 'plain'>('wallet'), [walletId, setWalletId] = useState(''), [note, setNote] = useState(''), [error, setError] = useState('');
+  const [amount, setAmount] = useState(0), [date, setDate] = useState(''), [mode, setMode] = useState<'wallet' | 'plain'>('wallet'), [walletId, setWalletId] = useState(''), [note, setNote] = useState(''), [category, setCategory] = useState(''), [error, setError] = useState('');
   const receivable = target?.kind === 'receivables';
   const wallets = data.wallets.filter(w => !w.isArchived && walletAllows(w, receivable ? 'receive' : 'pay'));
-  useEffect(() => { if (!target) return; setAmount(target.suggested || target.remaining); setDate(todayInTimeZone(profile?.timeZone)); setMode('wallet'); setWalletId(wallets[0]?.id || ''); setNote(''); setError(''); }, [target?.id]);
+  useEffect(() => { if (!target) return; setAmount(target.suggested || target.remaining); setDate(todayInTimeZone(profile?.timeZone)); setMode('wallet'); setWalletId(wallets[0]?.id || ''); setNote(''); setCategory(''); setError(''); }, [target?.id]);
   function submit(event: FormEvent) {
     event.preventDefault(); if (!user || !target) return;
     if (!amount || amount > target.remaining) { setError(`Nominal harus antara Rp1 dan ${rupiah(target.remaining)}.`); return; }
@@ -31,7 +31,9 @@ export function SettleDialog({ target, onClose }: { target: SettleTarget | null;
     if (mode === 'plain') task = settleWithoutWallet(uid, target.kind, target.id, amount, date, note.trim());
     else {
       if (!walletId) { setError('Pilih dompet.'); return; }
-      const tx = newTx({ type: receivable ? 'receivable_payment' : 'debt_payment', amount, walletId, date, description: note.trim() || `${receivable ? 'Dibayar' : 'Bayar'} ${target.name}`, ...(receivable ? { receivableId: target.id } : { debtId: target.id }) });
+      // Optional category: the payment then shows under it in reports; otherwise it has its own group (Bayar utang / Piutang diterima).
+      const picked = data.categories.find(c => c.id === category), parent = picked?.parentId || picked?.id || null;
+      const tx = newTx({ type: receivable ? 'receivable_payment' : 'debt_payment', amount, walletId, date, categoryId: parent, subcategoryId: picked?.parentId ? picked.id : null, description: note.trim() || `${receivable ? 'Dibayar' : 'Bayar'} ${target.name}`, ...(receivable ? { receivableId: target.id } : { debtId: target.id }) });
       try { validateTx(tx); } catch (e) { setError((e as Error).message); return; }
       task = upsertTransaction(uid, tx);
     }
@@ -49,6 +51,7 @@ export function SettleDialog({ target, onClose }: { target: SettleTarget | null;
         <Field label="Nominal"><Money value={amount} onChange={setAmount} required/></Field>
         <Field label="Tanggal"><AppDatePicker value={date} onChange={e => setDate(e.target.value)} required/></Field>
         {mode === 'wallet' && <Field label={receivable ? 'Masuk ke dompet' : 'Dari dompet'}><Select value={walletId} onChange={e => setWalletId(e.target.value)}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></Field>}
+        {mode === 'wallet' && <Field label="Kategori (opsional)"><Select value={category} onChange={e => setCategory(e.target.value)}><option value="">{receivable ? 'Piutang diterima' : 'Bayar utang'} (tanpa kategori)</option>{categoryOptions(data.categories, [receivable ? 'income' : 'expense'])}</Select></Field>}
         <Field label="Catatan (opsional)"><Input value={note} maxLength={100} onChange={e => setNote(e.target.value)} placeholder="Contoh: dibayar tunai"/></Field>
       </div>
       <div className="toolbar-row">{[target.remaining, Math.round(target.remaining / 2)].filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(v => <button type="button" key={v} className="link-button" onClick={() => setAmount(v)}>{v === target.remaining ? 'Lunasi semua' : 'Separuh'} · {rupiah(v)}</button>)}</div>

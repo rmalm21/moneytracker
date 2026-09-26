@@ -1,5 +1,5 @@
 import type { LedgerTx, TimeZone } from './types';
-import { salaryCycle, transactionExpense } from './accounting.ts';
+import { salaryCycle, transactionExpense, transactionIncome } from './accounting.ts';
 
 export type PeriodPreset = 'salary_cycle' | 'calendar_month' | 'last_7_days' | 'last_30_days' | 'last_3_months' | 'year_to_date' | 'custom';
 export type Granularity = 'auto' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -41,7 +41,7 @@ export const periodLabel = (range: DateRange) => `${parseDate(range.start).toLoc
 export const automaticGranularity = (range: DateRange): Exclude<Granularity, 'auto'> => { const days = daysInRange(range); return days <= 45 ? 'daily' : days <= 125 ? 'weekly' : days <= 730 ? 'monthly' : 'yearly'; };
 
 export function summarizeTransactions(items: LedgerTx[]) {
-  const income = items.filter(item => item.type === 'income').reduce((sum, item) => sum + item.amount, 0);
+  const income = items.reduce((sum, item) => sum + transactionIncome(item), 0);
   const expense = items.reduce((sum,item)=>sum+transactionExpense(item),0);
   return { income, expense, cashFlow: income - expense };
 }
@@ -68,7 +68,7 @@ export function groupTransactions(items: LedgerTx[], range: DateRange, requested
     if (item.date < range.start || item.date >= range.end) continue;
     const key = groupStart(item.date, granularity);
     const row = grouped.get(key); if (!row) continue;
-    if (item.type === 'income') row.income += item.amount;
+    row.income += transactionIncome(item);
     row.expense += transactionExpense(item);
     row.cashFlow = row.income - row.expense;
   }

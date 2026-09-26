@@ -20,10 +20,14 @@ export function effects(tx: LedgerTx): Record<string, number> {
 export function expenseAllocations(tx:LedgerTx){
   if(tx.type==='transfer')return tx.transferFee ? [{categoryId:tx.transferFeeCategoryId||null,subcategoryId:null,amount:tx.transferFee}] : [];
   if(tx.type==='claim_writeoff')return [{categoryId:null,subcategoryId:null,amount:tx.amount}];
+  // Paying off a debt is money spent: under the category chosen for it, otherwise in its own "Bayar utang" group.
+  if(tx.type==='debt_payment')return [{categoryId:tx.categoryId||null,subcategoryId:tx.subcategoryId||null,amount:tx.amount}];
   if(tx.type!=='expense')return [];
   return tx.splits?.length?tx.splits.map(line=>({categoryId:line.categoryId,subcategoryId:line.subcategoryId,amount:line.amount})):[{categoryId:tx.categoryId,subcategoryId:tx.subcategoryId,amount:tx.amount}];
 }
 export const transactionExpense=(tx:LedgerTx)=>expenseAllocations(tx).reduce((total,line)=>total+line.amount,0);
+/** Money received: income, and a friend paying back a receivable (under its category or "Piutang diterima"). */
+export const transactionIncome=(tx:LedgerTx)=>tx.type==='income'||tx.type==='receivable_payment'?tx.amount:0;
 export function walletBalance(wallet: Wallet, txs: LedgerTx[]) { return wallet.openingBalance + txs.reduce((sum, tx) => sum + (effects(tx)[wallet.id] || 0), 0); }
 export function salaryCycle(date: Date, day: number) {
   const d = Math.min(31, Math.max(1, day || 24));
@@ -83,7 +87,7 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const free = usable-kantongMoney-goalMoney;
   const reserved = keptWallets+kantongMoney+kantongElsewhere+goalMoney;
   const cycle = data.transactions.filter(t=>t.date>=start&&t.date<end);
-  const income = cycle.filter(t=>t.type==='income').reduce((n,t)=>n+t.amount,0);
+  const income = cycle.reduce((n,t)=>n+transactionIncome(t),0);
   const expenses = cycle.reduce((n,t)=>n+transactionExpense(t),0);
   const activeBudgets=data.budgets.filter(b=>b.active);
   const nonOverlapping=countedBudgets(activeBudgets);

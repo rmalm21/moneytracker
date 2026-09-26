@@ -1,4 +1,4 @@
-import { budgetMatcher, budgetMonthly, budgetSpent, budgetWindow, countedBudgets, effects, expenseAllocations, transactionExpense } from './accounting.ts';
+import { budgetMatcher, budgetMonthly, budgetSpent, budgetWindow, countedBudgets, effects, expenseAllocations, transactionExpense, transactionIncome } from './accounting.ts';
 import { isKantong, kantongWalletIds } from './pockets.ts';
 import { nextDate, previousDate, type DateRange } from './period.ts';
 import { advanceSchedule, scheduleDay } from './recurring.ts';
@@ -83,7 +83,7 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
     return {assets,netWorth:signed+(includeReceivables?claimsAt(data,ledger,date)+receivablesAt(data,ledger,date):0)-debtAt(data,ledger,date),reserved:balances.filter(row=>row.wallet.isReserved).reduce((sum,row)=>sum+Math.max(0,row.amount),0)+unlinkedFunds};
   };
   const opening=at(range.start),closing=at(range.end);
-  const income=transactions.filter(tx=>tx.type==='income').reduce((sum,tx)=>sum+tx.amount,0);
+  const income=transactions.reduce((sum,tx)=>sum+transactionIncome(tx),0);
   const expense=transactions.reduce((sum,tx)=>sum+transactionExpense(tx),0);
   const budgets=previous?.budgetDefinitions||data.budgets.filter(b=>b.active&&(!b.createdDate||b.createdDate<range.end));
   // A category budget already covers its subcategory budgets: count each amount once, as the Anggaran page does.

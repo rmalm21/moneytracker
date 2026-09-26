@@ -1,14 +1,31 @@
-import { budgetMatcher, expenseAllocations } from './accounting.ts';
+import { budgetMatcher, expenseAllocations, transactionIncome } from './accounting.ts';
 import type { Budget, Category, LedgerTx } from './types';
 
 export type CategorySlice={id:string;name:string;amount:number;count:number;color?:string;icon?:string;subcategories:{id:string;name:string;amount:number;color?:string;icon?:string}[]};
+/** Debt payments without a category are shown as their own group. */
+export const DEBT_GROUP = { id: 'debt-payment', name: 'Bayar utang', icon: '💳', color: '#c0616e' };
 export function categoryBreakdown(items:LedgerTx[],categories:Category[]):CategorySlice[]{
  const lookup=new Map(categories.map(c=>[c.id,c]));const result=new Map<string,CategorySlice>();const seen=new Map<string,Set<string>>();
  for(const tx of items)for(const line of expenseAllocations(tx)){
   const child=lookup.get(line.subcategoryId||line.categoryId||'');const selected=lookup.get(line.categoryId||'')||child;const parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
-  const id=parent?.id||'uncategorized';let row=result.get(id);if(!row){row={id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
+  const debt=!parent&&tx.type==='debt_payment';
+  const id=parent?.id||(debt?DEBT_GROUP.id:'uncategorized');let row=result.get(id);if(!row){row=debt?{...DEBT_GROUP,amount:0,count:0,subcategories:[]}:{id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
   row.amount+=line.amount;const txSet=seen.get(id)||new Set<string>();txSet.add(tx.id);seen.set(id,txSet);row.count=txSet.size;
   const sub=child?.parentId===id?child:selected?.parentId===id?selected:null;if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=line.amount}
+ }
+ return [...result.values()].map(row=>({...row,subcategories:row.subcategories.sort((a,b)=>b.amount-a.amount)})).sort((a,b)=>b.amount-a.amount);
+}
+/** Income by main category with its subcategories (same shape as spending, for the income chart). Repaid receivables without a category form their own group. */
+export const INCOME_REPAID_GROUP = { id: 'receivable-payment', name: 'Piutang diterima', icon: '🤝', color: '#7b5cff' };
+export function incomeCategoryBreakdown(items:LedgerTx[],categories:Category[]):CategorySlice[]{
+ const lookup=new Map(categories.map(c=>[c.id,c]));const result=new Map<string,CategorySlice>();
+ for(const tx of items){
+  const amount=transactionIncome(tx);if(!amount)continue;
+  const child=lookup.get(tx.subcategoryId||tx.categoryId||''),selected=lookup.get(tx.categoryId||'')||child,parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
+  const repaid=!parent&&tx.type==='receivable_payment',id=parent?.id||(repaid?INCOME_REPAID_GROUP.id:'uncategorized');
+  let row=result.get(id);if(!row){row=repaid?{...INCOME_REPAID_GROUP,amount:0,count:0,subcategories:[]}:{id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
+  row.amount+=amount;row.count++;
+  const sub=child?.parentId===id?child:null;if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=amount}
  }
  return [...result.values()].map(row=>({...row,subcategories:row.subcategories.sort((a,b)=>b.amount-a.amount)})).sort((a,b)=>b.amount-a.amount);
 }

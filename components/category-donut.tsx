@@ -14,7 +14,10 @@ const MIN_LABEL = .05;
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
 /** Spending by category: donut with labelled slices, a total in the middle, and a clickable legend with the change vs the previous period. */
-export function CategoryDonut({ slices, previous, previousReady, navigate, basis, rangeFocus = '' }: { slices: CategorySlice[]; previous: CategorySlice[]; previousReady: boolean; navigate: (view: string, focus?: string) => void; basis: string; rangeFocus?: string }) {
+/** Groups that are not a category of their own (no transaction filter to open). */
+const GROUPS = new Set(['other', 'uncategorized', 'none', 'debt-payment', 'receivable-payment']);
+export function CategoryDonut({ slices, previous, previousReady, navigate, basis, rangeFocus = '', kind = 'expense' }: { slices: CategorySlice[]; previous: CategorySlice[]; previousReady: boolean; navigate: (view: string, focus?: string) => void; basis: string; rangeFocus?: string; kind?: 'expense' | 'income' }) {
+  const good = kind === 'income' ? 'up' : 'down';
   const [selected, setSelected] = useState<string | null>(null), [touched, setTouched] = useState(false);
   const total = slices.reduce((sum, slice) => sum + slice.amount, 0);
   const rows = useMemo<Row[]>(() => {
@@ -66,7 +69,7 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
         </PieChart>
       </ResponsiveContainer>
       <div className="donut-center" aria-live="polite">
-        {active ? <><span className="donut-center-icon" aria-hidden="true"><Emoji e={emojiOrFallback(active.icon)}/></span><small>{active.name}</small><strong>{rupiah(active.amount)}</strong><em>{percent(active.pct)} dari total</em></> : <><small>Total pengeluaran</small><strong>{rupiah(total)}</strong><em>{slices.length} kategori</em></>}
+        {active ? <><span className="donut-center-icon" aria-hidden="true"><Emoji e={emojiOrFallback(active.icon)}/></span><small>{active.name}</small><strong>{rupiah(active.amount)}</strong><em>{percent(active.pct)} dari total</em></> : <><small>{kind === 'income' ? 'Total pemasukan' : 'Total pengeluaran'}</small><strong>{rupiah(total)}</strong><em>{slices.length} kategori</em></>}
       </div>
     </div>
     <div className="donut-legend">
@@ -74,12 +77,12 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
         <button type="button" className="donut-row-main" aria-expanded={selected === row.id} onClick={() => toggle(row.id)}>
           <span className="donut-dot" style={{ background: row.fill }}/>
           <span className="donut-name"><span aria-hidden="true"><Emoji e={emojiOrFallback(row.icon)}/></span> {row.name}</span>
-          <span className="donut-amount"><strong>{rupiah(row.amount)}</strong><small>{percent(row.pct)}{previousReady && <> · <Delta current={row.amount} previous={previousOf(row)} good="down" basis={basis} compact/></>}</small></span>
+          <span className="donut-amount"><strong>{rupiah(row.amount)}</strong><small>{percent(row.pct)}{previousReady && <> · <Delta current={row.amount} previous={previousOf(row)} good={good} basis={basis} compact/></>}</small></span>
           <span className="donut-bar" aria-hidden="true"><i style={{ width: `${Math.max(2, row.pct * 100)}%`, background: row.fill }}/></span>
         </button>
         {selected === row.id && <div className="donut-detail">
           {row.subcategories.length > 0 ? row.subcategories.slice(0, 6).map(sub => <div key={sub.id} className="budget-line"><span><Emoji e={emojiOrFallback(sub.icon, '•')}/> {sub.name}</span><span><strong>{rupiah(sub.amount)}</strong> <small className="muted">{row.amount ? percent(sub.amount / row.amount) : ''}</small></span></div>) : <small className="muted">{row.count} transaksi, tanpa subkategori.</small>}
-          <div className="donut-detail-foot"><small className="muted">{previousReady ? `Periode lalu ${rupiah(previousOf(row))}` : ''}</small>{row.id !== 'other' && <button type="button" className="link-button" onClick={() => navigate('transactions', `category:${row.id}${rangeFocus}`)}>Lihat transaksi <ArrowRight size={14}/></button>}</div>
+          <div className="donut-detail-foot"><small className="muted">{previousReady ? `Periode lalu ${rupiah(previousOf(row))}` : ''}</small>{!GROUPS.has(row.id) && <button type="button" className="link-button" onClick={() => navigate('transactions', `category:${row.id}${rangeFocus}`)}>Lihat transaksi <ArrowRight size={14}/></button>}</div>
         </div>}
       </div>)}
     </div>

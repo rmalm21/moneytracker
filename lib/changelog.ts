@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '65', date: '26 Sep 2026', title: 'Utang, piutang, dan grafik pemasukan', items: [
+    ['💳', 'Bayar utang dan pelunasan piutang bisa diberi kategori dan masuk ke laporan.'],
+    ['📊', 'Grafik kategori untuk pemasukan, di Beranda dan Analisis.'],
+  ] },
   { version: '64', date: '26 Sep 2026', title: 'Privasi dan hemat kuota', items: [
     ['🔒', 'Ikon mata di sebelah lonceng: sembunyikan semua nominal sekali ketuk.'],
     ['📝', 'Transaksi, utang, piutang, dan klaim yang disimpan tercatat di notifikasi.'],

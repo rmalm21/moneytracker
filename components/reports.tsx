@@ -12,7 +12,7 @@ import { AnimatedRupiah } from './forecast';
 import { AppIcon, IdentityBadge } from './visual-identity';
 import { TxList } from './dashboard';
 import { budgetCurrent, metrics, rupiah, transactionExpense } from '@/lib/accounting';
-import { categoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
+import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
 import { cumulativeSpending, monthlyTotals, incomeBreakdown, largestExpenses, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '@/lib/insights';
 import { saveProfile } from '@/lib/firestore';
 import { dateInTimeZone, daysInRange, formatDate, groupTransactions, percentChange, periodLabel, previousComparableRange, resolvePeriodRange, summarizeTransactions, todayInTimeZone, type DateRange, type Granularity, type PeriodPreset } from '@/lib/period';
@@ -188,6 +188,7 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
   const week = useMemo(() => weekdaySpending(pair.items, pair.range), [pair.items, pair.range.start, pair.range.end]);
   const time = useMemo(() => timeOfDaySpending(pair.items), [pair.items]);
   const bands = useMemo(() => sizeBands(pair.items), [pair.items]);
+  const incomeSlices = useMemo(() => incomeCategoryBreakdown(pair.items, data.categories), [pair.items, data.categories]), prevIncomeSlices = useMemo(() => incomeCategoryBreakdown(pair.prevItems, data.categories), [pair.prevItems, data.categories]);
   const places = useMemo(() => topPlaces(pair.items, 8, data.categories.map(c => c.name)), [pair.items, data.categories]);
   const today = todayInTimeZone(profile?.timeZone), length = daysInRange(pair.range);
   const elapsed = Math.max(1, Math.min(length, Math.round((Date.parse(`${today}T12:00:00`) - Date.parse(`${pair.range.start}T12:00:00`)) / 86400000) + 1));
@@ -255,6 +256,9 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
         </>}
         {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint="Ketuk kategori untuk rincian subkategori">
           {categories.length ? <CategoryDonut slices={categories} previous={prevCategories} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pengeluaran pada periode ini."/>}
+        </Section>}
+        {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pemasukan per kategori" hint="Termasuk piutang yang dibayar kembali">
+          {incomeSlices.length ? <CategoryDonut kind="income" slices={incomeSlices} previous={prevIncomeSlices} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pemasukan pada periode ini."/>}
         </Section>}
         {tab === 'pattern' && <>
           <div className="report-two">

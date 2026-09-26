@@ -1,5 +1,5 @@
 /** Pure helpers behind Laporan and Analisis. */
-import { transactionExpense } from './accounting.ts';
+import { transactionExpense, transactionIncome } from './accounting.ts';
 import { parseDate } from './period.ts';
 import type { Category, LedgerTx, Wallet } from './types';
 
@@ -7,15 +7,19 @@ const IN_TYPES = new Set(['income', 'claim_payment', 'receivable_payment', 'borr
 const OUT_TYPES = new Set(['expense', 'debt_payment', 'claim_advance', 'receivable_issue']);
 const days = (start: string, end: string) => Math.max(1, Math.round((parseDate(end).getTime() - parseDate(start).getTime()) / 86400000));
 
+import { INCOME_REPAID_GROUP as RECEIVABLE_GROUP } from './category-analytics.ts';
+export { RECEIVABLE_GROUP };
 /** Income grouped by its main category. */
 export function incomeBreakdown(items: LedgerTx[], categories: Category[]) {
   const lookup = new Map(categories.map(c => [c.id, c]));
   const rows = new Map<string, { id: string; name: string; icon?: string; color?: string; amount: number; count: number }>();
   for (const tx of items) {
-    if (tx.type !== 'income') continue;
+    if (!transactionIncome(tx)) continue;
     const own = lookup.get(tx.categoryId || ''), parent = own?.parentId ? lookup.get(own.parentId) || own : own;
-    const id = parent?.id || 'none';
-    const row = rows.get(id) || { id, name: parent?.name || 'Tanpa kategori', icon: parent?.icon, color: parent?.color, amount: 0, count: 0 };
+    // A repaid receivable without a category gets its own group instead of "Tanpa kategori".
+    const repaid = !parent && tx.type === 'receivable_payment';
+    const id = parent?.id || (repaid ? RECEIVABLE_GROUP.id : 'none');
+    const row = rows.get(id) || (repaid ? { ...RECEIVABLE_GROUP, amount: 0, count: 0 } : { id, name: parent?.name || 'Tanpa kategori', icon: parent?.icon, color: parent?.color, amount: 0, count: 0 });
     row.amount += tx.amount; row.count += 1; rows.set(id, row);
   }
   return [...rows.values()].sort((a, b) => b.amount - a.amount);
@@ -97,7 +101,7 @@ export function monthlyTotals(items: LedgerTx[], year: number) {
   for (const tx of items) {
     if (!tx.date.startsWith(`${year}-`)) continue;
     const row = months[Number(tx.date.slice(5, 7)) - 1];
-    if (tx.type === 'income') row.income += tx.amount;
+    row.income += transactionIncome(tx);
     const spent = transactionExpense(tx); if (spent) { row.expense += spent; row.count++; }
   }
   return months.map(row => ({ ...row, net: row.income - row.expense, rate: row.income ? Math.round((row.income - row.expense) / row.income * 100) : 0, end: row.month === 11 ? `${year + 1}-01-01` : `${year}-${String(row.month + 2).padStart(2, '0')}-01` }));
