@@ -57,7 +57,10 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   for(const name of names) {
     if(name==='transactions'||name==='categorizationRules') continue;
     all.push(onSnapshot(coll(uid,name),local,s=>{
-      const value=s.docs.map(d=>hydrate(d));onPart(name,value);
+      const value=s.docs.map(d=>hydrate(d));
+      // Wallets in the order arranged on the Dompet page, so "the first wallet" (a form's default) is the same one everywhere.
+      if(name==='wallets')(value as Wallet[]).sort((a,b)=>(a.displayOrder??1e6)-(b.displayOrder??1e6)||a.name.localeCompare(b.name));
+      onPart(name,value);
       if(name!=='budgets')return;
       const windows=(value as Budget[]).map(budget=>budgetWindow(budget,asOf,salaryDay));
       const earliest=windows.reduce((date,window)=>window.start<date?window.start:date,baseline);

@@ -1,4 +1,4 @@
-import { doc, getDoc, getDocFromCache, getDocs, increment, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, increment, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { db } from './firebase';
 import { coll, loadAllTransactions, newTx, noteDeleted, readLocalFirst, ref, upsertTransaction } from './firestore';
@@ -13,7 +13,8 @@ const hydrate=<T>(row:{id:string;data:()=>unknown})=>({id:row.id,...row.data() a
 export async function walletBalancePreview(uid:string,id:string){
   const walletSnap=await getDoc(ref(uid,'wallets',id));if(!walletSnap.exists())throw Error('Dompet tidak ditemukan.');
   const wallet=hydrate<Wallet>(walletSnap);
-  const [sources,destinations]=await Promise.all([getDocs(query(coll(uid,'transactions'),where('walletId','==',id))),getDocs(query(coll(uid,'transactions'),where('destinationWalletId','==',id)))]);
+  // The device copy is used when it's known to be complete, so checking a balance doesn't re-read the whole ledger.
+  const [sources,destinations]=await Promise.all([readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where('walletId','==',id))),readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where('destinationWalletId','==',id)))]);
   const ledger=new Map<string,LedgerTx>();for(const row of [...sources.docs,...destinations.docs])ledger.set(row.id,hydrate<LedgerTx>(row));
   const calculated=walletBalance(wallet,[...ledger.values()]);
   return {wallet,calculated,cached:wallet.cachedBalance,difference:calculated-wallet.cachedBalance,transactions:ledger.size};

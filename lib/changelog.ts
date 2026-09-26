@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '70', date: '26 Sep 2026', title: 'Catat otomatis untuk semua menu', items: [
+    ['🚀', 'Satu kalimat kini bisa membuat anggaran, tujuan dana, wish list, dompet, kategori, jadwal rutin, rencana, dan pengingat, contohnya “anggaran makan 2jt” atau “langganan netflix 54rb tiap tanggal 5”.'],
+    ['💰', 'Perbarui saldo cukup dengan “saldo bca sekarang 12jt”; selisihnya dicatat sebagai penyesuaian.'],
+    ['🧭', 'Ketik “buka laporan”, “lihat utang”, atau “pengingat” untuk langsung pindah ke menunya.'],
+    ['📝', 'Tanggal bisa ditulis bebas: besok, lusa, tgl 5, 17 agustus, minggu depan. Pengeluaran yang masih akan datang disimpan sebagai rencana.'],
+    ['✅', 'Dompet default dan pilihan dompet kini mengikuti urutan di halaman Dompet.'],
+  ] },
   { version: '69', date: '26 Sep 2026', title: 'Catat otomatis lebih jelas', items: [
     ['📝', 'Teks Catat otomatis dirapikan, dan contoh kalimat tampil sebagai kartu yang tinggal diketuk, lengkap dengan hasilnya.'],
   ] },

@@ -105,3 +105,107 @@ test('a wallet word inside a target name is not the wallet', () => {
   const r = parseQuickText('nabung 200rb ke dana darurat dari bca', { ...ctx, ...records, wallets });
   assert.deepEqual([r.kind, r.preset.walletId, r.preset.destinationWalletId, r.preset.fundId], ['target', 'bca', 'tabungan', 'f1']);
 });
+
+// The other menus.
+const menus = {
+  ...ctx, ...records,
+  wallets: [...ctx.wallets, { id: 'dana', name: 'DANA' }],
+  categories: [...ctx.categories, { id: 'fun', name: 'Hiburan', type: 'expense' }, { id: 'bills', name: 'Tagihan', type: 'expense' }, { id: 'save', name: 'Tabungan', type: 'savings' }],
+  budgets: [{ id: 'b1', name: 'Makan & Minum', categoryId: 'food', subcategoryId: null, amount: 1_500_000, active: true, cycleType: 'salary' }],
+};
+const m = (text, mode) => parseQuickText(text, menus, mode);
+
+test('buka menu: a menu name, with or without "buka", opens it', () => {
+  assert.deepEqual(m('buka laporan').menu, { key: 'report', label: 'Laporan' });
+  assert.deepEqual(m('lihat utang').menu, { key: 'debts', label: 'Utang' });
+  assert.deepEqual(m('pengaturan').menu, { key: 'settings', label: 'Pengaturan' });
+  assert.deepEqual(m('pengingat').menu, { key: 'settings', target: 'reminders', label: 'Pengingat' });
+  assert.deepEqual(m('saldo bca').menu, { key: 'wallets', target: 'bca', label: 'BCA' });
+  assert.equal(m('anggaran').kind, 'open');
+  // An amount means something is being recorded, not opened.
+  assert.equal(m('buka puasa 50rb').kind, 'expense');
+  assert.equal(m('laporan keuangan tahunan', 'open').menu.key, 'report');
+});
+test('anggaran: a new budget, or the existing one changes', () => {
+  assert.deepEqual([m('anggaran transport 1jt').kind, m('anggaran transport 1jt').amount, m('anggaran transport 1jt').budget], ['budget', 1_000_000, { categoryId: 'trans', subcategoryIds: [], cycleType: 'salary' }]);
+  assert.deepEqual(m('anggaran makan 2jt per bulan').budget, { id: 'b1', previous: 1_500_000, categoryId: 'food', subcategoryIds: [], cycleType: 'salary' });
+  assert.equal(m('naikin anggaran makan 500rb').amount, 2_000_000);
+  assert.equal(m('turunin anggaran makan 500rb').amount, 1_000_000);
+  assert.equal(m('anggaran makan jadi 2,5jt').amount, 2_500_000);
+  assert.deepEqual(m('anggaran parkir 200rb').budget, { categoryId: 'trans', subcategoryIds: ['park'], cycleType: 'salary' });
+  // A different period is another budget, not a change to the monthly one.
+  assert.deepEqual(m('jatah jajan 300rb per minggu').budget, { categoryId: 'food', subcategoryIds: [], cycleType: 'weekly', cycleStartDay: 1 });
+  assert.deepEqual(m('budget hiburan 500rb mulai tgl 25').budget, { categoryId: 'fun', subcategoryIds: [], cycleType: 'custom', cycleStartDay: 25 });
+  assert.equal(m('anggaran makan').amount, 0);
+});
+test('tujuan dana baru: name, target, deadline, monthly saving, where it is kept', () => {
+  const trip = m('target liburan jepang 30jt desember 2027');
+  assert.deepEqual([trip.kind, trip.amount, trip.name, trip.goal], ['fund_new', 30_000_000, 'Liburan Jepang', { targetDate: '2027-12-31', monthly: 0, emergency: false }]);
+  const house = m('buat target rumah 500jt tahun 2030 nabung 5jt per bulan');
+  assert.deepEqual([house.amount, house.name, house.goal.targetDate, house.goal.monthly], [500_000_000, 'Rumah', '2030-12-31', 5_000_000]);
+  assert.deepEqual([m('target nikah 100jt di jenius').preset.walletId, m('tujuan dana motor baru 25jt').name], ['jenius', 'Motor Baru']);
+  // The same name is the existing target (its amount changes); "dana" is not the DANA wallet here.
+  const emergency = m('target dana darurat 30jt');
+  assert.deepEqual([emergency.name, emergency.goal.existingId, emergency.goal.emergency, emergency.preset.walletId], ['Dana Darurat', 'f1', true, undefined]);
+  assert.equal(m('isi target liburan bali 500rb').kind, 'target');
+});
+test('wish list baru: price, picture, priority and monthly saving', () => {
+  assert.deepEqual([m('pengen headphone 1,5jt').kind, m('pengen headphone 1,5jt').amount, m('pengen headphone 1,5jt').goal.emoji], ['wish_new', 1_500_000, '🎧']);
+  assert.equal(m('pengen beli iphone 15 20jt').name, 'iPhone 15');
+  assert.equal(m('wishlist sepatu lari 1,2jt prioritas tinggi').goal.priority, 1);
+  const ps = m('impian ps5 8jt nabung 500rb per bulan');
+  assert.deepEqual([ps.kind, ps.amount, ps.name, ps.goal.monthly], ['wish_new', 8_000_000, 'PS5', 500_000]);
+  assert.equal(m('wishlist headphone noise cancelling 3jt').goal.existingId, 'w1');
+  assert.equal(m('pengen nabung 1jt buat headphone').kind, 'wish');
+});
+test('dompet baru and perbarui saldo', () => {
+  assert.deepEqual([m('rekening baru jago saldo 1jt').name, m('rekening baru jago saldo 1jt').amount, m('rekening baru jago saldo 1jt').wallet], ['Jago', 1_000_000, { type: 'bank' }]);
+  assert.deepEqual([m('tambah dompet ovo').name, m('tambah dompet ovo').wallet.type], ['OVO', 'ewallet']);
+  assert.deepEqual([m('kartu kredit baru bca').name, m('kartu kredit baru bca').wallet.type], ['Kartu Kredit BCA', 'credit']);
+  assert.equal(m('buat rekening bca').wallet.existingId, 'bca');
+  for (const [text, wallet, amount] of [['saldo bca sekarang 12jt', 'bca', 12_000_000], ['perbarui saldo gopay 150rb', 'gopay', 150_000], ['gopay tinggal 150rb', 'gopay', 150_000], ['saldo dana 200rb', 'dana', 200_000]]) {
+    const r = m(text); assert.deepEqual([r.kind, r.preset.walletId, r.amount], ['balance', wallet, amount], text);
+  }
+  assert.equal(m('biaya tinggal di hotel 500rb pake bca').kind, 'expense');
+  const topup = m('topup gopay 50rb');
+  assert.deepEqual([topup.kind, topup.preset.walletId, topup.preset.destinationWalletId], ['transfer', undefined, 'gopay']);
+  assert.deepEqual([m('bca 12jt', 'wallet').kind, m('dompet arisan', 'wallet').kind], ['balance', 'wallet_new']);
+});
+test('kategori baru: never a copy of one that exists', () => {
+  assert.deepEqual([m('kategori baru jajan').name, m('kategori baru jajan').category], ['Jajan', { type: 'expense', parentId: null }]);
+  assert.deepEqual(m('tambah kategori freelance pemasukan').category, { type: 'income', parentId: null });
+  assert.deepEqual([m('subkategori tol di transport').name, m('subkategori tol di transport').category], ['Tol', { type: 'expense', parentId: 'trans' }]);
+  assert.equal(m('subkategori parkir di transportasi').category.existingId, 'park');
+  assert.equal(m('kategori baru makan & minum').category.existingId, 'food');
+  assert.equal(m('subkategori kopi').category.parentAsked, true);
+});
+test('jadwal rutin: how often and when it starts', () => {
+  const netflix = m('langganan netflix 54rb tiap tanggal 5 pake bca');
+  assert.deepEqual([netflix.kind, netflix.name, netflix.date, netflix.schedule, netflix.preset.walletId, netflix.preset.categoryId], ['recurring_new', 'Netflix', '2026-10-05', { frequency: 'monthly', mode: 'inbox', anchorDay: 5 }, 'bca', 'fun']);
+  const salary = m('gaji 7,5jt tiap tanggal 25 masuk bca');
+  assert.deepEqual([salary.preset.type, salary.name, salary.date], ['income', 'Gaji', '2026-10-25']);
+  assert.deepEqual([m('bayar pajak motor 500rb tiap 17 agustus').schedule.frequency, m('bayar pajak motor 500rb tiap 17 agustus').date], ['yearly', '2027-08-17']);
+  assert.deepEqual([m('arisan 200rb tiap minggu').schedule.frequency, m('spotify 55rb per bulan otomatis').schedule.mode], ['weekly', 'auto']);
+  assert.equal(m('bayar kos 1,5jt tiap bulan tgl 1').date, '2026-10-01');
+  assert.equal(m('cicilan motor 800rb tiap tanggal 10').name, 'Cicilan Motor');
+});
+test('rencana and catatan: things still to come', () => {
+  assert.deepEqual([m('besok bayar arisan 200rb').kind, m('besok bayar arisan 200rb').date, m('besok bayar arisan 200rb').name], ['plan_new', '2026-09-27', 'Arisan']);
+  assert.deepEqual([m('rencana servis motor 500rb tgl 10').date, m('rencana servis motor 500rb tgl 10').name], ['2026-10-10', 'Servis Motor']);
+  assert.deepEqual([m('bayar pajak 500rb 17 oktober').kind, m('bayar pajak 500rb 17 oktober').date], ['plan_new', '2026-10-17']);
+  assert.equal(m('terima bonus 2jt bulan depan').preset.type, 'income');
+  const stnk = m('ingetin perpanjang stnk 20 oktober');
+  assert.deepEqual([stnk.kind, stnk.name, stnk.date, stnk.reminder], ['note_new', 'Perpanjang STNK', '2026-10-20', true]);
+  assert.deepEqual([m('ingetin bayar utang budi tgl 1').kind, m('ingetin bayar utang budi tgl 1').date], ['note_new', '2026-10-01']);
+  assert.equal(m('catatan: bulan ini banyak kondangan').name, 'Bulan ini banyak kondangan');
+  // Past dates in words still work for what already happened.
+  assert.equal(m('kopi 25rb senin').date, '2026-09-21');
+  assert.deepEqual([m('makan 50rb 20 september').kind, m('makan 50rb 20 september').date], ['expense', '2026-09-20']);
+});
+test('everyday spending that only sounds like another menu stays spending', () => {
+  for (const text of ['belanja bulanan 500rb', 'uang mingguan anak 100rb', 'iuran bulanan rt 50rb', 'belanja rutin 200rb', 'beli dompet baru 150rb', 'jatah makan siang kantor 30rb', 'ingin makan bakso 20rb', 'beli kado impian istri 500rb', 'buka puasa 50rb', 'bayar langganan spotify 55rb', 'parkir 5rb tiap hari']) assert.equal(m(text).kind, 'expense', text);
+  // Picked on a chip, those words do count.
+  assert.deepEqual([m('netflix 54rb bulanan', 'recurring').schedule.frequency, m('netflix 54rb bulanan', 'recurring').name], ['monthly', 'Netflix']);
+  assert.equal(m('arisan 100rb mingguan', 'recurring').schedule.frequency, 'weekly');
+  assert.deepEqual(m('lap', 'open').menu, { key: 'report', label: 'Laporan' });
+});

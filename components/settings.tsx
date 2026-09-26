@@ -48,6 +48,8 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  async function handleFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setError('');setFileName(file.name);try{if(file.size>25_000_000)throw Error('File cadangan terlalu besar (maksimal 25 MB).');const parsed=JSON.parse(await file.text()) as unknown;const result=validateBackup(parsed);setImportFile(parsed);setCounts(result.counts);}catch(e){setError((e as Error).message);setImportFile(null);}}
  async function exportJson(){if(!user)return;await perform(()=>downloadBackup(user.uid),'File cadangan diunduh.');}
  const [section,setSection]=useState<Section|null>(sections.some(item=>item.key===focus)?focus as Section:null),[wide,setWide]=useState(false);
+ // Opened again with a section (e.g. "pengingat" from Catat otomatis) while Pengaturan is already showing.
+ useEffect(()=>{if(focus&&sections.some(item=>item.key===focus))setSection(focus as Section)},[focus]);
  useEffect(()=>{const media=window.matchMedia('(min-width: 900px)');const update=()=>setWide(media.matches);update();media.addEventListener('change',update);return ()=>media.removeEventListener('change',update)},[]);
  const active=section??(wide?'profile':null);
  useBackHandler(Boolean(section)&&!wide,()=>setSection(null));

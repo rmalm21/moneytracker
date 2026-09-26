@@ -5185,6 +5185,23 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .auto-entry-button .aeb-text :is(strong, small) { text-shadow: 0 1px 2px rgba(0, 0, 0, .28); }
 .mobile-menu-grid .auto-entry-button .aeb-text small, .auto-entry-button .aeb-text small { color: #fff; opacity: .96; font-size: .76rem; font-weight: 600; }
 
+/* 103. Catat otomatis for every menu: chip groups, example sections, and the extra preview pieces */
+.quick-groups .qg-sep { flex: none; align-self: center; width: 1px; height: 18px; margin: 0 2px; background: var(--line); }
+.qe-section { padding: 6px 2px 0; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .04em; }
+.qe-item.tone-menu { --qe: var(--accent); }
+.quick-preview.tone-move { --qp: #7b5cff; }
+.qp-icon:has(.brand-icon) { overflow: hidden; font-size: 1.05rem; }
+.qp-icon img.emoji { width: 22px; height: 22px; margin: 0; vertical-align: 0; }
+.qp-title strong.is-text { font-size: 1rem; overflow-wrap: anywhere; }
+.qp-facts .qp-soft { background: transparent; padding-left: 2px; padding-right: 2px; color: var(--muted); }
+.qp-facts .qp-up { background: color-mix(in srgb, var(--positive) 12%, var(--paper)); color: var(--positive); font-weight: 700; }
+.qp-facts .qp-down { background: color-mix(in srgb, var(--rose) 11%, var(--paper)); color: var(--rose); font-weight: 700; }
+.qp-check { display: flex; align-items: center; gap: 8px; padding-left: 104px; color: var(--muted); font-size: .76rem; line-height: 1.35; cursor: pointer; }
+.qp-check input { flex: none; width: 16px; height: 16px; accent-color: var(--accent); }
+@media (max-width: 400px) { .qp-check { padding-left: 0; } }
+/* Dark mode greys out every <small>; warnings keep their colour. */
+:root .quick-preview small.qp-warn, :root .quick-entry-wrap small.quick-entry-hint { color: var(--rose); }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
