@@ -5116,6 +5116,16 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .donut-flow { display: flex; width: 100%; margin-bottom: 10px; }
 .donut-flow button { flex: 1; min-height: 32px; font-size: .8rem; }
 
+/* 100. Ketik cepat: a sentence becomes a filled-in transaction */
+.quick-entry { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-bottom: 14px; padding: 5px 5px 5px 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
+.quick-entry:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.quick-entry-icon { display: grid; place-items: center; color: var(--accent); }
+.quick-entry input { min-width: 0; height: 36px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .88rem; outline: none; }
+.quick-entry input::placeholder { color: var(--muted); }
+.quick-entry button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-on); cursor: pointer; }
+.quick-entry button:disabled { opacity: .4; cursor: default; }
+.quick-entry-hint { grid-column: 1 / -1; padding: 0 4px 3px; color: var(--rose); font-size: .76rem; }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
