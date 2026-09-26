@@ -10,6 +10,32 @@ export const themes: { value: ThemePreset; label: string; color: string }[] = [
   { value: 'rose', label: 'Mawar', color: '#a35170' },
   { value: 'monochrome', label: 'Monokrom', color: '#3d5059' },
 ];
+export type FontChoice = NonNullable<Profile['fontFamily']>;
+/** Typefaces the user can pick. The default pair ships with the app; the others load only when chosen. */
+export const fontChoices: { value: FontChoice; label: string; note: string; stack: string; query: string }[] = [
+  { value: 'default', label: 'Bawaan', note: 'DM Sans & Manrope — seperti sekarang', stack: "'DM Sans', system-ui, sans-serif", query: '' },
+  { value: 'inter', label: 'Inter', note: 'Rapi, netral, mudah dibaca', stack: "'Inter', system-ui, sans-serif", query: 'Inter:wght@400;500;600;700;800' },
+  { value: 'google', label: 'Google Sans', note: 'Bulat dan ramah', stack: "'Google Sans', system-ui, sans-serif", query: 'Google+Sans:wght@400;500;600;700' },
+  { value: 'jakarta', label: 'Plus Jakarta Sans', note: 'Modern, karya desainer Indonesia', stack: "'Plus Jakarta Sans', system-ui, sans-serif", query: 'Plus+Jakarta+Sans:wght@400;500;600;700;800' },
+];
+const fontsUrl = (query: string) => `https://fonts.googleapis.com/css2?${query}&display=swap`;
+/** Adds (or swaps) the stylesheet of the chosen typeface; the default pair is already in the app's CSS. */
+export function loadFont(choice?: string) {
+  if (typeof document === 'undefined') return;
+  const font = fontChoices.find(f => f.value === choice);
+  if (!font?.query) return;
+  const href = fontsUrl(`family=${font.query}`);
+  let link = document.getElementById('font-choice') as HTMLLinkElement | null;
+  if (!link) { link = document.createElement('link'); link.id = 'font-choice'; link.rel = 'stylesheet'; document.head.appendChild(link); }
+  if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+}
+/** Loads the other typefaces while the appearance settings are open, so each choice previews in its own font. */
+export function loadFontPreviews() {
+  if (typeof document === 'undefined' || document.getElementById('font-preview')) return;
+  const link = document.createElement('link'); link.id = 'font-preview'; link.rel = 'stylesheet';
+  link.href = fontsUrl(fontChoices.filter(f => f.query).map(f => `family=${f.query}`).join('&'));
+  document.head.appendChild(link);
+}
 const channel = (value: number) => { const n = value / 255; return n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; };
 const light = (hex: string) => { const [r, g, b] = [1, 3, 5].map(index => channel(parseInt(hex.slice(index, index + 2), 16))); return .2126 * r + .7152 * g + .0722 * b; };
 export const contrast = (a: string, b: string) => { const brighter = Math.max(light(a), light(b)), darker = Math.min(light(a), light(b)); return (brighter + .05) / (darker + .05); };
@@ -26,6 +52,8 @@ export function applyAppearance(profile: Profile | null) {
   root.dataset.preset = profile?.themePreset || 'default';
   root.dataset.density = profile?.density || 'comfortable';
   root.dataset.fontSize = profile?.fontSize || 'm';
+  root.dataset.font = profile?.fontFamily || 'default';
+  loadFont(profile?.fontFamily);
   const accent = profile?.accentColor;
   if (accent && validAccent(accent, mode)) {
     root.style.setProperty('--accent', accent);
@@ -39,4 +67,4 @@ export function applyAppearance(profile: Profile | null) {
 }
 const cacheKey=(uid:string)=>`dompet-ajaib:appearance:${uid}`;
 export function readCachedAppearance(uid:string):Profile|null{if(typeof localStorage==='undefined')return null;try{const value=JSON.parse(localStorage.getItem(cacheKey(uid))||'null');return value&&value.uid===uid?value as Profile:null}catch{return null}}
-export function cacheAppearance(profile:Profile){if(typeof localStorage==='undefined')return;try{localStorage.setItem(cacheKey(profile.uid),JSON.stringify({uid:profile.uid,theme:profile.theme,themePreset:profile.themePreset,colorMode:profile.colorMode,accentColor:profile.accentColor,density:profile.density,fontSize:profile.fontSize}));localStorage.setItem('dompet-ajaib:appearance:last',profile.uid)}catch{/* Appearance cache is optional. */}}
+export function cacheAppearance(profile:Profile){if(typeof localStorage==='undefined')return;try{localStorage.setItem(cacheKey(profile.uid),JSON.stringify({uid:profile.uid,theme:profile.theme,themePreset:profile.themePreset,colorMode:profile.colorMode,accentColor:profile.accentColor,density:profile.density,fontSize:profile.fontSize,fontFamily:profile.fontFamily}));localStorage.setItem('dompet-ajaib:appearance:last',profile.uid)}catch{/* Appearance cache is optional. */}}
