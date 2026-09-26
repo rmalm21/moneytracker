@@ -4,14 +4,14 @@ import { ArrowRight, BookOpen, ChevronDown, CircleHelp, Compass, HeartPulse, Lig
 import { flattenHelp, helpGroups, plainText, type HelpGroup, type HelpItem } from '@/lib/help-content';
 
 /**
- * Tanya Jawab: every term, menu and how-to in one place. Groups hold questions; a question can hold
- * follow-up questions that open inside it. Search looks through questions, answers, steps and tips.
+ * Tanya Jawab: every term, menu and how-to in one place. Topics, questions and follow-up questions all
+ * start folded so the page stays short. Search looks through questions, answers, steps and tips.
  */
 type Navigate = (key: string, target?: string) => void;
 
 const icons: Record<HelpGroup['icon'], LucideIcon> = { rocket: Rocket, book: BookOpen, compass: Compass, wand: Wand2, shield: ShieldCheck, wrench: Wrench };
 const popular = ['Uang tersedia', 'Kantong', 'Tutup siklus', 'Cadangan aman', 'Saldo tidak cocok', 'Transfer'];
-const fold = (text: string) => plainText(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const fold = (text: string) => plainText(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const countAll = (items: HelpItem[]): number => items.reduce((n, item) => n + 1 + countAll(item.children || []), 0);
 
 /** Answer text with **bold** words; search terms are highlighted when given. */
@@ -37,23 +37,30 @@ function Question({ item, navigate, openIds, terms, sub = false }: { item: HelpI
       <p className="qa-a"><Rich text={item.a} terms={terms}/></p>
       {item.steps && <ol className="qa-steps">{item.steps.map((step, i) => <li key={i}><span className="qa-step-no">{i + 1}</span><span><Rich text={step} terms={terms}/></span></li>)}</ol>}
       {item.tip && <p className="qa-tip"><Lightbulb size={15} aria-hidden="true"/><span><b>Tips</b> <Rich text={item.tip} terms={terms}/></span></p>}
-      {more > 0 && <div className="qa-children"><small className="qa-children-label">Pertanyaan lanjutan</small>{item.children!.map(child => <Question key={child.id} item={child} navigate={navigate} openIds={openIds} terms={terms} sub/>)}</div>}
       {item.go && <button type="button" className="qa-go" onClick={() => navigate(item.go!.view, item.go!.target)}>{item.go.label}<ArrowRight size={15} aria-hidden="true"/></button>}
+      {more > 0 && <details className="qa-children" open={item.children!.some(child => openIds.has(child.id)) || undefined}>
+        <summary>Pertanyaan lanjutan<span className="qa-more">{more}</span><ChevronDown size={15} className="qa-chev" aria-hidden="true"/></summary>
+        <div className="qa-children-list">{item.children!.map(child => <Question key={child.id} item={child} navigate={navigate} openIds={openIds} terms={terms} sub/>)}</div>
+      </details>}
     </div>
   </details>;
 }
 
-function GroupSection({ group, children, onShowAll }: { group: HelpGroup; children: ReactNode; onShowAll?: () => void }) {
+function Topic({ group, open, children }: { group: HelpGroup; open: boolean; children: ReactNode }) {
   const Icon = icons[group.icon];
-  return <section className={`qa-section tone-${group.icon}`} aria-labelledby={`qa-h-${group.id}`}>
-    <header className="qa-section-head"><span className="qa-icon"><Icon size={18} aria-hidden="true"/></span><div><h2 id={`qa-h-${group.id}`}>{group.title}</h2><p>{group.lead}</p></div>{onShowAll && <button type="button" className="link-button" onClick={onShowAll}>Semua topik</button>}</header>
+  return <details className={`qa-section tone-${group.icon}`} open={open || undefined}>
+    <summary>
+      <span className="qa-icon"><Icon size={18} aria-hidden="true"/></span>
+      <span className="qa-section-text"><strong>{group.title}</strong><small>{group.lead}</small></span>
+      <span className="qa-count" title={`${countAll(group.items)} jawaban`}>{countAll(group.items)}</span>
+      <ChevronDown size={18} className="qa-chev" aria-hidden="true"/>
+    </summary>
     <div className="qa-list">{children}</div>
-  </section>;
+  </details>;
 }
 
 export function HelpView({ navigate, focus }: { navigate: Navigate; focus?: string }) {
   const [query, setQuery] = useState('');
-  const [groupId, setGroupId] = useState<string | null>(null);
   const rows = useMemo(() => flattenHelp(), []);
   const total = rows.length;
   // A linked question opens together with the questions it sits under.
@@ -77,7 +84,7 @@ export function HelpView({ navigate, focus }: { navigate: Navigate; focus?: stri
       return { ...row, score };
     }).filter(Boolean).sort((a, b) => b!.score - a!.score) as (ReturnType<typeof flattenHelp>[number] & { score: number })[];
   }, [rows, terms]);
-  const shown = groupId ? helpGroups.filter(group => group.id === groupId) : helpGroups;
+  const focusGroup = rows.find(row => row.item.id === focus)?.group.id;
   const searching = terms.length > 0;
 
   return <div className="qa-page">
@@ -103,11 +110,7 @@ export function HelpView({ navigate, focus }: { navigate: Navigate; focus?: stri
       </div>; })}</div>
         : <div className="qa-empty"><SearchX size={28} aria-hidden="true"/><p>Coba kata lain yang lebih umum, misalnya <b>saldo</b>, <b>anggaran</b>, atau <b>siklus</b>.</p></div>}
     </section> : <>
-      <nav className="qa-topics" aria-label="Topik">{helpGroups.map(group => { const Icon = icons[group.icon]; const active = groupId === group.id; return <button type="button" key={group.id} className={`qa-topic tone-${group.icon} ${active ? 'is-active' : ''}`} aria-pressed={active} onClick={() => setGroupId(active ? null : group.id)}>
-        <span className="qa-icon"><Icon size={18} aria-hidden="true"/></span>
-        <span className="qa-topic-text"><strong>{group.title}</strong><small>{countAll(group.items)} jawaban</small></span>
-      </button>; })}</nav>
-      {shown.map(group => <GroupSection key={group.id} group={group} onShowAll={groupId ? () => setGroupId(null) : undefined}>{group.items.map(item => <Question key={item.id} item={item} navigate={navigate} openIds={openIds} terms={[]}/>)}</GroupSection>)}
+      <div className="qa-topics">{helpGroups.map(group => <Topic key={group.id} group={group} open={group.id === focusGroup}>{group.items.map(item => <Question key={item.id} item={item} navigate={navigate} openIds={openIds} terms={[]}/>)}</Topic>)}</div>
     </>}
 
     <section className="qa-footer">
