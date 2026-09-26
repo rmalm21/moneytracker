@@ -15,7 +15,8 @@ const ctx = {
 const p = (text, extra = {}) => parseQuickText(text, { ...ctx, ...extra })?.preset;
 
 test('the example sentence: beli pocari 8rb di alfa', () => {
-  assert.deepEqual(p('beli pocari 8rb di alfa'), { type: 'expense', amount: 8000, date: '2026-09-26', merchant: 'Alfamart', description: 'Pocari', categoryId: 'food', subcategoryId: null });
+  // Pocari is a drink: the Minuman subcategory, inside Makan & Minum.
+  assert.deepEqual(p('beli pocari 8rb di alfa'), { type: 'expense', amount: 8000, date: '2026-09-26', merchant: 'Alfamart', description: 'Pocari', categoryId: 'food', subcategoryId: 'drink' });
 });
 test('amount formats', () => {
   for (const [text, amount] of [['kopi 25k', 25000], ['bensin Rp 50.000', 50000], ['gaji 7,5jt masuk bca', 7500000], ['makan 1.250.000', 1250000], ['parkir 5000', 5000], ['jajan 2 ribu', 2000]]) assert.equal(p(text).amount, amount, text);

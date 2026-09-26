@@ -5202,6 +5202,15 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 /* Dark mode greys out every <small>; warnings keep their colour. */
 :root .quick-preview small.qp-warn, :root .quick-entry-wrap small.quick-entry-hint { color: var(--rose); }
 
+/* 104. Reading the context: why a category was chosen (Catat otomatis), and the category offered in the transaction form */
+.qp-facts .qp-why { flex-basis: 100%; padding: 0 2px; background: transparent; color: var(--muted); font-size: .72rem; font-style: italic; }
+.tx-suggest { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 9px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); color: var(--ink); text-align: left; cursor: pointer; }
+.tx-suggest > svg { color: var(--accent); }
+.tx-suggest-text { display: grid; gap: 1px; min-width: 0; }
+.tx-suggest-text strong { display: flex; align-items: center; gap: 6px; font-size: .86rem; overflow-wrap: anywhere; }
+.tx-suggest-text small { color: var(--muted); font-size: .7rem; }
+.tx-suggest-go { padding: 5px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-on); font-size: .76rem; font-weight: 700; }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

@@ -347,7 +347,9 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     case 'expense': case 'income':
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
-      fact('t', dayText(date)); break;
+      fact('t', dayText(date));
+      // Why that category, when it took reading the context or the person's habits ("“air” dibaca sebagai minuman").
+      if (category && result.why) fact('w', result.why, 'qp-why'); break;
     case 'transfer': fact('w', `${walletName(walletId) || '?'} → ${walletName(destination) || '?'}`); fact('t', dayText(date)); break;
     case 'open': fact('o', result.menu?.target && result.menu.key === 'wallets' ? 'Buka detail dompet ini' : 'Pindah ke menu ini'); break;
     case 'budget':

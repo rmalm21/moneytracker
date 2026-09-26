@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '71', date: '27 Sep 2026', title: 'Kategori yang membaca konteks', items: [
+    ['💡', 'Kata yang punya banyak arti dibaca dari konteksnya: “beli air 5rb di alfa” jadi minuman, “bayar air 150rb” jadi tagihan air; “tiket kereta” masuk transportasi, “tiket konser” masuk hiburan; “grabfood” masuk makanan.'],
+    ['✅', 'Arah uang ikut dibaca: “gaji art”, “thr art”, dan “tiket masuk” tetap pengeluaran; “bunga deposito”, “komisi”, dan “dapat hadiah” jadi pemasukan.'],
+    ['🔄', 'Belajar dari kebiasaanmu: barang, tempat, dan kata yang biasa kamu catat di satu kategori ikut diperhitungkan.'],
+    ['📝', 'Alasan pilihan kategori ditampilkan, dan formulir transaksi kini menyarankan kategori dari keterangan yang kamu ketik.'],
+  ] },
   { version: '70', date: '26 Sep 2026', title: 'Catat otomatis untuk semua menu', items: [
     ['🚀', 'Satu kalimat kini bisa membuat anggaran, tujuan dana, wish list, dompet, kategori, jadwal rutin, rencana, dan pengingat, contohnya “anggaran makan 2jt” atau “langganan netflix 54rb tiap tanggal 5”.'],
     ['💰', 'Perbarui saldo cukup dengan “saldo bca sekarang 12jt”; selisihnya dicatat sebagai penyesuaian.'],

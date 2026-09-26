@@ -26,6 +26,7 @@
  * The user can also pick the kind first with the chips (Keluar, Masuk, Utang, Anggaran, Dompet…).
  */
 import type { Budget, Category, Claim, Debt, Fund, LedgerTx, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
+import { flowOf, suggestCategory } from './categorize.ts';
 
 export type QuickKind = 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish'
   | 'fund_new' | 'wish_new' | 'budget' | 'wallet_new' | 'balance' | 'category_new' | 'recurring_new' | 'plan_new' | 'note_new' | 'open';
@@ -61,10 +62,12 @@ export type QuickResult = {
   menu?: QuickMenu;
   /** Catatan written as a reminder ("ingetin …"). */
   reminder?: boolean;
+  /** Why the category was chosen, when it took reading the context or the person's habits ("“air” dibaca sebagai minuman"). */
+  why?: string;
 };
 export type QuickContext = {
   wallets: Pick<Wallet, 'id' | 'name' | 'isArchived'>[];
-  categories: Pick<Category, 'id' | 'name' | 'type' | 'parentId' | 'isArchived'>[];
+  categories: (Pick<Category, 'id' | 'name' | 'type' | 'parentId' | 'isArchived'> & { templateKey?: string; icon?: string })[];
   history: Pick<LedgerTx, 'type' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId' | 'date'>[];
   today: string;
   debts?: Pick<Debt, 'id' | 'name' | 'provider' | 'outstandingAmount'>[];
@@ -240,7 +243,6 @@ function findAmounts(text: string): Amount[] {
 /** The amount meant: one with a unit or "rp" first, otherwise the biggest plain number. */
 const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a => a.value >= 100).sort((a, b) => b.value - a.value)[0];
 
-const INCOME_WORDS = /\b(gaji|gajian|terima|diterima|dapat|dapet|bonus|thr|cashback|refund|jual|hasil jual|masuk|dibayar|dikasih|transferan masuk)\b/;
 const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|tambah saldo)\b/;
 const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor)\b/;
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
@@ -464,6 +466,8 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   const schedule = scheduleOf(text, today, group !== 'auto');
   const soon = readDate(text, today);
   const saving = SAVE_WORDS.test(text) || FILL_WORDS.test(text);
+  // "bunga pinjaman 200rb", "denda cicilan 50rb": the cost of a loan is spending, not a new loan or a repayment of one.
+  const loanCost = /\b(bunga|biaya|denda|admin|provisi|asuransi)\s+(?:pinjaman|kredit|utang|hutang|cicilan|paylater|kpr)\b/.test(text);
   // "saldo bca sekarang 12jt", "gopay tinggal 150rb": what a wallet holds now.
   const balanceWallet = (BALANCE_WORDS.test(text) && (BALANCE_NOW.test(text) || /^saldo\b/.test(text)) || /\b(tinggal|sisa)\s*(?:rp\.?\s*)?\d/.test(text) && !BALANCE_WORDS.test(text)) && !BALANCE_MOVE.test(text) && !PAY.test(text) ? wallets[0] : undefined;
   // "target liburan 10jt" makes a tujuan dana; "nabung ke target liburan" / "isi target" fills one.
@@ -501,17 +505,17 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
     if (LEND_OUT.test(text)) return 'receivable_new';
     if (receivable && (subject(receivable.words, PAY) || RECEIVE.test(text) && /\b(dari|dr)\b/.test(text))) return 'receivable_payment';
+    if (loanCost) return flowOf(text);
     if (PAY.test(text) && (debt || DEBT_WORDS.test(text))) return 'debt_payment';
     if (BORROW.test(text)) {
       // "andi pinjam 100rb" → Andi owes me; "pinjam 100rb dari budi" / "dipinjemin budi" → I owe Budi.
       const before = text.slice(0, Math.max(0, firstVerb(BORROW))).trim().split(/\s+/).filter(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w));
       return before.length && !/\b(dipinjemin|dipinjamin|dipinjami)\b/.test(text) ? 'receivable_new' : 'debt_new';
     }
-    if (INCOME_WORDS.test(text)) return 'income';
-    return 'expense';
+    return flowOf(text);
   };
   /** Spending or income, for schedules and plans. */
-  const flowKind = (): 'expense' | 'income' => INCOME_WORDS.test(text) && !PAY.test(text) ? 'income' : 'expense';
+  const flowKind = (): 'expense' | 'income' => flowOf(text);
   let base: QuickKind | null = null;
   if (mode in QUICK_LABELS) kind = mode as QuickKind;
   else if (group === 'auto') {
@@ -716,16 +720,12 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   }
   if (flow === 'wish' && wish) result.wishId = wish.record.id;
 
-  // Category (spending and income only; debts/receivables use their own groups unless picked later).
+  // Category (spending and income only; debts/receivables use their own groups unless picked later): read from the context,
+  // the person's habits and a category named in the text (lib/categorize.ts).
   if (flow === 'expense' || flow === 'income') {
-    const own = ctx.categories.filter(c => !c.isArchived && c.type === flow);
-    const same = ctx.history.find(t => t.type === flow && t.categoryId && own.some(c => c.id === t.categoryId) && (item && lower(t.description || '') === item || preset.merchant && lower(t.merchant || '') === lower(preset.merchant)));
-    const named = !same ? [...own].sort((a, b) => b.name.length - a.name.length).find(c => wordAt(text, lower(c.name)) >= 0) || (item ? namedCategory(item, own) : undefined) : undefined;
-    const byHint = !same && !named ? hintedCategory(text, own) : undefined;
-    if (same) { preset.categoryId = same.categoryId; preset.subcategoryId = same.subcategoryId || null; }
-    else if (named) { preset.categoryId = named.parentId || named.id; preset.subcategoryId = named.parentId ? named.id : null; }
-    else if (byHint) { preset.categoryId = byHint.id; preset.subcategoryId = null; }
-    const chosen = own.find(c => c.id === (preset.subcategoryId || preset.categoryId));
+    const guess = suggestCategory({ text, item, merchant: preset.merchant, amount, type: flow }, ctx);
+    if (guess) { preset.categoryId = guess.categoryId; preset.subcategoryId = guess.subcategoryId; if (guess.why) result.why = guess.why; }
+    const chosen = ctx.categories.find(c => c.id === (preset.subcategoryId || preset.categoryId));
     if (chosen) understood.push(chosen.name);
   }
   if (kind === 'recurring_new' || kind === 'plan_new') {
