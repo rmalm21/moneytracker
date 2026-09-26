@@ -61,7 +61,9 @@ test('analysis helpers group spending by weekday, time, size, place and wallet',
   assert.equal(week[0].total, 160_000 + 2_500); assert.equal(week[6].total, 30_000); assert.equal(week[0].occurrences, 1);
   const time = timeOfDaySpending(items); assert.equal(time.rows[1].total, 10_000); assert.equal(time.rows[4].total, 150_000);
   assert.deepEqual(sizeBands(items).map(b => b.count), [2, 1, 1, 0]);
-  assert.deepEqual(topPlaces(items)[1], { name: 'Kopi Kenangan', total: 40_000, count: 2 });
+  // A description is not a place, and neither is a category name.
+  assert.deepEqual(topPlaces(items), [{ name: 'Kopi Kenangan', total: 40_000, count: 2 }]);
+  assert.deepEqual(topPlaces([...items, tx({ merchant: 'Makan & Minum' })], 6, ['Makan & Minum']).map(p => p.name), ['Kopi Kenangan']);
   const flows = walletFlows(items, [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
   assert.deepEqual(flows.find(f => f.id === 'b'), { id: 'b', name: 'B', icon: undefined, color: undefined, in: 600_000, out: 0, net: 600_000 });
   assert.equal(flows.find(f => f.id === 'a').out, 10_000 + 150_000 + 30_000 + 102_500);

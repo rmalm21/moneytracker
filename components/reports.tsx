@@ -188,7 +188,7 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
   const week = useMemo(() => weekdaySpending(pair.items, pair.range), [pair.items, pair.range.start, pair.range.end]);
   const time = useMemo(() => timeOfDaySpending(pair.items), [pair.items]);
   const bands = useMemo(() => sizeBands(pair.items), [pair.items]);
-  const places = useMemo(() => topPlaces(pair.items, 8), [pair.items]);
+  const places = useMemo(() => topPlaces(pair.items, 8, data.categories.map(c => c.name)), [pair.items, data.categories]);
   const today = todayInTimeZone(profile?.timeZone), length = daysInRange(pair.range);
   const elapsed = Math.max(1, Math.min(length, Math.round((Date.parse(`${today}T12:00:00`) - Date.parse(`${pair.range.start}T12:00:00`)) / 86400000) + 1));
   // Rolling periods (last 7/30 days, 3 months) always end today, so there is nothing left to project.
@@ -273,8 +273,8 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
             </Section>
           </div>
           <div className="report-two">
-            <Section icon={<Store size={18}/>} title="Tempat & keterangan teratas" hint="Berdasarkan nama tempat atau keterangan">
-              {places.length ? <div className="report-table">{places.map((place, index) => <div key={place.name} className="report-row"><span className="rank">{index + 1}</span><span className="report-place"><strong>{place.name}</strong><small className="muted">{place.count}× · rata-rata {rupiah(Math.round(place.total / place.count))}</small></span><strong>{rupiah(place.total)}</strong></div>)}</div> : <Empty message="Isi nama tempat atau keterangan saat mencatat agar terlihat di sini."/>}
+            <Section icon={<Store size={18}/>} title="Tempat belanja teratas" hint="Berdasarkan nama tempat yang diisi saat mencatat, bukan kategori">
+              {places.length ? <div className="report-table">{places.map((place, index) => <div key={place.name} className="report-row"><span className="rank">{index + 1}</span><span className="report-place"><strong>{place.name}</strong><small className="muted">{place.count}× · rata-rata {rupiah(Math.round(place.total / place.count))}</small></span><strong>{rupiah(place.total)}</strong></div>)}</div> : <Empty message="Isi kolom Tempat saat mencatat pengeluaran agar terlihat di sini."/>}
             </Section>
             <Section icon={<Scale size={18}/>} title="Ukuran transaksi" hint="Seberapa sering belanja kecil vs besar">
               <div className="report-table">{bands.map(band => <div key={band.label} className="report-row"><span><strong>{band.label}</strong><small className="muted">{band.count}× transaksi</small></span><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(band.total, Math.max(1, summary.expense)))}%` }}/></span><span className="report-row-value"><strong>{rupiah(band.total)}</strong><small>{pct(band.total, summary.expense)}%</small></span></div>)}</div>

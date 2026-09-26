@@ -58,9 +58,9 @@ export function CycleHistory({ notify }: { notify: (text: string) => void }) {
   const periods = useMemo<Period[]>(() => { const list: Period[] = []; let start = cycle.start; for (let i = 0; i <= 12; i++) { const c = salaryCycle(parse(start), salaryDay); list.push({ start: c.start, end: c.end, index: i }); start = salaryCycle(parse(previousDate(c.start)), salaryDay).start; } return list; }, [cycle.start, salaryDay]);
   const closed = useMemo(() => [...data.cycleSnapshots].sort((a, b) => b.startDate.localeCompare(a.startDate)), [data.cycleSnapshots]);
   const snapOf = (start: string) => closed.find(s => s.startDate === start);
-  // Cycles that ended before the first recorded transaction have nothing to report.
-  const earliest = useMemo(() => (ledger || []).reduce((min, t) => t.date < min ? t.date : min, today), [ledger, today]);
-  const stateOf = (p: Period) => snapOf(p.start) ? 'closed' : p.end > today ? 'running' : ledger && p.end <= earliest ? 'empty' : 'ready';
+  // A past cycle is ready to close only when it has transactions of its own; while the ledger loads, nothing is called ready.
+  const counts = useMemo(() => { const map = new Map<string, number>(); for (const p of periods) map.set(p.start, (ledger || []).filter(t => t.date >= p.start && t.date < p.end).length); return map; }, [ledger, periods]);
+  const stateOf = (p: Period) => snapOf(p.start) ? 'closed' : p.end > today ? 'running' : !ledger ? 'loading' : counts.get(p.start) ? 'ready' : 'empty';
   const ready = periods.filter(p => stateOf(p) === 'ready');
 
   // Across all closed cycles (oldest first for trends).
@@ -104,9 +104,9 @@ export function CycleHistory({ notify }: { notify: (text: string) => void }) {
 
     <section className="cy-strip-wrap">
       <div className="cy-head"><h3><CalendarDays size={17}/> 12 siklus terakhir</h3>{ready.length > 0 && <small className="cy-ready-note">{ready.length} siap ditutup</small>}</div>
-      <div className="cy-strip">{periods.map(p => { const snap = snapOf(p.start), state = stateOf(p); return <button type="button" key={p.start} className={`cy-chip is-${state}`} disabled={state === 'empty'} onClick={() => setOpenStart(p.start)}>
+      <div className="cy-strip">{periods.map(p => { const snap = snapOf(p.start), state = stateOf(p); return <button type="button" key={p.start} className={`cy-chip is-${state}`} disabled={state === 'empty' || state === 'loading'} onClick={() => setOpenStart(p.start)}>
         <span className="cy-chip-month">{monthOf(p.start, 'short')}<em>{parse(p.start).getFullYear() !== parse(today).getFullYear() ? ` ${String(parse(p.start).getFullYear()).slice(2)}` : ''}</em></span>
-        <span className="cy-chip-state">{state === 'closed' ? <><CheckCircle2 size={12}/> Ditutup</> : state === 'ready' ? <><Lock size={12}/> Siap ditutup</> : state === 'empty' ? 'Belum ada data' : <><Clock size={12}/> Berjalan</>}</span>
+        <span className="cy-chip-state">{state === 'closed' ? <><CheckCircle2 size={12}/> Ditutup</> : state === 'ready' ? <><Lock size={12}/> Siap ditutup</> : state === 'empty' ? 'Belum ada data' : state === 'loading' ? 'Memuat…' : <><Clock size={12}/> Berjalan</>}</span>
         {snap && <b className={snap.cashFlow < 0 ? 'is-bad' : ''}>{short(snap.cashFlow)}</b>}
       </button>; })}</div>
     </section>

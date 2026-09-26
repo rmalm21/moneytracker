@@ -7,6 +7,9 @@ export const releases: Release[] = [
     ['📝', 'Transaksi, utang, piutang, dan klaim yang disimpan tercatat di notifikasi.'],
     ['🔄', 'Hemat kuota: data disimpan di perangkat, hanya perubahan yang diunduh.'],
     ['⚡', 'Laporan, riwayat siklus, dan pindah tab tidak memakai kuota baca.'],
+    ['✅', 'Riwayat siklus hanya menandai siklus yang punya transaksi sebagai siap ditutup.'],
+    ['📌', 'Tempat belanja di Laporan tidak lagi tercampur kategori atau keterangan.'],
+    ['📊', 'Kartu Pemasukan & Pengeluaran di Beranda lebih ringkas dan muat lebih banyak.'],
   ] },
   { version: '63', date: '26 Sep 2026', title: 'Lebih ringkas, lebih mulus', items: [
     ['📱', 'Geser antartab, misalnya di Laporan, kini mulus tanpa kedipan.'],

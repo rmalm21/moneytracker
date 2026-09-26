@@ -66,12 +66,16 @@ export function sizeBands(items: LedgerTx[]) {
   return rows;
 }
 
-/** Where the money goes most often, by merchant or description. */
-export function topPlaces(items: LedgerTx[], limit = 6) {
+/**
+ * Where the money goes most often, by the place (merchant) filled in when recording.
+ * A description or a category name is not a place, so those are left out (`notPlaces`: category names).
+ */
+export function topPlaces(items: LedgerTx[], limit = 6, notPlaces: string[] = []) {
   const rows = new Map<string, { name: string; total: number; count: number }>();
+  const skip = new Set(notPlaces.map(name => name.trim().toLocaleLowerCase('id-ID')));
   for (const tx of items) {
     const amount = transactionExpense(tx); if (!amount) continue;
-    const name = (tx.merchant || tx.description || '').trim(); if (!name) continue;
+    const name = (tx.merchant || '').trim(); if (!name || skip.has(name.toLocaleLowerCase('id-ID'))) continue;
     const key = name.toLocaleLowerCase('id-ID');
     const row = rows.get(key) || { name, total: 0, count: 0 }; row.total += amount; row.count++; rows.set(key, row);
   }
