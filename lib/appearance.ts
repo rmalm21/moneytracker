@@ -44,26 +44,31 @@ export function effectiveMode(mode: ColorMode | undefined, legacy: Profile['them
   if (mode === 'system') return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   return mode || legacy || 'light';
 }
+/** Default sizes when the account has not picked any: text S, display M (Normal). */
+export const DEFAULT_FONT_SIZE: NonNullable<Profile['fontSize']> = 's';
+export const DEFAULT_DENSITY: NonNullable<Profile['density']> = 'comfortable';
 export function applyAppearance(profile: Profile | null) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   const mode = effectiveMode(profile?.colorMode, profile?.theme);
-  root.dataset.theme = mode;
-  root.dataset.preset = profile?.themePreset || 'default';
-  root.dataset.density = profile?.density || 'comfortable';
-  root.dataset.fontSize = profile?.fontSize || 'm';
-  root.dataset.font = profile?.fontFamily || 'default';
+  const accent = profile?.accentColor && validAccent(profile.accentColor, mode) ? profile.accentColor : '';
+  const next: Record<string, string> = { theme: mode, preset: profile?.themePreset || 'default', density: profile?.density || DEFAULT_DENSITY, fontSize: profile?.fontSize || DEFAULT_FONT_SIZE, font: profile?.fontFamily || 'default' };
+  // A new theme, palette or accent recolours everything in one step: transitions are paused for two frames,
+  // otherwise buttons and cards fade from the old colours (a light flash when switching to dark).
+  const recolor = root.dataset.theme !== next.theme || root.dataset.preset !== next.preset || root.style.getPropertyValue('--accent') !== accent;
+  if (recolor) root.classList.add('theme-switching');
+  for (const [key, value] of Object.entries(next)) if (root.dataset[key] !== value) root.dataset[key] = value;
   loadFont(profile?.fontFamily);
-  const accent = profile?.accentColor;
-  if (accent && validAccent(accent, mode)) {
+  if (accent) {
     root.style.setProperty('--accent', accent);
     // Opaque tint so the soft colour also reads well on the dark sidebar.
     root.style.setProperty('--accent-soft', `color-mix(in srgb, ${accent} 16%, var(--paper))`);
     root.style.setProperty('--accent-on', contrast(accent, '#ffffff') > contrast(accent, '#172f3c') ? '#ffffff' : '#172f3c');
   } else { root.style.removeProperty('--accent'); root.style.removeProperty('--accent-soft'); root.style.removeProperty('--accent-on'); }
-  // The phone's browser bar follows the chosen palette.
+  // The phone's browser bar follows the chosen palette (reading the style also applies the new colours now).
   const paper = getComputedStyle(root).getPropertyValue('--paper').trim();
   if (paper) document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => { meta.content = paper; });
+  if (recolor) requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
 }
 const cacheKey=(uid:string)=>`dompet-ajaib:appearance:${uid}`;
 export function readCachedAppearance(uid:string):Profile|null{if(typeof localStorage==='undefined')return null;try{const value=JSON.parse(localStorage.getItem(cacheKey(uid))||'null');return value&&value.uid===uid?value as Profile:null}catch{return null}}

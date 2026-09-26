@@ -41,6 +41,7 @@ const AdvisorView = dynamic(() => pages.advisor().then(m => m.AdvisorView), { lo
 const WishlistView = dynamic(() => pages.wishlist().then(m => m.WishlistView), { loading: viewLoading });
 import { Dashboard } from '@/components/dashboard-home';
 import { LoadingScreen } from '@/components/loading-screen';
+import { useMenuPlacement } from '@/components/menu-placement';
 import { Sidebar } from '@/components/sidebar';
 import { MobileNavigation } from '@/components/mobile-navigation';
 import { TransactionForm } from '@/components/transaction-form';
@@ -58,7 +59,7 @@ const nav=[{key:'dashboard',label:'Beranda',icon:Home},{key:'transactions',label
 /** What the sidebar and the phone menu show: related pages are grouped into hubs with tabs. */
 const menu=[...['dashboard','transactions','budgets','advisor'].map(key=>({...nav.find(item=>item.key===key)!})),{...nav.find(item=>item.key==='wallets')!,section:'KEUANGAN'},{...nav.find(item=>item.key==='funds')!},{...nav.find(item=>item.key==='wishlist')!},...hubs.filter(hub=>hub.key!=='reports').map(hub=>({key:hub.key,label:hub.label,icon:hub.icon})),{key:'reports',label:'Laporan',icon:BookOpenText,section:'LAPORAN'},{...nav.find(item=>item.key==='categories')!,section:'LAINNYA'},{...nav.find(item=>item.key==='settings')!},{...nav.find(item=>item.key==='help')!}];
 export default function Page(){return <NotificationProvider><UndoDeleteProvider><AppPage/></UndoDeleteProvider></NotificationProvider>}
-function AppPage(){const {user,profile,data,loading,error,ready,sync}=useApp();const {notify:setToast,track,push}=useNotify();const undo=useUndoDelete();const appLock=useAppLock();const router=useRouter(),[view,setView]=useState('dashboard'),[txOpen,setTxOpen]=useState(false),[preset,setPreset]=useState<Partial<LedgerTx>|undefined>(),[editing,setEditing]=useState<LedgerTx|undefined>(),[focus,setFocus]=useState<string|undefined>(),[revision,setRevision]=useState(0),[online,setOnline]=useState(true);
+function AppPage(){const {user,profile,data,loading,error,ready,sync}=useApp();const {notify:setToast,track,push}=useNotify();const undo=useUndoDelete();const appLock=useAppLock();useMenuPlacement();const router=useRouter(),[view,setView]=useState('dashboard'),[txOpen,setTxOpen]=useState(false),[preset,setPreset]=useState<Partial<LedgerTx>|undefined>(),[editing,setEditing]=useState<LedgerTx|undefined>(),[focus,setFocus]=useState<string|undefined>(),[revision,setRevision]=useState(0),[online,setOnline]=useState(true);
  const trail=useRef<string[]>([]),viewRef=useRef(view),lastTab=useRef<Record<string,string>>({});viewRef.current=view;
  // Back button: previous page first, then Beranda, then "press again to exit".
  useBackGuard(()=>{const previous=trail.current.pop();if(previous!==undefined){setFocus(undefined);setView(previous);return true}if(viewRef.current!=='dashboard'){setFocus(undefined);setView('dashboard');return true}return false},()=>push({title:'Tekan kembali sekali lagi untuk keluar',kind:'info',history:false}));

@@ -47,8 +47,8 @@ function useKeyboardLift(content:React.RefObject<HTMLDivElement|null>){
  },[content]);
 }
 
-export function DialogContent({title,children,className=''}:{title:string;children:React.ReactNode;className?:string}){
+export function DialogContent({title,children,className='',onCloseAutoFocus}:{title:string;children:React.ReactNode;className?:string;onCloseAutoFocus?:(event:Event)=>void}){
  const sheet=useSheetDrag();
  useKeyboardLift(sheet.content);
- return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
+ return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`} onCloseAutoFocus={onCloseAutoFocus}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
 }

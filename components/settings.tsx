@@ -2,7 +2,7 @@
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { BadgeInfo, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
 import { Field, FormActions, Input, Money, Select } from './fields';
@@ -16,6 +16,7 @@ import { importData, saveProfile, validateBackup } from '@/lib/firestore';
 import { downloadBackup } from '@/lib/account';
 import { AccountDangerZone } from './account-danger';
 import { PasswordCard } from './password-ui';
+import { AboutApp } from './about-app';
 import type { TimeZone } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
 import { rupiah } from '@/lib/accounting';
@@ -28,7 +29,7 @@ function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon
 }
 const backupNames: Record<string, string> = { wallets: 'dompet', categories: 'kategori', budgets: 'anggaran', transactions: 'transaksi', claims: 'klaim', receivables: 'piutang', debts: 'utang', funds: 'tujuan dana', recurring: 'jadwal rutin', drafts: 'draf', plannedTransactions: 'rencana', categorizationRules: 'aturan kategori', financialNotes: 'catatan', cycleSnapshots: 'siklus' };
 
-type Section = 'profile' | 'security' | 'reminders' | 'appearance' | 'app' | 'control' | 'data';
+type Section = 'profile' | 'security' | 'reminders' | 'appearance' | 'app' | 'about' | 'control' | 'data';
 const groups = ['Akun', 'Aplikasi', 'Keuangan & data'] as const;
 const sections: { key: Section; title: string; detail: string; icon: LucideIcon; group: typeof groups[number]; tone: string }[] = [
   { key: 'profile', title: 'Profil & gaji', detail: 'Nama, siklus gaji, dan isian otomatis saat mencatat.', icon: UserRound, group: 'Akun', tone: 'teal' },
@@ -36,6 +37,7 @@ const sections: { key: Section; title: string; detail: string; icon: LucideIcon;
   { key: 'reminders', title: 'Pengingat', detail: 'Jam pengingat perbarui saldo dan tagihan.', icon: BellRing, group: 'Aplikasi', tone: 'amber' },
   { key: 'appearance', title: 'Tampilan', detail: 'Tema warna, mode layar, dan ukuran teks.', icon: Palette, group: 'Aplikasi', tone: 'pink' },
   { key: 'app', title: 'Aplikasi di perangkat', detail: 'Pasang ke layar utama agar bisa dibuka offline.', icon: Smartphone, group: 'Aplikasi', tone: 'violet' },
+  { key: 'about', title: 'Info aplikasi', detail: 'Versi, apa yang baru, dan tentang Dompet Ajaib.', icon: BadgeInfo, group: 'Aplikasi', tone: 'indigo' },
   { key: 'control', title: 'Kontrol keuangan', detail: 'Uang tersedia, cadangan, dompet yang dihitung, aset bersih, dan batas anggaran.', icon: SlidersHorizontal, group: 'Keuangan & data', tone: 'green' },
   { key: 'data', title: 'Data & cadangan', detail: 'Unduh cadangan atau pulihkan data dari file.', icon: DatabaseBackup, group: 'Keuangan & data', tone: 'slate' },
 ];
@@ -48,14 +50,18 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  useEffect(()=>{const media=window.matchMedia('(min-width: 900px)');const update=()=>setWide(media.matches);update();media.addEventListener('change',update);return ()=>media.removeEventListener('change',update)},[]);
  const active=section??(wide?'profile':null);
  useBackHandler(Boolean(section)&&!wide,()=>setSection(null));
+ const [aboutSeen,setAboutSeen]=useState(true);
+ useEffect(()=>{try{setAboutSeen(localStorage.getItem('dompet-ajaib:about-seen')===APP_VERSION)}catch{/* Badge only. */}},[]);
+ useEffect(()=>{if(active!=='about'||aboutSeen)return;setAboutSeen(true);try{localStorage.setItem('dompet-ajaib:about-seen',APP_VERSION)}catch{/* Badge only. */}},[active,aboutSeen]);
  function open(key:Section){setSection(key);setError('');if(!wide)window.scrollTo({top:0})}
  const r=reminderConfig(profile);
  const summaries:Record<Section,string>={
   profile:`Gajian tanggal ${profile?.salaryCycleStartDay||24} · ${rupiah(profile?.monthlySalary||0)}`,
   security:`${profile?.pinHash?(biometricEnabled(user?.uid||'')?'PIN & sidik jari aktif':'PIN aktif'):'PIN belum aktif'} · password`,
   reminders:[r.balanceEnabled?`Perbarui saldo ${r.times.length}× sehari`:'Perbarui saldo mati',r.billsEnabled?'tagihan aktif':'tagihan mati'].join(' · '),
-  appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${(profile?.fontSize||'m').toUpperCase()}`,
+  appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${({xxs:'SS',xs:'XS',s:'S',m:'M',l:'L'} as Record<string,string>)[profile?.fontSize||'s']}`,
   app:pwa.installed?'Terpasang di perangkat ini':'Pasang ke layar utama',
+  about:`Versi ${APP_VERSION} · apa yang baru`,
   control:`${profile?.excludeCommittedFromAvailable===false?'Tagihan tidak dikurangi':`Tagihan ${horizonLabels[profile?.commitmentHorizon||'cycle'].toLowerCase()}`}${profile?.freeMoneyBuffer?` · cadangan ${rupiah(profile.freeMoneyBuffer)}`:''} · aset bersih ${profile?.netWorthIncludesReceivables?'+ piutang':'tanpa piutang'}`,
   data:'Unduh dan pulihkan cadangan',
  };
@@ -66,7 +72,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  <div className={`set-layout ${active?'has-page':''}`}>
   <aside className="set-menu" aria-label="Menu pengaturan">
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>
-   {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
+   {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
    {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button></div></section>}
    <AccountDangerZone notify={notify}/>
    <div className="set-group"><Confirm title="Keluar dari akun?" description="Kamu perlu masuk lagi dengan username dan password untuk membuka catatan keuangan ini." confirmLabel="Ya, keluar" onConfirm={()=>logout()}><button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari akun</button></Confirm><small className="set-version">Dompet Ajaib · Versi {APP_VERSION}</small></div>
@@ -91,6 +97,8 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
    {page.key==='appearance'&&<div className="set-form"><AppearanceSettings notify={notify}/><div className="set-card"><h3>Beranda</h3><p>Pilih dan urutkan kartu langsung dari halaman Beranda.</p><div className="settings-links"><SettingsLink icon={LayoutDashboard} title="Atur Beranda" detail="Buka Beranda, lalu ketuk “Atur Beranda”" onClick={()=>navigate?.('dashboard')}/></div></div></div>}
 
    {page.key==='app'&&<div className="set-form"><InstallPanel/></div>}
+
+   {page.key==='about'&&<div className="set-form"><AboutApp navigate={navigate}/></div>}
 
    {page.key==='control'&&<div className="set-form"><FinanceControlSettings perform={perform} navigate={navigate}/>{errorText}</div>}
 

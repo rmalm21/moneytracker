@@ -4,7 +4,7 @@ import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, configured } from '@/lib/firebase';
 import { emptyData, type Data, type Profile } from '@/lib/types';
-import { initProfile, subscribeData, subscribeProfile, settleBudgets, createDueDrafts, postAutoDrafts } from '@/lib/firestore';
+import { initProfile, subscribeData, subscribeProfile, settleBudgets, createDueDrafts, postAutoDrafts, saveProfile } from '@/lib/firestore';
 import { salaryCycle, calendarCycle } from '@/lib/accounting';
 import { applyAppearance, cacheAppearance, readCachedAppearance } from '@/lib/appearance';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
@@ -24,6 +24,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(!user)return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(p);cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user]);
   useEffect(()=>{if(!profile)return;applyAppearance(profile);const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(profile);media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize]);
   useEffect(()=>{if(!user||!profile)return;const uid=user.uid;setData(emptyData);return subscribeData(uid,cycle.start,cycle.end,(key,value)=>setData(previous=>({...previous,[key]:value} as Data)),e=>{setError(dataError(e));setSync('error');},setSync,dateInTimeZone(new Date(),profile.timeZone),profile.salaryCycleStartDay);},[user,profile?.uid,profile?.timeZone,profile?.salaryCycleStartDay,cycle.start,cycle.end]);
+  // v62: text size S is the new default. Accounts still on the old default (M, or never chosen) move to S once; any choice after that stays.
+  useEffect(()=>{if(!user||!profile||(profile.appearanceDefaults||0)>=2)return;void saveProfile(user.uid,{appearanceDefaults:2,...(!profile.fontSize||profile.fontSize==='m'?{fontSize:'s' as const}:{})}).catch(()=>{});},[user,profile?.uid,profile?.appearanceDefaults]);
   useEffect(()=>{if(user&&profile&&data.budgets.some(b=>b.rolloverEnabled))void settleBudgets(user.uid,data.budgets,profile.salaryCycleStartDay,dateInTimeZone(new Date(),profile.timeZone)).catch(e=>setError(e.message));},[user,profile?.uid,profile?.salaryCycleStartDay,profile?.timeZone,data.budgets]);
   useEffect(()=>{if(user&&data.recurring.length&&typeof navigator!=='undefined'&&navigator.onLine)void createDueDrafts(user.uid,data.recurring,todayInTimeZone(profile?.timeZone)).catch(e=>setError(e.message));},[user,profile?.timeZone,data.recurring]);
   useEffect(()=>{if(user&&data.drafts.some(d=>d.status==='pending'&&d.mode==='auto')&&typeof navigator!=='undefined'&&navigator.onLine)void postAutoDrafts(user.uid,data.drafts);},[user,data.drafts]);

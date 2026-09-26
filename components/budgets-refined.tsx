@@ -1,7 +1,7 @@
 'use client';
 import { useUndoDelete } from './undo-delete';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Check, ChevronRight, GripVertical, Plus, Sparkles, Target } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, GripVertical, Plus, Sparkles, Target } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { AppIcon, categoryColor, emojiOrFallback, identityStyle } from './visual-identity';
@@ -68,6 +68,8 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
 
   const parents = data.categories.filter(c => ['expense', 'savings'].includes(c.type) && !c.parentId && !c.isArchived);
   const children = data.categories.filter(c => c.parentId === category && !c.isArchived);
+  const [subsOpen, setSubsOpen] = useState(false);
+  const chosenNames = subs.map(id => children.find(c => c.id === id)?.name).filter(Boolean) as string[];
   const autoName = (cat: string, list: string[]) => { const parent = data.categories.find(c => c.id === cat)?.name || ''; const names = list.map(id => data.categories.find(c => c.id === id)?.name).filter(Boolean); return names.length === 1 ? names[0]! : names.length ? `${parent}: ${names.slice(0, 2).join(', ')}${names.length > 2 ? ` +${names.length - 2}` : ''}` : parent; };
   function pickCategory(id: string) { setCategory(id); setSubs([]); if (!nameTouched) setName(autoName(id, [])); }
   function toggleSub(id: string) { const next = subs.includes(id) ? subs.filter(x => x !== id) : [...subs, id]; setSubs(next); if (!nameTouched) setName(autoName(category, next)); }
@@ -79,7 +81,7 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
     return data.budgets.filter(b => b.active && b.id !== editing?.id && b.categoryId === category).filter(b => { const m = budgetMatcher(b, data.categories); return ids.some(id => m(category, id) && draft(category, id)); }).map(b => b.name);
   }, [category, subs, data.budgets, data.categories, editing?.id, children]);
 
-  function edit(b?: Budget) { setEditing(b || null); setName(b?.name || ''); setNameTouched(Boolean(b)); setCategory(b?.categoryId || ''); setSubs(b ? budgetSubcategories(b) : []); setAmount(b?.amount || 0); setClassification(b?.classification || 'living'); setPeriod(b?.cycleType || 'salary'); setDay(b?.cycleStartDay || salaryDay); setWarning(b?.warningPercent || profile?.budgetWarningPercent || 80); setNotes(b?.notes || ''); setRollover(b?.rolloverEnabled || false); setActive(b?.active ?? true); setError(''); setOpen(true); }
+  function edit(b?: Budget) { setSubsOpen(false); setEditing(b || null); setName(b?.name || ''); setNameTouched(Boolean(b)); setCategory(b?.categoryId || ''); setSubs(b ? budgetSubcategories(b) : []); setAmount(b?.amount || 0); setClassification(b?.classification || 'living'); setPeriod(b?.cycleType || 'salary'); setDay(b?.cycleStartDay || salaryDay); setWarning(b?.warningPercent || profile?.budgetWarningPercent || 80); setNotes(b?.notes || ''); setRollover(b?.rolloverEnabled || false); setActive(b?.active ?? true); setError(''); setOpen(true); }
   async function act(fn: () => Promise<unknown>, message: string, close = false) { if (close) { setOpen(false); track(fn(), { pending: 'Menyimpan…', success: message, failure: 'Belum tersimpan', retry: { label: 'Buka lagi', run: () => setOpen(true) } }); return; } setError(''); setBusy(true); try { await fn(); notify(message); if (close) setOpen(false); } catch (e) { setError((e as Error).message || 'Belum berhasil. Coba lagi.'); } finally { setBusy(false); } }
   function submit(event: FormEvent) {
     event.preventDefault(); if (!user || !category) return;
@@ -159,11 +161,17 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
     <Dialog open={open} onOpenChange={setOpen}><DialogContent title={editing ? 'Ubah anggaran' : 'Anggaran baru'}><form className="form-stack bgt-form" onSubmit={submit}>
       <Field label="Kategori"><Select required value={category} onChange={e => pickCategory(e.target.value)}><option value="">Pilih kategori</option>{parents.map(c => <option value={c.id} key={c.id}>{emojiOrFallback(c.icon)} {c.name}</option>)}</Select></Field>
       {category && children.length > 0 && <div className="bgt-subs">
-        <span className="bgt-subs-label">Subkategori yang dihitung</span>
-        <div className="bgt-sub-chips" role="group" aria-label="Subkategori yang dihitung">
-          <button type="button" className={!subs.length ? 'active' : ''} aria-pressed={!subs.length} onClick={() => { setSubs([]); if (!nameTouched) setName(autoName(category, [])); }}>{!subs.length && <Check size={14}/>}Semua subkategori</button>
-          {children.map(c => { const on = subs.includes(c.id); return <button type="button" key={c.id} className={on ? 'active' : ''} aria-pressed={on} onClick={() => toggleSub(c.id)}>{on ? <Check size={14}/> : <span className="bgt-sub-emoji"><AppIcon icon={c.icon} fallback="•"/></span>}{c.name}</button>; })}
-        </div>
+        <span className="bgt-subs-label" id="bgt-subs-label">Subkategori yang dihitung</span>
+        <button type="button" className={`bgt-sub-select ${subsOpen ? 'is-open' : ''}`} aria-expanded={subsOpen} aria-controls="bgt-sub-list" aria-labelledby="bgt-subs-label bgt-sub-value" onClick={() => setSubsOpen(o => !o)}>
+          <span className="bgt-sub-value" id="bgt-sub-value">{chosenNames.length ? chosenNames.length > 2 ? `${chosenNames.slice(0, 2).join(', ')} +${chosenNames.length - 2}` : chosenNames.join(', ') : 'Semua subkategori'}</span>
+          {subs.length > 0 && <b className="bgt-sub-count" aria-hidden="true">{subs.length}</b>}
+          <ChevronDown size={18} className="bgt-sub-chevron" aria-hidden="true"/>
+        </button>
+        {subsOpen && <div className="bgt-sub-list" id="bgt-sub-list" role="group" aria-label="Pilih subkategori">
+          <label className={`bgt-sub-option is-all ${!subs.length ? 'is-on' : ''}`}><input type="checkbox" checked={!subs.length} onChange={() => { setSubs([]); if (!nameTouched) setName(autoName(category, [])); }}/><span>Semua subkategori</span></label>
+          {children.map(c => { const on = subs.includes(c.id); return <label key={c.id} className={`bgt-sub-option ${on ? 'is-on' : ''}`}><input type="checkbox" checked={on} onChange={() => toggleSub(c.id)}/><span className="bgt-sub-emoji"><AppIcon icon={c.icon} fallback="•"/></span><span>{c.name}</span></label>; })}
+          <button type="button" className="link-button bgt-sub-done" onClick={() => setSubsOpen(false)}><Check size={14}/> Selesai</button>
+        </div>}
         <small className="muted">{subs.length ? `Hanya ${subs.length} subkategori terpilih yang dihitung.` : 'Seluruh pengeluaran kategori ini dihitung, termasuk semua subkategorinya.'} Pilih satu atau beberapa untuk membatasi.</small>
         {overlaps.length > 0 && <small className="bgt-overlap">Sebagian pengeluaran ini juga dihitung di anggaran {overlaps.map(n => `“${n}”`).join(', ')}.</small>}
       </div>}
