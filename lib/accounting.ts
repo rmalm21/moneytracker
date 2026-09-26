@@ -41,10 +41,25 @@ export function budgetWindow(budget:Budget,date:Date,salaryDay:number){return bu
 /** Rough monthly size of a budget, so weekly and monthly budgets can be added up. */
 export function budgetMonthly(budget:Pick<Budget,'amount'|'cycleType'>){return budget.cycleType==='weekly'?Math.round(budget.amount*52/12):budget.amount}
 export function budgetCurrent(budget:Budget,txs:LedgerTx[],cats:Category[],date:Date,salaryDay:number){const window=budgetWindow(budget,date,salaryDay);const spent=budgetSpent(budget,txs.filter(t=>t.date>=window.start&&t.date<window.end),cats);const available=budget.amount+(budget.rolloverEnabled?(budget.rolloverCarry||0):0);return {...window,spent,available,remaining:available-spent};}
+/** The subcategories a budget is limited to; empty means the whole category with all its subcategories. */
+export function budgetSubcategories(budget: Pick<Budget, 'subcategoryId' | 'subcategoryIds'>): string[] {
+  const list = (budget.subcategoryIds || []).filter(Boolean);
+  return list.length ? [...new Set(list)] : budget.subcategoryId ? [budget.subcategoryId] : [];
+}
+/** Whether a category/subcategory pair counts toward a budget. */
+export function budgetMatcher(budget: Pick<Budget, 'categoryId' | 'subcategoryId' | 'subcategoryIds'>, cats: Pick<Category, 'id' | 'parentId'>[]) {
+  const subs = budgetSubcategories(budget);
+  const ids = new Set<string>(subs.length ? subs : [budget.categoryId, ...cats.filter(c => c.parentId === budget.categoryId).map(c => c.id)]);
+  return (categoryId: string | null | undefined, subcategoryId: string | null | undefined) => subs.length ? ids.has(subcategoryId || '') || ids.has(categoryId || '') : ids.has(categoryId || '') || ids.has(subcategoryId || '');
+}
+/** The category whose icon and name stand for a budget: its only subcategory, otherwise the category itself. */
+export function budgetIconCategoryId(budget: Pick<Budget, 'categoryId' | 'subcategoryId' | 'subcategoryIds'>) { const subs = budgetSubcategories(budget); return subs.length === 1 ? subs[0] : budget.categoryId; }
+/** Budgets to add up: a budget for part of a category is left out when the whole category has its own budget. */
+export function countedBudgets<T extends Pick<Budget, 'categoryId' | 'subcategoryId' | 'subcategoryIds'>>(budgets: T[]): T[] {
+  return budgets.filter(b => !budgetSubcategories(b).length || !budgets.some(parent => parent !== b && parent.categoryId === b.categoryId && !budgetSubcategories(parent).length));
+}
 export function budgetSpent(budget: Budget, txs: LedgerTx[], cats: Category[]) {
-  const ids = new Set<string>([budget.categoryId]);
-  if (!budget.subcategoryId) cats.filter(c => c.parentId === budget.categoryId).forEach(c => ids.add(c.id));
-  const matches=(categoryId:string|null,subcategoryId:string|null)=>budget.subcategoryId?subcategoryId===budget.subcategoryId:ids.has(categoryId||'')||ids.has(subcategoryId||'');
+  const matches = budgetMatcher(budget, cats);
   return txs.reduce((total,tx)=>total+expenseAllocations(tx).filter(line=>matches(line.categoryId,line.subcategoryId)).reduce((sum,line)=>sum+line.amount,0)+(['savings','sinking'].includes(budget.classification)&&tx.type==='fund_contribution'&&matches(tx.categoryId,tx.subcategoryId)?tx.amount:0),0);
 }
 /** `includeReceivables`: whether unpaid receivables and office claims count toward Aset bersih (user setting, off by default). */
@@ -71,7 +86,7 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const income = cycle.filter(t=>t.type==='income').reduce((n,t)=>n+t.amount,0);
   const expenses = cycle.reduce((n,t)=>n+transactionExpense(t),0);
   const activeBudgets=data.budgets.filter(b=>b.active);
-  const nonOverlapping=activeBudgets.filter(b=>!b.subcategoryId||!activeBudgets.some(parent=>parent.categoryId===b.categoryId&&!parent.subcategoryId));
+  const nonOverlapping=countedBudgets(activeBudgets);
   const totalBudget=nonOverlapping.reduce((n,b)=>n+b.amount+(b.rolloverEnabled?(b.rolloverCarry||0):0),0);
   const budgetRemaining=nonOverlapping.reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
   const discretionaryRemaining=nonOverlapping.filter(b=>b.classification==='living').reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);

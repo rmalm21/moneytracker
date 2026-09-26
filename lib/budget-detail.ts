@@ -1,6 +1,6 @@
 /** Everything behind the budget detail sheet: pace, projection and breakdowns within one budget period. */
-import { transactionExpense } from './accounting.ts';
-import { categoryBreakdown, transactionsForCategory } from './category-analytics.ts';
+import { budgetSubcategories, transactionExpense } from './accounting.ts';
+import { categoryBreakdown, transactionsForBudget } from './category-analytics.ts';
 import { parseDate } from './period.ts';
 import type { Budget, Category, LedgerTx } from './types';
 
@@ -9,7 +9,8 @@ const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1)
 
 export function budgetDetail(budget: Budget, txs: LedgerTx[], categories: Category[], window: { start: string; end: string }, today: string, available: number) {
   const inWindow = txs.filter(t => t.date >= window.start && t.date < window.end);
-  const items = transactionsForCategory(inWindow, categories, budget.subcategoryId || budget.categoryId).filter(t => transactionExpense(t) > 0).sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''));
+  const subs = budgetSubcategories(budget);
+  const items = transactionsForBudget(inWindow, categories, budget).filter(t => transactionExpense(t) > 0).sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''));
   const spent = items.reduce((n, t) => n + transactionExpense(t), 0);
   const totalDays = Math.max(1, dayIndex(window.start, window.end));
   const elapsed = Math.min(totalDays, Math.max(1, dayIndex(window.start, today) + 1));
@@ -30,8 +31,9 @@ export function budgetDetail(budget: Budget, txs: LedgerTx[], categories: Catego
     weeks.push({ label: from.getTime() === to.getTime() ? short(from) : `${short(from)} – ${short(to)}`, amount: perDay.slice(i, i + 7).reduce((n, v) => n + v, 0), current: elapsed - 1 >= i && elapsed - 1 < i + 7, future: i > elapsed - 1 });
   }
   const slices = categoryBreakdown(items, categories);
-  const bySub = budget.subcategoryId ? [] : (slices.find(s => s.id === budget.categoryId)?.subcategories || []);
-  const unassigned = budget.subcategoryId ? 0 : Math.max(0, spent - bySub.reduce((n, s) => n + s.amount, 0));
+  // One chosen subcategory needs no split; several (or the whole category) are shown per subcategory.
+  const bySub = subs.length === 1 ? [] : (slices.find(s => s.id === budget.categoryId)?.subcategories || []);
+  const unassigned = subs.length ? 0 : Math.max(0, spent - bySub.reduce((n, s) => n + s.amount, 0));
   const walletMap = new Map<string, number>();
   for (const t of items) walletMap.set(t.walletId, (walletMap.get(t.walletId) || 0) + transactionExpense(t));
   const byWallet = [...walletMap].map(([walletId, amount]) => ({ walletId, amount })).sort((a, b) => b.amount - a.amount);

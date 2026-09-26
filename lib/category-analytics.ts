@@ -1,5 +1,5 @@
-import { expenseAllocations } from './accounting.ts';
-import type { Category, LedgerTx } from './types';
+import { budgetMatcher, expenseAllocations } from './accounting.ts';
+import type { Budget, Category, LedgerTx } from './types';
 
 export type CategorySlice={id:string;name:string;amount:number;count:number;color?:string;icon?:string;subcategories:{id:string;name:string;amount:number;color?:string;icon?:string}[]};
 export function categoryBreakdown(items:LedgerTx[],categories:Category[]):CategorySlice[]{
@@ -15,11 +15,16 @@ export function categoryBreakdown(items:LedgerTx[],categories:Category[]):Catego
 export function transactionsForCategory(items:LedgerTx[],categories:Category[],categoryId:string){
  if(!categoryId)return items;
  const ids=new Set([categoryId,...categories.filter(c=>c.parentId===categoryId).map(c=>c.id)]);
+ return transactionsMatching(items,(categoryId,subcategoryId)=>ids.has(categoryId||'')||ids.has(subcategoryId||''));
+}
+/** The part of each transaction that counts toward a budget (all its chosen subcategories). */
+export function transactionsForBudget(items:LedgerTx[],categories:Category[],budget:Pick<Budget,'categoryId'|'subcategoryId'|'subcategoryIds'>){return transactionsMatching(items,budgetMatcher(budget,categories));}
+function transactionsMatching(items:LedgerTx[],match:(categoryId:string|null|undefined,subcategoryId:string|null|undefined)=>boolean){
  return items.flatMap(tx=>{
-  if(tx.type==='income')return ids.has(tx.categoryId||'')||ids.has(tx.subcategoryId||'')?[tx]:[];
-  if(tx.type==='transfer'){return tx.transferFee&&ids.has(tx.transferFeeCategoryId||'')?[tx]:[]}
+  if(tx.type==='income')return match(tx.categoryId,tx.subcategoryId)?[tx]:[];
+  if(tx.type==='transfer'){return tx.transferFee&&match(tx.transferFeeCategoryId,null)?[tx]:[]}
   if(tx.type!=='expense')return [];
-  const lines=expenseAllocations(tx).filter(line=>ids.has(line.categoryId||'')||ids.has(line.subcategoryId||''));if(!lines.length)return [];
+  const lines=expenseAllocations(tx).filter(line=>match(line.categoryId,line.subcategoryId));if(!lines.length)return [];
   const amount=lines.reduce((sum,line)=>sum+line.amount,0);
   // Analysis-only copy: the real ledger still has one payment with its full amount.
   return [{...tx,amount,splits:lines.map(line=>({categoryId:line.categoryId||'',subcategoryId:line.subcategoryId,amount:line.amount})),categoryId:null,subcategoryId:null}];

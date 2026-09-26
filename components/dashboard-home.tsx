@@ -18,7 +18,7 @@ const chartLoading = () => <div className="chart-skeleton" aria-hidden="true"/>;
 const TrendMiniChart = dynamic(() => import('./trend-mini-chart'), { ssr: false, loading: chartLoading });
 const ForecastWidget = dynamic(() => import('./forecast').then(m => m.ForecastWidget), { ssr: false, loading: () => <div className="panel"><div className="chart-skeleton" aria-hidden="true"/></div> });
 const CategoryDonut = dynamic(() => import('./category-donut').then(m => m.CategoryDonut), { ssr: false, loading: chartLoading });
-import { budgetCurrent, metrics, rupiah } from '@/lib/accounting';
+import { budgetCurrent, countedBudgets, metrics, rupiah } from '@/lib/accounting';
 import { availableMoney, budgetCommitted, committedAmount, upcomingEvents } from '@/lib/finance-control';
 import { categoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
 import { incomeBreakdown } from '@/lib/insights';
@@ -75,7 +75,8 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
  const selected=current.length?current:defaultLayout;const inbox=data.drafts.filter(d=>d.status==='pending');let weekEnd=today;for(let i=0;i<7;i++)weekEnd=nextDate(weekEnd);
  const due=upcomingEvents(data,profile!,{start:today,end:weekEnd}).filter(e=>e.kind!=='note');const committed=committedAmount(data,today,cycle.end,profile||{});
  const after=availableMoney(stat.free,committed,profile||{});
- const activeBudgets=data.budgets.map((b,i)=>({b,i})).filter(({b})=>b.active).sort((x,y)=>(x.b.sortOrder??1e6+x.i)-(y.b.sortOrder??1e6+y.i)||x.b.name.localeCompare(y.b.name)).map(({b})=>b);const uniqueBudgets=activeBudgets.filter(b=>!b.subcategoryId||!activeBudgets.some(parent=>parent.categoryId===b.categoryId&&!parent.subcategoryId));const remaining=uniqueBudgets.reduce((sum,b)=>{const row=budgetCurrent(b,data.transactions,data.categories,day,profile?.salaryCycleStartDay||24);return sum+row.remaining-budgetCommitted(b,data,day,profile?.salaryCycleStartDay||24)},0);
+ const activeBudgets=data.budgets.map((b,i)=>({b,i})).filter(({b})=>b.active).sort((x,y)=>(x.b.sortOrder??1e6+x.i)-(y.b.sortOrder??1e6+y.i)||x.b.name.localeCompare(y.b.name)).map(({b})=>b);const uniqueBudgets=countedBudgets(activeBudgets);// Spending room only: what is left of a savings target is not money to spend (same as the Anggaran page).
+ const remaining=uniqueBudgets.filter(b=>b.classification!=='savings'&&b.classification!=='sinking').reduce((sum,b)=>{const row=budgetCurrent(b,data.transactions,data.categories,day,profile?.salaryCycleStartDay||24);return sum+row.remaining-budgetCommitted(b,data,day,profile?.salaryCycleStartDay||24)},0);
  const borrowed=history.items.filter(t=>t.type==='borrowing').reduce((n,t)=>n+t.amount,0),repaid=history.items.filter(t=>t.type==='debt_payment').reduce((n,t)=>n+t.amount,0);
  const flowBasis=prevRange.partial?`Periode lalu, ${prevRange.days} hari pertama`:'Periode lalu',startBasis='Awal periode ini (akhir periode lalu)';
  /** Value to compare with, the tone of a rise, and what it is compared with. Balances compare with the start of this period. */

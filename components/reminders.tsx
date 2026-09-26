@@ -11,7 +11,7 @@ import { rupiah } from '@/lib/accounting';
 import { upcomingEvents } from '@/lib/finance-control';
 import { formatDate, nextDate, todayInTimeZone } from '@/lib/period';
 import { showAppNotification } from '@/lib/system-notify';
-import { budgetCurrent } from '@/lib/accounting';
+import { budgetCurrent, budgetIconCategoryId } from '@/lib/accounting';
 import { defaultReminders, dueReminders, presetTimes, validTime, type ReminderConfig } from '@/lib/reminders';
 
 const STATE_CACHE = 'dompet-ajaib-state';
@@ -72,7 +72,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
             const key = `${budget.id}@${status.start}`;
             if (!level || alerts[key] === level || alerts[key] === 'over') continue;
             alerts[key] = level; changed = true;
-            const name = budget.name || data.categories.find(c => c.id === (budget.subcategoryId || budget.categoryId))?.name || 'Anggaran';
+            const name = budget.name || data.categories.find(c => c.id === budgetIconCategoryId(budget))?.name || 'Anggaran';
             const title = level === 'over' ? `Anggaran ${name} terlampaui` : `Anggaran ${name} hampir habis`;
             const body = level === 'over' ? `Terpakai ${rupiah(status.spent)} dari ${rupiah(status.available)} (lebih ${rupiah(status.spent - status.available)}).` : `Sudah ${Math.round(used * 100)}% terpakai · sisa ${rupiah(status.remaining)} sampai ${formatDate(status.end, false)}.`;
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=budgets', `budget-${budget.id}`);

@@ -1,19 +1,20 @@
 /**
- * Where idle money could go, by risk profile and horizon. Returns are rough long-run yearly
- * estimates for Indonesia used only to illustrate growth — not promises and not product advice.
+ * Where idle money could go, by risk profile and horizon. Returns are conservative long-run yearly
+ * estimates for Indonesia, net of tax and fees (`ret` = the middle, `range` = what is typical), used
+ * only to illustrate growth — not promises and not product advice. Real returns change with the market.
  */
 import type { Experience, Horizon, RiskProfile } from './insight-profile.ts';
 
 export type InstrumentKey = 'rdpu' | 'deposito' | 'sbn' | 'obligasi' | 'saham' | 'emas';
-export type Instrument = { key: InstrumentKey; name: string; examples: string; ret: number; risk: 1 | 2 | 3 | 4; liquidity: string; why: string };
+export type Instrument = { key: InstrumentKey; name: string; examples: string; ret: number; range: [number, number]; retNote: string; risk: 1 | 2 | 3 | 4; liquidity: string; why: string };
 
 export const instruments: Record<InstrumentKey, Instrument> = {
-  rdpu: { key: 'rdpu', name: 'Reksa dana pasar uang', examples: 'RDPU di aplikasi investasi terdaftar OJK', ret: .045, risk: 1, liquidity: 'Cair 1–2 hari kerja', why: 'Paling aman untuk uang yang bisa sewaktu-waktu dipakai, imbal hasil di atas tabungan biasa.' },
-  deposito: { key: 'deposito', name: 'Deposito', examples: 'Deposito bank/BPR yang dijamin LPS', ret: .04, risk: 1, liquidity: 'Terkunci 1–12 bulan', why: 'Nilai pasti dan dijamin LPS (dalam batas bunga penjaminan).' },
-  sbn: { key: 'sbn', name: 'SBN ritel', examples: 'ORI, SR, SBR, ST (dijamin negara)', ret: .062, risk: 1, liquidity: 'Tenor 2–6 tahun, sebagian bisa dijual/dicairkan awal', why: 'Dijamin negara dengan kupon tetap/mengambang yang biasanya di atas deposito.' },
-  obligasi: { key: 'obligasi', name: 'Reksa dana pendapatan tetap', examples: 'Reksa dana obligasi pemerintah/korporasi', ret: .065, risk: 2, liquidity: 'Cair 2–7 hari kerja', why: 'Pertumbuhan stabil dari bunga obligasi, naik-turunnya kecil.' },
-  saham: { key: 'saham', name: 'Saham / reksa dana indeks saham', examples: 'Reksa dana indeks (IDX30, LQ45) atau saham blue chip', ret: .1, risk: 4, liquidity: 'Cair 2–7 hari kerja, nilainya naik-turun', why: 'Potensi tumbuh paling tinggi untuk jangka panjang; butuh kesabaran saat turun.' },
-  emas: { key: 'emas', name: 'Emas', examples: 'Emas batangan atau emas digital resmi', ret: .07, risk: 3, liquidity: 'Mudah dijual, ada selisih harga jual-beli', why: 'Pelindung nilai saat inflasi tinggi atau pasar bergejolak.' },
+  rdpu: { key: 'rdpu', name: 'Reksa dana pasar uang', examples: 'RDPU di aplikasi investasi terdaftar OJK', ret: .04, range: [.03, .05], retNote: 'bersih setelah biaya, mengikuti suku bunga', risk: 1, liquidity: 'Cair 1–2 hari kerja', why: 'Paling aman untuk uang yang bisa sewaktu-waktu dipakai, imbal hasil di atas tabungan biasa.' },
+  deposito: { key: 'deposito', name: 'Deposito', examples: 'Deposito bank/BPR yang dijamin LPS', ret: .03, range: [.02, .04], retNote: 'setelah pajak bunga 20%', risk: 1, liquidity: 'Terkunci 1–12 bulan', why: 'Nilai pasti dan dijamin LPS (dalam batas bunga penjaminan).' },
+  sbn: { key: 'sbn', name: 'SBN ritel', examples: 'ORI, SR, SBR, ST (dijamin negara)', ret: .055, range: [.05, .06], retNote: 'kupon setelah pajak 10%, tergantung seri', risk: 1, liquidity: 'Tenor 2–6 tahun, sebagian bisa dijual/dicairkan awal', why: 'Dijamin negara dengan kupon tetap/mengambang yang biasanya di atas deposito.' },
+  obligasi: { key: 'obligasi', name: 'Reksa dana pendapatan tetap', examples: 'Reksa dana obligasi pemerintah/korporasi', ret: .055, range: [.04, .07], retNote: 'setelah biaya, bisa turun sementara', risk: 2, liquidity: 'Cair 2–7 hari kerja', why: 'Pertumbuhan stabil dari bunga obligasi, naik-turunnya kecil.' },
+  saham: { key: 'saham', name: 'Saham / reksa dana indeks saham', examples: 'Reksa dana indeks (IDX30, LQ45) atau saham blue chip', ret: .08, range: [.05, .11], retNote: 'rata-rata jangka panjang; dalam setahun bisa minus 20% atau lebih', risk: 4, liquidity: 'Cair 2–7 hari kerja, nilainya naik-turun', why: 'Potensi tumbuh paling tinggi untuk jangka panjang; butuh kesabaran saat turun.' },
+  emas: { key: 'emas', name: 'Emas', examples: 'Emas batangan atau emas digital resmi', ret: .06, range: [.03, .09], retNote: 'harga naik-turun, ada selisih harga jual-beli', risk: 3, liquidity: 'Mudah dijual, ada selisih harga jual-beli', why: 'Pelindung nilai saat inflasi tinggi atau pasar bergejolak.' },
 };
 
 const base: Record<RiskProfile, Partial<Record<InstrumentKey, number>>> = {
@@ -62,6 +63,10 @@ export function allocation(risk: RiskProfile, horizon: Horizon, experience: Expe
   return items.sort((a, b) => b.share - a.share);
 }
 export const blendedReturn = (items: { share: number; ret: number }[]) => items.reduce((n, i) => n + i.share / 100 * i.ret, 0);
+/** Typical low and high yearly return for a mix. */
+export const blendedRange = (items: { share: number; range: [number, number] }[]): [number, number] => [items.reduce((n, i) => n + i.share / 100 * i.range[0], 0), items.reduce((n, i) => n + i.share / 100 * i.range[1], 0)];
+/** "4–8%" for a return range, widened to whole percents so it never looks more exact than it is. */
+export const rangeText = ([low, high]: [number, number]) => { const a = Math.floor(low * 100 + 1e-9), b = Math.ceil(high * 100 - 1e-9); return a >= b ? `${Math.round(low * 100)}%` : `${a}–${b}%`; };
 
 /** Future value of a lump sum plus monthly additions at a yearly return. */
 export function futureValue(lump: number, monthly: number, yearlyReturn: number, years: number) {

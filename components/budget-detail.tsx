@@ -10,7 +10,7 @@ import { Confirm } from './ui/alert-dialog';
 import { TxList } from './dashboard';
 import { AppIcon, IdentityBadge, categoryColor, emojiOrFallback } from './visual-identity';
 import { usePeriodTransactions } from './period-selector';
-import { budgetCurrent, budgetSpent, budgetWindow, rupiah } from '@/lib/accounting';
+import { budgetCurrent, budgetIconCategoryId, budgetMatcher, budgetSpent, budgetSubcategories, budgetWindow, rupiah } from '@/lib/accounting';
 import { budgetCommitted, commitments } from '@/lib/finance-control';
 import { budgetDetail, previousWindows } from '@/lib/budget-detail';
 import { dateInTimeZone, formatDate, periodLabel, todayInTimeZone } from '@/lib/period';
@@ -47,7 +47,8 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
   const committed = budget ? budgetCommitted(budget, data, now, salaryDay) : 0;
   const detail = useMemo(() => budget && status ? budgetDetail(budget, data.transactions, data.categories, window, today, status.available) : null, [budget, data.transactions, data.categories, window.start, window.end, today, status?.available]);
   if (!budget || !status || !detail) return null;
-  const cat = data.categories.find(c => c.id === (budget.subcategoryId || budget.categoryId));
+  const cat = data.categories.find(c => c.id === budgetIconCategoryId(budget)), subs = budgetSubcategories(budget);
+  const scope = subs.length ? subs.map(id => data.categories.find(c => c.id === id)?.name).filter(Boolean).join(', ') : '';
   const available = status.remaining - committed, limit = Math.max(1, status.available);
   const usedPct = Math.min(100, status.spent / limit * 100), commitPct = Math.min(100 - usedPct, committed / limit * 100);
   const warnAt = (budget.warningPercent || profile?.budgetWarningPercent || 80) / 100;
@@ -59,13 +60,13 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
   const early = detail.elapsed < Math.min(7, Math.ceil(detail.totalDays / 4)) && pastAverage > 0 && !past.loading;
   const projected = early ? Math.max(detail.spent, pastAverage) : detail.projected;
   const projectedOver = projected - status.available;
-  const children = new Set(data.categories.filter(c => c.parentId === budget.categoryId).map(c => c.id));
-  const matches = (categoryId: string | null, subcategoryId: string | null) => budget.subcategoryId ? subcategoryId === budget.subcategoryId : categoryId === budget.categoryId || children.has(categoryId || '') || children.has(subcategoryId || '');
+  const matches = budgetMatcher(budget, data.categories);
   const pending = [...commitments(data, window), ...commitments(data).filter(item => item.date < window.start)].filter(item => matches(item.categoryId, item.subcategoryId));
-  const focus = `category:${budget.subcategoryId || budget.categoryId}@${window.start}..${window.end}`;
+  const focus = `category:${subs.length > 1 ? budget.categoryId : budgetIconCategoryId(budget)}@${window.start}..${window.end}`;
   return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title="Rincian anggaran" className="budget-detail-dialog">
     <div className={`bd-hero is-${tone}`}>
       <div className="bd-hero-top"><IdentityBadge icon={cat?.icon} color={categoryColor(data.categories, cat)} label={budget.name}/><span className={`tag ${tone === 'over' ? 'danger' : tone === 'warn' ? 'warn' : ''}`}>{budget.active ? statusText : 'Jeda'}</span></div>
+      {scope && <small className="bd-scope">Mencakup {scope}</small>}
       <small>{available < 0 ? 'Melebihi anggaran' : 'Masih bisa dipakai'}</small>
       <strong className={available < 0 ? 'amount-negative' : ''}>{rupiah(available)}</strong>
       <div className="bd-stack" aria-label={`Terpakai ${Math.round(usedPct)}%, direncanakan ${Math.round(commitPct)}%`}><i className="used" style={{ width: `${usedPct}%` }}/><i className="planned" style={{ width: `${commitPct}%` }}/></div>
@@ -107,7 +108,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
     </>}
 
     {tab === 'breakdown' && <div className="bd-grid">
-      {!budget.subcategoryId && <Block icon={<Layers3 size={16}/>} title="Per subkategori">
+      {subs.length !== 1 && <Block icon={<Layers3 size={16}/>} title="Per subkategori">
         {detail.bySub.length || detail.unassigned ? <Bars total={detail.spent} rows={[...detail.bySub.map(s => ({ key: s.id, label: <><span className="bd-emoji"><Emoji e={emojiOrFallback(s.icon, '•')}/></span>{s.name}</>, amount: s.amount })), ...(detail.unassigned ? [{ key: 'none', label: <span className="muted">Tanpa subkategori</span>, amount: detail.unassigned }] : [])]}/> : <p className="bd-empty">Belum ada pengeluaran.</p>}
       </Block>}
       <Block icon={<WalletIcon size={16}/>} title="Per dompet">

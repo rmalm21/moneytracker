@@ -13,7 +13,7 @@ import { saveProfile, saveRecord } from '@/lib/firestore';
 import { InsightProfileSheet } from './insight-profile-sheet';
 import { InsightLayoutSheet, defaultSections } from './insight-layout-sheet';
 import { priorityLabels, riskLabels, type InsightProfile } from '@/lib/insight-profile';
-import { INFLATION } from '@/lib/invest-plan';
+import { INFLATION, rangeText } from '@/lib/invest-plan';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { Budget } from '@/lib/types';
 
@@ -361,12 +361,12 @@ function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void 
         <CalcDetails rows={idle.calc} title="Hitungan siap diinvestasikan"/>
       </div>
       {invest && <div className="panel ins-box ins-plan">
-        <header className="ins-plan-head"><div><small>Rencana investasi · profil {riskLabels[personal.risk].label}</small><strong>{invest.amount > 0 ? short(invest.amount) : `${short(invest.monthly)}/bln`}</strong><span>{invest.amount > 0 && invest.monthly > 0 ? `+ rutin ${short(invest.monthly)}/bln · ` : ''}perkiraan ±{(invest.expectedReturn * 100).toFixed(1).replace('.', ',')}% per tahun</span></div>{!personal.personalized && <button type="button" className="link-button" onClick={onEdit}>Sesuaikan profil</button>}</header>
+        <header className="ins-plan-head"><div><small>Rencana investasi · profil {riskLabels[personal.risk].label}</small><strong>{invest.amount > 0 ? short(invest.amount) : `${short(invest.monthly)}/bln`}</strong><span>{invest.amount > 0 && invest.monthly > 0 ? `+ rutin ${short(invest.monthly)}/bln · ` : ''}perkiraan {rangeText(invest.returnRange)} per tahun</span></div>{!personal.personalized && <button type="button" className="link-button" onClick={onEdit}>Sesuaikan profil</button>}</header>
         <div className="ins-alloc-bar" role="img" aria-label={invest.items.map(i => `${i.name} ${i.share}%`).join(', ')}>{invest.items.map(i => <i key={i.key} style={{ flex: i.share, background: instrumentColors[i.key] }} title={`${i.name} ${i.share}%`}/>)}</div>
         <ul className="ins-alloc">{invest.items.map(i => <li key={i.key}>
           <i style={{ background: instrumentColors[i.key] }} aria-hidden="true"/>
-          <div><strong>{i.name} <b>{i.share}%</b></strong><small>{i.why}</small><small className="ins-alloc-meta">{i.examples} · {i.liquidity}</small></div>
-          <span><strong>{invest.amount > 0 ? short(i.amount) : `${short(invest.monthly * i.share / 100)}/bln`}</strong><small>±{(i.ret * 100).toFixed(1).replace('.', ',')}%/thn</small>{riskDots(i.risk)}</span>
+          <div><strong>{i.name} <b>{i.share}%</b></strong><small>{i.why}</small><small className="ins-alloc-meta">{i.examples} · {i.liquidity}</small><small className="ins-alloc-meta">Imbal hasil: {i.retNote}</small></div>
+          <span><strong>{invest.amount > 0 ? short(i.amount) : `${short(invest.monthly * i.share / 100)}/bln`}</strong><small>{rangeText(i.range)}/thn</small>{riskDots(i.risk)}</span>
         </li>)}</ul>
         {invest.sectors && <details className="ins-sectors"><summary>Sebar bagian saham ke beberapa sektor</summary>
           <p>Cara paling mudah: satu reksa dana indeks (IDX30/LQ45) yang sudah tersebar. Kalau memilih saham sendiri, sebar kira-kira seperti ini:</p>
@@ -374,9 +374,9 @@ function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void 
         </details>}
         {invest.amount > 0 && <div className="ins-projection"><small>Perkiraan nilai {invest.monthly > 0 ? `(modal awal + rutin ${short(invest.monthly)}/bln)` : ''}</small>
           <table><thead><tr><th>Waktu</th><th>Diinvestasikan</th><th>Didiamkan*</th></tr></thead><tbody>{invest.projection.map(p => <tr key={p.years}><td>{p.years} tahun</td><td><strong>{short(p.invested)}</strong></td><td>{short(p.idle)}</td></tr>)}</tbody></table>
-          <small>*nilai riil setelah inflasi {Math.round(INFLATION * 100)}%. Imbal hasil hanya perkiraan jangka panjang dan tidak dijamin.</small>
+          <small>Kolom diinvestasikan memakai perkiraan rata-rata ±{Math.round(invest.expectedReturn * 100)}% per tahun; hasil nyata bisa lebih tinggi atau lebih rendah. *Nilai riil setelah inflasi {Math.round(INFLATION * 100)}%.</small>
         </div>}
-        <p className="ins-plan-note">Ini gambaran pembagian, bukan rekomendasi produk. Pilih produk yang terdaftar dan diawasi OJK, dan baca prospektusnya.</p>
+        <div className="ins-disclaimer" role="note"><Info size={16} aria-hidden="true"/><p><b>Hanya perkiraan dan saran, bukan janji.</b> Angka imbal hasil di sini adalah perkiraan rata-rata jangka panjang (sudah dikurangi pajak dan biaya) untuk gambaran saja. Hasil sebenarnya mengikuti kondisi pasar dan bisa lebih rendah — saham, reksa dana, dan emas bahkan bisa turun nilainya. Sebelum membeli, <b>cek imbal hasil terbaru</b> di aplikasi investasi atau bank resmi yang terdaftar dan diawasi OJK (untuk SBN, di situs Kemenkeu atau mitra distribusinya), lalu baca prospektus/ketentuannya.</p></div>
       </div>}
     </div>
   </section>;

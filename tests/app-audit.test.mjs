@@ -68,3 +68,26 @@ test('Uang tersedia: bills count by the chosen horizon (plus overdue ones) and t
   assert.equal(availableMoney(1_000_000, 400_000, { freeMoneyBuffer: 150_000 }), 450_000);
   assert.equal(availableMoney(1_000_000, 400_000, { freeMoneyBuffer: -5 }), 600_000, 'a negative buffer is ignored');
 });
+
+test('a budget can cover several subcategories: only those count, and a whole-category budget is not added twice', async () => {
+  const { budgetSpent, countedBudgets, budgetSubcategories, budgetMatcher } = await import('../lib/accounting.ts');
+  const { budgetCommitted } = await import('../lib/finance-control.ts');
+  const categories = [{ id: 'food', name: 'Makan', type: 'expense', parentId: null }, ...['kopi', 'sarapan', 'siang'].map(id => ({ id, name: id, type: 'expense', parentId: 'food' }))];
+  const budget = (id, subs, amount) => ({ id, name: id, categoryId: 'food', subcategoryId: subs[0] || null, subcategoryIds: subs, amount, classification: 'living', cycleType: 'salary', rolloverEnabled: false, active: true });
+  const whole = budget('whole', [], 2_000_000), pair = budget('pair', ['kopi', 'sarapan'], 400_000), lunch = budget('lunch', ['siang'], 600_000);
+  const tx = (id, amount, subcategoryId) => ({ id, type: 'expense', amount, date: '2026-09-28', walletId: 'w', categoryId: 'food', subcategoryId });
+  const ledger = [tx('a', 38_000, 'kopi'), tx('b', 22_000, 'sarapan'), tx('c', 45_000, 'siang'), tx('d', 85_000, null)];
+  assert.equal(budgetSpent(pair, ledger, categories), 60_000);
+  assert.equal(budgetSpent(lunch, ledger, categories), 45_000);
+  assert.equal(budgetSpent(whole, ledger, categories), 190_000);
+  assert.deepEqual(countedBudgets([whole, pair, lunch]).map(b => b.id), ['whole']);
+  assert.deepEqual(countedBudgets([pair, lunch]).map(b => b.id), ['pair', 'lunch']);
+  assert.deepEqual(budgetSubcategories({ subcategoryId: 'kopi' }), ['kopi'], 'older single-subcategory budgets still work');
+  assert.ok(budgetMatcher(pair, categories)('kopi', null), 'a transaction filed directly under a subcategory still counts');
+  const data = { ...empty, categories, budgets: [whole, pair], plannedTransactions: [{ id: 'p', status: 'planned', committed: true, type: 'expense', title: 'Kopi kantor', date: '2026-10-01', amount: 150_000, walletId: 'w', categoryId: 'food', subcategoryId: 'kopi' }] };
+  assert.equal(budgetCommitted(pair, data, new Date('2026-09-28T12:00:00'), 25), 150_000);
+  assert.equal(budgetCommitted(lunch, data, new Date('2026-09-28T12:00:00'), 25), 0);
+  const snap = calculateCycleSnapshot(data, ledger, { start: '2026-09-25', end: '2026-10-25' });
+  assert.equal(snap.budgetTotal, 2_000_000);
+  assert.equal(snap.budgetSpent, 190_000);
+});

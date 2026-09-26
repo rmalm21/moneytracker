@@ -1,13 +1,12 @@
 'use client';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TxActionsContext } from '@/components/tx-actions';
 import { UndoDeleteProvider, useUndoDelete } from '@/components/undo-delete';
 import { HubTabs, hubByKey, hubOf, hubs } from '@/components/hubs';
 import { useHubSwipe } from '@/components/hub-swipe';
 import { useBackGuard } from '@/components/back-guard';
-import { Emoji } from '@/components/emoji';
 import { useRouter } from 'next/navigation';
-import { BarChart3, BookOpenText, CalendarDays, CalendarClock, ChartNoAxesCombined, CircleHelp, CreditCard, HandCoins, HeartPulse, Gift, Home, Inbox, Layers3, LayoutGrid, Lightbulb, ListFilter, Plus, Repeat, ScrollText, Settings, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react';
+import { BarChart3, BookOpenText, CalendarDays, CalendarClock, ChartNoAxesCombined, CircleHelp, CreditCard, HandCoins, HeartPulse, Gift, Home, Inbox, Layers3, LayoutGrid, Lightbulb, ListFilter, Plus, Repeat, ScrollText, Settings, ShieldCheck, Target, Wallet } from 'lucide-react';
 import { useApp } from '@/components/app-provider';
 import dynamic from 'next/dynamic';
 // Every page except Beranda is its own download, fetched when first opened (and warmed up in the background).
@@ -49,10 +48,8 @@ import { isCycleClosed } from '@/lib/finance-control';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Confirm } from '@/components/ui/alert-dialog';
-import { Field, Input, Money } from '@/components/fields';
-import { saveProfile, saveWallet, deleteTransaction, seedCategoryTemplates } from '@/lib/firestore';
-import { categoryTemplates, planTemplateSeed, presetHex } from '@/lib/category-templates';
-import { TemplateChecklist } from '@/components/category-template-picker';
+import { deleteTransaction } from '@/lib/firestore';
+import { Onboarding } from '@/components/onboarding';
 import { NotificationBell, NotificationProvider, useNotify } from '@/components/notifications';
 import { PinLockScreen, useAppLock } from '@/components/pin-lock';
 import { useReminderEngine } from '@/components/reminders';
@@ -60,22 +57,6 @@ import type { LedgerTx } from '@/lib/types';
 const nav=[{key:'dashboard',label:'Beranda',icon:Home},{key:'transactions',label:'Transaksi',icon:ListFilter},{key:'inbox',label:'Perlu Dikonfirmasi',icon:Inbox},{key:'budgets',label:'Anggaran',icon:LayoutGrid},{key:'advisor',label:'Insight',icon:Lightbulb},{key:'wallets',label:'Dompet',icon:Wallet},{key:'claims',label:'Klaim kantor',icon:ShieldCheck},{key:'receivables',label:'Piutang',icon:HandCoins},{key:'debts',label:'Utang',icon:CreditCard},{key:'funds',label:'Tujuan dana',icon:Target},{key:'wishlist',label:'Wish list',icon:Gift},{key:'recurring',label:'Rutin',icon:Repeat},{key:'upcoming',label:'Arus Kas Mendatang',icon:CalendarClock},{key:'calendar',label:'Kalender Keuangan',icon:CalendarDays},{key:'categories',label:'Kategori',icon:Layers3},{key:'forecast',label:'Proyeksi',icon:ChartNoAxesCombined},{key:'analytics',label:'Analisis',icon:BarChart3},{key:'report',label:'Laporan',icon:BookOpenText},{key:'cycles',label:'Riwayat Siklus',icon:ScrollText},{key:'health',label:'Periksa Data',icon:HeartPulse},{key:'settings',label:'Pengaturan',icon:Settings},{key:'help',label:'Tanya Jawab',icon:CircleHelp}];
 /** What the sidebar and the phone menu show: related pages are grouped into hubs with tabs. */
 const menu=[...['dashboard','transactions','budgets','advisor'].map(key=>({...nav.find(item=>item.key===key)!})),{...nav.find(item=>item.key==='wallets')!,section:'KEUANGAN'},{...nav.find(item=>item.key==='funds')!},{...nav.find(item=>item.key==='wishlist')!},...hubs.filter(hub=>hub.key!=='reports').map(hub=>({key:hub.key,label:hub.label,icon:hub.icon})),{key:'reports',label:'Laporan',icon:BookOpenText,section:'LAPORAN'},{...nav.find(item=>item.key==='categories')!,section:'LAINNYA'},{...nav.find(item=>item.key==='settings')!},{...nav.find(item=>item.key==='help')!}];
-function Onboarding({notify}:{notify:(s:string)=>void}){const {user,profile,data}=useApp();const [name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(24),[salary,setSalary]=useState(0),[wallets,setWallets]=useState(true),[cash,setCash]=useState(0),[bank,setBank]=useState(0),[choice,setChoice]=useState<'default'|'pick'|'empty'>('default'),[picked,setPicked]=useState<string[]>(()=>categoryTemplates.map(t=>t.key)),[busy,setBusy]=useState(false),[error,setError]=useState('');
- async function finish(e?:FormEvent,skip=false){e?.preventDefault();if(!user)return;const salaryDay=Math.min(31,Math.max(1,Math.round(day)||24));setBusy(true);setError('');try{
-  if(!skip&&wallets){if(!data.wallets.some(w=>w.type==='cash'))await saveWallet(user.uid,{name:'Tunai',type:'cash',openingBalance:cash,icon:'💵',color:presetHex('green'),displayOrder:0});if(!data.wallets.some(w=>w.type==='bank'))await saveWallet(user.uid,{name:'Bank',type:'bank',openingBalance:bank,icon:'🏦',color:presetHex('blue'),displayOrder:1});}
-  const keys=skip||choice==='empty'?[]:choice==='default'?categoryTemplates.map(t=>t.key):picked;
-  const records=planTemplateSeed(data.categories,keys);
-  if(records.length)await seedCategoryTemplates(user.uid,records);
-  const gaji=records.find(r=>r.data.templateKey==='income.gaji');
-  await saveProfile(user.uid,{displayName:name.trim()||profile?.username||'',salaryCycleStartDay:salaryDay,monthlySalary:salary,onboardingDone:true,...(gaji?{salaryIncomeCategoryId:gaji.id}:{})});notify('Akun siap dipakai.');}catch(e){setError((e as Error).message||'Pengaturan awal gagal.');}finally{setBusy(false);}}
- const choices:[typeof choice,string,string][]=[['default','Pakai kategori bawaan','Kami sudah menyiapkan kategori umum. Semuanya bisa diubah kapan saja.'],['pick','Pilih sendiri','Centang kategori yang ingin dipakai.'],['empty','Mulai dari kosong','Buat kategori sendiri nanti.']];
- return <main className="onboarding"><div className="panel"><div className="brand" style={{color:'var(--ink)'}}><span className="brand-mark"><Sparkles size={20}/></span><strong>dompet ajaib<span className="brand-dot">.</span></strong></div><h1>Siapkan Dompet Ajaib</h1><p>Beberapa langkah singkat. Semua bisa diubah kapan saja.</p><form className="form-stack" onSubmit={e=>void finish(e)}>
-  <section className="onboarding-step"><h3>1 · Profil</h3><div className="form-grid"><Field label="Nama panggilan"><Input value={name} onChange={e=>setName(e.target.value)} placeholder="Nama yang ingin ditampilkan"/></Field><Field label="Tanggal gajian"><Input type="number" inputMode="numeric" min="1" max="31" value={day} onChange={e=>setDay(Number(e.target.value))}/></Field><Field label="Perkiraan gaji bulanan"><Money value={salary} onChange={setSalary}/></Field></div></section>
-  <section className="onboarding-step"><h3>2 · Dompet</h3><label className="check-row"><input type="checkbox" checked={wallets} onChange={e=>setWallets(e.target.checked)}/> Buat dompet Tunai <Emoji e="💵"/> dan Bank <Emoji e="🏦"/></label>{wallets&&<div className="form-grid"><Field label="Saldo Tunai sekarang"><Money value={cash} onChange={setCash}/></Field><Field label="Saldo Bank sekarang"><Money value={bank} onChange={setBank}/></Field></div>}<small>Dompet lain (e-wallet, tabungan) bisa ditambah nanti di menu Dompet.</small></section>
-  <section className="onboarding-step"><h3>3 · Kategori</h3><p className="muted">Pakai kategori yang sudah disiapkan?</p><div className="choice-cards" role="radiogroup" aria-label="Pilihan kategori">{choices.map(([value,title,text])=><label key={value} className={`choice-card ${choice===value?'is-selected':''}`}><input type="radio" name="category-choice" checked={choice===value} onChange={()=>setChoice(value)}/><span><strong>{title}{value==='default'&&<em className="tag">Disarankan</em>}</strong><small>{text}</small></span></label>)}</div>
-   {choice==='pick'&&<TemplateChecklist selected={picked} onChange={setPicked}/>}</section>
-  {error&&<p className="form-error">{error}</p>}<div className="modal-actions"><Button type="button" variant="secondary" disabled={busy} onClick={()=>void finish(undefined,true)}>Lewati dulu</Button><Button disabled={busy||(choice==='pick'&&!picked.length)}>{busy?'Menyiapkan…':'Simpan & mulai'}</Button></div></form></div></main>;
-}
 export default function Page(){return <NotificationProvider><UndoDeleteProvider><AppPage/></UndoDeleteProvider></NotificationProvider>}
 function AppPage(){const {user,profile,data,loading,error,ready,sync}=useApp();const {notify:setToast,track,push}=useNotify();const undo=useUndoDelete();const appLock=useAppLock();const router=useRouter(),[view,setView]=useState('dashboard'),[txOpen,setTxOpen]=useState(false),[preset,setPreset]=useState<Partial<LedgerTx>|undefined>(),[editing,setEditing]=useState<LedgerTx|undefined>(),[focus,setFocus]=useState<string|undefined>(),[revision,setRevision]=useState(0),[online,setOnline]=useState(true);
  const trail=useRef<string[]>([]),viewRef=useRef(view),lastTab=useRef<Record<string,string>>({});viewRef.current=view;

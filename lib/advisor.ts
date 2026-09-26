@@ -2,11 +2,11 @@
  * Financial advisor: reads several salary cycles of history and turns them into a health
  * score, findings and a prioritised action plan. Pure and local — nothing leaves the device.
  */
-import { budgetCurrent, budgetMonthly, budgetSpent, budgetWindow, salaryCycle, transactionExpense } from './accounting.ts';
+import { budgetCurrent, budgetIconCategoryId, budgetMonthly, budgetSpent, budgetSubcategories, budgetWindow, countedBudgets, salaryCycle, transactionExpense } from './accounting.ts';
 import { categoryBreakdown } from './category-analytics.ts';
 import { savingsPlan } from './savings.ts';
 import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
-import { allocation, blendedReturn, equitySectors, futureValue, INFLATION, realValueIdle, type PlanItem } from './invest-plan.ts';
+import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from './invest-plan.ts';
 import { walletGroup } from './wallet-groups.ts';
 import { emergencyPockets, isEmergencyFund, isKantong, kantongWalletIds, kantongWallets, resolveFunds } from './pockets.ts';
 import type { Budget, Category, Data, LedgerTx } from './types';
@@ -36,7 +36,7 @@ export type Advice = {
   limits: { needs: number; wants: number; savings: number };
 };
 export type IdleInfo = { held: boolean; emergencyTargetText: string; emergencySource: 'kantong' | 'amount' | 'months'; savingsLabel: string; savingsNote: string; calc: CalcRow[]; opCalc: CalcRow[]; savingsCalc: CalcRow[]; needSource: 'history' | 'salary' | 'profile' | 'none'; monthlyNeed: number; budgetReserve: number; fundsDue: number; wishReserve: number; operational: number; operationalBalance: number; operationalNeed: number; savingsExcess: number; liquidReserve: number; emergencyTarget: number; emergencyShortfall: number; debtFirst: number; invested: number; total: number; investable: number; dormant: { id: string; name: string; balance: number; days: number | null }[]; inflationLoss: number };
-export type InvestPlan = { amount: number; monthly: number; items: PlanItem[]; sectors: { name: string; share: number; amount: number; note: string }[] | null; expectedReturn: number; projection: { years: number; invested: number; idle: number; lump: number; lumpIdle: number }[] };
+export type InvestPlan = { amount: number; monthly: number; items: PlanItem[]; sectors: { name: string; share: number; amount: number; note: string }[] | null; expectedReturn: number; /** Typical low–high yearly return of the mix (net of tax and fees). */ returnRange: [number, number]; projection: { years: number; invested: number; idle: number; lump: number; lumpIdle: number }[] };
 export type PaycheckRow = { key: string; label: string; amount: number; share: number; note: string; tone: Tone };
 export type AdvisorInput = {
   data: Data; history: LedgerTx[]; today: string; salaryDay: number; monthlySalary: number; warnPercent: number;
@@ -172,7 +172,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const avgUsage = mean(usage), overCount = usage.slice(-3).filter(u => u > 1).length;
     const suggested = spent.length ? friendlyRound(quantile(spent, budgetQ) * budgetPad) : budget.amount;
     const status: BudgetStat['status'] = withData < 2 || fresh ? 'new' : avgUsage < looseAt && usage.slice(-3).every(u => u < looseAt + .15) ? 'loose' : overCount >= 2 ? 'tight' : 'ok';
-    const cat = categories.find(c => c.id === (budget.subcategoryId || budget.categoryId));
+    const cat = categories.find(c => c.id === budgetIconCategoryId(budget));
     // What the last (up to) three periods typically cost: a realistic level for a budget that keeps overflowing.
     const recent = quantile(spent.slice(-3), .5);
     return { budget, name: budget.name || cat?.name || 'Anggaran', usage, avgUsage, overCount, windows: withData, suggested, status, recent };
@@ -220,7 +220,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     }
     void monthlyAmount;
   }
-  const budgeted = new Set(data.budgets.filter(b => b.active).flatMap(b => [b.categoryId, b.subcategoryId].filter(Boolean) as string[]));
+  const budgeted = new Set(data.budgets.filter(b => b.active).flatMap(b => [b.categoryId, ...budgetSubcategories(b)]));
   for (const c of categoryStats) {
     if (!enoughHistory || budgeted.has(c.id) || !categories.some(x => x.id === c.id) || isGiving(c.name) || c.share < .06 || c.avg < 150_000) continue;
     // Needs (bills, groceries) get a realistic budget; wants start a little below the usual to nudge saving.
@@ -418,7 +418,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const inCycle = (date: string) => inRange(date, current);
   // A category budget and its subcategory budgets overlap: count the parent only, as the Anggaran page does.
   const activeBudgets = data.budgets.filter(b => b.active);
-  const budgetReserve = sum(activeBudgets.filter(b => !b.subcategoryId || !activeBudgets.some(parent => parent.categoryId === b.categoryId && !parent.subcategoryId)).map(b => { const status = budgetCurrent(b, history, categories, parse(today), salaryDay); return status.end > today ? Math.max(0, status.remaining) : 0; }));
+  const budgetReserve = sum(countedBudgets(activeBudgets).map(b => { const status = budgetCurrent(b, history, categories, parse(today), salaryDay); return status.end > today ? Math.max(0, status.remaining) : 0; }));
   const forecastLeft = Math.round((expenseReliable ? needUntilPayday : Math.max(needUntilPayday, monthlyNeed * daysLeft / total)) / 1000) * 1000;
   const spendReserve = Math.max(forecastLeft, budgetReserve);
   const fundsDue = sum(data.funds.filter(f => !f.isArchived && (f.monthlyContribution || 0) > 0).map(f => { if (savingsPlan(f, today).status === 'reached') return 0; const paid = sum(history.filter(tx => tx.fundId === f.id && tx.type === 'fund_contribution' && inCycle(tx.date)).map(tx => tx.amount)); return Math.max(0, (f.monthlyContribution || 0) - paid); }));
@@ -469,7 +469,7 @@ const savingsExcess = pocketsEmergency ? Math.max(0, unallocatedSavings + Math.m
     const items = allocation(me.risk, me.horizon, me.experience, investable, { syariah: me.syariah, excluded: me.excluded });
     const r = blendedReturn(items);
     const stocks = items.find(i => i.key === 'saham');
-    invest = { amount: Math.round(investable / 1000) * 1000, monthly: monthlyInvest, items, expectedReturn: r,
+    invest = { amount: Math.round(investable / 1000) * 1000, monthly: monthlyInvest, items, expectedReturn: r, returnRange: blendedRange(items),
       sectors: stocks ? equitySectors.map(s => ({ ...s, amount: Math.round(stocks.amount * s.share / 100 / 1000) * 1000 })) : null,
       projection: [1, 3, 5, 10].map(years => ({ years, invested: futureValue(investable, monthlyInvest, r, years), idle: realValueIdle(investable + monthlyInvest * 12 * years, years), lump: futureValue(investable, 0, r, years), lumpIdle: realValueIdle(investable, years) })) };
   }
@@ -482,7 +482,7 @@ const savingsExcess = pocketsEmergency ? Math.max(0, unallocatedSavings + Math.m
   if (debtFirst > 0) wealth.push({ id: 'debt-first', tone: 'warn', stat: { label: 'Utang berbunga tinggi', value: shortRp(debtFirst), note: `bunga ≥ 8% per tahun` }, title: 'Lunasi utang berbunga tinggi sebelum investasi', detail: `Bunga ${highDebts.map(d => `“${d.name}” ${d.interestRate}%`).join(', ')} lebih tinggi dari rata-rata imbal hasil investasi yang aman. ==Pakai ${rp(debtFirst)} dari uang menganggur untuk melunasinya== — itu "imbal hasil" pasti.`, target: { view: 'debts' } });
   if (invest && invest.amount >= Math.max(1, minIdle)) {
     const top = invest.items.slice(0, 3).map(i => `${i.name} ${i.share}%`).join(', ');
-    wealth.push({ id: 'invest', calc: idleCalc, tone: 'good', stat: { label: `Siap diinvestasikan · profil ${riskName}`, value: shortRp(invest.amount), note: `perkiraan ±${(invest.expectedReturn * 100).toFixed(1).replace('.', ',')}% per tahun` }, title: `Investasikan ${shortRp(invest.amount)} sesuai profil ${riskName}`, detail: `Setelah dana darurat${debtFirst ? ' dan utang berbunga tinggi' : ''} aman, **${rp(invest.amount)}** bisa mulai bekerja. Susunan yang cocok: ${top}. Dalam 5 tahun bisa menjadi sekitar **${rp(invest.projection[2].lump)}**, sedangkan bila didiamkan nilai riilnya tinggal **${rp(invest.projection[2].lumpIdle)}**. ==Lihat pembagian lengkapnya== di bagian Uang menganggur & investasi.` });
+    wealth.push({ id: 'invest', calc: idleCalc, tone: 'good', stat: { label: `Siap diinvestasikan · profil ${riskName}`, value: shortRp(invest.amount), note: `perkiraan ${rangeText(invest.returnRange)} per tahun` }, title: `Investasikan ${shortRp(invest.amount)} sesuai profil ${riskName}`, detail: `Setelah dana darurat${debtFirst ? ' dan utang berbunga tinggi' : ''} aman, **${rp(invest.amount)}** bisa mulai bekerja. Susunan yang cocok: ${top}. Dengan perkiraan rata-rata ±${Math.round(invest.expectedReturn * 100)}% per tahun, dalam 5 tahun sekitar **${rp(invest.projection[2].lump)}** (bisa lebih tinggi atau lebih rendah), sedangkan bila didiamkan nilai riilnya tinggal **${rp(invest.projection[2].lumpIdle)}**. Angka ini hanya perkiraan — cek imbal hasil terbaru sebelum membeli. ==Lihat pembagian lengkapnya== di bagian Uang menganggur & investasi.` });
   }
   if (invest && invest.monthly >= 100_000) wealth.push({ id: 'invest-monthly', tone: 'info', stat: { label: 'Investasi rutin', value: `${shortRp(invest.monthly)}/bln`, note: 'setelah dana darurat & tujuan' }, title: 'Mulai investasi rutin tiap gajian', detail: `Dari targetmu menabung ${pct(me.savingsTarget)}, setelah dana darurat dan tujuan dana, masih ada sekitar **${rp(invest.monthly)} per bulan**. ==Atur autodebet di hari gajian== ke instrumen sesuai profil ${riskName} — rutin lebih penting daripada menebak waktu.` });
   if (monthlyNeed && emergencyCash >= monthlyNeed * 2) wealth.push({ id: 'emergency-yield', tone: 'info', stat: { label: 'Dana darurat', value: shortRp(Math.min(emergencyCash, emergencyTarget || emergencyCash)), note: 'bisa tetap berbunga' }, title: 'Dana darurat bisa lebih produktif', detail: `Simpan **1 bulan kebutuhan (${rp(monthlyNeed)})** di rekening yang bisa ditarik kapan saja, ==sisanya taruh di reksa dana pasar uang== — tetap cair dalam 1–2 hari kerja tapi imbal hasilnya di atas tabungan biasa.` });

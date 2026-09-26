@@ -1,4 +1,4 @@
-import { budgetMonthly, budgetSpent, budgetWindow, effects, expenseAllocations, transactionExpense } from './accounting.ts';
+import { budgetMatcher, budgetMonthly, budgetSpent, budgetWindow, countedBudgets, effects, expenseAllocations, transactionExpense } from './accounting.ts';
 import { isKantong, kantongWalletIds } from './pockets.ts';
 import { nextDate, previousDate, type DateRange } from './period.ts';
 import { advanceSchedule, scheduleDay } from './recurring.ts';
@@ -38,9 +38,9 @@ export function availableMoney(free: number, committed: number, settings: Availa
 }
 export function budgetCommitted(budget:Budget,data:Data,asOf:Date,salaryDay:number){
   const window=budgetWindow(budget,asOf,salaryDay);
-  const children=new Set(data.categories.filter(c=>c.parentId===budget.categoryId).map(c=>c.id));
+  const matches=budgetMatcher(budget,data.categories);
   const pending=[...commitments(data,window),...commitments(data).filter(item=>item.date<window.start)];
-  return pending.filter(item=>budget.subcategoryId?item.subcategoryId===budget.subcategoryId:item.categoryId===budget.categoryId||children.has(item.categoryId||'')||children.has(item.subcategoryId||'')).reduce((sum,item)=>sum+item.amount,0);
+  return pending.filter(item=>matches(item.categoryId,item.subcategoryId)).reduce((sum,item)=>sum+item.amount,0);
 }
 export type UpcomingEvent={id:string;date:string;title:string;amount:number;kind:'income'|'expense'|'debt'|'claim'|'receivable'|'fund'|'note';status:'planned'|'pending'|'actual';categoryId?:string|null;walletId?:string|null};
 export function upcomingEvents(data:Data,profile:Profile,range:DateRange):UpcomingEvent[]{
@@ -87,7 +87,7 @@ export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRan
   const expense=transactions.reduce((sum,tx)=>sum+transactionExpense(tx),0);
   const budgets=previous?.budgetDefinitions||data.budgets.filter(b=>b.active&&(!b.createdDate||b.createdDate<range.end));
   // A category budget already covers its subcategory budgets: count each amount once, as the Anggaran page does.
-  const counted=budgets.filter(b=>!b.subcategoryId||!budgets.some(parent=>parent.categoryId===b.categoryId&&!parent.subcategoryId));
+  const counted=countedBudgets(budgets);
   const budgetTotal=previous?.budgetTotal??counted.reduce((sum,b)=>sum+budgetMonthly(b),0);
   const budgetUsed=counted.reduce((sum,b)=>sum+budgetSpent(b,transactions,data.categories),0);
   return {startDate:range.start,endDate:range.end,openingAssets:opening.assets,closingAssets:closing.assets,openingNetWorth:opening.netWorth,closingNetWorth:closing.netWorth,income,expense,cashFlow:income-expense,budgetTotal,budgetSpent:budgetUsed,budgetRemaining:budgetTotal-budgetUsed,budgetDefinitions:budgets,reservedMoney:closing.reserved,debtOutstanding:debtAt(data,ledger,range.end),claimsOutstanding:claimsAt(data,ledger,range.end),savings:transactions.filter(tx=>tx.type==='fund_contribution').reduce((sum,tx)=>sum+tx.amount,0),debtPaid:transactions.filter(tx=>tx.type==='debt_payment').reduce((sum,tx)=>sum+tx.amount,0),claimReceived:transactions.filter(tx=>tx.type==='claim_payment').reduce((sum,tx)=>sum+tx.amount,0),notes:previous?.notes||''};

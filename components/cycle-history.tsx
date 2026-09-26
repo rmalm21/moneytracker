@@ -9,7 +9,7 @@ import { Empty } from './fields';
 import { Delta } from './delta';
 import { AppIcon, identityStyle } from './visual-identity';
 import { typeLabels } from './dashboard';
-import { budgetMonthly, budgetSpent, rupiah, salaryCycle, transactionExpense } from '@/lib/accounting';
+import { budgetIconCategoryId, budgetMonthly, budgetSpent, rupiah, salaryCycle, transactionExpense } from '@/lib/accounting';
 import { calculateCycleSnapshot } from '@/lib/finance-control';
 import { closeCycle, refreshCycleSnapshots, saveCycleNotes } from '@/lib/finance-store';
 import { loadAllTransactions } from '@/lib/firestore';
@@ -152,7 +152,7 @@ function CycleDetail({ period, ledger, snap, previous, today, onClosed, onDone }
   const topDay = [...perDay].sort((a, b) => b[1] - a[1])[0];
   const allEvents = tx.filter(t => t.type === 'income' || ['debt_payment', 'claim_payment', 'receivable_payment', 'fund_contribution', 'borrowing'].includes(t.type)).sort((a, b) => a.date.localeCompare(b.date)), events = allEvents.slice(0, 14);
   const notes = data.financialNotes.filter(n => n.date >= period.start && n.date < period.end || n.cycleStart === period.start);
-  const budgets = (s.budgetDefinitions || []).map(b => { const spent = budgetSpent(b, tx, data.categories); const cat = data.categories.find(c => c.id === (b.subcategoryId || b.categoryId)); return { id: b.id, name: b.name || cat?.name || 'Anggaran', icon: cat?.icon, color: cat?.color, amount: budgetMonthly(b), spent }; }).sort((a, b) => b.spent / Math.max(1, b.amount) - a.spent / Math.max(1, a.amount));
+  const budgets = (s.budgetDefinitions || []).map(b => { const spent = budgetSpent(b, tx, data.categories); const cat = data.categories.find(c => c.id === budgetIconCategoryId(b)); return { id: b.id, name: b.name || cat?.name || 'Anggaran', icon: cat?.icon, color: cat?.color, amount: budgetMonthly(b), spent }; }).sort((a, b) => b.spent / Math.max(1, b.amount) - a.spent / Math.max(1, a.amount));
   const catMax = Math.max(1, ...categories.map(c => c.amount));
   const usage = s.budgetTotal > 0 ? s.budgetSpent / s.budgetTotal : null;
 

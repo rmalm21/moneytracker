@@ -26,19 +26,32 @@ export function useKantong() {
   return data.funds.filter(f => !f.isArchived && isKantong(f)).sort(byPurpose);
 }
 
-/** Row of kantong on the Dompet page: each shows its total and the wallets inside. */
-export function KantongStrip({ onOpen }: { onOpen: (start: PocketStart) => void }) {
+/** Kantong on the Dompet page: gradient-glass cards with the total, target and wallets inside; a slim row in Ringkas view. */
+export function KantongStrip({ onOpen, compact = false }: { onOpen: (start: PocketStart) => void; compact?: boolean }) {
   const { data } = useApp();
   const list = useKantong();
   if (!list.length) return null;
-  return <section className="kantong-strip" aria-label="Kantong">
-    {list.map((k, i) => { const members = kantongWallets(k, data.wallets); const pct = k.targetAmount ? Math.min(1, k.currentAmount / k.targetAmount) : 0; return <button type="button" key={k.id} className="kantong-mini" style={{ '--pocket': colors[i % colors.length] } as CSSProperties} onClick={() => onOpen({ mode: 'form', fundId: k.id })}>
-      <span className="kantong-mini-top"><Emoji e={pocketEmoji(k)}/><strong>{k.name}</strong></span>
-      <b>{short(k.currentAmount)}</b>
-      {k.targetAmount > 0 ? <i className="pocket-progress"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i> : null}
-      <small>{members.map(w => w.name).join(' + ') || 'Belum ada dompet'}</small>
-    </button>; })}
-    <button type="button" className="kantong-mini is-add" onClick={() => onOpen({ mode: 'form' })}><Plus size={18}/><span>Kantong baru</span></button>
+  const total = list.reduce((n, k) => n + Math.max(0, k.currentAmount), 0);
+  return <section className={`kantong-strip ${compact ? 'is-compact' : ''}`} aria-label="Kantong">
+    <div className="kantong-head"><span className="kantong-head-title"><Layers size={15} aria-hidden="true"/> Kantong</span><small>{list.length} kantong · {short(total)}</small><button type="button" className="link-button" onClick={() => onOpen({ mode: 'list' })}>Kelola</button></div>
+    <div className="kantong-row">
+      {list.map((k, i) => {
+        const members = kantongWallets(k, data.wallets), pct = k.targetAmount ? Math.min(1, k.currentAmount / k.targetAmount) : 0, style = { '--pocket': colors[i % colors.length] } as CSSProperties;
+        const label = `${k.name}, ${rupiah(k.currentAmount)}${k.targetAmount ? ` dari target ${rupiah(k.targetAmount)}` : ''}`;
+        if (compact) return <button type="button" key={k.id} className="kantong-chip" style={style} onClick={() => onOpen({ mode: 'form', fundId: k.id })} aria-label={label}>
+          <span className="kantong-glass-icon"><Emoji e={pocketEmoji(k)}/></span>
+          <span className="kantong-chip-text"><strong>{k.name}</strong><b>{short(k.currentAmount)}</b></span>
+          {k.targetAmount > 0 && <i className="kantong-chip-line" aria-hidden="true"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i>}
+        </button>;
+        return <button type="button" key={k.id} className="kantong-mini" style={style} onClick={() => onOpen({ mode: 'form', fundId: k.id })} aria-label={label}>
+          <span className="kantong-mini-top"><span className="kantong-glass-icon"><Emoji e={pocketEmoji(k)}/></span><strong>{k.name}</strong>{isEmergencyFund(k) && !/darurat/i.test(k.name) && <em>Darurat</em>}</span>
+          <b className="kantong-mini-amount">{short(k.currentAmount)}</b>
+          {k.targetAmount > 0 ? <span className="kantong-mini-target"><i className="pocket-progress" aria-hidden="true"><b style={{ width: `${Math.max(3, pct * 100)}%` }}/></i><small>{Math.round(pct * 100)}% dari {short(k.targetAmount)}</small></span> : <small>Tanpa target</small>}
+          <span className="kantong-mini-members">{members.slice(0, 3).map(w => <span key={w.id} className="kantong-member"><AppIcon icon={w.icon}/></span>)}<small>{members.map(w => w.name).join(' + ') || 'Belum ada dompet'}</small></span>
+        </button>;
+      })}
+      <button type="button" className={compact ? 'kantong-chip is-add' : 'kantong-mini is-add'} onClick={() => onOpen({ mode: 'form' })}><Plus size={compact ? 16 : 18}/><span>Kantong baru</span></button>
+    </div>
   </section>;
 }
 
