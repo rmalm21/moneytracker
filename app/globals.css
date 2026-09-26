@@ -747,7 +747,8 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .mobile-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .mobile-menu-grid button { min-height: 54px; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--ink); font-weight: 700; font-size: .9rem; line-height: 1.25; padding: 12px; overflow-wrap: anywhere; }
 .mobile-menu-grid button svg { flex: none; color: var(--accent); }
-.mobile-menu-grid button.active, .mobile-menu-grid button:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.mobile-menu-grid button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) { .mobile-menu-grid button:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); } }
 .mobile-menu-grid .all-transactions { grid-column: 1 / -1; justify-content: center; color: var(--accent); }
 
 .app-select { display: block; position: relative; width: 100%; min-width: 0; }
@@ -4187,7 +4188,8 @@ html, body { overscroll-behavior-x: none; }
 .cy-budget-total > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
 .cy-budget-total > div { display: grid; gap: 1px; }
 .cy-budget-total small { color: var(--muted); font-size: .72rem; }
-.cy-budget-total strong { font-size: .86rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cy-budget-total strong { font-size: .86rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 420px) { .cy-budget-total { gap: 8px; } .cy-budget-total > div + div { padding-left: 8px; } .cy-budget-total strong { font-size: .78rem; } }
 .cy-list-rows { list-style: none; margin: 0; padding: 0; display: grid; }
 .cy-list-rows li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 0; }
 .cy-list-rows li + li { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }

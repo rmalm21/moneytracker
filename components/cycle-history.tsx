@@ -9,13 +9,13 @@ import { Empty } from './fields';
 import { Delta } from './delta';
 import { AppIcon, identityStyle } from './visual-identity';
 import { typeLabels } from './dashboard';
-import { budgetSpent, rupiah, salaryCycle, transactionExpense } from '@/lib/accounting';
+import { budgetMonthly, budgetSpent, rupiah, salaryCycle, transactionExpense } from '@/lib/accounting';
 import { calculateCycleSnapshot } from '@/lib/finance-control';
 import { closeCycle, refreshCycleSnapshots, saveCycleNotes } from '@/lib/finance-store';
 import { loadAllTransactions } from '@/lib/firestore';
 import { categoryBreakdown } from '@/lib/category-analytics';
 import { incomeBreakdown, largestExpenses, walletFlows, weekdaySpending } from '@/lib/insights';
-import { dateInTimeZone, previousDate } from '@/lib/period';
+import { previousDate, todayInTimeZone } from '@/lib/period';
 import type { CycleSnapshot, LedgerTx } from '@/lib/types';
 
 /**
@@ -50,7 +50,7 @@ function badges(s: Snap): { label: string; tone: 'good' | 'warn' | 'bad' | 'info
 export function CycleHistory({ notify }: { notify: (text: string) => void }) {
   const { data, profile, user, cycle } = useApp();
   const salaryDay = profile?.salaryCycleStartDay || 24;
-  const today = dateInTimeZone(new Date(), profile?.timeZone).toLocaleDateString('en-CA');
+  const today = todayInTimeZone(profile?.timeZone);
   const [ledger, setLedger] = useState<LedgerTx[] | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [openStart, setOpenStart] = useState<string | null>(null);
   useEffect(() => { if (!user) return; let active = true; loadAllTransactions(user.uid).then(items => { if (active) setLedger(items); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, [user, data.cycleSnapshots.length]);
 
@@ -88,7 +88,7 @@ export function CycleHistory({ notify }: { notify: (text: string) => void }) {
         <Tile icon={Scale} label="Aset bersih" value={`${overview.growth >= 0 ? '+' : ''}${short(overview.growth)}`} note="sejak siklus pertama" tone={overview.growth >= 0 ? 'in' : 'out'}/>
         <Tile icon={Coins} label="Total ditabung" value={short(overview.saved)} note="setoran tujuan dana"/>
         <Tile icon={Trophy} label="Siklus terbaik" value={monthOf(overview.best.startDate)} note={`sisa ${short(overview.best.cashFlow)}`} onClick={() => setOpenStart(overview.best.startDate)}/>
-        <Tile icon={Target} label="Siklus terberat" value={monthOf(overview.worst.startDate)} note={`sisa ${short(overview.worst.cashFlow)}`} onClick={() => setOpenStart(overview.worst.startDate)}/>
+        {overview.worst.startDate !== overview.best.startDate && <Tile icon={Target} label="Siklus terberat" value={monthOf(overview.worst.startDate)} note={`sisa ${short(overview.worst.cashFlow)}`} onClick={() => setOpenStart(overview.worst.startDate)}/>}
       </div>
     </section> : <section className="cy-intro"><span className="cy-intro-icon"><CalendarRange size={22}/></span><div><strong>Belum ada siklus yang ditutup</strong><p>Menutup siklus menyimpan ringkasan satu periode gaji: pemasukan, pengeluaran, anggaran, aset, dan utang saat itu. Dari situ tren antarsiklus bisa dibandingkan.</p></div></section>}
 
@@ -150,9 +150,9 @@ function CycleDetail({ period, ledger, snap, previous, today, onClosed, onDone }
   const biggest = largestExpenses(tx, 5);
   const perDay = new Map<string, number>(); for (const t of tx) { const e = transactionExpense(t); if (e) perDay.set(t.date, (perDay.get(t.date) || 0) + e); }
   const topDay = [...perDay].sort((a, b) => b[1] - a[1])[0];
-  const events = tx.filter(t => t.type === 'income' || ['debt_payment', 'claim_payment', 'receivable_payment', 'fund_contribution', 'borrowing'].includes(t.type)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 14);
+  const allEvents = tx.filter(t => t.type === 'income' || ['debt_payment', 'claim_payment', 'receivable_payment', 'fund_contribution', 'borrowing'].includes(t.type)).sort((a, b) => a.date.localeCompare(b.date)), events = allEvents.slice(0, 14);
   const notes = data.financialNotes.filter(n => n.date >= period.start && n.date < period.end || n.cycleStart === period.start);
-  const budgets = (s.budgetDefinitions || []).map(b => { const spent = budgetSpent(b, tx, data.categories); const cat = data.categories.find(c => c.id === (b.subcategoryId || b.categoryId)); return { id: b.id, name: b.name || cat?.name || 'Anggaran', icon: cat?.icon, color: cat?.color, amount: b.amount, spent }; }).sort((a, b) => b.spent / Math.max(1, b.amount) - a.spent / Math.max(1, a.amount));
+  const budgets = (s.budgetDefinitions || []).map(b => { const spent = budgetSpent(b, tx, data.categories); const cat = data.categories.find(c => c.id === (b.subcategoryId || b.categoryId)); return { id: b.id, name: b.name || cat?.name || 'Anggaran', icon: cat?.icon, color: cat?.color, amount: budgetMonthly(b), spent }; }).sort((a, b) => b.spent / Math.max(1, b.amount) - a.spent / Math.max(1, a.amount));
   const catMax = Math.max(1, ...categories.map(c => c.amount));
   const usage = s.budgetTotal > 0 ? s.budgetSpent / s.budgetTotal : null;
 
@@ -213,8 +213,9 @@ function CycleDetail({ period, ledger, snap, previous, today, onClosed, onDone }
       {biggest.length > 0 && <><h5 className="cy-sub">Pengeluaran terbesar</h5><ul className="cy-list-rows compact">{biggest.map(t => { const cat = data.categories.find(c => c.id === t.categoryId); return <li key={t.id}><span className="cy-dot" style={identityStyle(cat?.color)}><AppIcon icon={cat?.icon} fallback="🧾"/></span><span className="cy-row-main"><span>{t.description || t.merchant || cat?.name || 'Pengeluaran'}</span><small>{day(t.date, false)}{cat ? ` · ${cat.name}` : ''}</small></span><span className="cy-row-num"><b>{short(transactionExpense(t))}</b></span></li>; })}</ul></>}
     </Section>
 
-    <Section icon={Sparkles} title="Peristiwa penting" aside={`${events.length}`}>
+    <Section icon={Sparkles} title="Peristiwa penting" aside={`${allEvents.length}`}>
       {events.length ? <ol className="cy-timeline">{events.map(t => <li key={t.id} className={`is-${t.type}`}><span className="cy-time">{day(t.date, false)}</span><span className="cy-row-main"><span>{t.description || t.merchant || typeLabels[t.type] || t.type}</span><small>{typeLabels[t.type] || t.type}</small></span><b>{short(t.amount)}</b></li>)}</ol> : <p className="muted">Tidak ada peristiwa khusus.</p>}
+      {allEvents.length > events.length && <p className="muted cy-sub">+{allEvents.length - events.length} peristiwa lain ada di menu Transaksi.</p>}
     </Section>
 
     <Section icon={NotebookPen} title="Catatan" aside={notes.length ? `${notes.length} catatan` : undefined} open={Boolean(snap?.notes)}>
@@ -225,7 +226,7 @@ function CycleDetail({ period, ledger, snap, previous, today, onClosed, onDone }
     {error && <p role="alert" className="form-error">{error}</p>}
     <div className="modal-actions">
       <Button variant="secondary" onClick={onDone}>Tutup</Button>
-      {canClose && <Confirm title={`Tutup siklus ${monthOf(period.start)}?`} description="Ringkasan siklus ini disimpan sebagai riwayat. Transaksi lama masih bisa diubah; laporannya akan dihitung ulang otomatis." onConfirm={() => void close()}><Button disabled={busy || !ledger}><Lock size={15}/> Tutup siklus</Button></Confirm>}
+      {canClose && <Confirm title={`Tutup siklus ${monthOf(period.start)}?`} description="Ringkasan siklus ini disimpan sebagai riwayat, dengan pengaturan anggaran yang berlaku sekarang. Transaksi lama masih bisa diubah; laporannya akan dihitung ulang otomatis." onConfirm={() => void close()}><Button disabled={busy || !ledger}><Lock size={15}/> Tutup siklus</Button></Confirm>}
     </div>
   </div>;
 }

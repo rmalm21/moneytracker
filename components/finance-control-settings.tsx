@@ -9,6 +9,7 @@ import { metrics, rupiah } from '@/lib/accounting';
 import { availableMoney, committedAmount, horizonLabels, type AvailabilitySettings } from '@/lib/finance-control';
 import { saveProfile, updateWalletFlags } from '@/lib/firestore';
 import { kantongOf } from '@/lib/pockets';
+import { walletGroup } from '@/lib/wallet-groups';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 
 /**
@@ -40,12 +41,13 @@ export function FinanceControlSettings({ perform, navigate }: { perform: Perform
   useEffect(() => setBufferDraft(buffer), [buffer]);
   useEffect(() => setWarning(profile?.budgetWarningPercent || 80), [profile?.budgetWarningPercent]);
   const save = (changes: Parameters<typeof saveProfile>[1], message = 'Pengaturan disimpan.') => { if (user) void perform(() => saveProfile(user.uid, changes), message); };
-  const wallets = data.wallets.filter(w => !w.isArchived).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  // Same order as the Dompet page.
+  const wallets = data.wallets.filter(w => !w.isArchived).map((w, i) => ({ w, at: w.displayOrder ?? i })).sort((a, b) => a.at - b.at).map(row => row.w);
   const receivables = stat.receivables;
 
   return <div className="fc-page">
     <section className="fc-hero">
-      <div><small>Uang tersedia sekarang</small><strong>{rupiah(available)}</strong><span>Uang yang aman dipakai sampai gajian, setelah semua pengaturan di bawah.</span></div>
+      <div><small>Uang tersedia sekarang</small><strong>{rupiah(available)}</strong><span>Uang bebas setelah tagihan dan cadangan aman — angka yang aman dipakai, sesuai pengaturan di bawah.</span></div>
       <div className="fc-hero-chips"><span><small>Uang bebas</small><b>{rupiah(stat.free)}</b></span><span><small>Aset bersih</small><b>{rupiah(stat.netWorth)}</b></span></div>
     </section>
 
@@ -85,7 +87,7 @@ export function FinanceControlSettings({ perform, navigate }: { perform: Perform
         <span className="fc-wallet-icon" style={identityStyle(w.color)}><AppIcon icon={w.icon}/></span>
         <span className="fc-wallet-text"><strong>{w.name}</strong><small>{rupiah(w.cachedBalance)}{k ? ` · di kantong ${k.name}` : w.isReserved ? ' · Disimpan' : ''}</small></span>
         <span className="fc-pills">
-          <button type="button" className={free ? 'on' : ''} disabled={Boolean(k)} title={k ? 'Dompet di kantong tidak masuk uang bebas' : undefined} aria-pressed={free} onClick={() => { if (user) void perform(() => updateWalletFlags(user.uid, w.id, free ? { isReserved: true } : { isReserved: false, isSpendable: true }), free ? `${w.name} tidak lagi dihitung sebagai uang bebas.` : `${w.name} dihitung sebagai uang bebas.`); }}>Uang bebas</button>
+          <button type="button" className={free ? 'on' : ''} disabled={Boolean(k)} title={k ? 'Dompet di kantong tidak masuk uang bebas' : undefined} aria-pressed={free} onClick={() => { if (user) void perform(() => updateWalletFlags(user.uid, w.id, { ...(w.group ? {} : { group: walletGroup(w) }), ...(free ? { isReserved: true } : { isReserved: false, isSpendable: true }) }), free ? `${w.name} tidak lagi dihitung sebagai uang bebas.` : `${w.name} dihitung sebagai uang bebas.`); }}>Uang bebas</button>
           <button type="button" className={w.includeInNetWorth !== false ? 'on' : ''} aria-pressed={w.includeInNetWorth !== false} onClick={() => { if (user) void perform(() => updateWalletFlags(user.uid, w.id, { includeInNetWorth: w.includeInNetWorth === false }), w.includeInNetWorth === false ? `${w.name} masuk aset bersih.` : `${w.name} tidak dihitung di aset bersih.`); }}>Aset bersih</button>
         </span>
       </li>; })}</ul>

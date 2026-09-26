@@ -41,6 +41,8 @@ export type PaycheckRow = { key: string; label: string; amount: number; share: n
 export type AdvisorInput = {
   data: Data; history: LedgerTx[]; today: string; salaryDay: number; monthlySalary: number; warnPercent: number;
   stat: { free: number; reserved: number; netWorth: number; liabilities: number }; committed: number;
+  /** Cadangan aman from Kontrol keuangan: never counted as Uang tersedia. */
+  safetyBuffer?: number;
   profile?: Partial<InsightProfile> | null;
 };
 
@@ -305,7 +307,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const med = quantile(peers, .5);
     if (peers.length >= 5 && spend > med * 4) alerts.push({ id: `odd-${tx.id}`, tone: 'warn', stat: { label: 'Nominal', value: shortRp(spend), note: `${Math.round(spend / med)}× biasanya` }, title: `Transaksi tidak biasa: ${tx.description || tx.merchant || categories.find(c => c.id === tx.categoryId)?.name || 'pengeluaran'}`, detail: `**${rp(spend)}** pada ${parse(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} — **${Math.round(spend / med)}× dari biasanya** di kategori ini. ==Pastikan nominalnya benar==.`, target: { view: 'transactions', focus: tx.id } });
   }
-  const available = input.stat.free - input.committed;
+  const safetyBuffer = Math.max(0, input.safetyBuffer || 0);
+  const available = input.stat.free - input.committed - safetyBuffer;
   const needUntilPayday = Math.max(0, projectedSpend - currentExpense);
   if (daysLeft > 0 && needUntilPayday > available) alerts.unshift({ id: 'runway', tone: 'bad', stat: { label: 'Jatah harian aman', value: shortRp(Math.max(0, available) / daysLeft), note: `${daysLeft} hari sampai gajian` }, title: 'Uang tersedia diperkirakan kurang sampai gajian', detail: `Dengan laju sekarang, ${daysLeft} hari ke depan butuh sekitar **${rp(needUntilPayday)}**, sedangkan uang tersedia **${rp(Math.max(0, available))}**. ==Batasi belanja harian ke ${rp(Math.max(0, available) / daysLeft)}== agar cukup.` });
 
@@ -421,7 +424,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const fundsDue = sum(data.funds.filter(f => !f.isArchived && (f.monthlyContribution || 0) > 0).map(f => { if (savingsPlan(f, today).status === 'reached') return 0; const paid = sum(history.filter(tx => tx.fundId === f.id && tx.type === 'fund_contribution' && inCycle(tx.date)).map(tx => tx.amount)); return Math.max(0, (f.monthlyContribution || 0) - paid); }));
   const wishSaved = sum(wishes.map(w => Math.max(0, w.saved || 0)));
   const wishDue = sum(wishes.map(w => { const monthly = w.monthly || 0; if (!monthly || (w.saved || 0) >= w.price) return 0; const done = sum((w.history || []).filter(h => inCycle(h.date)).map(h => h.amount)); return Math.max(0, Math.min(monthly - done, w.price - (w.saved || 0))); }));
-  const buffer = Math.round(monthlyNeed * me.buffer / 1000) * 1000;
+  // One cushion for surprises: Insight's own estimate, or the user's Cadangan aman when that is larger (never both).
+  const ownBuffer = Math.round(monthlyNeed * me.buffer / 1000) * 1000, buffer = Math.max(ownBuffer, safetyBuffer);
   const operationalNeed = spendReserve + input.committed + fundsDue + wishDue + buffer + opGoals;
   const rawOperational = needSource === 'none' ? 0 : Math.max(0, operationalBalance - operationalNeed);
   // Money set aside for wishes sits in these wallets too: take it out of "idle" first.
@@ -436,7 +440,7 @@ const savingsExcess = pocketsEmergency ? Math.max(0, unallocatedSavings + Math.m
     ...(fundsDue ? [{ op: '-' as const, label: 'Setoran tujuan dana bulan ini', amount: fundsDue }] : []),
     ...(opGoals ? [{ op: '-' as const, label: 'Sudah terkumpul untuk tujuan dana', amount: opGoals, note: 'disimpan di dompet ini' }] : []),
     ...(wishDue ? [{ op: '-' as const, label: 'Sisihan wish list bulan ini', amount: wishDue }] : []),
-    { op: '-', label: `Cadangan tak terduga (${pct(me.buffer)})`, amount: buffer, note: `${pct(me.buffer)} × kebutuhan ${rp(monthlyNeed)}/bln` },
+    safetyBuffer > ownBuffer ? { op: '-', label: 'Cadangan aman', amount: buffer, note: 'diatur di Pengaturan → Kontrol keuangan' } : { op: '-', label: `Cadangan tak terduga (${pct(me.buffer)})`, amount: buffer, note: `${pct(me.buffer)} × kebutuhan ${rp(monthlyNeed)}/bln` },
     ...(wishFromOp ? [{ op: '-' as const, label: 'Uang yang sudah disisihkan untuk wish list', amount: wishFromOp }] : []),
     { op: '=', label: 'Menganggur di dompet harian', amount: idleOperational },
   ];
@@ -470,7 +474,7 @@ const savingsExcess = pocketsEmergency ? Math.max(0, unallocatedSavings + Math.m
       projection: [1, 3, 5, 10].map(years => ({ years, invested: futureValue(investable, monthlyInvest, r, years), idle: realValueIdle(investable + monthlyInvest * 12 * years, years), lump: futureValue(investable, 0, r, years), lumpIdle: realValueIdle(investable, years) })) };
   }
   // Never call daily money idle while the runway alert says it may not last until payday.
-  if (!runwayShort && idleOperational >= Math.max(1, minIdle)) wealth.push({ id: 'idle-operational', calc: opCalc, tone: 'good', stat: { label: 'Menganggur di dompet harian', value: shortRp(idleOperational), note: `di atas kebutuhan ${daysLeft} hari ke depan` }, title: 'Ada uang menganggur di dompet harian', detail: `Saldo dompet operasional **${rp(operationalBalance)}**, sedangkan yang sudah terpakai rencana sampai gajian (${spendReserve === budgetReserve && budgetReserve > 0 ? 'sisa anggaran' : 'perkiraan belanja'}, tagihan, setoran tujuan${wishSaved || wishDue ? ', wish list' : ''}, plus cadangan ${pct(me.buffer)}) sekitar **${rp(operationalNeed + wishFromOp)}**.${needSource === 'salary' ? ' Karena riwayat pengeluaran belum cukup, kebutuhan diperkirakan dari gajimu.' : ''} ${emergencyShortfall > 0 ? `==Pindahkan ${rp(Math.min(idleOperational, emergencyShortfall))} ke dana darurat== dulu, sisanya bisa diinvestasikan.` : `==Pindahkan sekitar ${rp(idleOperational)}== ke instrumen yang sesuai profil ${riskName}-mu.`}`, target: { view: 'wallets' } });
+  if (!runwayShort && idleOperational >= Math.max(1, minIdle)) wealth.push({ id: 'idle-operational', calc: opCalc, tone: 'good', stat: { label: 'Menganggur di dompet harian', value: shortRp(idleOperational), note: `di atas kebutuhan ${daysLeft} hari ke depan` }, title: 'Ada uang menganggur di dompet harian', detail: `Saldo dompet operasional **${rp(operationalBalance)}**, sedangkan yang sudah terpakai rencana sampai gajian (${spendReserve === budgetReserve && budgetReserve > 0 ? 'sisa anggaran' : 'perkiraan belanja'}, tagihan, setoran tujuan${wishSaved || wishDue ? ', wish list' : ''}, plus ${safetyBuffer > ownBuffer ? 'cadangan aman' : `cadangan ${pct(me.buffer)}`}) sekitar **${rp(operationalNeed + wishFromOp)}**.${needSource === 'salary' ? ' Karena riwayat pengeluaran belum cukup, kebutuhan diperkirakan dari gajimu.' : ''} ${emergencyShortfall > 0 ? `==Pindahkan ${rp(Math.min(idleOperational, emergencyShortfall))} ke dana darurat== dulu, sisanya bisa diinvestasikan.` : `==Pindahkan sekitar ${rp(idleOperational)}== ke instrumen yang sesuai profil ${riskName}-mu.`}`, target: { view: 'wallets' } });
   // With kantong, savings outside every kantong simply have no purpose yet: never assume they belong to the emergency fund.
   const spareOutside = pocketsEmergency ? Math.max(0, unallocatedSavings - (wishSaved - wishFromOp)) : 0, emergencySurplus = Math.max(0, emergencyCash - emergencyTarget);
   if (savingsExcess >= Math.max(1, minIdle)) wealth.push(pocketsEmergency ? { id: 'idle-savings', calc: savingsCalc, tone: 'good', stat: { label: spareOutside ? 'Tabungan di luar kantong' : 'Kantong dana darurat berlebih', value: shortRp(savingsExcess), note: spareOutside ? 'belum masuk kantong mana pun' : `di atas target ${targetText}` }, title: spareOutside ? 'Ada tabungan yang belum punya tujuan' : 'Dana darurat melebihi target', detail: `${spareOutside ? `**${rp(spareOutside)}** di dompet Tabungan tidak masuk kantong mana pun.` : ''}${emergencySurplus ? ` Kantong dana darurat **${rp(emergencySurplus)}** di atas targetmu (${rp(emergencyTarget)}).` : ''} ${runwayShort ? ' Uang tersedia diperkirakan kurang sampai gajian, jadi ==jangan diinvestasikan dulu==; pakai seperlunya untuk menutup kekurangan, lalu beri tujuan setelah gajian.' : ' Dibiarkan mengendap, nilai riilnya **turun sekitar ' + rp(savingsExcess * INFLATION) + ' per tahun** karena inflasi. ==Beri tujuan==: masukkan ke kantong yang kamu mau, atau investasikan sesuai rencana di bawah — kamu yang menentukan.'}`.trim(), target: { view: 'wallets' } } : { id: 'idle-savings', calc: savingsCalc, tone: 'good', stat: { label: 'Tabungan di atas dana darurat', value: shortRp(savingsExcess), note: `dana darurat ${targetText} sudah aman` }, title: 'Tabungan melebihi kebutuhan dana darurat', detail: `Dana darurat ${targetText} (**${rp(emergencyTarget)}**) sudah terpenuhi, masih ada kelebihan **${rp(savingsExcess)}** yang hanya mengendap.${runwayShort ? ' Uang tersedia diperkirakan kurang sampai gajian, jadi ==jangan diinvestasikan dulu==.' : ` Dibiarkan, nilai riilnya **turun sekitar ${rp(savingsExcess * INFLATION)} per tahun** karena inflasi. ==Investasikan kelebihannya== sesuai rencana di bawah.`}`, target: { view: 'wallets' } });

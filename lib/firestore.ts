@@ -235,5 +235,6 @@ export async function undoManualPayment(uid:string,kind:'receivables'|'debts',id
 /** Wish list: create or update one item (money set aside is an earmark, no wallet changes). */
 export async function saveWish(uid:string,record:Partial<WishItem>,id?:string){ const r=id?ref(uid,'wishlist',id):doc(coll(uid,'wishlist')); const {id:_i,createdAt:_c,updatedAt:_u,...fields}=record; if(id) await settle(updateDoc(r,{...fields,updatedAt:serverTimestamp()})); else await settle(setDoc(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()})); return r.id; }
 export async function deleteWish(uid:string,id:string){ const b=writeBatch(database()); b.delete(ref(uid,'wishlist',id)); await settle(b.commit()); }
-/** Quick switches for how a wallet counts (Uang bebas / Aset bersih) without opening the wallet form. */
-export async function updateWalletFlags(uid:string,id:string,changes:Partial<Pick<Wallet,'isReserved'|'isSpendable'|'includeInNetWorth'>>){await settle(updateDoc(ref(uid,'wallets',id),{...changes,updatedAt:serverTimestamp()}));}
+/** Quick switches for how a wallet counts (Uang bebas / Aset bersih) without opening the wallet form.
+ * Older wallets get their group written down first, so a switch never moves them to another group. */
+export async function updateWalletFlags(uid:string,id:string,changes:Partial<Pick<Wallet,'isReserved'|'isSpendable'|'includeInNetWorth'|'group'>>){await settle(updateDoc(ref(uid,'wallets',id),{...changes,updatedAt:serverTimestamp()}));}

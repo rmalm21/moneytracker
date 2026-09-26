@@ -2,7 +2,7 @@
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, History, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, ShieldCheck, SlidersHorizontal, Smartphone, Upload, UserRound, Wallet, type LucideIcon } from 'lucide-react';
+import { BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Palette, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
 import { Field, FormActions, Input, Money, Select } from './fields';
@@ -15,10 +15,9 @@ import { changePassword, friendlyError, logout } from '@/lib/auth';
 import { exportData, importData, saveProfile, validateBackup } from '@/lib/firestore';
 import type { TimeZone } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
-import { metrics, rupiah } from '@/lib/accounting';
+import { rupiah } from '@/lib/accounting';
 import { horizonLabels } from '@/lib/finance-control';
 import { FinanceControlSettings } from './finance-control-settings';
-import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { themes } from '@/lib/appearance';
 /** A tappable row that jumps to another page. */
 function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick?: () => void }) {

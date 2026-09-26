@@ -105,3 +105,19 @@ test('bills with "want" words stay needs', () => {
   const a = run(build({ history, categories: [cat('net', 'Langganan Internet')] }));
   assert.equal(a.categories.find(c => c.id === 'net').kind, 'need');
 });
+
+test('Cadangan aman is its own row in Insight, lowers Uang tersedia, and is never counted twice with the Insight cushion', () => {
+  const data = build({ wallets: [wallet('op', 'BCA', 'operational', 20_000_000)] });
+  const plain = run(data, { committed: 300_000 });
+  const own = plain.idle.opCalc.find(r => /Cadangan tak terduga/.test(r.label));
+  assert.ok(own && own.amount > 0);
+  const big = run(data, { committed: 300_000, safetyBuffer: own.amount + 2_000_000 });
+  assert.equal(big.idle.opCalc.find(r => r.label === 'Tagihan & rencana belum dibayar').amount, 300_000, 'bills only');
+  assert.equal(big.idle.opCalc.find(r => r.label === 'Cadangan aman').amount, own.amount + 2_000_000);
+  assert.ok(!big.idle.opCalc.some(r => /Cadangan tak terduga/.test(r.label)), 'one cushion, not two');
+  assert.equal(plain.idle.operational - big.idle.operational, 2_000_000);
+  const small = run(data, { committed: 300_000, safetyBuffer: 10_000 });
+  assert.equal(small.idle.opCalc.find(r => /Cadangan tak terduga/.test(r.label)).amount, own.amount, 'a smaller buffer is covered by the cushion');
+  assert.ok(![...plain.alerts, ...plain.actions].some(f => f.id === 'runway'));
+  assert.ok([...run(data, { safetyBuffer: 5_000_000 }).alerts, ...run(data, { safetyBuffer: 5_000_000 }).actions].some(f => f.id === 'runway'), 'the buffer is not money to spend before payday');
+});

@@ -45,7 +45,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
   const [order, setOrder] = useState<string[] | null>(null);
   const all = data.wishlist || [];
   const summary = wishSummary(all);
-  const freeAfterBills = useMemo(() => { const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day); return availableMoney(stat.free, committedAmount(data, today, cycle.end, profile || {}), profile || {}); }, [data, cycle.start, cycle.end, profile?.salaryCycleStartDay, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const freeAfterBills = useMemo(() => { const stat = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay, day); return availableMoney(stat.free, committedAmount(data, today, cycle.end, profile || {}), profile || {}); }, [data, cycle.start, cycle.end, profile?.salaryCycleStartDay, profile?.excludeCommittedFromAvailable, profile?.commitmentHorizon, profile?.freeMoneyBuffer, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const active = all.filter(w => w.status === 'active'), bought = all.filter(w => w.status === 'bought').sort((a, b) => (b.boughtDate || '').localeCompare(a.boughtDate || ''));
   const sorted = sortWishes(active, sort, today);
   const shown = tab === 'bought' ? bought : order && sort === 'manual' ? order.map(id => sorted.find(w => w.id === id)).filter((w): w is WishItem => Boolean(w)).concat(sorted.filter(w => !order.includes(w.id))) : sorted;

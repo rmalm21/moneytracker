@@ -53,3 +53,18 @@ test('forecast spending never assumes less than the spending pace just because a
   const f = forecast({ free: 5_000_000, spentThisCycle: 3_000_000, daysElapsed: 15, daysRemaining: 15, daysTotal: 30, salary: 8_000_000, totalBudget: 1_000_000 });
   assert.equal(f.monthlyOut, 6_000_000);
 });
+
+test('Uang tersedia: bills count by the chosen horizon (plus overdue ones) and the safety buffer is always kept', async () => {
+  const { committedAmount, availableMoney } = await import('../lib/finance-control.ts');
+  const data = { ...empty,
+    drafts: [{ id: 'late', status: 'pending', type: 'expense', name: 'Listrik', plannedDate: '2026-09-20', amount: 100_000, walletId: 'w', categoryId: null }],
+    plannedTransactions: [{ id: 'p', status: 'planned', committed: true, type: 'expense', title: 'Servis motor', date: '2026-09-28', amount: 200_000, walletId: 'w', categoryId: null, subcategoryId: null }],
+    recurring: [{ id: 'r', name: 'Laundry', active: true, type: 'expense', mode: 'auto', frequency: 'weekly', nextDate: '2026-09-27', amount: 50_000, walletId: 'w', categoryId: null }] };
+  const today = '2026-09-26', payday = '2026-10-05';
+  assert.equal(committedAmount(data, today, payday, { commitmentHorizon: 'week' }), 100_000 + 200_000 + 50_000, '7 days: one laundry');
+  assert.equal(committedAmount(data, today, payday), 100_000 + 200_000 + 2 * 50_000, 'default: until payday');
+  assert.equal(committedAmount(data, today, payday, { commitmentHorizon: 'month' }), 100_000 + 200_000 + 5 * 50_000, '30 days, past payday');
+  assert.equal(committedAmount(data, today, payday, { excludeCommittedFromAvailable: false }), 0);
+  assert.equal(availableMoney(1_000_000, 400_000, { freeMoneyBuffer: 150_000 }), 450_000);
+  assert.equal(availableMoney(1_000_000, 400_000, { freeMoneyBuffer: -5 }), 600_000, 'a negative buffer is ignored');
+});

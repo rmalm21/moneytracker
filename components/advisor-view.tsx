@@ -163,8 +163,8 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const advice: Advice | null = useMemo(() => {
     if (history.loading) return null;
     const stat = metrics(data, cycle.start, cycle.end, salaryDay, day, Boolean(profile?.netWorthIncludesReceivables));
-    const committed = committedAmount(data, today, cycle.end, profile || {}) + Math.max(0, profile?.freeMoneyBuffer || 0);
-    return analyzeFinances({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, profile: profile?.insightProfile });
+    const committed = committedAmount(data, today, cycle.end, profile || {});
+    return analyzeFinances({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, safetyBuffer: profile?.freeMoneyBuffer, profile: profile?.insightProfile });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.commitmentHorizon, profile?.freeMoneyBuffer, profile?.monthlySalary, profile?.insightProfile]);
 

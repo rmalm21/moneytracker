@@ -75,14 +75,18 @@ export function HelpView({ navigate, focus }: { navigate: Navigate; focus?: stri
   useEffect(() => { if (focus) document.getElementById(`qa-${focus}`)?.scrollIntoView({ block: 'center' }); }, [focus]);
 
   const terms = useMemo(() => fold(query).split(/\s+/).filter(term => term.length > 0), [query]);
-  const results = useMemo(() => {
-    if (!terms.length) return [];
-    return rows.map(row => {
+  // Answers with every word come first; when none has them all, the closest answers (most words) are shown.
+  const { results, partial } = useMemo(() => {
+    if (!terms.length) return { results: [], partial: false };
+    const scored = rows.map(row => {
       const q = fold(row.item.q), keys = fold(row.item.keywords || ''), body = fold([row.item.a, ...(row.item.steps || []), row.item.tip || '', ...row.path].join(' '));
-      if (!terms.every(term => q.includes(term) || keys.includes(term) || body.includes(term))) return null;
+      const hits = terms.filter(term => q.includes(term) || keys.includes(term) || body.includes(term)).length;
       const score = terms.reduce((n, term) => n + (q.includes(term) ? 4 : 0) + (keys.includes(term) ? 2 : 0) + (q.startsWith(term) ? 2 : 0), 0);
-      return { ...row, score };
-    }).filter(Boolean).sort((a, b) => b!.score - a!.score) as (ReturnType<typeof flattenHelp>[number] & { score: number })[];
+      return { ...row, hits, score };
+    }).filter(row => row.hits > 0);
+    const full = scored.filter(row => row.hits === terms.length);
+    const list = (full.length ? full : scored).sort((a, b) => b.hits - a.hits || b.score - a.score);
+    return { results: list, partial: !full.length && list.length > 0 };
   }, [rows, terms]);
   const focusGroup = rows.find(row => row.item.id === focus)?.group.id;
   const searching = terms.length > 0;
@@ -103,7 +107,7 @@ export function HelpView({ navigate, focus }: { navigate: Navigate; focus?: stri
     </section>
 
     {searching ? <section className="qa-results" aria-live="polite">
-      <header className="qa-results-head"><strong>{results.length ? `${results.length} jawaban untuk “${query.trim()}”` : `Belum ada jawaban untuk “${query.trim()}”`}</strong><button type="button" className="link-button" onClick={() => setQuery('')}>Kembali ke topik</button></header>
+      <header className="qa-results-head"><strong>{results.length ? `${results.length} jawaban ${partial ? 'yang mendekati' : 'untuk'} “${query.trim()}”` : `Belum ada jawaban untuk “${query.trim()}”`}</strong><button type="button" className="link-button" onClick={() => setQuery('')}>Kembali ke topik</button></header>
       {results.length ? <div className="qa-list">{results.map(({ item, group, path }) => { const Icon = icons[group.icon]; return <div key={item.id} className={`qa-result tone-${group.icon}`}>
         <small className="qa-path"><Icon size={13} aria-hidden="true"/>{path.join(' › ')}</small>
         <Question item={item} navigate={navigate} openIds={results.length === 1 ? new Set([item.id]) : openIds} terms={terms}/>
