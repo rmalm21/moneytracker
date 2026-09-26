@@ -118,7 +118,7 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
     </section>}
 
     {data.budgets.length > 1 && <div className="bgt-toolbar">
-      <label className="bgt-sort"><span>Urutkan</span><Select value={sortMode} onChange={e => chooseSort(e.target.value as SortMode)} aria-label="Urutkan anggaran">{sortModes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></label>
+      <label className="bgt-sort"><span>Urutkan</span><Select value={sortMode} onChange={e => chooseSort(e.target.value as SortMode)} aria-label="Urutkan anggaran" menuWidth={220}>{sortModes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select></label>
       {sortMode === 'manual' && <small className="bgt-drag-hint"><GripVertical size={14}/> Tahan pegangan untuk menggeser</small>}
     </div>}
 

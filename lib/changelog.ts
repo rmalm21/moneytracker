@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '63', date: '26 Sep 2026', title: 'Lebih ringkas, lebih mulus', items: [
+    ['📱', 'Geser antartab, misalnya di Laporan, kini mulus tanpa kedipan.'],
+    ['🚀', 'Halaman yang sudah siap langsung tampil, tanpa layar memuat sesaat.'],
+    ['🛠️', 'Tombol Urutkan, Rentang, dan Periode lebih ringkas dan proporsional.'],
+  ] },
   { version: '62', date: '26 Sep 2026', title: 'Lebih halus, lebih kaca', items: [
     ['🌙', 'Pindah ke mode gelap tanpa kedipan terang.'],
     ['⚡', 'Dari tombol Tambah ke formulir transaksi tanpa jeda.'],

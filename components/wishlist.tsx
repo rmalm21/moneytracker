@@ -107,7 +107,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
 
     {all.length > 0 && <div className="wl-toolbar">
       <div className="segmented" role="tablist"><button type="button" role="tab" aria-selected={tab === 'active'} className={tab === 'active' ? 'active' : ''} onClick={() => setTab('active')}>Impian ({active.length})</button><button type="button" role="tab" aria-selected={tab === 'bought'} className={tab === 'bought' ? 'active' : ''} onClick={() => setTab('bought')}>Tercapai ({bought.length})</button></div>
-      {tab === 'active' && active.length > 1 && <label className="wl-sort"><span>Urutkan</span><Select value={sort} onChange={event => chooseSort(event.target.value as Sort)} aria-label="Urutkan impian"><option value="manual">Urutan saya</option><option value="priority">Prioritas</option><option value="nearest">Paling cepat tercapai</option><option value="cheap">Sisa termurah</option><option value="expensive">Harga tertinggi</option></Select></label>}
+      {tab === 'active' && active.length > 1 && <label className="wl-sort"><span>Urutkan</span><Select value={sort} onChange={event => chooseSort(event.target.value as Sort)} aria-label="Urutkan impian" menuWidth={220}><option value="manual">Urutan saya</option><option value="priority">Prioritas</option><option value="nearest">Paling cepat tercapai</option><option value="cheap">Sisa termurah</option><option value="expensive">Harga tertinggi</option></Select></label>}
     </div>}
 
     {!all.length ? <section className="wl-empty">

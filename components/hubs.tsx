@@ -20,8 +20,13 @@ export const menuKeyOf = (view: string) => hubOf(view)?.key || parents[view] || 
 export function HubTabs({ view, onSelect }: { view: string; onSelect: (key: string) => void }) {
   const hub = hubOf(view);
   const bar = useRef<HTMLDivElement>(null);
-  // Keep the active tab visible (e.g. after swiping to it).
-  useEffect(() => { bar.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }, [view]);
+  // Keep the active tab visible (e.g. after swiping to it). Only the tab strip scrolls sideways; the page stays where it is.
+  useEffect(() => {
+    const strip = bar.current, tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!strip || !tab || strip.scrollWidth <= strip.clientWidth) return;
+    const outer = strip.getBoundingClientRect(), inner = tab.getBoundingClientRect();
+    strip.scrollBy({ left: inner.left + inner.width / 2 - (outer.left + outer.width / 2), behavior: 'smooth' });
+  }, [view]);
   if (!hub) return null;
   return <div className="hub-tabs" role="tablist" aria-label={hub.label} ref={bar}>{hub.tabs.map(([key, label]) => <button type="button" role="tab" key={key} aria-selected={view === key} className={view === key ? 'active' : ''} onClick={() => onSelect(key)}>{label}</button>)}</div>;
 }

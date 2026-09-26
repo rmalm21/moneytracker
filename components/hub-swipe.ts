@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { hubOf } from './hubs';
 
 /** Things that keep their own horizontal gestures: never switch tabs when a swipe starts on them. */
@@ -19,7 +19,9 @@ function scrollsSideways(element: Element | null) {
  */
 export function useHubSwipe(view: string, onSelect: (key: string) => void) {
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
-  const [direction, setDirection] = useState<'left' | 'right' | ''>('');
+  // The tab a swipe opened and which way it slides in. Pages opened any other way keep the usual fade.
+  const [swiped, setSwiped] = useState<{ view: string; direction: 'left' | 'right' } | null>(null);
+  useEffect(() => { if (swiped && swiped.view !== view) setSwiped(null); }, [swiped, view]);
   const hub = hubOf(view);
   const handlers = hub ? {
     onTouchStart(event: TouchEvent<HTMLElement>) {
@@ -39,10 +41,12 @@ export function useHubSwipe(view: string, onSelect: (key: string) => void) {
       const keys = hub.tabs.map(([key]) => key), index = keys.indexOf(view);
       const next = keys[index + (dx < 0 ? 1 : -1)];
       if (!next) return;
-      setDirection(dx < 0 ? 'left' : 'right');
-      window.setTimeout(() => setDirection(''), 450);
+      // Open the next tab at its top, with the tabs in view, rather than halfway down the previous page.
+      const tabs = document.querySelector('.hub-tabs'), topbar = document.querySelector('.topbar');
+      if (tabs && tabs.getBoundingClientRect().top < (topbar?.getBoundingClientRect().bottom ?? 0)) window.scrollTo({ top: 0, behavior: 'instant' });
+      setSwiped({ view: next, direction: dx < 0 ? 'left' : 'right' });
       onSelect(next);
     },
   } : {};
-  return { handlers, direction };
+  return { handlers, direction: swiped?.view === view ? swiped.direction : '' as const };
 }
