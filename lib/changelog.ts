@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '64', date: '26 Sep 2026', title: 'Privasi dan hemat kuota', items: [
+    ['🔒', 'Ikon mata di sebelah lonceng: sembunyikan semua nominal sekali ketuk.'],
+    ['📝', 'Transaksi, utang, piutang, dan klaim yang disimpan tercatat di notifikasi.'],
+    ['🔄', 'Hemat kuota: data disimpan di perangkat, hanya perubahan yang diunduh.'],
+    ['⚡', 'Laporan, riwayat siklus, dan pindah tab tidak memakai kuota baca.'],
+  ] },
   { version: '63', date: '26 Sep 2026', title: 'Lebih ringkas, lebih mulus', items: [
     ['📱', 'Geser antartab, misalnya di Laporan, kini mulus tanpa kedipan.'],
     ['🚀', 'Halaman yang sudah siap langsung tampil, tanpa layar memuat sesaat.'],

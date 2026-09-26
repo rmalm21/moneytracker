@@ -143,7 +143,7 @@ export function WishlistView({ openTx }: { openTx: (preset?: Partial<LedgerTx>) 
             <details className="more-actions wl-more"><summary className="icon-btn" aria-label={`Menu ${w.name}`}><MoreHorizontal size={17}/></summary><div className="more-menu">
               {!done && <button type="button" onClick={() => openForm(w)}><Pencil size={15}/> Ubah</button>}
               {!done && (w.saved || 0) > 0 && <button type="button" onClick={() => { setSaving(w); setAmount(0); setTakeOut(true); }}><RotateCcw size={15}/> Kurangi sisihan</button>}
-              <button type="button" className="danger" onClick={() => user && undo.remove(w.id, 'Impian', () => deleteWish(user.uid, w.id))}><Trash2 size={15}/> Hapus</button>
+              <button type="button" className="danger" onClick={() => user && undo.remove(w.id, 'Impian', () => deleteWish(user.uid, w.id), w.name)}><Trash2 size={15}/> Hapus</button>
             </div></details>
           </div>
         </div>

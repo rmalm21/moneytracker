@@ -1,7 +1,7 @@
-import { doc, getDoc, getDocs, increment, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, getDocs, increment, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { db } from './firebase';
-import { coll, loadAllTransactions, newTx, ref, upsertTransaction } from './firestore';
+import { coll, loadAllTransactions, newTx, noteDeleted, readLocalFirst, ref, upsertTransaction } from './firestore';
 import { effects, walletBalance } from './accounting';
 import { calculateCycleSnapshot, cycleId, type HealthIssue } from './finance-control';
 import { emptyData, type CycleSnapshot, type Data, type FinancialNote, type LedgerTx, type PlannedTransaction, type Wallet } from './types';
@@ -39,14 +39,16 @@ export async function reconcileWallet(uid:string,id:string,expectedCached:number
 
 async function fullSnapshotData(uid:string):Promise<{data:Data;ledger:LedgerTx[]}>{
   const keys=['wallets','categories','budgets','claims','receivables','debts','funds','financialNotes'] as const;
-  const [ledger,...snapshots]=await Promise.all([loadAllTransactions(uid),...keys.map(key=>getDocs(coll(uid,key)))]);
+  const [ledger,...snapshots]=await Promise.all([loadAllTransactions(uid),...keys.map(key=>readLocalFirst(uid,[key],coll(uid,key)))]);
   const data={...emptyData,transactions:ledger};
   snapshots.forEach((snapshot,index)=>{(data as unknown as Record<string,unknown>)[keys[index]]=snapshot.docs.map(row=>({id:row.id,...row.data()}));});
   return {data,ledger};
 }
 function verifyBalances(data:Data,ledger:LedgerTx[]){for(const wallet of data.wallets){if(walletBalance(wallet,ledger)!==wallet.cachedBalance)throw Error(`Saldo tersimpan ${wallet.name} berbeda dari transaksi. Buka Dompet → Hitung ulang saldo sebelum memperbarui laporan siklus.`)}}
 /** Snapshots follow the user's setting for counting receivables in Aset bersih. */
-async function countsReceivables(uid:string){try{return Boolean((await getDoc(doc(database(),'users',uid))).data()?.netWorthIncludesReceivables)}catch{return false}}
+async function countsReceivables(uid:string){const profile=doc(database(),'users',uid);try{return Boolean((await getDocFromCache(profile).catch(()=>getDoc(profile))).data()?.netWorthIncludesReceivables)}catch{return false}}
+/** Same values, key order ignored: an unchanged cycle report is not written again. */
+function same(a:unknown,b:unknown):boolean{if(a===b)return true;if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;const x=a as Record<string,unknown>,y=b as Record<string,unknown>,keys=Object.keys(x);return keys.length===Object.keys(y).length&&keys.every(key=>same(x[key],y[key]));}
 export async function closeCycle(uid:string,range:DateRange,today:string){
   if(!range.start||range.start>=range.end||range.end>today)throw Error('Siklus baru bisa ditutup setelah tanggal akhirnya lewat.');
   const {data,ledger}=await fullSnapshotData(uid);
@@ -56,15 +58,17 @@ export async function closeCycle(uid:string,range:DateRange,today:string){
   return id;
 }
 export async function refreshCycleSnapshots(uid:string,affectedDate:string){
-  const history=await getDocs(coll(uid,'cycleSnapshots'));
+  const history=await readLocalFirst(uid,['cycleSnapshots'],coll(uid,'cycleSnapshots'));
   const affected=history.docs.filter(row=>row.data().endDate>affectedDate);
   if(!affected.length)return 0;
   const {data,ledger}=await fullSnapshotData(uid);
   verifyBalances(data,ledger);
-  const withReceivables=await countsReceivables(uid);for(let index=0;index<affected.length;index+=250){const batch=writeBatch(database());for(const snap of affected.slice(index,index+250)){const previous=hydrate<CycleSnapshot>(snap);const range={start:previous.startDate,end:previous.endDate};batch.update(snap.ref,{...calculateCycleSnapshot(data,ledger,range,previous,withReceivables),updatedAt:serverTimestamp()});}await settle(batch.commit());}
-  return affected.length;
+  const withReceivables=await countsReceivables(uid);
+  const changed=affected.map(snap=>{const previous=hydrate<CycleSnapshot>(snap);return {snap,values:calculateCycleSnapshot(data,ledger,{start:previous.startDate,end:previous.endDate},previous,withReceivables),previous:previous as unknown as Record<string,unknown>};}).filter(({values,previous})=>!Object.entries(values).every(([key,value])=>same(value,previous[key])));
+  for(let index=0;index<changed.length;index+=250){const batch=writeBatch(database());for(const {snap,values} of changed.slice(index,index+250))batch.update(snap.ref,{...values,updatedAt:serverTimestamp()});await settle(batch.commit());}
+  return changed.length;
 }
-export function subscribeCycleSnapshots(uid:string,onValue:(items:CycleSnapshot[])=>void,onError:(error:Error)=>void){return onSnapshot(coll(uid,'cycleSnapshots'),snap=>onValue(snap.docs.map(row=>hydrate<CycleSnapshot>(row)).sort((a,b)=>b.startDate.localeCompare(a.startDate))),onError);}
+export function subscribeCycleSnapshots(uid:string,onValue:(items:CycleSnapshot[])=>void,onError:(error:Error)=>void){return onSnapshot(coll(uid,'cycleSnapshots'),{source:'cache'},snap=>onValue(snap.docs.map(row=>hydrate<CycleSnapshot>(row)).sort((a,b)=>b.startDate.localeCompare(a.startDate))),onError);}
 
 export async function savePlan(uid:string,plan:Omit<PlannedTransaction,'id'|'createdAt'|'updatedAt'>,id?:string){
   if(!plan.title.trim()||!Number.isSafeInteger(plan.amount)||plan.amount<=0||!/^\d{4}-\d{2}-\d{2}$/.test(plan.date))throw Error('Lengkapi nama, nominal, dan tanggal rencana.');
@@ -73,6 +77,6 @@ export async function savePlan(uid:string,plan:Omit<PlannedTransaction,'id'|'cre
 }
 export async function cancelPlan(uid:string,id:string){await runTx(database(),async trx=>{const r=ref(uid,'plannedTransactions',id),snap=await trx.get(r);if(!snap.exists()||snap.data().status!=='planned')throw Error('Rencana sudah diproses.');trx.update(r,{status:'cancelled',updatedAt:serverTimestamp()});});}
 export async function saveFinancialNote(uid:string,note:Omit<FinancialNote,'id'|'createdAt'|'updatedAt'>,id?:string){if(!note.title.trim()||!note.date)throw Error('Isi judul dan tanggal catatan.');const r=id?ref(uid,'financialNotes',id):doc(coll(uid,'financialNotes'));if(id)await settle(updateDoc(r,{...note,updatedAt:serverTimestamp()}));else await settle(setDoc(r,{...note,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));return r.id;}
-export async function deleteFinancialNote(uid:string,id:string){const {deleteDoc}=await import('firebase/firestore');await deleteDoc(ref(uid,'financialNotes',id));}
+export async function deleteFinancialNote(uid:string,id:string){const {deleteDoc}=await import('firebase/firestore');await deleteDoc(ref(uid,'financialNotes',id));await noteDeleted(uid,{financialNotes:[id]});}
 /** A personal note on a closed cycle (kept when the cycle report is recalculated). */
 export async function saveCycleNotes(uid:string,id:string,notes:string){await settle(updateDoc(ref(uid,'cycleSnapshots',id),{notes,updatedAt:serverTimestamp()}));}

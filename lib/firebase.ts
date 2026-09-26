@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, connectAuthEmulator, setPersistence } from 'firebase/auth';
-import { connectFirestoreEmulator, initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { CACHE_SIZE_UNLIMITED, connectFirestoreEmulator, initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,7 +16,8 @@ export const configured = Boolean(config.apiKey && config.projectId && config.ap
 export const app = configured ? (getApps().length ? getApp() : initializeApp(config)) : null;
 export const auth = app ? getAuth(app) : null;
 // Optional fields (e.g. an empty note amount) are skipped instead of rejecting the whole write.
-export const db = app ? (() => { try { return initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()}) }); } catch { return getFirestore(app); } })() : null;
+// The device keeps a full copy of the user's data (lib/sync.ts), so the cache must never evict documents.
+export const db = app ? (() => { try { return initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager(), cacheSizeBytes: CACHE_SIZE_UNLIMITED }) }); } catch { return getFirestore(app); } })() : null;
 export const storage = app ? getStorage(app) : null;
 if (emulatorHost && typeof window !== 'undefined' && auth && db && storage && !(globalThis as { __dompetEmulator?: boolean }).__dompetEmulator) {
   (globalThis as { __dompetEmulator?: boolean }).__dompetEmulator = true;

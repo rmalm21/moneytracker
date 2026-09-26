@@ -64,7 +64,8 @@ function forgetOnDevice(uid: string, only?: string[]) {
 export async function resetAllData(uid: string, options: { preferences: boolean }, onProgress?: (progress: WipeProgress) => void) {
   requireOnline();
   await wipeUserData(uid, onProgress);
-  const changes: Record<string, unknown> = { onboardingDone: false, updatedAt: serverTimestamp() };
+  // syncMarks: the account's other devices see that everything was deleted and empty their copy too (lib/sync.ts).
+  const changes: Record<string, unknown> = { onboardingDone: false, syncMarks: Object.fromEntries(names.map(name => [name, serverTimestamp()])), updatedAt: serverTimestamp() };
   for (const field of recordLinks) changes[field] = deleteField();
   if (options.preferences) { for (const field of preferences) changes[field] = deleteField(); Object.assign(changes, { theme: 'light', dashboardWidgets: [], hideReserved: true }); }
   await updateDoc(userRef(uid), changes);

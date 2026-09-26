@@ -8,8 +8,8 @@ import { useNotify } from './notifications';
  * so undoing never has to rebuild balances or linked records.
  */
 const WAIT = 5000;
-type Pending = { label: string; commit: () => Promise<unknown>; timer: ReturnType<typeof setTimeout> };
-type Api = { hidden: ReadonlySet<string>; remove: (id: string, label: string, commit: () => Promise<unknown>) => void };
+type Pending = { label: string; detail?: string; commit: () => Promise<unknown>; timer: ReturnType<typeof setTimeout> };
+type Api = { hidden: ReadonlySet<string>; remove: (id: string, label: string, commit: () => Promise<unknown>, detail?: string) => void };
 const UndoContext = createContext<Api>({ hidden: new Set(), remove: (_id, _label, commit) => { void commit(); } });
 
 export function UndoDeleteProvider({ children }: { children: ReactNode }) {
@@ -27,16 +27,16 @@ export function UndoDeleteProvider({ children }: { children: ReactNode }) {
     const task = item.commit();
     // Bring the row back if the delete fails, so nothing silently vanishes.
     task.catch(() => show(id, false));
-    track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, failure: `${item.label} belum terhapus`, after: () => show(id, false), quiet: true });
+    track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, detail: item.detail, failure: `${item.label} belum terhapus`, after: () => show(id, false), quiet: true, log: true });
   }, [dismiss, show, track]);
 
-  const remove = useCallback((id: string, label: string, run: () => Promise<unknown>) => {
+  const remove = useCallback((id: string, label: string, run: () => Promise<unknown>, detail?: string) => {
     if (pending.current.has(id)) return;
     show(id, true);
     const timer = setTimeout(() => commit(id), WAIT);
-    pending.current.set(id, { label, commit: run, timer });
+    pending.current.set(id, { label, detail, commit: run, timer });
     push({
-      id: `undo-${id}`, title: `${label} dihapus`, kind: 'info', history: false,
+      id: `undo-${id}`, title: `${label} dihapus`, body: detail, kind: 'info', history: false,
       action: { label: 'Batalkan', run: () => { const item = pending.current.get(id); if (!item) return; clearTimeout(item.timer); pending.current.delete(id); show(id, false); push({ title: 'Penghapusan dibatalkan.', kind: 'success', history: false }); } },
     });
   }, [commit, push, show]);

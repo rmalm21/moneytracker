@@ -1,21 +1,25 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { EmojiText } from './emoji';
-import { AlertTriangle, Bell, CheckCircle2, CloudOff, Download, Info, Loader2, RefreshCw, Trash2, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Bell, BellRing, CheckCircle2, CloudOff, Download, Info, Loader2, RefreshCw, Trash2, X, XCircle } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Dialog, DialogContent } from './ui/dialog';
 import { applyUpdate, promptInstall, usePwa } from '@/lib/pwa';
 import { budgetCurrent, rupiah } from '@/lib/accounting';
 import { upcomingEvents } from '@/lib/finance-control';
 import { dateInTimeZone, formatDate, nextDate, todayInTimeZone } from '@/lib/period';
+import { defaultReminders } from '@/lib/reminders';
 
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
 /** `app`: a reminder from Dompet Ajaib itself, shown as a floating banner with the app logo (like a phone notification). */
 export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean };
 type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean };
-/** `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail. */
-type TrackLabels = { pending: string; success: string; failure: string; retry?: Action; after?: () => void; quiet?: boolean };
+/**
+ * `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail.
+ * `detail`: a second line such as the category and wallet. `log`: keep it in Riwayat (every save that shows a card does).
+ */
+type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -50,7 +54,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (life) timers.current.set(id, setTimeout(() => dismiss(id), life));
     return id;
   }, [dismiss]);
-  const notify = useCallback((message: string) => { if (!message) return; const kind = kindOf(message); push({ title: message, kind, history: kind !== 'success' }); }, [push]);
+  // Finished actions go into Riwayat too, so the bell shows what was just saved.
+  const notify = useCallback((message: string) => { if (!message) return; push({ title: message, kind: kindOf(message) }); }, [push]);
+  const remember = useCallback((note: Pick<Note, 'title' | 'body' | 'kind'>) => setHistory(list => [{ ...note, id: `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, time: Date.now() }, ...list].slice(0, 60)), []);
   const track = useCallback((task: Promise<unknown>, labels: TrackLabels) => {
     busy.current++;
     // The "saving…" card only appears if the save is actually slow, so quick saves don't flash two cards.
@@ -60,7 +66,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
     task.then(() => {
       done();
-      if (labels.quiet) { if (id) dismiss(id); } else push({ id, title: labels.success, body: navigator.onLine ? undefined : 'Tersimpan di perangkat · dikirim otomatis saat online', kind: 'success', history: false });
+      const body = [labels.detail, navigator.onLine ? '' : 'Tersimpan di perangkat · dikirim otomatis saat online'].filter(Boolean).join(' · ') || undefined;
+      const log = labels.log ?? !labels.quiet;
+      if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body, kind: 'success' }); } else push({ id, title: labels.success, body, kind: 'success', history: log });
       labels.after?.();
     }).catch(error => {
       done();
@@ -68,7 +76,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (committed) { push({ id, title: labels.success, body: (error as Error).message, kind: 'warning' }); labels.after?.(); return; }
       push({ id, title: labels.failure, body: (error as Error).message || 'Coba lagi.', kind: 'error', action: labels.retry });
     });
-  }, [push, dismiss]);
+  }, [push, dismiss, remember]);
 
   // A write that waits for the server shows a progress card until the data is synced.
   const lastSync = useRef(sync), started = useRef(false), wasOffline = useRef(false);
@@ -146,7 +154,7 @@ const ago = (time: number) => { const minutes = Math.round((Date.now() - time) /
 type Attention = { id: string; title: string; body: string; kind: NoteKind; action?: Action };
 
 /** Bell in the top bar with the notification centre. */
-export function NotificationBell({ navigate }: { navigate: (view: string) => void }) {
+export function NotificationBell({ navigate }: { navigate: (view: string, focus?: string) => void }) {
   const { data, profile, sync } = useApp();
   const center = useContext(HistoryContext)!;
   const pwa = usePwa();
@@ -177,6 +185,10 @@ export function NotificationBell({ navigate }: { navigate: (view: string) => voi
   }, [data, profile, pwa.updateReady, pwa.canInstall, sync, navigate]);
 
   const unread = center.history.filter(note => !note.read).length + attention.filter(item => !seen.includes(item.id)).length;
+  // Reminders are off until chosen, and phone notifications need the device's permission: point to where both are set.
+  const reminders = { ...defaultReminders, ...(profile?.reminders || {}) };
+  const permission = open && typeof Notification !== 'undefined' ? Notification.permission : 'granted';
+  const tip = !reminders.balanceEnabled && !reminders.billsEnabled ? 'Pengingat tagihan dan perbarui saldo belum aktif. Nyalakan agar muncul sebagai notifikasi di HP.' : permission !== 'granted' ? 'Pengingat sudah aktif, tetapi perangkat ini belum mengizinkan notifikasi. Izinkan agar pengingat muncul walau aplikasi tertutup.' : '';
   function show(next: boolean) {
     setOpen(next);
     if (!next) return;
@@ -191,6 +203,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string) => voi
       <section className="notif-section"><div className="notif-head"><h3>Riwayat</h3>{center.history.length > 0 && <button type="button" className="link-button" onClick={() => center.setHistory([])}><Trash2 size={14}/> Hapus semua</button>}</div>
         {center.history.length ? center.history.map(note => { const Icon = icons[note.kind]; return <SwipeRow key={note.id} onRemove={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><div className={`notif-item is-${note.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{ago(note.time)}</small></div><button type="button" className="icon-btn" aria-label="Hapus notifikasi" onClick={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><X size={15}/></button></div></SwipeRow>; }) : <p className="muted notif-empty">Belum ada notifikasi. Aktivitas seperti menyimpan transaksi akan muncul di sini.</p>}
       </section>
+      {tip && <div className="notif-tip"><span className="notif-tip-icon" aria-hidden="true"><BellRing size={16}/></span><p>{tip}</p><button type="button" className="link-button" onClick={() => { setOpen(false); navigate('settings', 'reminders'); }}>Atur pengingat</button></div>}
     </DialogContent></Dialog>
   </>;
 }
