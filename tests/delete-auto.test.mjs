@@ -34,3 +34,12 @@ test('transactions this device deleted never come back from a stale device copy'
   assert.match(store, /importData[^{]*\{const \{data\}=validateBackup\(backup\);forgetTxDeleted\(\);/);
   assert.match(store, /noteDeleted\(uid:string,items[^)]*\)\{markTxDeleted\(items\.transactions\|\|\[\]\)/);
 });
+
+test('a plain transaction is deleted with a queued batch (works offline and survives closing the app)', () => {
+  const del = store.slice(store.indexOf('export async function deleteTransaction'), store.indexOf('export async function createClaim'));
+  assert.match(del, /const batch=writeBatch\(database\(\)\)/);
+  assert.match(del, /batch\.delete\(r\)/);
+  assert.match(del, /increment\(-delta\)/);
+  assert.match(del, /catch\(error\)\{forgetTxDeleted\(\[id\]\);throw error;\}/, 'a refused delete shows the transaction again');
+  assert.match(del, /!relation\(plain,-1\)&&!plain\.draftId&&!plain\.plannedId/, 'linked ones keep the checked server transaction');
+});

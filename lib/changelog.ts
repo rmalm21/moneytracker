@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '92', date: '27 Sep 2026', title: 'Hapus transaksi tidak lagi butuh koneksi', items: [
+    ['✅', 'Menghapus transaksi biasa kini langsung tercatat di perangkat dan dikirim otomatis ke cloud, walau sedang offline, sinyal lemah, atau aplikasi langsung ditutup. Sebelumnya penghapusan harus menunggu server dan bisa batal di tengah jalan.'],
+    ['🔒', 'Kalau server menolak penghapusan, transaksinya tampil lagi dengan pesan alasannya di lonceng notifikasi.'],
+  ] },
   { version: '91', date: '27 Sep 2026', title: 'Hapus transaksi lebih andal, formulir rapi lagi', items: [
     ['🔒', 'Transaksi yang kamu hapus dicatat di perangkat ini dan tidak ditampilkan atau dihitung lagi, walau salinan lamanya masih tertinggal. Saat aplikasi dibuka, server ditanya sekali untuk memastikan; kalau ternyata masih ada di server, transaksinya ditampilkan lagi apa adanya.'],
     ['✅', 'Pilihan Keluar · Masuk · Transfer di formulir transaksi tampil normal lagi (sempat menyempit).'],

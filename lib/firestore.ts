@@ -165,7 +165,22 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
   });await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
 }
 export async function deleteTransaction(uid:string,id:string) {
-  const r=ref(uid,'transactions',id);let removedDate='';await runTx(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())return;const old=hydrate<LedgerTx>(snap);removedDate=old.date;
+  const r=ref(uid,'transactions',id);let removedDate='';
+  // A plain transaction (not linked to a debt, claim, receivable, fund, schedule or plan) is deleted with a batch: it is
+  // applied to the device copy at once, kept in the device's send queue and delivered even if the app is closed or
+  // offline. Balances move with atomic increments, so nothing needs reading from the server first.
+  const current=await readDoc(uid,'transactions',r);
+  if(!current.exists()){const server=await getDocFromServer(r).catch(()=>null);if(!server?.exists()){markTxDeleted([id]);return;}}
+  const plain=current.exists()?hydrate<LedgerTx>(current):null;
+  if(plain&&!['claim_advance','receivable_issue','borrowing'].includes(plain.type)&&!(plain.splitBillId&&plain.type==='expense')&&!relation(plain,-1)&&!plain.draftId&&!plain.plannedId){
+    const batch=writeBatch(database());
+    // A wallet deleted since then has no balance to correct (updating it would fail the whole batch).
+    for(const [wallet,delta] of Object.entries(effects(plain))){if(!delta)continue;const w=await readDoc(uid,'wallets',ref(uid,'wallets',wallet)).catch(()=>null);if(w?.exists())batch.update(w.ref,{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});}
+    batch.delete(r);markTxDeleted([id]);
+    try{await settle(batch.commit());}catch(error){forgetTxDeleted([id]);throw error;}
+    await noteDeleted(uid,{transactions:[id]});await syncSnapshot(uid,plain.date);return;
+  }
+  await runTx(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())return;const old=hydrate<LedgerTx>(snap);removedDate=old.date;
     if(['claim_advance','receivable_issue','borrowing'].includes(old.type))throw Error('Transaksi ini dibuat otomatis dari catatan utang, klaim, atau piutang. Ubah atau hapus lewat catatan tersebut.');
     if(old.splitBillId&&old.type==='expense')throw Error('Transaksi ini bagian dari Split Bill. Batalkan atau ubah lewat menu Split Bill.');
     const side=relation(old,-1);const rr=side?ref(uid,side.kind,side.id):null;const sideSnap=rr?await trx.get(rr):null;
