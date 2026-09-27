@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '84', date: '27 Sep 2026', title: 'Split Bill lebih ringkas, scan struknya selengkap Scan struk', items: [
+    ['🧾', 'Scan struk dari Split Bill kini memakai pemeriksaan struk yang sama dengan Scan struk: atur sudut, baca ulang, lihat di foto, foto lanjutan, ubah item, diskon, dan biaya. Tombolnya “Gunakan di Split Bill”, dan tidak ada transaksi yang tersimpan dari sana.'],
+    ['✅', 'Yang sudah kamu perbaiki ikut masuk ke Split Bill. Diskon item tetap menempel di itemnya, jadi yang dibagi adalah harga bersihnya (Burger Rp50.000 − Rp10.000 → Rp40.000). Voucher, pajak, service, ongkir, dan biaya admin masuk sebagai biaya tambahan.'],
+    ['💡', 'Split Bill jadi satu halaman: orang, item (ketuk untuk memilih siapa yang pesan), tambahan & diskon, total per orang (ketuk untuk rinciannya), dan “Cocok” atau selisihnya dengan total struk. Satu tombol “Selesai membagi”.'],
+    ['📷', 'Kamera scan memilih kamera belakang utama (1×), bukan ultra-wide, bila browser memberi tahu lensanya, dan mengingat pilihan itu. Fokus otomatis terus-menerus dipakai bila didukung, dan ketuk-untuk-fokus hanya muncul di kamera yang benar-benar mendukungnya. Kamera bawaan tetap bisa dipakai.'],
+  ] },
   { version: '83', date: '27 Sep 2026', title: 'Scan struk dan Catat otomatis lebih ringkas', items: [
     ['🧾', 'Hasil scan dimulai dari yang penting: tempat, tanggal, cara bayar, total besar, jumlah item, dan “Total cocok dengan rincian” atau berapa bagian yang perlu dicek. Yang perlu dicek langsung di bawahnya, lengkap dengan “Gunakan …” dan “Baca ulang”.'],
     ['💡', 'Item jadi baris sederhana (diskon item di bawahnya), biaya dan pajak dalam satu rincian, dan tombol foto (atur sudut, baca ulang, foto lanjutan, Split Bill, dll.) dikumpulkan di menu ⋯. Satu tombol Simpan yang jelas.'],

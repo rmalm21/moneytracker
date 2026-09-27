@@ -14,7 +14,7 @@
 import { allocate, rupiah } from './accounting.ts';
 export { allocate };
 import { formatDate } from './period.ts';
-import type { Debt, Receivable, SplitBill, SplitExtra, SplitExtraKind, SplitItem, SplitMethod, SplitParticipant } from './types';
+import type { Debt, ReceiptSnapshot, ReceiptSnapshotCharge, Receivable, SplitBill, SplitExtra, SplitExtraKind, SplitItem, SplitMethod, SplitParticipant } from './types';
 
 export const METHOD_LABELS: Record<SplitMethod, string> = { equal: 'Bagi rata', items: 'Sesuai pesanan', amount: 'Nominal manual', percent: 'Persentase' };
 export const EXTRA_LABELS: Record<SplitExtraKind, string> = { tax: 'Pajak / PB1', service: 'Service', discount: 'Diskon / promo', delivery: 'Ongkos kirim', admin: 'Biaya admin', tip: 'Tip', rounding: 'Pembulatan', other: 'Biaya lain', shared: 'Biaya bersama' };
@@ -295,6 +295,28 @@ export function reminderText(bill: SplitBill, participant: Pick<SplitParticipant
 
 /** The receipt reader lives in receipt.ts (shared with Scan struk for transactions). */
 export { readAmount, readReceiptText, type ReceiptLine, type ReceiptRead } from './receipt.ts';
+
+/**
+ * A receipt checked in the shared Scan struk review → a bill's items and extra costs. The input is the structured
+ * snapshot of what the person confirmed (their corrections included), never the raw reading:
+ *  - items keep their gross unit price and their own discount, so the amount to share is the net one
+ *    (Burger Rp50.000 − Rp10.000 → Rp40.000 to share);
+ *  - bill discounts, vouchers and shipping discounts become a discount; tax, service, delivery, tip and rounding their
+ *    own kind; admin, app fee, packaging, insurance and other fees a fee, each with its own label;
+ *  - a charge already inside the prices (PPN printed for information) and cashback are not added.
+ */
+const CHARGE_KIND: Record<ReceiptSnapshotCharge['type'], SplitExtraKind> = {
+  discount: 'discount', voucher: 'discount', shipping_discount: 'discount', tax: 'tax', service: 'service', delivery: 'delivery',
+  admin_fee: 'admin', platform_fee: 'admin', packaging: 'admin', insurance: 'admin', other_fee: 'admin', tip: 'tip', rounding: 'rounding',
+};
+export function splitFromReceipt(receipt: ReceiptSnapshot, id: (prefix: string) => string = prefix => `${prefix}${Math.random().toString(36).slice(2, 9)}`) {
+  const items: SplitItem[] = receipt.items.filter(item => item.qty > 0 && item.price > 0).map(item => ({ id: id('i'), name: item.name.slice(0, 60), qty: item.qty, price: item.price, ...(item.discount ? { discount: item.discount } : {}), assign: 'shared' as const, people: [] }));
+  const extras: SplitExtra[] = receipt.charges.filter(charge => !charge.included && charge.amount).map(charge => {
+    const kind = CHARGE_KIND[charge.type];
+    return { id: id('x'), kind, label: charge.label || EXTRA_LABELS[kind], amount: kind === 'rounding' ? charge.amount : Math.abs(charge.amount), distribution: defaultDistribution(kind) };
+  });
+  return { merchant: receipt.merchant || '', date: receipt.date || '', time: receipt.time || '', total: receipt.total, items, extras };
+}
 
 /* ------------------------------------------------------------------ Data health */
 

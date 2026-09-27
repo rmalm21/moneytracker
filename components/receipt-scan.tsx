@@ -13,6 +13,7 @@ import { newTx, transactionsAround, upsertTransaction, validateTx } from '@/lib/
 import { todayInTimeZone } from '@/lib/period';
 import { CHARGE_ORDER, PAYMENT_LABELS, SEPARABLE, chargeCategory, chargeSummary, checkReceipt, netItems, readReceiptText, receiptSplits, receiptToTransaction, type ChargeKey, type PaymentMethod, type ReceiptRead } from '@/lib/receipt';
 import { buildReceiptSnapshot, receiptMoneyRows } from '@/lib/receipt-snapshot';
+import type { ReceiptSnapshot } from '@/lib/types';
 import { buildIntelligence, findDuplicate, mergeReceiptReads, reconcileAmounts, regionFor, STATUS_LABELS, type Duplicate, type FieldStatus } from '@/lib/receipt-intel';
 import { analyzeReceiptPhoto, cancelReceiptRead, ocrAvailable, readReceiptPhoto, rereadField, type OcrProgress, type OcrResult } from '@/lib/receipt-ocr';
 import { uprightPreview, type Prepared } from '@/lib/receipt-prep';
@@ -39,7 +40,7 @@ type Draft = {
 type Reread = { field: string; label: string; busy: boolean; values: (number | string)[] | null; note?: string };
 
 /** A receipt handed to Split Bill (same page, so the photo can go along without being stored anywhere). */
-let handoff: { read: ReceiptRead; photo: Blob | null } | null = null;
+let handoff: { receipt: ReceiptSnapshot; photo: Blob | null } | null = null;
 export function takeReceiptHandoff() { const value = handoff; if (value) setTimeout(() => { if (handoff === value) handoff = null; }, 2000); return value; }
 
 const key = () => Math.random().toString(36).slice(2, 9);
@@ -56,7 +57,13 @@ function Status({ status, compact = false }: { status: FieldStatus; compact?: bo
   return <span className={`rs-status is-${status}`}>{status === 'check' ? <AlertTriangle size={12}/> : <Info size={12}/>}{STATUS_LABELS[status]}</span>;
 }
 
-export function ReceiptScan({ open, onOpenChange, startType = 'expense', background, openTx, navigate }: { open: boolean; onOpenChange: (open: boolean) => void; startType?: 'expense' | 'income'; background: Background; openTx: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; navigate: (key: string, target?: string) => void }) {
+/**
+ * `context`: where the checked receipt goes. "transaction" (Scan struk) ends in "Simpan transaksi"; "split_bill" ends in
+ * "Gunakan di Split Bill" and only hands the corrected, structured receipt to `onUse` — it never saves a transaction.
+ * The reading, the review and every correction tool are the same in both.
+ */
+export function ReceiptScan({ open, onOpenChange, startType = 'expense', background, openTx, navigate, context = 'transaction', onUse }: { open: boolean; onOpenChange: (open: boolean) => void; startType?: 'expense' | 'income'; background?: Background; openTx?: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; navigate?: (key: string, target?: string) => void; context?: 'transaction' | 'split_bill'; onUse?: (receipt: ReceiptSnapshot, photo: Blob | null) => void }) {
+  const split = context === 'split_bill';
   const { data, user, profile } = useApp();
   const today = todayInTimeZone(profile?.timeZone);
   const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [turn, setTurn] = useState(0), [upright, setUpright] = useState<Upright | null>(null);
@@ -231,8 +238,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   </span>;
 
   /** What the receipt said, kept with the transaction (not written into its notes). */
-  function snapshot() {
-    if (!draft || !(draft.items.length || read?.total || read?.items.length)) return undefined;
+  function snapshot(always = false) {
+    if (!draft || !always && !(draft.items.length || read?.total || read?.items.length)) return undefined;
     return buildReceiptSnapshot({ read, merchant: draft.merchant, date: draft.date, time: draft.time, payment: draft.payment, total: draft.amount, items: draft.items, subtotal: draft.subtotal, charges: draft.ch, counted: draft.inc, reconciled: live ? live.state === 'RECONCILED' : undefined });
   }
   function toTx() {
@@ -243,7 +250,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     return newTx({ type: draft.type, amount: draft.amount, date: draft.date, time: draft.time, walletId: draft.walletId, categoryId: useSplit ? null : draft.categoryId || null, subcategoryId: useSplit ? null : draft.subcategoryId || null, merchant: draft.merchant.trim(), description: draft.description.trim(), notes: draft.notes.trim(), tags: ['struk'], splits: useSplit ? splits : [], origin: 'scan', ...(receipt ? { receipt } : {}) });
   }
   async function save(force = false) {
-    if (!user || !draft) return;
+    if (split) { useForSplit(); return; }
+    if (!user || !draft || !background) return;
     const tx = toTx(); if (!tx) return;
     if (tx.date > today) { setError('Tanggal struk ada di masa depan. Periksa tanggalnya.'); return; }
     try { validateTx(tx); } catch (e) { setError((e as Error).message); return; }
@@ -259,12 +267,20 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     onOpenChange(false);
     background(() => upsertTransaction(uid, tx), { message: `${label} ${rupiah(tx.amount)} dari struk tersimpan.`, detail: tx.splits?.length ? `Dipisah ke ${tx.splits.length} kategori${separated.length ? `, termasuk ${separated.map(k => ({ tax: 'pajak', service: 'service', delivery: 'ongkir', fee: 'biaya lain' } as Record<string, string>)[k]).join(', ')}` : ''}` : [tx.merchant, catName(tx.subcategoryId || tx.categoryId)].filter(Boolean).join(' · '), retry: { preset: tx } });
   }
-  function toForm() { const tx = toTx(); if (!tx) return; const { id: _id, ...preset } = tx; onOpenChange(false); openTx(preset); }
+  function toForm() { const tx = toTx(); if (!tx) return; const { id: _id, ...preset } = tx; onOpenChange(false); openTx?.(preset); }
+  /** The corrected receipt, as structure, to Split Bill (from Scan struk's ⋯ menu). */
   function toSplitBill() {
-    if (!read || !draft) return;
-    const items = netItems(draft.items.filter(item => item.name.trim() && item.price > 0).map(item => ({ name: item.name.trim(), qty: item.qty, price: item.price, total: item.qty * item.price, discount: item.discount || 0 })));
-    handoff = { read: { ...read, discount: draft.ch.discount, tax: counted('tax'), service: counted('service'), delivery: counted('delivery'), fee: counted('fee'), rounding: counted('rounding'), merchant: draft.merchant || read.merchant, date: draft.date, total: draft.amount, items }, photo };
-    onOpenChange(false); navigate('splitbill', 'receipt-draft');
+    const receipt = snapshot(true); if (!receipt) return;
+    handoff = { receipt, photo };
+    onOpenChange(false); navigate?.('splitbill', 'receipt-draft');
+  }
+  /** Split Bill: hand the checked receipt over; doubts still open are shown once more before it is used. */
+  const [useAnyway, setUseAnyway] = useState(false);
+  function useForSplit() {
+    const receipt = snapshot(true); if (!receipt || !onUse) return;
+    if (!receipt.items.length && !receipt.total) { setError('Belum ada item atau total. Tambahkan item atau isi nominalnya.'); return; }
+    if (issues.length && !useAnyway) { setUseAnyway(true); setError(`${issues.length} bagian masih perlu dicek. Periksa dulu, atau tekan sekali lagi untuk tetap memakai.`); return; }
+    onUse(receipt, photo); onOpenChange(false);
   }
 
   const busy = Boolean(progress);
@@ -328,9 +344,9 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
               {photo && <button type="button" role="menuitem" onClick={() => void scan(photo, turn)}><ScanText size={15}/> Baca ulang struk</button>}
               {photoUrl && <button type="button" role="menuitem" onClick={() => moreInput.current?.click()}><Plus size={15}/> Foto lanjutan</button>}
               {photoUrl && <button type="button" role="menuitem" onClick={reset}><Camera size={15}/> Ganti foto</button>}
-              <button type="button" role="menuitem" onClick={toForm}><FileText size={15}/> Buka di formulir</button>
-              {draft.type === 'expense' && <button type="button" role="menuitem" onClick={toSplitBill}><ReceiptText size={15}/> Split Bill</button>}
-              <button type="button" role="menuitem" onClick={() => read && build(read, draft.type === 'expense' ? 'income' : 'expense')}><ArrowLeftRight size={15}/> Jadikan {draft.type === 'expense' ? 'pemasukan' : 'pengeluaran'}</button>
+              {!split && <button type="button" role="menuitem" onClick={toForm}><FileText size={15}/> Buka di formulir</button>}
+              {!split && draft.type === 'expense' && navigate && <button type="button" role="menuitem" onClick={toSplitBill}><ReceiptText size={15}/> Split Bill</button>}
+              {!split && <button type="button" role="menuitem" onClick={() => read && build(read, draft.type === 'expense' ? 'income' : 'expense')}><ArrowLeftRight size={15}/> Jadikan {draft.type === 'expense' ? 'pemasukan' : 'pengeluaran'}</button>}
               {(rawText || read?.identifiers) && <button type="button" role="menuitem" onClick={() => setRawOpen(v => !v)}><Info size={15}/> Teks hasil baca</button>}
             </div>
           </details>
@@ -369,10 +385,12 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         {reread?.field === 'date' && <RereadPanel reread={reread} onUse={value => useValue('date', value)} onClose={() => setReread(null)}/>}
         {(intel?.date.alternatives.length || 0) > 0 && !settledFields.includes('date') && !issues.some(i => i.field === 'date') && <div className="rs-alts"><small className="muted">Tanggal lain:</small>{intel!.date.alternatives.filter(d => d <= today).map(d => <button type="button" key={d} className="sb-chip" onClick={() => { patch({ date: d }); settle('date'); }}>{d.split('-').reverse().join('/')}</button>)}</div>}
         <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Dari' : 'Tempat'}</span><div className="rs-line-control"><Input value={draft.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Nama toko atau tempat"/>{intel?.merchant.raw && intel.merchant.raw !== draft.merchant && <small>Terbaca “{intel.merchant.raw}”</small>}</div></div>
+        {!split && <>
         <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Masuk ke' : 'Dompet'}</span><div className="rs-line-control"><Select required value={draft.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></div></div>
         {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <div className="rs-line"><span className="rs-line-label">Kategori</span><div className="rs-line-control"><CategoryAccordion type={draft.type} compact value={{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null }} onChange={value => patch({ categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/></div></div>}
         <div className="rs-line"><span className="rs-line-label">Keterangan</span><div className="rs-line-control"><Input value={draft.description} maxLength={120} onChange={e => patch({ description: e.target.value })} placeholder="Opsional"/></div></div>
         <div className="rs-line"><span className="rs-line-label">Catatan</span><div className="rs-line-control"><Input value={draft.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></div></div>
+        </>}
       </div>
 
       {/* 4. Items: plain rows; only an uncertain one stands out. */}
@@ -394,7 +412,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
             {item.discount > 0 && <div className="rs-item-disc"><span>Diskon −{rupiah(item.discount)}</span><button type="button" className="rs-text-button" onClick={() => patchItem(item.key, { discount: 0 })}><X size={12}/> Hapus diskon</button></div>}
             {status === 'check' && item.source !== undefined && (intel?.items[item.source]?.amount.alternatives.length || 0) > 0 && <div className="rs-alts"><small className="muted">Kemungkinan lain:</small>{intel!.items[item.source!].amount.alternatives.map(v => <button type="button" key={v} className="sb-chip" onClick={() => useValue(field, v)}>{rupiah(v)}</button>)}<button type="button" className="sb-chip" onClick={() => settle(`item:${item.source}`)}><Check size={12}/> Sudah benar</button></div>}
             {reread?.field === field && <RereadPanel reread={reread} onUse={value => useValue(field, value)} onClose={() => setReread(null)}/>}
-            {draft.type === 'expense' && <CategoryAccordion type="expense" compact label={`Kategori ${item.name || 'item'}`} placeholder="Kategori item" value={{ categoryId: item.categoryId, subcategoryId: item.subcategoryId || null }} onChange={value => patchItem(item.key, { categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/>}
+            {draft.type === 'expense' && !split && <CategoryAccordion type="expense" compact label={`Kategori ${item.name || 'item'}`} placeholder="Kategori item" value={{ categoryId: item.categoryId, subcategoryId: item.subcategoryId || null }} onChange={value => patchItem(item.key, { categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/>}
           </div>}
         </li>; })}</ul>
         {!allItems && draft.items.length > 8 && <button type="button" className="link-button rs-more-items" onClick={() => setAllItems(true)}>Lihat {draft.items.length - draft.items.filter((item, i) => i < 5 || itemStatus(item) === 'check').length} item lainnya</button>}
@@ -423,7 +441,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
             <button type="button" className={`rs-include ${draft.inc[key] ? 'is-on' : ''}`} aria-pressed={draft.inc[key]} title={draft.inc[key] ? 'Dihitung' : 'Sudah termasuk harga'} onClick={() => patch({ inc: { ...draft.inc, [key]: !draft.inc[key] } })}>{draft.inc[key] ? <Check size={14}/> : null}<span>{draft.inc[key] ? 'Hitung' : 'Termasuk'}</span></button>
           </div>; })}
           {CHARGE_ORDER.some(key => !draft.ch[key] && !shownKeys.includes(key)) && <div className="rs-alts">{CHARGE_ORDER.filter(key => !draft.ch[key] && !shownKeys.includes(key)).map(key => <button type="button" key={key} className="sb-chip" onClick={() => setShownKeys(list => [...list, key])}><Plus size={13}/> {CHARGE_SHORT[key]}</button>)}</div>}
-          {draft.type === 'expense' && SEPARABLE.some(key => counted(key) > 0) && <>
+          {draft.type === 'expense' && !split && SEPARABLE.some(key => counted(key) > 0) && <>
             <div className="ip-seg rs-charge-mode" role="group" aria-label="Cara mencatat biaya"><button type="button" className={draft.chargeMode === 'spread' ? 'active' : ''} onClick={() => patch({ chargeMode: 'spread' })}>Gabungkan</button><button type="button" className={draft.chargeMode === 'separate' ? 'active' : ''} onClick={() => patch({ chargeMode: 'separate' })}>Pisahkan</button></div>
             <small className="muted">{draft.chargeMode === 'spread' ? 'Pajak, service, ongkir, dan biaya lain ikut masuk ke kategori belanja; rinciannya tetap tersimpan di rincian struk.' : 'Setiap biaya jadi baris sendiri dengan kategorinya, jadi terlihat di laporan dan anggaran.'}</small>
             {draft.chargeMode === 'separate' && separated.map(key => { const ref = catFor(key); return <div className="rs-charge-cat" key={key}><span>{CHARGE_SHORT[key]} <b>{rupiah(counted(key))}</b></span><CategoryAccordion type="expense" compact label={`Kategori ${CHARGE_SHORT[key]}`} value={{ categoryId: ref.categoryId, subcategoryId: ref.subcategoryId }} onChange={value => patch({ chargeCats: { ...draft.chargeCats, [key]: value } })}/></div>; })}
@@ -433,7 +451,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         </div>}
       </section>}
 
-      {draft.type === 'expense' && categoriesUsed > 1 && <div className="rs-split">
+      {draft.type === 'expense' && !split && categoriesUsed > 1 && <div className="rs-split">
         <label className="rs-toggle"><input type="checkbox" checked={draft.bySplit} onChange={e => patch({ bySplit: e.target.checked })}/> <span><strong>Pisah per kategori</strong><small>Item di struk ini masuk ke {categoriesUsed} kategori.</small></span></label>
         {draft.bySplit && splits.map(line => <div className="rs-money-row" key={`${line.categoryId}:${line.subcategoryId}`}><span>{catName(line.categoryId)}{line.subcategoryId ? ` › ${catName(line.subcategoryId)}` : ''}</span><span>{rupiah(line.amount)}</span></div>)}
       </div>}
@@ -449,7 +467,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
 
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="rs-actions">
-        <Button type="submit" className="full">{lowOk ? 'Ya, nominal sudah benar. Simpan' : `Simpan transaksi${draft.amount ? ` · ${rupiah(draft.amount)}` : ''}`}</Button>
+        <Button type="submit" className="full">{split ? (useAnyway ? 'Tetap gunakan di Split Bill' : 'Gunakan di Split Bill') : lowOk ? 'Ya, nominal sudah benar. Simpan' : `Simpan transaksi${draft.amount ? ` · ${rupiah(draft.amount)}` : ''}`}</Button>
       </div>
     </form>}
 
@@ -465,7 +483,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         <p className="muted">Mirip karena {duplicate.reasons.join(', ')}.</p>
         <div className="rs-dup-card"><Copy size={18}/><div><strong>{duplicate.tx.merchant || 'Tanpa nama tempat'}</strong><small>{duplicate.tx.date.split('-').reverse().join('/')}{duplicate.tx.time ? ` · ${duplicate.tx.time}` : ''}</small></div><b>{rupiah(duplicate.tx.amount)}</b></div>
         <div className="rs-dup-actions">
-          <Button type="button" variant="secondary" onClick={() => { const tx = duplicate.tx as LedgerTx; setDuplicate(null); onOpenChange(false); openTx(undefined, tx); }}>Lihat transaksi</Button>
+          <Button type="button" variant="secondary" onClick={() => { const tx = duplicate.tx as LedgerTx; setDuplicate(null); onOpenChange(false); openTx?.(undefined, tx); }}>Lihat transaksi</Button>
           <Button type="button" onClick={() => { setDuplicate(null); setDupOk(true); void save(true); }}>Tetap catat</Button>
           <button type="button" className="link-button" onClick={() => setDuplicate(null)}>Batal</button>
         </div>

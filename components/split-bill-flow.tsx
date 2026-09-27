@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, CirclePlus, ConciergeBell, HeartHandshake, Percent, Receipt, Scale, Tag, Truck, Users, ClipboardPaste, ImagePlus, Minus, Plus, ScanText, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, CirclePlus, ConciergeBell, HeartHandshake, Percent, Receipt, Scale, Tag, Truck, Users, Minus, Plus, ScanText, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -10,22 +10,37 @@ import { CategoryPicker } from './category-picker';
 import { Emoji } from './emoji';
 import { AppIcon } from './visual-identity';
 import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
-import { ocrAvailable, readReceiptPhoto, type OcrProgress } from '@/lib/receipt-ocr';
-import { checkReceipt, netItems } from '@/lib/receipt';
-import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, readReceiptText, type ReceiptRead } from '@/lib/split-bill';
+import { ReceiptScan } from './receipt-scan';
+import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, splitFromReceipt } from '@/lib/split-bill';
 import { attachSplitReceipt, saveSplitBill, saveSplitPerson, type SplitBillInput } from '@/lib/split-bill-store';
 import { suggestCategory } from '@/lib/categorize';
 import { rupiah } from '@/lib/accounting';
 import { walletAllows } from '@/lib/wallet-capabilities';
 import { formatDate, todayInTimeZone } from '@/lib/period';
-import type { LedgerTx, SplitBill, SplitExtra, SplitExtraKind, SplitGroup, SplitItem, SplitMethod, SplitParticipant, SplitPerson } from '@/lib/types';
+import type { LedgerTx, ReceiptSnapshot, SplitBill, SplitExtra, SplitExtraKind, SplitGroup, SplitItem, SplitMethod, SplitParticipant, SplitPerson } from '@/lib/types';
 
 /**
- * Making or changing a Split Bill in six short steps: Tagihan → Orang → Item → Biaya tambahan → Pembagian → Review.
- * Nothing touches money until "Simpan Split Bill"; "Simpan draft" keeps the work without any money records.
+ * Making or changing a Split Bill on one page: who, the items and who had them, extra costs and discounts, each
+ * person's total, and whether it all adds up to the receipt. A receipt is read and checked in the same Scan struk
+ * review as transactions ("Gunakan di Split Bill"); its corrected items, item discounts and charges come in as
+ * structure. Nothing touches money until "Selesai membagi"; "Simpan draft" keeps the work without any money records.
  */
-export type FlowStart = { mode: 'manual' | 'receipt' | 'transaction' | 'edit' | 'copy'; bill?: SplitBill; tx?: LedgerTx; /** From Scan struk: the checked reading and the photo. */ receipt?: ReceiptRead; photo?: Blob | null };
-const STEPS = ['Tagihan', 'Orang', 'Item', 'Biaya tambahan', 'Pembagian', 'Review'] as const;
+export type FlowStart = { mode: 'manual' | 'receipt' | 'transaction' | 'edit' | 'copy'; bill?: SplitBill; tx?: LedgerTx; /** From Scan struk: the checked receipt and the photo. */ receipt?: ReceiptSnapshot; photo?: Blob | null };
+/** Extra kinds a receipt fills in; a new receipt replaces them. */
+const RECEIPT_KINDS: SplitExtraKind[] = ['service', 'tax', 'discount', 'delivery', 'admin', 'tip', 'rounding'];
+/** A checked receipt laid over a bill: its items and charges replace the old ones; a bill from a transaction keeps its total and date. */
+function withReceipt(current: SplitBillInput, receipt: ReceiptSnapshot): SplitBillInput {
+  const r = splitFromReceipt(receipt, newId);
+  return {
+    ...current,
+    merchant: current.merchant || r.merchant, title: current.title || r.merchant,
+    date: !current.fromTransaction && r.date ? r.date : current.date, time: !current.fromTransaction && r.time ? r.time : current.time,
+    total: current.fromTransaction ? current.total : r.total || current.total,
+    items: r.items.length ? r.items : current.items,
+    extras: [...current.extras.filter(extra => !RECEIPT_KINDS.includes(extra.kind)), ...r.extras],
+    method: r.items.length ? 'items' : current.method,
+  };
+}
 const newId = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 const EXTRA_KINDS: SplitExtraKind[] = ['tax', 'service', 'discount', 'delivery', 'admin', 'tip', 'rounding', 'shared', 'other'];
 /** Icon and a short example for each kind of extra cost, in the "Tambah biaya tambahan" menu. */
@@ -52,13 +67,15 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const payWallets = data.wallets.filter(w => walletAllows(w, 'pay'));
   const defaultWallet = payWallets.find(w => w.id === profile?.defaultExpenseWalletId)?.id || payWallets[0]?.id || '';
   const myName = profile?.displayName?.trim() || 'Saya';
-  const [bill, setBill] = useState<SplitBillInput>(() => startBill(start, { myName, today, walletId: defaultWallet }));
-  const [step, setStep] = useState(0), [error, setError] = useState(''), [saving, setSaving] = useState(false), [understood, setUnderstood] = useState(false);
-  const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [reading, setReading] = useState<OcrProgress | null>(null), [readNote, setReadNote] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState(''), [receipt, setReceipt] = useState<ReceiptRead | null>(start.receipt || null);
-  const fullPhoto = useRef<Blob | null>(null);
+  const [bill, setBill] = useState<SplitBillInput>(() => { const base = startBill(start, { myName, today, walletId: defaultWallet }); return start.receipt ? withReceipt(base, start.receipt) : base; });
+  const [error, setError] = useState(''), [saving, setSaving] = useState(false), [understood, setUnderstood] = useState(false);
+  const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState('');
+  // Opening from "Scan struk" goes straight to the camera and the shared receipt review.
+  const [scanOpen, setScanOpen] = useState(start.mode === 'receipt' && !start.receipt);
+  const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
   const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
-  const body = useRef<HTMLDivElement>(null), picker = useRef<HTMLDetailsElement>(null);
+  const picker = useRef<HTMLDetailsElement>(null);
   const [openExtra, setOpenExtra] = useState('');
   const editing = start.mode === 'edit' && start.bill?.status === 'active';
   const original = start.bill;
@@ -68,7 +85,6 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const result = useMemo(() => computeSplit(bill), [bill]);
   const patch = (changes: Partial<SplitBillInput>) => { setBill(current => ({ ...current, ...changes })); setError(''); };
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
-  useEffect(() => { body.current?.closest('.modal-body')?.scrollTo({ top: 0 }); }, [step]);
 
   const me = bill.participants.find(person => person.isMe);
   const others = bill.participants.filter(person => !person.isMe);
@@ -144,70 +160,29 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const addExtra = (kind: SplitExtraKind) => { const id = newId('x'); setOpenExtra(id); patch({ extras: [...bill.extras, { id, kind, label: kind === 'tax' ? 'PB1' : kind === 'service' ? 'Service' : kind === 'shared' ? '' : EXTRA_LABELS[kind], amount: 0, distribution: defaultDistribution(kind) }] }); };
   const changeExtra = (id: string, changes: Partial<SplitExtra>) => patch({ extras: bill.extras.map(extra => extra.id === id ? { ...extra, ...changes } : extra) });
 
-  /* ---------------- receipt */
-  async function pickPhoto(file: Blob | undefined) {
+  /* ---------------- receipt: read and checked in the shared Scan struk review */
+  async function keepPhoto(file: Blob | null | undefined) {
     if (!file) return;
-    setReadNote(''); setReceipt(null);
-    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); fullPhoto.current = file; setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); if (ocrAvailable()) void readPhoto(file); }
-    catch (e) { setReadNote((e as Error).message); }
+    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); } catch { /* the receipt data is enough */ }
   }
-  useEffect(() => { if (start.photo) void (async () => { try { const small = await shrinkPhoto(start.photo!); fullPhoto.current = start.photo!; setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); } catch { /* the reading is enough */ } })(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  async function readPhoto(source: Blob | null = fullPhoto.current || photo) {
-    if (!source) return;
-    setReading({ stage: 'prepare', progress: 0, label: 'Merapikan foto…' }); setReadNote('');
-    try {
-      const result = await readReceiptPhoto(source, setReading);
-      if (result.read.items.length || result.read.total) setReceipt(result.read);
-      else setReadNote('Tulisan di foto belum terbaca jelas. Coba foto lebih dekat dan terang, tempel teks struknya, atau isi item sendiri.');
-    } catch (e) { setReadNote((e as Error).message || 'Foto belum bisa dibaca. Isi item sendiri, atau tempel teks struknya.'); }
-    finally { setReading(null); }
-  }
-  function readPasted() {
-    const read = readReceiptText(pasted);
-    if (read.items.length || read.total) { setReceipt(read); setReadNote(''); }
-    else setReadNote('Belum ada item atau total yang terbaca dari teks itu.');
-  }
-  function applyReceipt(read: ReceiptRead) {
-    const extras: SplitExtra[] = [];
-    const push = (kind: SplitExtraKind, amount: number, label: string) => { if (amount) extras.push({ id: newId('x'), kind, label, amount: kind === 'rounding' ? amount : Math.abs(amount), distribution: defaultDistribution(kind) }); };
-    // Charges already inside the prices (a PPN printed for information) are not added again.
-    const included = new Set<string>(checkReceipt(read).included);
-    const add = (kind: SplitExtraKind, key: string, amount: number, label: string) => { if (!included.has(key)) push(kind, amount, label); };
-    add('service', 'service', read.service, 'Service'); add('tax', 'tax', read.tax, 'PB1'); add('discount', 'discount', read.discount, 'Diskon'); add('delivery', 'delivery', read.delivery, 'Ongkos kirim'); add('admin', 'fee', read.fee || 0, 'Biaya lain'); add('rounding', 'rounding', read.rounding, 'Pembulatan');
-    setBill(current => ({
-      ...current,
-      merchant: current.merchant || read.merchant,
-      title: current.title || read.merchant,
-      date: !current.fromTransaction && read.date ? read.date : current.date,
-      total: current.fromTransaction ? current.total : read.total || current.total,
-      // An item's own discount is taken off its price (the bill-level discount stays an extra).
-      items: netItems(read.items).map(line => ({ id: newId('i'), name: line.name, qty: line.qty, price: line.price, assign: 'shared' as const, people: [] })),
-      extras: [...current.extras.filter(extra => !['service', 'tax', 'discount', 'delivery', 'admin', 'rounding'].includes(extra.kind)), ...extras],
-      method: read.items.length ? 'items' : current.method,
-    }));
-    setReceipt(null); setPasteOpen(false); setStep(1);
+  useEffect(() => { if (start.photo) void keepPhoto(start.photo); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function useReceipt(receipt: ReceiptSnapshot, file: Blob | null) {
+    setBill(current => withReceipt(current, receipt)); void keepPhoto(file); setError('');
   }
 
-  /* ---------------- moving between steps and saving */
-  const stepIssues = (index: number) => result.issues.filter(issue => ({ 0: ['bill'], 1: ['people'], 2: ['items'], 3: ['extras'], 4: ['split'], 5: ['bill', 'people', 'items', 'extras', 'split'] } as Record<number, string[]>)[index].includes(issue.step));
-  function blocker(index: number) {
-    if (index === 0) {
-      if (!bill.title.trim()) return 'Beri nama tagihan.';
-      if (bill.payer === 'me' && !bill.fromTransaction && !bill.walletId) return 'Pilih dompet yang dipakai membayar.';
-    }
-    if (index === 1) {
-      if (bill.participants.length < 2) return 'Tambahkan minimal 2 orang.';
-      if (bill.payer === 'other' && !bill.participants.some(person => person.id === bill.payerId && !person.isMe)) return 'Pilih siapa yang membayar.';
-    }
+  /* ---------------- checks and saving */
+  function blocker() {
+    if (bill.participants.length < 2) return 'Tambahkan minimal 2 orang.';
+    if (bill.payer === 'other' && !bill.participants.some(person => person.id === bill.payerId && !person.isMe)) return 'Pilih siapa yang membayar.';
+    if (bill.payer === 'me' && !bill.fromTransaction && !bill.walletId) return 'Pilih dompet yang dipakai membayar.';
     return '';
   }
-  function next() { const problem = blocker(step); if (problem) { setError(problem); return; } setError(''); setStep(s => Math.min(STEPS.length - 1, s + 1)); }
   async function save(draft: boolean) {
     if (!user) return;
-    const input = { ...bill, title: bill.title.trim() || `Split Bill ${formatDate(bill.date, false)}` };
+    const input = { ...bill, title: bill.title.trim() || bill.merchant.trim() || `Split Bill ${formatDate(bill.date, false)}` };
     if (!draft) {
-      const problem = blocker(0) || blocker(1) || (result.ok ? '' : result.issues[0].message) || (!bill.categoryId && !bill.fromTransaction ? 'Pilih kategori tagihan.' : '');
-      if (problem) { setError(problem); return; }
+      const problem = blocker() || (result.ok ? '' : result.issues[0].message) || (!bill.categoryId && !bill.fromTransaction ? 'Pilih kategori tagihan.' : '');
+      if (problem) { setError(problem); if (/dompet|kategori|bayar/i.test(problem)) setBillOpen(true); if (/orang/i.test(problem)) setAddingPerson(true); return; }
       if (hasPayments && !understood) { setError('Centang dulu bahwa kamu mengerti perubahannya.'); return; }
     }
     setSaving(true); setError('');
@@ -219,212 +194,199 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     finally { setSaving(false); }
   }
 
-  /* ---------------- the steps */
+  /* ---------------- the page */
   const moneyOf = (id: string) => result.people.find(person => person.id === id)?.total || 0;
-  const personChip = (person: SplitParticipant, selected: boolean, onClick: () => void, extra?: ReactNode) => <button type="button" key={person.id} className={`sb-chip ${selected ? 'is-on' : ''}`} aria-pressed={selected} onClick={onClick}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span>{extra}</button>;
-  const issuesBox = (index: number) => { const list = stepIssues(index); return list.length ? <div className="sb-issues" role="status">{list.map(issue => <p key={issue.message}>{issue.message}</p>)}</div> : null; };
+  const personChip = (person: SplitParticipant, selected: boolean, onClick: () => void, extra?: ReactNode) => <button type="button" key={person.id} className={`sb-chip ${selected ? 'is-on' : ''}`} aria-pressed={selected} onClick={onClick}>{selected ? <Check size={13}/> : <PersonAvatar person={person} size="sm"/>}<span>{personName(person)}</span>{extra}</button>;
   const walletName = data.wallets.find(w => w.id === bill.walletId)?.name || 'dompet';
-  const photoBlock = <section className="sb-block"><h4>Foto struk <small className="muted">· opsional</small></h4>
-        {photoUrl ? <div className="sb-photo"><img src={photoUrl} alt="Foto struk"/><div className="toolbar-row">{ocrAvailable() && <button type="button" className="link-button" disabled={Boolean(reading)} onClick={() => void readPhoto()}><ScanText size={15}/> {reading ? 'Membaca…' : 'Baca struk'}</button>}<button type="button" className="link-button" onClick={() => setPasteOpen(open => !open)}><ClipboardPaste size={15}/> Tempel teks struk</button><button type="button" className="link-button" onClick={() => { if (photoUrl) URL.revokeObjectURL(photoUrl); fullPhoto.current = null; setPhoto(null); setPhotoUrl(''); setReceipt(null); }}><Trash2 size={15}/> Hapus foto</button></div></div>
-          : <div className="sb-photo-actions"><label className="link-button"><Camera size={15}/> Ambil foto<input type="file" accept="image/*" capture="environment" hidden onChange={e => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }}/></label><label className="link-button"><ImagePlus size={15}/> Upload struk<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }}/></label><button type="button" className="link-button" onClick={() => setPasteOpen(open => !open)}><ClipboardPaste size={15}/> Tempel teks struk</button></div>}
-        {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tetap tersimpan. Unggah foto baru untuk menggantinya.</small>}
-        {!ocrAvailable() && photoUrl && !receipt && <small className="muted">Perangkat ini belum bisa membaca foto. Pilih “Tempel teks struk”, atau isi item sendiri.</small>}
-        {reading && <div className="rs-inline-progress" role="status" aria-live="polite"><strong>{reading.label}</strong><div className="rs-bar"><i style={{ width: `${Math.round(reading.progress * 100)}%` }}/></div><small className="muted">Dibaca di perangkat ini, foto tidak diunggah untuk dibaca.</small></div>}
-        {pasteOpen && <div className="sb-paste"><textarea className="input" rows={6} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={'Nasi Goreng 35.000\nEs Teh 2 x 6.000 12.000\nService 4.700\nPB1 5.170\nTotal 56.870'}/><Button type="button" className="small" disabled={!pasted.trim()} onClick={readPasted}>Baca teks</Button></div>}
-        {readNote && <p className="sb-note is-warn" role="status">{readNote}</p>}
-        {receipt && <div className="sb-receipt" role="region" aria-label="Hasil baca struk"><h5>HASIL BACA STRUK</h5><small className="muted">Periksa dulu. Semua bisa diubah di langkah Item dan Biaya tambahan.</small>
-          {(() => { const check = checkReceipt(receipt); return <div className={`rs-check is-${check.confidence}`}><div><strong>{check.confidence === 'tinggi' ? 'Hasil baca meyakinkan' : check.confidence === 'sedang' ? 'Periksa lagi sebelum dipakai' : 'Hasil baca belum pasti'}</strong>{check.notes.map(note => <small key={note}>{note}</small>)}</div></div>; })()}
-          {receipt.merchant && <div className="budget-line"><span>Tempat</span><strong>{receipt.merchant}</strong></div>}
-          {receipt.items.map((line, i) => <div className="budget-line" key={i}><span>{line.name}{line.qty > 1 ? ` · ${line.qty} × ${rupiah(line.price)}` : ''}</span><strong>{rupiah(line.total)}</strong></div>)}
-          {([['Service', receipt.service], ['Pajak / PB1', receipt.tax], ['Diskon', -receipt.discount], ['Ongkos kirim', receipt.delivery], ['Biaya lain', receipt.fee || 0], ['Pembulatan', receipt.rounding]] as [string, number][]).filter(([, value]) => value).map(([label, value]) => <div className="budget-line" key={label}><span>{label}</span><strong>{value < 0 ? '−' : ''}{rupiah(Math.abs(value))}</strong></div>)}
-          {receipt.total > 0 && <div className="budget-line sb-strong"><span>Total</span><strong>{rupiah(receipt.total)}</strong></div>}
-          {receipt.skipped > 0 && <small className="muted">{receipt.skipped} baris tidak terbaca dan dilewati.</small>}
-          <div className="toolbar-row"><button type="button" className="link-button" onClick={() => setReceipt(null)}>Abaikan</button><Button type="button" className="small" onClick={() => applyReceipt(receipt)}>Pakai hasil ini</Button></div>
-        </div>}
-      </section>;
-  const views: ReactNode[] = [
-    // 1. Tagihan
-    <div className="sb-step" key="bill">
-      {start.mode === 'receipt' && photoBlock}
-      <Field label="Nama tagihan"><Input value={bill.title} maxLength={120} onChange={e => patch({ title: e.target.value })} placeholder="Misalnya Makan malam tim"/></Field>
-      <div className="form-grid">
-        <Field label="Total tagihan" hint={bill.fromTransaction ? 'Sesuai transaksinya.' : 'Boleh kosong bila dihitung dari item.'}>{bill.fromTransaction ? <div className="input sb-static">{rupiah(bill.total)}</div> : <Money value={bill.total} onChange={total => patch({ total })}/>}</Field>
-        <Field label="Tanggal"><Input type="date" value={bill.date} disabled={bill.fromTransaction} onChange={e => patch({ date: e.target.value })}/></Field>
-      </div>
-      <Field label="Tempat (opsional)"><Input value={bill.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Misalnya GOR Sehat, Warung Bu Tin"/></Field>
-      <section className="sb-block"><h4>Kategori</h4>
-        {categoryGuess && <button type="button" className="tx-suggest" onClick={() => patch({ categoryId: categoryGuess.categoryId, subcategoryId: categoryGuess.subcategoryId })}><Sparkles size={15} aria-hidden="true"/><span className="tx-suggest-text"><small>Kategori yang cocok</small><strong><AppIcon icon={categoryGuess.icon} fallback="🗂️"/> {categoryGuess.name}</strong></span><span className="tx-suggest-go">Pakai</span></button>}
-        <CategoryPicker type="expense" categoryId={bill.categoryId || ''} subcategoryId={bill.subcategoryId || ''} onChange={value => patch({ categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/>
-        <small className="muted">Dipakai untuk bagianmu saja. Bagian orang lain tidak dihitung ke pengeluaranmu.</small>
-      </section>
-      <section className="sb-block"><h4>Siapa yang bayar?</h4>
-        <div className="choice-cards sb-payer" role="radiogroup" aria-label="Siapa yang bayar">
-          <label className={`choice-card ${bill.payer === 'me' ? 'is-selected' : ''}`}><input type="radio" name="sb-payer" disabled={hasPayments} checked={bill.payer === 'me'} onChange={() => patch({ payer: 'me', payerId: me?.id || '' })}/><span><strong>Saya yang bayar</strong><small>Teman membayar balik ke kamu (jadi piutang).</small></span></label>
-          <label className={`choice-card ${bill.payer === 'other' ? 'is-selected' : ''}`}><input type="radio" name="sb-payer" disabled={hasPayments || bill.fromTransaction} checked={bill.payer === 'other'} onChange={() => patch({ payer: 'other', payerId: others[0]?.id || '' })}/><span><strong>Orang lain yang bayar</strong><small>Bagianmu jadi utang ke orang itu.</small></span></label>
-        </div>
-        {bill.payer === 'me' && (bill.fromTransaction ? <p className="muted sb-note">Dibayar dari {walletName}. Transaksinya tetap satu, tidak dicatat dua kali.</p> : <Field label="Dibayar dari dompet"><Select value={bill.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{payWallets.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></Field>)}
-        {bill.payer === 'other' && <p className="muted sb-note">Pilih orangnya di langkah berikutnya.</p>}
-      </section>
-      {start.mode !== 'receipt' && photoBlock}
-      <details className="disclosure" open={Boolean(bill.dueDate || bill.notes) || undefined}><summary>Detail tambahan</summary>
-        <div className="form-grid"><Field label="Jatuh tempo (opsional)"><Input type="date" value={bill.dueDate || ''} onChange={e => patch({ dueDate: e.target.value })}/></Field><Field label="Waktu (opsional)"><Input type="time" value={bill.time || ''} disabled={bill.fromTransaction} onChange={e => patch({ time: e.target.value })}/></Field></div>
-        {bill.dueDate && <button type="button" className="link-button" onClick={() => patch({ dueDate: '' })}>Tanpa jatuh tempo</button>}
-        <Field label="Catatan"><Input value={bill.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></Field>
-      </details>
-      {issuesBox(0)}
-    </div>,
-
-    // 2. Orang
-    <div className="sb-step" key="people">
-      <label className="check-row"><input type="checkbox" checked={Boolean(me)} onChange={e => toggleMe(e.target.checked)}/> Saya ikut patungan</label>
-      <div className="sb-people">{bill.participants.map(person => <span className="sb-person" key={person.id}><PersonAvatar person={person}/><span>{personName(person)}{bill.payer === 'other' && person.id === bill.payerId ? <small>yang bayar</small> : bill.payer === 'me' && person.isMe ? <small>yang bayar</small> : null}</span>{!person.isMe && !paidPeople.has(person.id) && <button type="button" className="icon-btn" aria-label={`Hapus ${person.name}`} onClick={() => removePerson(person.id)}><X size={15}/></button>}</span>)}</div>
-      <form className="sb-add" onSubmit={e => { e.preventDefault(); void addTyped(); }}>
-        <Input value={newName} maxLength={60} onChange={e => setNewName(e.target.value)} placeholder="Nama orang" aria-label="Nama orang" autoComplete="off"/>
-        <Button type="submit" className="small" disabled={!newName.trim()}><UserPlus size={15}/> Tambah</Button>
-      </form>
-      {newName.trim() && !people.some(person => person.name.trim().toLocaleLowerCase('id-ID') === newName.trim().toLocaleLowerCase('id-ID')) && <label className="check-row sb-remember"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}/> Simpan ke Orang tersimpan</label>}
-      {suggestions.length > 0 && <section className="sb-block"><h4>Orang tersimpan</h4><div className="sb-chips">{suggestions.map(person => <button type="button" key={person.id} className="sb-chip" onClick={() => { addPerson(person.name, { personId: person.id, emoji: person.emoji || undefined }); setNewName(''); }}>{person.emoji ? <Emoji e={person.emoji}/> : <Plus size={14}/>}<span>{person.name}</span></button>)}</div></section>}
-      {groups.length > 0 && <section className="sb-block"><h4>Grup</h4><div className="sb-chips">{groups.map(group => <button type="button" key={group.id} className={`sb-chip ${bill.groupId === group.id ? 'is-on' : ''}`} onClick={() => addGroup(group)}><Emoji e={group.emoji || '👥'}/><span>{group.name}</span><small>{group.memberIds.length}</small></button>)}</div></section>}
-      {bill.payer === 'other' && <section className="sb-block"><h4>Siapa yang bayar?</h4>{others.length ? <div className="sb-chips">{others.map(person => personChip(person, bill.payerId === person.id, () => patch({ payerId: person.id })))}</div> : <p className="muted">Tambahkan dulu orang yang membayar.</p>}</section>}
-      {issuesBox(1)}
-    </div>,
-
-    // 3. Item
-    <div className="sb-step" key="items">
-      <p className="muted sb-lead">Isi kalau tiap orang pesan berbeda. Lewati saja untuk bagi rata atau nominal manual.</p>
-      {bill.items.map(item => {
-        const line = Math.max(0, item.qty * item.price - (item.discount || 0));
-        const byUnits = item.assign === 'units' && item.qty > 1;
-        const unitsUsed = Object.values(item.units || {}).reduce((a, b) => a + b, 0);
-        const open = result.unassignedItems.find(row => row.id === item.id);
-        return <article className={`sb-item ${open ? 'is-open' : ''}`} key={item.id}>
-          <div className="sb-item-head">
-            <Input className="sb-item-name" value={item.name} maxLength={60} onChange={e => changeItem(item.id, { name: e.target.value })} aria-label="Nama item"/>
-            <strong>{rupiah(line)}</strong>
-            <button type="button" className="icon-btn" aria-label={`Hapus ${item.name}`} onClick={() => setItems(bill.items.filter(row => row.id !== item.id))}><Trash2 size={16}/></button>
-          </div>
-          <div className="sb-item-nums">
-            <span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { qty: Math.max(1, item.qty - 1) })}><Minus size={14}/></button><b>{item.qty}</b><button type="button" aria-label="Tambah" onClick={() => changeItem(item.id, { qty: Math.min(999, item.qty + 1) })}><Plus size={14}/></button></span>
-            <span>×</span><Money value={item.price} onChange={price => changeItem(item.id, { price })}/>
-          </div>
-          <div className="sb-item-who"><small>Siapa yang pesan?</small>
-            {byUnits ? <div className="sb-units">{bill.participants.map(person => { const count = item.units?.[person.id] || 0; return <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><span className="sb-stepper"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { units: { ...item.units, [person.id]: Math.max(0, count - 1) } })}><Minus size={14}/></button><b>{count}</b><button type="button" aria-label="Tambah" disabled={unitsUsed >= item.qty} onClick={() => { changeItem(item.id, { units: { ...item.units, [person.id]: count + 1 } }); setLastPicked(person.id); }}><Plus size={14}/></button></span></span>; })}<small className={unitsUsed === item.qty ? 'muted' : 'sb-warn'}>{unitsUsed} dari {item.qty} porsi dipilih</small></div>
-              : item.assign === 'custom' ? <div className="sb-units">{bill.participants.map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={item.custom?.[person.id] || 0} onChange={value => changeItem(item.id, { custom: { ...item.custom, [person.id]: value } })}/></span>)}</div>
-              : <div className="sb-chips">{bill.participants.map(person => personChip(person, item.people.includes(person.id), () => toggleTaker(item, person.id)))}</div>}
-            {item.assign === 'shared' && <div className="toolbar-row sb-quick"><button type="button" className="link-button" onClick={() => changeItem(item.id, { people: bill.participants.map(person => person.id) })}>Semua</button><button type="button" className="link-button" onClick={() => { const left = bill.participants.filter(person => !assignedIds.has(person.id)).map(person => person.id); if (left.length) changeItem(item.id, { people: [...new Set([...item.people, ...left])] }); }}>Belum dipilih</button>{lastPicked && bill.participants.some(person => person.id === lastPicked) && <button type="button" className="link-button" onClick={() => changeItem(item.id, { people: [...new Set([...item.people, lastPicked])] })}>Orang terakhir · {personName(bill.participants.find(person => person.id === lastPicked))}</button>}</div>}
-          </div>
-          <details className="sb-more"><summary>Detail tambahan</summary>
-            <div className="ip-seg sb-seg" role="radiogroup" aria-label="Cara bagi item">{([['shared', 'Dibagi rata'], ['units', 'Per porsi'], ['custom', 'Nominal']] as [SplitItem['assign'], string][]).map(([key, label]) => <button type="button" key={key} disabled={key === 'units' && item.qty < 2} className={item.assign === key ? 'active' : ''} onClick={() => changeItem(item.id, { assign: key })}>{label}</button>)}</div>
-            <Field label="Diskon khusus item ini"><Money value={item.discount || 0} onChange={discount => changeItem(item.id, { discount })}/></Field>
-            <div className="sb-cat"><small className="muted">Kategori item (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={item.categoryId || ''} subcategoryId={item.subcategoryId || ''} onChange={value => changeItem(item.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>
-          </details>
-          {open && <small className="sb-warn">Belum dibagi {rupiah(open.amount)}</small>}
-        </article>;
-      })}
-      <form className="sb-item-add" onSubmit={e => { e.preventDefault(); addItem(); }}>
-        <Field label="Nama item"><Input value={itemName} maxLength={60} onChange={e => setItemName(e.target.value)} placeholder="Misalnya Mie Goreng"/></Field>
-        <div className="sb-item-nums"><span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => setItemQty(q => Math.max(1, q - 1))}><Minus size={14}/></button><b>{itemQty}</b><button type="button" aria-label="Tambah" onClick={() => setItemQty(q => Math.min(999, q + 1))}><Plus size={14}/></button></span><span>×</span><Money value={itemPrice} onChange={setItemPrice} placeholder="Harga satuan"/></div>
-        <Button type="submit" variant="secondary" className="small"><Plus size={15}/> Tambah item</Button>
-      </form>
-      {bill.items.length > 0 && <div className="sb-sum"><div className="budget-line"><span>Subtotal item</span><strong>{rupiah(result.subtotal)}</strong></div>{result.unassignedItems.length > 0 && <div className="budget-line sb-warn"><span>Belum dibagi</span><strong>{rupiah(result.unassignedItems.reduce((sum, row) => sum + row.amount, 0))}</strong></div>}</div>}
-      {issuesBox(2)}
-    </div>,
-
-    // 4. Biaya tambahan
-    <div className="sb-step" key="extras">
-      <p className="muted sb-lead">Pajak, service, diskon, ongkir, atau biaya bersama seperti sewa lapangan dan parkir.</p>
-      <details className="sb-extra-picker" ref={picker}>
-        <summary><span className="sb-extra-picker-icon"><Plus size={17}/></span><span><strong>Tambah biaya tambahan</strong><small>Pajak, service, diskon, ongkir, biaya bersama…</small></span><ChevronDown size={18} className="sb-extra-picker-chev" aria-hidden="true"/></summary>
-        <div className="sb-extra-menu" role="menu">{EXTRA_KINDS.map(kind => { const [Icon, hint] = EXTRA_LOOKS[kind]; const count = bill.extras.filter(extra => extra.kind === kind).length; return <button type="button" role="menuitem" key={kind} className={`is-${kind}`} onClick={() => { addExtra(kind); if (picker.current) picker.current.open = false; }}><span className="sb-extra-menu-icon"><Icon size={17}/></span><span><strong>{EXTRA_LABELS[kind]}</strong><small>{hint}</small></span>{count > 0 && <em>{count}</em>}</button>; })}</div>
-      </details>
-      {bill.extras.map(extra => {
-        const resolved = result.extras.find(row => row.id === extra.id);
-        const chosen = extra.people || [];
-        const [Icon] = EXTRA_LOOKS[extra.kind];
-        const how = extra.distribution === 'custom' ? 'custom' : extra.distribution === 'equal' ? 'rata' : 'proporsional';
-        return <details className={`sb-extra is-${extra.kind}`} key={extra.id} open={openExtra === extra.id} onToggle={event => { const open = event.currentTarget.open; setOpenExtra(current => open ? extra.id : current === extra.id ? '' : current); }}>
-          <summary><span className="sb-extra-menu-icon"><Icon size={16}/></span><span className="sb-extra-title"><strong>{extra.label.trim() || EXTRA_LABELS[extra.kind]}</strong><small>Dibagi {how}{chosen.length ? ` · ${chosen.length} orang` : ' · semua orang'}</small></span><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong><ChevronDown size={16} className="sb-extra-chev" aria-hidden="true"/></summary>
-          <div className="sb-extra-body">
-          <div className="sb-item-head"><Input className="sb-item-name" value={extra.label} maxLength={40} placeholder={extra.kind === 'shared' ? 'Misalnya Sewa lapangan' : EXTRA_LABELS[extra.kind]} onChange={e => changeExtra(extra.id, { label: e.target.value })} aria-label="Nama biaya"/><button type="button" className="icon-btn" aria-label="Hapus biaya" onClick={() => patch({ extras: bill.extras.filter(row => row.id !== extra.id) })}><Trash2 size={16}/></button></div>
-          <div className="sb-extra-amount">
-            {extra.percent && bill.items.length ? <span className="sb-static input">{showPercent(extra.percent * 100)}% dari {extra.kind === 'tax' ? 'item + service' : 'item'}</span> : <Money value={Math.abs(extra.amount)} onChange={value => changeExtra(extra.id, { amount: extra.kind === 'rounding' && extra.amount < 0 ? -value : value, percent: undefined })}/>}
-            {extra.kind === 'rounding' && <div className="ip-seg sb-seg"><button type="button" className={extra.amount >= 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: Math.abs(extra.amount) })}>Tambah</button><button type="button" className={extra.amount < 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: -Math.abs(extra.amount) })}>Kurang</button></div>}
-            {bill.items.length > 0 && ['tax', 'service', 'tip', 'discount'].includes(extra.kind) && <div className="toolbar-row">{(extra.kind === 'tax' ? [10, 11] : extra.kind === 'service' ? [5, 10] : [5, 10, 15]).map(pct => <button type="button" key={pct} className={`link-button ${extra.percent === pct ? 'is-active' : ''}`} onClick={() => changeExtra(extra.id, { percent: extra.percent === pct ? undefined : pct })}>{pct}%</button>)}</div>}
-          </div>
-          <div className="sb-extra-how"><small>Dibagi</small><div className="ip-seg sb-seg">{([['proportional', 'Proporsional'], ['equal', 'Rata'], ['custom', 'Custom']] as [SplitExtra['distribution'], string][]).map(([key, label]) => <button type="button" key={key} className={extra.distribution === key ? 'active' : ''} onClick={() => changeExtra(extra.id, { distribution: key })}>{label}</button>)}</div></div>
-          {extra.distribution === 'custom' ? <div className="sb-units">{(chosen.length ? bill.participants.filter(person => chosen.includes(person.id)) : bill.participants).map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={extra.custom?.[person.id] || 0} onChange={value => changeExtra(extra.id, { custom: { ...extra.custom, [person.id]: value } })}/></span>)}</div>
-            : <div className="sb-extra-who"><small>Untuk</small><div className="sb-chips"><button type="button" className={`sb-chip ${!chosen.length ? 'is-on' : ''}`} onClick={() => changeExtra(extra.id, { people: [] })}><span>Semua orang</span></button>{bill.participants.map(person => personChip(person, chosen.includes(person.id), () => changeExtra(extra.id, { people: chosen.includes(person.id) ? chosen.filter(id => id !== person.id) : [...chosen, person.id] })))}</div></div>}
-          {(extra.kind === 'shared' || extra.kind === 'other') && <details className="sb-more"><summary>Detail tambahan</summary><div className="sb-cat"><small className="muted">Kategori biaya ini (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={extra.categoryId || ''} subcategoryId={extra.subcategoryId || ''} onChange={value => changeExtra(extra.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div></details>}
-          </div>
-        </details>;
-      })}
-      <div className="sb-sum">
-        <div className="budget-line"><span>{bill.items.length ? 'Subtotal item' : 'Tagihan sebelum biaya tambahan'}</span><strong>{rupiah(result.subtotal)}</strong></div>
-        {result.extras.map(extra => <div className="budget-line" key={extra.id}><span>{extra.label}</span><strong>{extra.amount < 0 ? '−' : ''}{rupiah(Math.abs(extra.amount))}</strong></div>)}
-        <div className="budget-line sb-strong"><span>Total</span><strong>{rupiah(result.total)}</strong></div>
-      </div>
-      {result.mismatch !== 0 && <div className="sb-issues" role="status"><p>Rincian {rupiah(result.total)} belum sama dengan total tagihan {rupiah(bill.total)} (selisih {rupiah(Math.abs(result.mismatch))}).</p><div className="toolbar-row"><button type="button" className="link-button" onClick={() => patch({ extras: [...bill.extras, { id: newId('x'), kind: 'rounding', label: 'Pembulatan', amount: result.mismatch, distribution: 'proportional' }] })}>Jadikan pembulatan</button>{!bill.fromTransaction && <button type="button" className="link-button" onClick={() => patch({ total: result.total })}>Pakai total rincian</button>}</div></div>}
-      {issuesBox(3)}
-    </div>,
-
-    // 5. Pembagian
-    <div className="sb-step" key="split">
-      <div className="sb-methods" role="radiogroup" aria-label="Cara bagi">{(['equal', 'items', 'amount', 'percent'] as SplitMethod[]).map(method => <button type="button" key={method} role="radio" aria-checked={bill.method === method} disabled={method === 'items' && !bill.items.length} className={bill.method === method ? 'active' : ''} onClick={() => patch({ method })}>{METHOD_LABELS[method]}</button>)}</div>
-      {bill.method === 'items' && <p className="muted sb-lead">Tiap orang membayar item yang dipesannya{bill.extras.length ? ', ditambah biaya tambahan sesuai cara baginya' : ''}.</p>}
-      {bill.method === 'equal' && <p className="muted sb-lead">{rupiah(result.subtotal)} dibagi {bill.participants.length} orang{bill.extras.length ? ', lalu biaya tambahan sesuai cara baginya' : ''}.</p>}
-      {(bill.method === 'amount' || bill.method === 'percent') && <p className="muted sb-lead">{bill.method === 'amount' ? 'Isi bagian tiap orang' : 'Isi persentase tiap orang (total 100%)'}{bill.extras.length ? ' sebelum biaya tambahan' : ''}.</p>}
-      <div className="sb-result">{bill.participants.map(person => <div className="sb-result-row" key={person.id}>
-        <PersonAvatar person={person}/><span className="sb-result-name">{personName(person)}{payer?.id === person.id && <small>yang bayar</small>}</span>
-        {bill.method === 'amount' && <Money value={person.amount || 0} onChange={amount => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, amount } : row) })}/>}
-        {bill.method === 'percent' && <span className="sb-percent"><Input inputMode="decimal" value={showPercent(person.percent)} onChange={e => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, percent: readPercent(e.target.value) } : row) })} aria-label={`Persentase ${person.name}`} placeholder="0"/><span>%</span></span>}
-        <strong>{rupiah(moneyOf(person.id))}</strong>
-      </div>)}</div>
-      {bill.method === 'amount' && <div className="toolbar-row"><button type="button" className="link-button" onClick={() => { const parts = computeSplit({ ...bill, method: 'equal' }).people; patch({ participants: bill.participants.map(row => ({ ...row, amount: parts.find(p => p.id === row.id)?.base || 0 })) }); }}>Isi rata dulu</button></div>}
-      {bill.method === 'percent' && <div className="toolbar-row"><button type="button" className="link-button" onClick={() => { const n = bill.participants.length, each = Math.floor(10000 / n); patch({ participants: bill.participants.map((row, i) => ({ ...row, percent: i === 0 ? 10000 - each * (n - 1) : each })) }); }}>Bagi rata persentasenya</button></div>}
-      <div className={`sb-balance ${result.unassigned ? 'is-off' : ''}`}><span>Terbagi {rupiah(result.allocated)} dari {rupiah(result.total)}</span><strong>{result.unassigned ? differenceText(result.unassigned) : 'Pas'}</strong></div>
-      {issuesBox(4)}
-    </div>,
-
-    // 6. Review
-    <div className="sb-step" key="review">
-      <div className="sb-sum sb-review-top">
-        <div className="budget-line"><span>Total tagihan</span><strong>{rupiah(result.total)}</strong></div>
-        <div className="budget-line"><span>Terbagi</span><strong>{rupiah(result.allocated)}</strong></div>
-        <div className={`budget-line ${result.unassigned ? 'sb-warn' : ''}`}><span>Selisih</span><strong>{rupiah(result.unassigned)}</strong></div>
-      </div>
-      <div className="sb-result">{result.people.map(person => { const participant = bill.participants.find(row => row.id === person.id)!; return <div className="sb-result-row" key={person.id}><PersonAvatar person={participant}/><span className="sb-result-name">{personName(participant)}{payer?.id === person.id && <small>yang bayar</small>}</span><strong>{rupiah(person.total)}</strong></div>; })}</div>
-      <div className="sb-explain">
-        {bill.payer === 'me' ? <>
-          <p><b>{bill.fromTransaction ? `Transaksi ${rupiah(result.total)} dari ${walletName} tetap satu` : `Saldo ${walletName} berkurang ${rupiah(result.total)}`}</b>, sesuai uang yang benar-benar keluar.</p>
-          <p>Pengeluaranmu hanya <b>{rupiah(me ? moneyOf(me.id) : 0)}</b> (bagianmu). Anggaran, analisis, dan insight memakai angka ini.</p>
-          <p><b>{rupiah(result.total - (me ? moneyOf(me.id) : 0))}</b> jadi piutang dari {others.filter(person => moneyOf(person.id) > 0).length} orang. Saat mereka membayar, saldo bertambah tanpa dihitung sebagai pemasukan.</p>
-        </> : <>
-          <p><b>Saldo dompet belum berubah</b>, karena {payer ? personName(payer) : 'orang lain'} yang membayar.</p>
-          {me && moneyOf(me.id) > 0 ? <p>Bagianmu <b>{rupiah(moneyOf(me.id))}</b> dicatat sebagai pengeluaran hari itu, dan jadi utang ke {payer ? personName(payer) : 'yang membayar'}. Saat kamu melunasinya, tidak dihitung sebagai pengeluaran lagi.</p> : <p>Kamu tidak punya bagian di tagihan ini, jadi tidak ada pengeluaran atau utang.</p>}
-          <p>Pembayaran teman lain ke {payer ? personName(payer) : 'yang membayar'} cukup ditandai di Split Bill ini.</p>
-        </>}
-      </div>
-      {!bill.categoryId && !bill.fromTransaction && <div className="sb-issues"><p>Pilih kategori tagihan di langkah Tagihan.</p></div>}
-      {hasPayments && <div className="notice"><strong>Split Bill ini sudah memiliki pembayaran.</strong><p>Perubahan dapat mengubah sisa tagihan. Riwayat pembayaran tetap tersimpan dan tidak diubah.</p><label className="check-row"><input type="checkbox" checked={understood} onChange={e => setUnderstood(e.target.checked)}/> Saya mengerti</label></div>}
-      {issuesBox(5)}
-    </div>,
-  ];
+  const categoryName = (() => { const c = data.categories.find(x => x.id === (bill.subcategoryId || bill.categoryId)); return c?.name || ''; })();
+  const itemsOf = (id: string) => bill.items.filter(item => item.people.includes(id) || (item.units?.[id] || 0) > 0 || (item.custom?.[id] || 0) > 0).length;
+  const whoText = (item: SplitItem) => {
+    const name = (id: string) => personName(bill.participants.find(person => person.id === id));
+    if (item.assign === 'units') return Object.entries(item.units || {}).filter(([, n]) => n > 0).map(([id, n]) => `${name(id)} ${n}`).join(' · ');
+    if (item.assign === 'custom') return Object.entries(item.custom || {}).filter(([, n]) => n > 0).map(([id, n]) => `${name(id)} ${rupiah(n)}`).join(' · ');
+    return item.people.length === bill.participants.length && bill.participants.length > 2 ? 'Semua' : item.people.map(name).join(' · ');
+  };
+  const receiptTotal = bill.total || result.total;
+  const matches = !result.mismatch && !result.unassigned;
+  const unassignedTotal = result.unassignedItems.reduce((sum, row) => sum + row.amount, 0);
+  const itemMode = bill.items.length > 0;
 
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-    <DialogContent title={editing ? 'Ubah Split Bill' : start.mode === 'transaction' ? 'Split Bill dari transaksi' : 'Buat Split Bill'} className="sb-flow-dialog">
-      <div className="sb-flow" ref={body}>
-        <div className="sb-progress">
-          <div className="sb-progress-top"><span>{step + 1} dari {STEPS.length} · <b>{STEPS[step]}</b></span>{!editing && <button type="button" className="link-button" disabled={saving} onClick={() => void save(true)}>Simpan draft</button>}</div>
-          <div className="sb-progress-bar" aria-hidden="true">{STEPS.map((label, index) => <button type="button" key={label} tabIndex={-1} className={index < step ? 'is-done' : index === step ? 'is-now' : ''} onClick={() => { if (index < step) setStep(index); }}/>)}</div>
-        </div>
-        {views[step]}
+    <DialogContent title={editing ? 'Ubah Split Bill' : start.mode === 'transaction' ? 'Split Bill dari transaksi' : 'Split Bill'} className="sb-flow-dialog">
+      <div className="sb-flow sb-one">
+        {/* 1. The bill at a glance. */}
+        <header className="sb-top">
+          <input className="sb-title" value={bill.title} maxLength={120} onChange={e => patch({ title: e.target.value })} placeholder="Nama tagihan, mis. Makan malam tim" aria-label="Nama tagihan"/>
+          <small className="sb-top-meta">{[`${bill.participants.length} orang`, `${bill.items.length} item`, bill.merchant && bill.merchant !== bill.title ? bill.merchant : ''].filter(Boolean).join(' · ')}</small>
+          <div className="sb-top-total"><b>{rupiah(result.total || bill.total)}</b>{(result.total || bill.total) > 0 && <span className={`sb-match ${matches ? 'is-ok' : 'is-warn'}`}>{matches ? <><Check size={13}/> Cocok</> : <><AlertTriangle size={13}/> {result.unassigned ? `${rupiah(Math.abs(result.unassigned))} belum dibagi` : `Selisih ${rupiah(Math.abs(result.mismatch))}`}</>}</span>}</div>
+          <div className="sb-top-actions">
+            <button type="button" className="rs-pill" onClick={() => setScanOpen(true)}><ScanText size={14}/> {photoUrl || bill.items.length ? 'Scan ulang' : 'Scan struk'}</button>
+            <button type="button" className="rs-pill" onClick={() => { setAddingItem(true); setOpenItem(''); }}><Plus size={14}/> Tambah item</button>
+            {photoUrl && <img className="sb-top-thumb" src={photoUrl} alt="Foto struk"/>}
+          </div>
+          {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tetap tersimpan.</small>}
+        </header>
+
+        {/* 2. Who is splitting. */}
+        <section className="sb-sec">
+          <div className="sb-sec-head"><h4>Orang</h4><small>{bill.participants.length}</small></div>
+          <div className="sb-people-row">
+            {bill.participants.map(person => <span className={`sb-person-chip ${bill.payer === 'other' && person.id === bill.payerId || bill.payer === 'me' && person.isMe ? 'is-payer' : ''}`} key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span>{!person.isMe && !paidPeople.has(person.id) && <button type="button" aria-label={`Hapus ${person.name}`} onClick={() => removePerson(person.id)}><X size={13}/></button>}</span>)}
+            <button type="button" className="sb-person-add" aria-expanded={addingPerson} onClick={() => setAddingPerson(v => !v)}><UserPlus size={14}/> Tambah</button>
+          </div>
+          {addingPerson && <div className="sb-add-panel">
+            <form className="sb-add" onSubmit={e => { e.preventDefault(); void addTyped(); }}>
+              <Input value={newName} maxLength={60} onChange={e => setNewName(e.target.value)} placeholder="Nama orang" aria-label="Nama orang" autoComplete="off" autoFocus/>
+              <Button type="submit" className="small" disabled={!newName.trim()}>Tambah</Button>
+            </form>
+            {newName.trim() && !people.some(person => person.name.trim().toLocaleLowerCase('id-ID') === newName.trim().toLocaleLowerCase('id-ID')) && <label className="check-row sb-remember"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}/> Simpan ke Orang tersimpan</label>}
+            {suggestions.length > 0 && <div className="sb-chips">{suggestions.map(person => <button type="button" key={person.id} className="sb-chip" onClick={() => { addPerson(person.name, { personId: person.id, emoji: person.emoji || undefined }); setNewName(''); }}>{person.emoji ? <Emoji e={person.emoji}/> : <Plus size={14}/>}<span>{person.name}</span></button>)}</div>}
+            {groups.length > 0 && <div className="sb-chips">{groups.map(group => <button type="button" key={group.id} className={`sb-chip ${bill.groupId === group.id ? 'is-on' : ''}`} onClick={() => addGroup(group)}><Emoji e={group.emoji || '👥'}/><span>{group.name}</span><small>{group.memberIds.length}</small></button>)}</div>}
+            <label className="check-row"><input type="checkbox" checked={Boolean(me)} onChange={e => toggleMe(e.target.checked)}/> Saya ikut patungan</label>
+          </div>}
+        </section>
+
+        {/* 3. Items and who had them. */}
+        <section className="sb-sec">
+          <div className="sb-sec-head"><h4>Item</h4><small>{itemMode ? `${bill.items.length} · ${rupiah(result.subtotal)}` : 'tanpa item: dibagi rata'}</small></div>
+          {itemMode && <ul className="sbx-rows">{bill.items.map(item => {
+            const gross = item.qty * item.price, net = Math.max(0, gross - (item.discount || 0)), open = openItem === item.id, left = result.unassignedItems.find(row => row.id === item.id);
+            const unitsUsed = Object.values(item.units || {}).reduce((a, b) => a + b, 0), who = whoText(item);
+            return <li key={item.id} className={`sbx-row ${open ? 'is-open' : ''} ${left ? 'is-left' : ''}`}>
+              <button type="button" className="sbx-row-main" aria-expanded={open} onClick={() => setOpenItem(open ? '' : item.id)}>
+                <span className="sbx-row-name">{item.name}{item.qty > 1 && <small>{item.qty} × {rupiah(item.price)}</small>}</span>
+                <b>{rupiah(gross)}</b>
+              </button>
+              {item.discount ? <div className="sbx-row-sub"><span>Diskon item</span><span>−{rupiah(item.discount)}</span></div> : null}
+              {item.discount ? <div className="sbx-row-sub is-net"><span>Dibagi</span><span>{rupiah(net)}</span></div> : null}
+              <div className={`sbx-row-who ${left ? 'is-left' : ''}`}>{left ? <><AlertTriangle size={12}/> {who ? `${who} · ` : ''}belum dibagi {rupiah(left.amount)}</> : who}</div>
+              {open && <div className="sbx-row-edit">
+                {item.assign === 'units' && item.qty > 1 ? <div className="sb-units">{bill.participants.map(person => { const count = item.units?.[person.id] || 0; return <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><span className="sb-stepper"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { units: { ...item.units, [person.id]: Math.max(0, count - 1) } })}><Minus size={14}/></button><b>{count}</b><button type="button" aria-label="Tambah" disabled={unitsUsed >= item.qty} onClick={() => { changeItem(item.id, { units: { ...item.units, [person.id]: count + 1 } }); setLastPicked(person.id); }}><Plus size={14}/></button></span></span>; })}<small className={unitsUsed === item.qty ? 'muted' : 'sb-warn'}>{unitsUsed} dari {item.qty} porsi</small></div>
+                  : item.assign === 'custom' ? <div className="sb-units">{bill.participants.map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={item.custom?.[person.id] || 0} onChange={value => changeItem(item.id, { custom: { ...item.custom, [person.id]: value } })}/></span>)}</div>
+                  : <><small className="sb-ask">Siapa yang pesan?</small><div className="sb-chips">{bill.participants.map(person => personChip(person, item.people.includes(person.id), () => toggleTaker(item, person.id)))}<button type="button" className="sb-chip is-all" onClick={() => changeItem(item.id, { people: item.people.length === bill.participants.length ? [] : bill.participants.map(person => person.id) })}>{item.people.length === bill.participants.length ? 'Kosongkan' : 'Semua'}</button></div>
+                    {item.people.length > 1 && <small className="muted">{rupiah(net)} ÷ {item.people.length} = ±{rupiah(Math.round(net / item.people.length))} per orang</small>}
+                    {lastPicked && !item.people.includes(lastPicked) && bill.participants.some(person => person.id === lastPicked) && <button type="button" className="sb-link" onClick={() => changeItem(item.id, { people: [...item.people, lastPicked] })}>+ {personName(bill.participants.find(person => person.id === lastPicked))} lagi</button>}</>}
+                <details className="sb-more"><summary>Atur item</summary>
+                  <Field label="Nama"><Input value={item.name} maxLength={60} onChange={e => changeItem(item.id, { name: e.target.value })}/></Field>
+                  <div className="sb-item-nums"><span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { qty: Math.max(1, item.qty - 1) })}><Minus size={14}/></button><b>{item.qty}</b><button type="button" aria-label="Tambah" onClick={() => changeItem(item.id, { qty: Math.min(999, item.qty + 1) })}><Plus size={14}/></button></span><span>×</span><Money value={item.price} onChange={price => changeItem(item.id, { price })}/></div>
+                  <Field label="Diskon item ini"><Money value={item.discount || 0} onChange={discount => changeItem(item.id, { discount })}/></Field>
+                  <div className="ip-seg sb-seg" role="radiogroup" aria-label="Cara bagi item">{([['shared', 'Dibagi rata'], ['units', 'Per porsi'], ['custom', 'Nominal']] as [SplitItem['assign'], string][]).map(([key, label]) => <button type="button" key={key} disabled={key === 'units' && item.qty < 2} className={item.assign === key ? 'active' : ''} onClick={() => changeItem(item.id, { assign: key })}>{label}</button>)}</div>
+                  <div className="sb-cat"><small className="muted">Kategori item (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={item.categoryId || ''} subcategoryId={item.subcategoryId || ''} onChange={value => changeItem(item.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>
+                  <button type="button" className="sb-link is-danger" onClick={() => { setItems(bill.items.filter(row => row.id !== item.id)); setOpenItem(''); }}><Trash2 size={14}/> Hapus item</button>
+                </details>
+              </div>}
+            </li>; })}</ul>}
+          {(addingItem || !itemMode) && <form className="sb-item-add" onSubmit={e => { e.preventDefault(); addItem(); }}>
+            <Input value={itemName} maxLength={60} onChange={e => setItemName(e.target.value)} placeholder="Nama item, mis. Mie Goreng" aria-label="Nama item"/>
+            <div className="sb-item-nums"><span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => setItemQty(q => Math.max(1, q - 1))}><Minus size={14}/></button><b>{itemQty}</b><button type="button" aria-label="Tambah" onClick={() => setItemQty(q => Math.min(999, q + 1))}><Plus size={14}/></button></span><span>×</span><Money value={itemPrice} onChange={setItemPrice} placeholder="Harga satuan"/><Button type="submit" variant="secondary" className="small"><Plus size={15}/></Button></div>
+          </form>}
+          {!itemMode && !bill.fromTransaction && <label className="sb-line"><span>Total tagihan</span><Money value={bill.total} onChange={total => patch({ total })}/></label>}
+        </section>
+
+        {/* 4. Shared charges and discounts. */}
+        <section className="sb-sec">
+          <div className="sb-sec-head"><h4>Tambahan &amp; diskon</h4>
+            <details className="sb-extra-picker is-compact" ref={picker}>
+              <summary><Plus size={14}/> Tambah</summary>
+              <div className="sb-extra-menu" role="menu">{EXTRA_KINDS.map(kind => { const [Icon, hint] = EXTRA_LOOKS[kind]; return <button type="button" role="menuitem" key={kind} className={`is-${kind}`} onClick={() => { addExtra(kind); if (picker.current) picker.current.open = false; }}><span className="sb-extra-menu-icon"><Icon size={17}/></span><span><strong>{EXTRA_LABELS[kind]}</strong><small>{hint}</small></span></button>; })}</div>
+            </details>
+          </div>
+          {!bill.extras.length && <small className="muted">Tidak ada pajak, service, atau diskon.</small>}
+          {bill.extras.map(extra => {
+            const resolved = result.extras.find(row => row.id === extra.id), chosen = extra.people || [], [Icon] = EXTRA_LOOKS[extra.kind];
+            const how = extra.distribution === 'custom' ? 'custom' : extra.distribution === 'equal' ? 'rata' : 'proporsional';
+            return <details className={`sb-extra is-${extra.kind}`} key={extra.id} open={openExtra === extra.id} onToggle={event => { const open = event.currentTarget.open; setOpenExtra(current => open ? extra.id : current === extra.id ? '' : current); }}>
+              <summary><span className="sb-extra-menu-icon"><Icon size={15}/></span><span className="sb-extra-title"><strong>{extra.label.trim() || EXTRA_LABELS[extra.kind]}</strong><small>{how}{chosen.length ? ` · ${chosen.length} orang` : ''}</small></span><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong></summary>
+              <div className="sb-extra-body">
+                <div className="sb-item-head"><Input className="sb-item-name" value={extra.label} maxLength={40} placeholder={extra.kind === 'shared' ? 'Misalnya Sewa lapangan' : EXTRA_LABELS[extra.kind]} onChange={e => changeExtra(extra.id, { label: e.target.value })} aria-label="Nama biaya"/><button type="button" className="icon-btn" aria-label="Hapus biaya" onClick={() => patch({ extras: bill.extras.filter(row => row.id !== extra.id) })}><Trash2 size={16}/></button></div>
+                <div className="sb-extra-amount">
+                  {extra.percent && bill.items.length ? <span className="sb-static input">{showPercent(extra.percent * 100)}% dari {extra.kind === 'tax' ? 'item + service' : 'item'}</span> : <Money value={Math.abs(extra.amount)} onChange={value => changeExtra(extra.id, { amount: extra.kind === 'rounding' && extra.amount < 0 ? -value : value, percent: undefined })}/>}
+                  {extra.kind === 'rounding' && <div className="ip-seg sb-seg"><button type="button" className={extra.amount >= 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: Math.abs(extra.amount) })}>Tambah</button><button type="button" className={extra.amount < 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: -Math.abs(extra.amount) })}>Kurang</button></div>}
+                  {bill.items.length > 0 && ['tax', 'service', 'tip', 'discount'].includes(extra.kind) && <div className="toolbar-row">{(extra.kind === 'tax' ? [10, 11] : extra.kind === 'service' ? [5, 10] : [5, 10, 15]).map(pct => <button type="button" key={pct} className={`link-button ${extra.percent === pct ? 'is-active' : ''}`} onClick={() => changeExtra(extra.id, { percent: extra.percent === pct ? undefined : pct })}>{pct}%</button>)}</div>}
+                </div>
+                <div className="sb-extra-how"><small>Dibagi</small><div className="ip-seg sb-seg">{([['proportional', 'Proporsional'], ['equal', 'Rata'], ['custom', 'Custom']] as [SplitExtra['distribution'], string][]).map(([key, label]) => <button type="button" key={key} className={extra.distribution === key ? 'active' : ''} onClick={() => changeExtra(extra.id, { distribution: key })}>{label}</button>)}</div></div>
+                {extra.distribution === 'custom' ? <div className="sb-units">{(chosen.length ? bill.participants.filter(person => chosen.includes(person.id)) : bill.participants).map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={extra.custom?.[person.id] || 0} onChange={value => changeExtra(extra.id, { custom: { ...extra.custom, [person.id]: value } })}/></span>)}</div>
+                  : <div className="sb-extra-who"><small>Untuk</small><div className="sb-chips"><button type="button" className={`sb-chip ${!chosen.length ? 'is-on' : ''}`} onClick={() => changeExtra(extra.id, { people: [] })}><span>Semua orang</span></button>{bill.participants.map(person => personChip(person, chosen.includes(person.id), () => changeExtra(extra.id, { people: chosen.includes(person.id) ? chosen.filter(id => id !== person.id) : [...chosen, person.id] })))}</div></div>}
+                {(extra.kind === 'shared' || extra.kind === 'other') && <div className="sb-cat"><small className="muted">Kategori biaya ini (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={extra.categoryId || ''} subcategoryId={extra.subcategoryId || ''} onChange={value => changeExtra(extra.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>}
+              </div>
+            </details>;
+          })}
+        </section>
+
+        {/* 5. Each person's total, to check at a glance. */}
+        <section className="sb-sec">
+          <div className="sb-sec-head"><h4>Per orang</h4><small>{METHOD_LABELS[bill.method]}</small><button type="button" className="sb-link" aria-expanded={otherMethods} onClick={() => setOtherMethods(v => !v)}>{otherMethods ? 'Tutup' : 'Cara bagi'}</button></div>
+          {otherMethods && <div className="sb-methods" role="radiogroup" aria-label="Cara bagi">{(['items', 'equal', 'amount', 'percent'] as SplitMethod[]).map(method => <button type="button" key={method} role="radio" aria-checked={bill.method === method} disabled={method === 'items' && !itemMode} className={bill.method === method ? 'active' : ''} onClick={() => patch({ method })}>{METHOD_LABELS[method]}</button>)}</div>}
+          <ul className="sbx-rows sb-people-totals">{bill.participants.map(person => {
+            const share = result.people.find(row => row.id === person.id), open = openPerson === person.id, count = itemsOf(person.id);
+            return <li key={person.id} className={`sbx-row ${open ? 'is-open' : ''}`}>
+              <div className="sb-person-line">
+                <button type="button" className="sbx-row-main" aria-expanded={open} onClick={() => setOpenPerson(open ? '' : person.id)}>
+                  <PersonAvatar person={person} size="sm"/>
+                  <span className="sbx-row-name">{personName(person)}<small>{[bill.method === 'items' ? `${count} item` : '', payer?.id === person.id ? 'yang bayar' : ''].filter(Boolean).join(' · ')}</small></span>
+                  <b>{rupiah(moneyOf(person.id))}</b>
+                </button>
+                {bill.method === 'amount' && <Money value={person.amount || 0} onChange={amount => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, amount } : row) })}/>}
+                {bill.method === 'percent' && <span className="sb-percent"><Input inputMode="decimal" value={showPercent(person.percent)} onChange={e => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, percent: readPercent(e.target.value) } : row) })} aria-label={`Persentase ${person.name}`} placeholder="0"/><span>%</span></span>}
+              </div>
+              {open && share && <div className="sb-person-lines">{share.lines.filter(line => line.amount).map(line => <div key={line.key}><span>{line.label}</span><span>{line.amount < 0 ? '−' : ''}{rupiah(Math.abs(line.amount))}</span></div>)}{!share.lines.length && <small className="muted">Belum ada bagian.</small>}</div>}
+            </li>; })}</ul>
+          {bill.method === 'amount' && <button type="button" className="sb-link" onClick={() => { const parts = computeSplit({ ...bill, method: 'equal' }).people; patch({ participants: bill.participants.map(row => ({ ...row, amount: parts.find(p => p.id === row.id)?.base || 0 })) }); }}>Isi rata dulu</button>}
+          {bill.method === 'percent' && <button type="button" className="sb-link" onClick={() => { const n = bill.participants.length, each = Math.floor(10000 / n); patch({ participants: bill.participants.map((row, i) => ({ ...row, percent: i === 0 ? 10000 - each * (n - 1) : each })) }); }}>Bagi rata persentasenya</button>}
+        </section>
+
+        {/* 6. Does it add up? */}
+        <section className={`sb-recon ${matches ? 'is-ok' : 'is-warn'}`}>
+          <div><span>{photoUrl || bill.items.length ? 'Total struk' : 'Total tagihan'}</span><span>{rupiah(receiptTotal)}</span></div>
+          <div><span>Total pembagian</span><span>{rupiah(result.allocated)}</span></div>
+          <p>{matches ? <><Check size={14}/> Cocok</> : <><AlertTriangle size={14}/> Selisih {rupiah(Math.abs(result.unassigned || result.mismatch))}</>}</p>
+          {unassignedTotal > 0 && <small>Belum dibagi: {result.unassignedItems.slice(0, 3).map(row => row.name).join(', ')}{result.unassignedItems.length > 3 ? ` dan ${result.unassignedItems.length - 3} lagi` : ''}. Ketuk itemnya untuk memilih orangnya.</small>}
+          {result.mismatch !== 0 && <><small>Item dan biaya berjumlah {rupiah(result.total)}, total tagihan {rupiah(bill.total)}. Mungkin ada item atau biaya yang belum masuk.</small>
+            <div className="sb-recon-actions"><button type="button" className="sb-link" onClick={() => patch({ extras: [...bill.extras, { id: newId('x'), kind: 'rounding', label: 'Pembulatan', amount: result.mismatch, distribution: 'proportional' }] })}>Jadikan pembulatan</button>{!bill.fromTransaction && <button type="button" className="sb-link" onClick={() => patch({ total: result.total })}>Pakai total rincian</button>}</div></>}
+          {!unassignedTotal && !result.mismatch && result.issues.filter(issue => issue.step !== 'bill').slice(0, 2).map(issue => <small key={issue.message}>{issue.message}</small>)}
+        </section>
+
+        {/* 7. Who paid, from where, and the category; folded once set. */}
+        <section className="sb-sec">
+          <button type="button" className="sb-bill-line" aria-expanded={billOpen} onClick={() => setBillOpen(v => !v)}>
+            <span><strong>Pembayaran</strong><small>{[bill.payer === 'me' ? `Saya bayar dari ${walletName}` : `Dibayar ${payer ? personName(payer) : 'orang lain'}`, categoryName || 'Kategori belum dipilih', formatDate(bill.date, false)].join(' · ')}</small></span>
+            <ChevronDown size={16}/>
+          </button>
+          {billOpen && <div className="sb-bill-fields">
+            <div className="ip-seg" role="radiogroup" aria-label="Siapa yang bayar"><button type="button" role="radio" aria-checked={bill.payer === 'me'} disabled={hasPayments} className={bill.payer === 'me' ? 'active' : ''} onClick={() => patch({ payer: 'me', payerId: me?.id || '' })}>Saya yang bayar</button><button type="button" role="radio" aria-checked={bill.payer === 'other'} disabled={hasPayments || bill.fromTransaction} className={bill.payer === 'other' ? 'active' : ''} onClick={() => patch({ payer: 'other', payerId: others[0]?.id || '' })}>Orang lain</button></div>
+            <small className="muted">{bill.payer === 'me' ? 'Teman membayar balik ke kamu (jadi piutang).' : 'Bagianmu jadi utang ke orang itu.'}</small>
+            {bill.payer === 'me' && (bill.fromTransaction ? <p className="muted sb-note">Dibayar dari {walletName}. Transaksinya tetap satu, tidak dicatat dua kali.</p> : <Field label="Dibayar dari dompet"><Select value={bill.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{payWallets.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></Field>)}
+            {bill.payer === 'other' && (others.length ? <div className="sb-chips">{others.map(person => personChip(person, bill.payerId === person.id, () => patch({ payerId: person.id })))}</div> : <p className="muted">Tambahkan dulu orang yang membayar.</p>)}
+            <div className="sb-block"><small className="muted">Kategori (untuk bagianmu saja)</small>
+              {categoryGuess && <button type="button" className="tx-suggest" onClick={() => patch({ categoryId: categoryGuess.categoryId, subcategoryId: categoryGuess.subcategoryId })}><Sparkles size={15} aria-hidden="true"/><span className="tx-suggest-text"><small>Kategori yang cocok</small><strong><AppIcon icon={categoryGuess.icon} fallback="🗂️"/> {categoryGuess.name}</strong></span><span className="tx-suggest-go">Pakai</span></button>}
+              <CategoryPicker type="expense" categoryId={bill.categoryId || ''} subcategoryId={bill.subcategoryId || ''} onChange={value => patch({ categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/>
+            </div>
+            <div className="form-grid"><Field label="Tanggal"><Input type="date" value={bill.date} disabled={bill.fromTransaction} onChange={e => patch({ date: e.target.value })}/></Field><Field label="Tempat"><Input value={bill.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Opsional"/></Field></div>
+            {itemMode && !bill.fromTransaction && <Field label="Total di struk" hint="Untuk dicocokkan dengan pembagian."><Money value={bill.total} onChange={total => patch({ total })}/></Field>}
+            <details className="sb-more"><summary>Jatuh tempo &amp; catatan</summary>
+              <div className="form-grid"><Field label="Jatuh tempo"><Input type="date" value={bill.dueDate || ''} onChange={e => patch({ dueDate: e.target.value })}/></Field><Field label="Waktu"><Input type="time" value={bill.time || ''} disabled={bill.fromTransaction} onChange={e => patch({ time: e.target.value })}/></Field></div>
+              <Field label="Catatan"><Input value={bill.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></Field>
+            </details>
+            <details className="sb-more"><summary>Apa yang dicatat?</summary><div className="sb-explain">
+              {bill.payer === 'me' ? <>
+                <p><b>{bill.fromTransaction ? `Transaksi ${rupiah(result.total)} dari ${walletName} tetap satu` : `Saldo ${walletName} berkurang ${rupiah(result.total)}`}</b>, sesuai uang yang benar-benar keluar.</p>
+                <p>Pengeluaranmu hanya <b>{rupiah(me ? moneyOf(me.id) : 0)}</b> (bagianmu). <b>{rupiah(result.total - (me ? moneyOf(me.id) : 0))}</b> jadi piutang dari {others.filter(person => moneyOf(person.id) > 0).length} orang.</p>
+              </> : <>
+                <p><b>Saldo dompet belum berubah</b>, karena {payer ? personName(payer) : 'orang lain'} yang membayar.</p>
+                {me && moneyOf(me.id) > 0 ? <p>Bagianmu <b>{rupiah(moneyOf(me.id))}</b> dicatat sebagai pengeluaran dan jadi utang ke {payer ? personName(payer) : 'yang membayar'}.</p> : <p>Kamu tidak punya bagian di tagihan ini.</p>}
+              </>}
+            </div></details>
+          </div>}
+        </section>
+
+        {hasPayments && <div className="notice"><strong>Split Bill ini sudah memiliki pembayaran.</strong><p>Perubahan dapat mengubah sisa tagihan. Riwayat pembayaran tetap tersimpan.</p><label className="check-row"><input type="checkbox" checked={understood} onChange={e => setUnderstood(e.target.checked)}/> Saya mengerti</label></div>}
         {error && <p className="form-error" role="alert">{error}</p>}
-        <div className="sb-actions">
-          <Button type="button" variant="secondary" onClick={() => step ? setStep(step - 1) : onClose()}>{step ? <><ArrowLeft size={16}/> Kembali</> : 'Batal'}</Button>
-          {step < STEPS.length - 1 ? <Button type="button" onClick={next}>{step === 2 && !bill.items.length ? 'Lewati' : 'Lanjut'} <ArrowRight size={16}/></Button>
-            : <Button type="button" disabled={saving || !result.ok} onClick={() => void save(false)}>{saving ? 'Menyimpan…' : <><Check size={16}/> Simpan Split Bill</>}</Button>}
+        <div className="sb-actions sb-one-actions">
+          {!editing && <button type="button" className="sb-link" disabled={saving} onClick={() => void save(true)}>Simpan draft</button>}
+          <Button type="button" disabled={saving} onClick={() => void save(false)}>{saving ? 'Menyimpan…' : <><Check size={16}/> Selesai membagi</>}</Button>
         </div>
       </div>
+      <ReceiptScan open={scanOpen} onOpenChange={setScanOpen} context="split_bill" onUse={useReceipt}/>
     </DialogContent>
   </Dialog>;
 }

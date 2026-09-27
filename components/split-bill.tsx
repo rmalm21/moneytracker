@@ -48,7 +48,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
     setHandled(focus);
     if (focus === 'new') setChooser(true);
     else if (focus === 'manual' || focus === 'receipt') setFlow({ mode: focus });
-    else if (focus === 'receipt-draft') { const handed = takeReceiptHandoff(); setFlow(handed ? { mode: 'receipt', receipt: handed.read, photo: handed.photo } : { mode: 'receipt' }); }
+    else if (focus === 'receipt-draft') { const handed = takeReceiptHandoff(); setFlow(handed ? { mode: 'receipt', receipt: handed.receipt, photo: handed.photo } : { mode: 'receipt' }); }
     else if (focus.startsWith('bill:')) setOpenId(focus.slice(5));
     else if (focus.startsWith('tx:')) void fromTransaction(focus.slice(3));
   }, [focus, handled, user?.uid, bills]);
