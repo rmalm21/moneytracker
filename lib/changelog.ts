@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '80', date: '27 Sep 2026', title: 'Hasil Scan struk lebih ringkas', items: [
+    ['🧾', 'Item di struk kini satu baris per item (nama, jumlah, kategori, dan harga); ketuk item untuk mengubahnya.'],
+    ['📝', 'Tombol foto (putar, sudut, baca ulang, foto lanjutan, ganti) jadi satu baris kecil, tanggal dan jam berdampingan, dan kolom isian lebih ringkas.'],
+    ['💡', 'Bagian yang jarang dipakai dilipat: biaya & diskon (terbuka otomatis bila total belum cocok), pembayaran, catatan, dan detail hasil baca. Pilihan nominal lain cukup satu baris yang bisa digeser.'],
+  ] },
   { version: '79', date: '27 Sep 2026', title: 'Scan struk 2.0: memahami struk, bukan sekadar membaca', items: [
     ['📷', 'Struk dicari keempat sudutnya lalu diluruskan penuh, jadi foto yang miring atau diambil dari samping tetap terbaca. Bayangan diratakan, dan struk yang terpotong bayangan tidak lagi kehilangan sisinya. Ada kamera dengan panduan (“Dekatkan kamera”, “Struk ditemukan”) dan foto otomatis bila mau.'],
     ['✅', 'Beberapa pembacaan digabungkan angka demi angka. Yang sama dipercaya, yang berbeda disimpan sebagai pilihan, dan hitungan dipakai hanya bila ada satu-satunya cara struk cocok. Hasilnya: Terverifikasi, Kemungkinan benar, Perlu dicek, atau Belum terbaca.'],
