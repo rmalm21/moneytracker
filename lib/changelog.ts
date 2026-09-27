@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '93', date: '27 Sep 2026', title: 'Hapus yang pasti sampai ke cloud, nominal terlihat saat mengisi', items: [
+    ['🔒', 'Saat nominal disembunyikan, angka di formulir, Scan struk, dan jendela ubah lainnya tetap terlihat supaya mudah dicek. Saldo dompet di dalamnya tetap disamarkan, begitu juga seluruh halaman lain.'],
+    ['✅', 'Setelah menghapus, kamu diberi tahu statusnya: “terhapus dari cloud”, atau saat offline “terhapus di perangkat” lalu “terhapus dari cloud” begitu online.'],
+    ['💡', 'Kalau aplikasi ditutup sebelum penghapusan terkirim (bahkan masih di jendela Batalkan), transaksinya tetap tersembunyi dan dihapus dari cloud otomatis saat aplikasi dibuka lagi atau kembali online. Hanya penghapusan yang ditolak server yang membuatnya muncul lagi.'],
+  ] },
   { version: '92', date: '27 Sep 2026', title: 'Hapus transaksi tidak lagi butuh koneksi', items: [
     ['✅', 'Menghapus transaksi biasa kini langsung tercatat di perangkat dan dikirim otomatis ke cloud, walau sedang offline, sinyal lemah, atau aplikasi langsung ditutup. Sebelumnya penghapusan harus menunggu server dan bisa batal di tengah jalan.'],
     ['🔒', 'Kalau server menolak penghapusan, transaksinya tampil lagi dengan pesan alasannya di lonceng notifikasi.'],

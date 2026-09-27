@@ -30,7 +30,17 @@ test('transactions this device deleted never come back from a stale device copy'
   assert.equal((store.match(/withoutDeleted\(snapshot\.docs/g) || []).length, 2, 'period and related lists');
   assert.equal((store.match(/withoutDeleted\(result\)|return withoutDeleted\(\(await getDocsFromCache/g) || []).length, 2, 'full history, cache and server');
   // Checked with the server on opening; a restore clears them.
-  assert.match(store, /export async function checkDeletedTransactions[\s\S]*if\(snap\.exists\(\)\)forgetTxDeleted/);
+  // On opening (and back online): the device's queue is sent first, then what the server still holds is deleted again;
+  // only a refusal (not a missing connection) shows it again.
+  const check = store.slice(store.indexOf('export async function checkDeletedTransactions'));
+  assert.match(check, /waitForPendingWrites\(database\(\)\)/);
+  assert.match(check, /if\(!snap\.exists\(\)\)continue;\s*await deleteTransaction\(uid,id\);/);
+  assert.match(check, /offline\|network\|unavailable[\s\S]*continue;forgetTxDeleted\(\[id\]\)/);
+  const t2 = readFileSync(new URL('../lib/tombstones.ts', import.meta.url), 'utf8');
+  assert.match(t2, /const left = readPending\(\);/, 'a delete cut short by closing the app is finished next time');
+  const page = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
+  assert.match(page, /markDeletePending\(tx\.id\);undo\.remove/);
+  assert.match(page, /\(\)=>clearDeletePending\(tx\.id\)\)\}/, 'Batalkan clears it');
   assert.match(store, /importData[^{]*\{const \{data\}=validateBackup\(backup\);forgetTxDeleted\(\);/);
   assert.match(store, /noteDeleted\(uid:string,items[^)]*\)\{markTxDeleted\(items\.transactions\|\|\[\]\)/);
 });

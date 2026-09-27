@@ -2,18 +2,26 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { hasAmount, maskAmounts } from '@/lib/privacy';
+import { rupiah } from '@/lib/accounting';
+import { useApp } from './app-provider';
 
 /**
  * Privacy switch: every amount on screen shows as "Rp•••••" (lib/privacy.ts).
  * It works on the text the pages already render, so every page, dialog, toast and chart tooltip
  * is covered without each one knowing about it. Inputs keep their value, so forms still work.
  * Chosen per device and remembered.
+ *
+ * While filling in or checking something (a form, the receipt review, any dialog) the numbers being worked on stay
+ * visible; only wallet balances shown there (a wallet picker's "BCA · Rp…") remain hidden.
  */
 const KEY = 'dompet-ajaib:hide-amounts';
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'NOSCRIPT']);
 /** Masked text nodes with what the page wrote, so turning the switch off puts it back. */
 const masked = new Map<Text, { original: string; shown: string }>();
 let observer: MutationObserver | null = null;
+/** Wallet balances as written on screen ("Rp1.250.000"): still hidden inside forms and dialogs. */
+let balances: string[] = [];
+const editing = (el: Element) => Boolean(el.closest('[role="dialog"], form, .modal-content'));
 
 function maskNode(node: Text) {
   const value = node.nodeValue || '', record = masked.get(node);
@@ -21,6 +29,7 @@ function maskNode(node: Text) {
   if (!hasAmount(value)) { if (record) masked.delete(node); return; }
   const parent = node.parentElement;
   if (!parent || SKIP.has(parent.tagName) || parent.closest('[contenteditable="true"]')) return;
+  if (editing(parent) && !balances.some(b => value.includes(b))) { if (record && value === record.shown) node.nodeValue = record.original; masked.delete(node); return; }
   const shown = maskAmounts(value);
   masked.set(node, { original: value, shown });
   node.nodeValue = shown;
@@ -79,6 +88,9 @@ export function useHideAmounts() {
 /** Eye button in the top bar, left of the bell. */
 export function AmountToggle() {
   const [hidden, toggle] = useHideAmounts();
+  const { data } = useApp();
+  const known = data.wallets.map(w => w.cachedBalance).join();
+  useEffect(() => { balances = [...new Set(data.wallets.filter(w => w.cachedBalance).map(w => rupiah(w.cachedBalance)))]; }, [known]); // eslint-disable-line react-hooks/exhaustive-deps
   const label = hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal';
   return <button type="button" className={`eye-button ${hidden ? 'is-on' : ''}`} aria-pressed={hidden} aria-label={label} title={label} onClick={toggle}>{hidden ? <EyeOff size={19}/> : <Eye size={19}/>}</button>;
 }

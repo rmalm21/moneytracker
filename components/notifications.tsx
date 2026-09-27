@@ -19,7 +19,7 @@ type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; a
  * `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail.
  * `detail`: a second line such as the category and wallet. `log`: keep it in Riwayat (every save that shows a card does).
  */
-type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean };
+type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -66,7 +66,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
     task.then(() => {
       done();
-      const body = [labels.detail, navigator.onLine ? '' : 'Tersimpan di perangkat · dikirim otomatis saat online'].filter(Boolean).join(' · ') || undefined;
+      const body = [labels.detail, navigator.onLine ? '' : labels.offlineNote ?? 'Tersimpan di perangkat · dikirim otomatis saat online'].filter(Boolean).join(' · ') || undefined;
       const log = labels.log ?? !labels.quiet;
       if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body, kind: 'success' }); } else push({ id, title: labels.success, body, kind: 'success', history: log });
       labels.after?.();

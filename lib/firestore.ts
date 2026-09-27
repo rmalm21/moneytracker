@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { collection, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { isCurrent, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
@@ -33,8 +33,22 @@ export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>
  * screen reading the copy drops it at once.
  */
 async function dropFromDevice(uid:string,items:Partial<Record<Name,string[]>>){await Promise.all(Object.entries(items).flatMap(([name,ids])=>(ids||[]).slice(0,200).map(id=>getDocFromServer(ref(uid,name as Name,id)).catch(()=>undefined))));}
-/** On opening the app: each transaction this device deleted is checked once with the server (see lib/tombstones.ts). */
-export async function checkDeletedTransactions(uid:string){if(isOffline())return;for(const id of deletedTxIds().slice(0,100)){try{const snap=await getDocFromServer(ref(uid,'transactions',id));if(snap.exists())forgetTxDeleted([id]);}catch{/* next time */}}}
+/** Resolves when everything this device wrote (e.g. a delete made offline) has reached the cloud. */
+export const whenSent=()=>waitForPendingWrites(database());
+/**
+ * On opening the app (and when the connection returns): deletes this device made are finished on the server.
+ * First the device's own queue is sent (a delete may just be waiting there); then every transaction deleted here,
+ * or deleted in the "Batalkan" window just before the app was closed, that the server still holds is deleted again.
+ * Only a delete the server refuses (not a missing connection) lets the transaction show again.
+ */
+export async function checkDeletedTransactions(uid:string){if(isOffline())return;
+  try{await Promise.race([waitForPendingWrites(database()),new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),15000))]);}catch{return;/* the queue is still busy: next time */}
+  for(const id of deletedTxIds().slice(0,100)){
+    try{const snap=await getDocFromServer(ref(uid,'transactions',id));
+      if(!snap.exists())continue;
+      await deleteTransaction(uid,id);
+    }catch(error){if(isOffline()||/offline|network|unavailable/i.test(String((error as Error)?.message||'')))continue;forgetTxDeleted([id]);console.error('Transaksi belum bisa dihapus dari cloud',error);}
+  }}
 /** After deleting many documents at once (restore, reset): other devices compare counts and re-read those collections. */
 export async function markDeleted(uid:string,...collections:Name[]){try{await settle(updateDoc(userRef(uid),Object.fromEntries(collections.map(name=>[`syncMarks.${name}`,serverTimestamp()]))))}catch{/* the daily count check still catches it */}}
 const loginKey=(uid:string)=>`dompet-ajaib:last-login:${uid}`;

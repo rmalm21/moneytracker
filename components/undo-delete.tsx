@@ -9,7 +9,7 @@ import { useNotify } from './notifications';
  */
 const WAIT = 5000;
 type Pending = { label: string; detail?: string; commit: () => Promise<unknown>; timer: ReturnType<typeof setTimeout> };
-type Api = { hidden: ReadonlySet<string>; remove: (id: string, label: string, commit: () => Promise<unknown>, detail?: string) => void };
+type Api = { hidden: ReadonlySet<string>; remove: (id: string, label: string, commit: () => Promise<unknown>, detail?: string, onUndo?: () => void) => void };
 const UndoContext = createContext<Api>({ hidden: new Set(), remove: (_id, _label, commit) => { void commit(); } });
 
 export function UndoDeleteProvider({ children }: { children: ReactNode }) {
@@ -28,17 +28,19 @@ export function UndoDeleteProvider({ children }: { children: ReactNode }) {
     // Bring the row back only if the delete fails, so nothing silently vanishes; a deleted row stays hidden even if
     // a screen still holds its old copy for a moment.
     task.catch(error => { if (!(error as { committed?: boolean }).committed) show(id, false); });
-    track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, detail: item.detail, failure: `${item.label} belum terhapus`, quiet: true, log: true });
+    // Said plainly where it stands: gone from the cloud, or gone here and sent as soon as the phone is online.
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+    track(task, { pending: `Menghapus ${item.label.toLowerCase()} dari cloud…`, success: offline ? `${item.label} terhapus di perangkat` : `${item.label} terhapus dari cloud.`, detail: item.detail, offlineNote: 'Dihapus dari cloud otomatis saat online, walau aplikasi ditutup', failure: `${item.label} belum terhapus`, log: true });
   }, [dismiss, show, track]);
 
-  const remove = useCallback((id: string, label: string, run: () => Promise<unknown>, detail?: string) => {
+  const remove = useCallback((id: string, label: string, run: () => Promise<unknown>, detail?: string, onUndo?: () => void) => {
     if (pending.current.has(id)) return;
     show(id, true);
     const timer = setTimeout(() => commit(id), WAIT);
     pending.current.set(id, { label, detail, commit: run, timer });
     push({
       id: `undo-${id}`, title: `${label} dihapus`, body: detail, kind: 'info', history: false,
-      action: { label: 'Batalkan', run: () => { const item = pending.current.get(id); if (!item) return; clearTimeout(item.timer); pending.current.delete(id); show(id, false); push({ title: 'Penghapusan dibatalkan.', kind: 'success', history: false }); } },
+      action: { label: 'Batalkan', run: () => { const item = pending.current.get(id); if (!item) return; clearTimeout(item.timer); pending.current.delete(id); show(id, false); onUndo?.(); push({ title: 'Penghapusan dibatalkan.', kind: 'success', history: false }); } },
     });
   }, [commit, push, show]);
 

@@ -25,7 +25,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   // Keeps the device copy current (only changed documents are downloaded); the screens read that copy.
   useEffect(()=>{if(!user)return;return startSync(user.uid);},[user?.uid]);
   // Transactions this device deleted: confirmed with the server once per opening (lib/tombstones.ts).
-  useEffect(()=>{if(!user)return;const uid=user.uid,timer=setTimeout(()=>{void checkDeletedTransactions(uid)},4000);return()=>clearTimeout(timer);},[user?.uid]);
+  useEffect(()=>{if(!user)return;const uid=user.uid,run=()=>{void checkDeletedTransactions(uid)},timer=setTimeout(run,4000);window.addEventListener('online',run);return()=>{clearTimeout(timer);window.removeEventListener('online',run)};},[user?.uid]);
   useEffect(()=>{if(user&&profile)noteDeleteMarks(user.uid,profile.syncMarks);},[user?.uid,profile?.syncMarks]);
   useEffect(()=>{if(!user)return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(p);cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user]);
   useEffect(()=>{if(!profile)return;applyAppearance(profile);const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(profile);media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize]);
