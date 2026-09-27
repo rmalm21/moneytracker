@@ -178,7 +178,7 @@ Tunai             100.000
 Kembali            43.130`);
   assert.equal(read.merchant, 'WARUNG MAKAN SEDERHANA');
   assert.equal(read.date, '2026-09-27');
-  assert.deepEqual(read.items, [{ name: 'Nasi Goreng', qty: 1, price: 35000, total: 35000 }, { name: 'Es Teh', qty: 2, price: 6000, total: 12000 }]);
+  assert.deepEqual(read.items.map(({ name, qty, price, total }) => ({ name, qty, price, total })), [{ name: 'Nasi Goreng', qty: 1, price: 35000, total: 35000 }, { name: 'Es Teh', qty: 2, price: 6000, total: 12000 }]);
   assert.deepEqual([read.subtotal, read.service, read.tax, read.total], [47000, 4700, 5170, 56870]);
 
   const other = readReceiptText(`KOPI KITA

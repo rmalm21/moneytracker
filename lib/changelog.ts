@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '79', date: '27 Sep 2026', title: 'Scan struk 2.0: memahami struk, bukan sekadar membaca', items: [
+    ['📷', 'Struk dicari keempat sudutnya lalu diluruskan penuh, jadi foto yang miring atau diambil dari samping tetap terbaca. Bayangan diratakan, dan struk yang terpotong bayangan tidak lagi kehilangan sisinya. Ada kamera dengan panduan (“Dekatkan kamera”, “Struk ditemukan”) dan foto otomatis bila mau.'],
+    ['✅', 'Beberapa pembacaan digabungkan angka demi angka. Yang sama dipercaya, yang berbeda disimpan sebagai pilihan, dan hitungan dipakai hanya bila ada satu-satunya cara struk cocok. Hasilnya: Terverifikasi, Kemungkinan benar, Perlu dicek, atau Belum terbaca.'],
+    ['🧾', 'Hasil scan hanya meminta kamu memeriksa yang ragu. Ketuk ikon mata untuk melihat di bagian mana struk angka itu dibaca, baca ulang satu bagian saja, atau atur sudut struk tanpa foto ulang.'],
+    ['💡', 'Lebih paham isi struk: nama item dua baris, catatan item (NO ICE), tambahan berbayar, diskon per item, voucher, diskon ongkir, asuransi pengiriman, cashback (tidak mengurangi yang dibayar), BBM (liter × harga), parkir, nomor struk, dan cara bayar dari bagian pembayaran (promo GoPay di bawah tidak dianggap cara bayar).'],
+    ['🔒', 'Struk panjang bisa difoto beberapa kali (Foto lanjutan) tanpa item ganda, dan struk yang mirip transaksi lama diberi peringatan sebelum disimpan. Semua tetap dibaca di perangkat ini.'],
+  ] },
   { version: '78', date: '27 Sep 2026', title: 'Hasil Scan struk lebih rapi', items: [
     ['🧾', 'Layar hasil scan dirapikan untuk HP: foto jadi kecil (ketuk untuk memperbesar), tombolnya di samping foto, rincian biaya tidak berdempetan, dan tombol Simpan lebih ramping sambil menampilkan nominalnya.'],
     ['💡', 'Kategori kini dipilih dari daftar per kategori utama yang bisa dibuka-tutup, lengkap dengan pencarian, untuk kategori transaksi, tiap item, dan biaya yang dicatat terpisah.'],

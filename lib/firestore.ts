@@ -20,6 +20,8 @@ export function ref(uid:string,name:Name,id:string) { return doc(database(),'use
 const hydrate = <T>(d:{id:string;data:()=>DocumentData}) => ({ id:d.id, ...d.data() }) as T;
 /** Reads from the device copy once it matches the server (lib/sync.ts); asks the server only if that takes too long. */
 export async function readLocalFirst(uid:string,collections:SyncedName[],target:Query){if(await whenCurrent(uid,collections)){try{return await getDocsFromCache(target)}catch{/* ask the server */}}return getDocs(target);}
+/** Transactions a few days around a date (the duplicate check before saving a receipt): a small, bounded read, from the local cache when it is current. */
+export async function transactionsAround(uid:string,date:string,days=2){const shift=(n:number)=>{const d=new Date(`${date}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};const snapshot=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where('date','>=',shift(-days)),where('date','<=',shift(days)),limit(200)));return snapshot.docs.map(row=>hydrate<LedgerTx>(row));}
 /** One document from the device copy when it is current, otherwise from the server. */
 async function readDoc(uid:string,name:SyncedName,target:DocumentReference){if(isCurrent(uid,name)){try{const snap=await getDocFromCache(target);if(snap.exists())return snap}catch{/* ask the server */}}return getDoc(target);}
 /** A note that these documents were deleted, so the user's other devices drop exactly them from their copy (lib/sync.ts). */

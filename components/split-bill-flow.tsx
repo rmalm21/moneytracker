@@ -11,7 +11,7 @@ import { Emoji } from './emoji';
 import { AppIcon } from './visual-identity';
 import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
 import { ocrAvailable, readReceiptPhoto, type OcrProgress } from '@/lib/receipt-ocr';
-import { checkReceipt } from '@/lib/receipt';
+import { checkReceipt, netItems } from '@/lib/receipt';
 import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, readReceiptText, type ReceiptRead } from '@/lib/split-bill';
 import { attachSplitReceipt, saveSplitBill, saveSplitPerson, type SplitBillInput } from '@/lib/split-bill-store';
 import { suggestCategory } from '@/lib/categorize';
@@ -180,7 +180,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
       title: current.title || read.merchant,
       date: !current.fromTransaction && read.date ? read.date : current.date,
       total: current.fromTransaction ? current.total : read.total || current.total,
-      items: read.items.map(line => ({ id: newId('i'), name: line.name, qty: line.qty, price: line.price, assign: 'shared' as const, people: [] })),
+      // An item's own discount is taken off its price (the bill-level discount stays an extra).
+      items: netItems(read.items).map(line => ({ id: newId('i'), name: line.name, qty: line.qty, price: line.price, assign: 'shared' as const, people: [] })),
       extras: [...current.extras.filter(extra => !['service', 'tax', 'discount', 'delivery', 'admin', 'rounding'].includes(extra.kind)), ...extras],
       method: read.items.length ? 'items' : current.method,
     }));
