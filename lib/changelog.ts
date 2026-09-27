@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '89', date: '27 Sep 2026', title: 'Kartu transaksi bergaya kaca, hari bisa dilipat', items: [
+    ['💡', 'Setiap hari di daftar transaksi bisa dilipat: ketuk judul harinya. Hari yang dilipat menampilkan jumlah transaksi dan totalnya, dan tetap terlipat saat aplikasi dibuka lagi di perangkat ini.'],
+    ['✅', 'Kartu transaksi bergaya kaca: tepi bergradien, kilau lembut, ikon kategori kaca berwarna, dan cahaya latar yang halus. Judul hari menempel sebagai pil kaca saat digulir.'],
+    ['📝', 'Transaksi Terbaru di Beranda memakai tampilan yang sama, dikelompokkan per hari.'],
+    ['📷', 'Saat menentukan area struk, foto dibuat sedikit lebih pendek dan tombol “Ambil ulang” dan “Baca struk” selalu terlihat di bawah layar.'],
+  ] },
   { version: '88', date: '27 Sep 2026', title: 'Halaman Transaksi baru, grafik tanpa kotak', items: [
     ['💸', 'Halaman Transaksi dirombak: satu kartu ringkasan (selisih besar, bar masuk dan keluar, jumlah transaksi), pilihan cepat Semua · Keluar · Masuk · Transfer, dan setiap hari punya judul bertanggal (24 · Kamis, “Hari ini”, “Kemarin”) di atas kartunya sendiri.'],
     ['✅', 'Baris transaksi lebih tenang: titik warna kategori, dompet, dan jam; pengeluaran ditulis dengan warna teks biasa, pemasukan hijau.'],

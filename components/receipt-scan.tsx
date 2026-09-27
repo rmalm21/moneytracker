@@ -328,7 +328,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     {area && !busy && upright && <section className="rs-area" aria-label="Area struk">
       <div className="rs-area-head"><strong>Tentukan area struk</strong><small>Hanya bagian di dalam garis yang dibaca.</small></div>
       {area.prepared.quality.warnings[0] && <p className="sb-note is-warn" role="status"><AlertTriangle size={15}/> {area.prepared.quality.warnings[0]}</p>}
-      <ReceiptCorners key={upright.url} upright={upright} corners={area.prepared.corners} applyLabel="Baca struk" onRetake={retake} onRotate={rotateArea} onCancel={retake}
+      <ReceiptCorners key={upright.url} upright={upright} corners={area.prepared.corners} applyLabel="Baca struk" fitVh={44} onRetake={retake} onRotate={rotateArea} onCancel={retake}
         onApply={(corners, changed) => { const { prepared, quarter } = area; setArea(null); if (photo) void scan(photo, quarter, changed ? corners : undefined, changed ? undefined : prepared); }}/>
     </section>}
 

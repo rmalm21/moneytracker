@@ -68,7 +68,7 @@ const SNAP = .025;
  * Marking the receipt on the photo. In the dialog (after a read) it only straightens; as the first step after a photo
  * (`onRetake`) it decides what is read at all, with a turn and a retake beside it.
  */
-export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel, applyLabel = 'Gunakan', onRetake, onRotate }: { upright: Upright; corners: Quad; onApply: (corners: Quad, changed: boolean) => void; onCancel: () => void; applyLabel?: string; onRetake?: () => void; onRotate?: () => void }) {
+export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel, applyLabel = 'Gunakan', onRetake, onRotate, fitVh = 58 }: { upright: Upright; corners: Quad; onApply: (corners: Quad, changed: boolean) => void; onCancel: () => void; applyLabel?: string; onRetake?: () => void; onRotate?: () => void; /** Tallest the photo may be, in % of the screen height. */ fitVh?: number }) {
   const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
   const [active, setActive] = useState<{ x: number; y: number } | null>(null), preview = useRef<HTMLCanvasElement>(null), source = useRef<ImageData | null>(null);
   const initial = useRef(corners);
@@ -119,7 +119,7 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
   const changed = points.some((p, i) => Math.abs(p.x - initial.current[i].x) > .001 || Math.abs(p.y - initial.current[i].y) > .001);
   return <div className="rs-corners">
     <div className="rs-corners-stage">
-      <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}`, width: `min(100%, calc(58vh * ${ratio.toFixed(4)}))` }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+      <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}`, width: `min(100%, calc(${fitVh}vh * ${ratio.toFixed(4)}))` }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
         <img src={upright.url} alt="Foto struk asli" draggable={false}/>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={path} fillRule="evenodd" className="rs-corners-dim"/><polygon points={points.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>
         {[0, 1, 2, 3].map(i => { const p = mid(i); return <button type="button" key={`e${i}`} className="rs-edge" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Geser sisi ${edges[i]}`}

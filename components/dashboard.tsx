@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUndoDelete } from './undo-delete';
 import { useTxActions } from './tx-actions';
 import { SwipeUnder, useSwipe } from './swipe';
 import { Emoji, EmojiText, emojiAvatar } from './emoji';
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { useApp } from './app-provider';
 import { IdentityBadge, categoryColor, emojiOrFallback, identityStyle } from './visual-identity';
 import { Empty } from './fields';
@@ -25,12 +25,18 @@ function TxRow({t,onEdit,groupByDate,expanded,setExpanded}:{t:LedgerTx;onEdit?:(
 /** "24 · Kamis, September" with "Hari ini" / "Kemarin" for the last two days. */
 function DayTitle({date}:{date:string}){const d=new Date(`${date}T12:00:00`),today=new Date();today.setHours(12,0,0,0);const days=Math.round((today.getTime()-d.getTime())/864e5);const weekday=d.toLocaleDateString('id-ID',{weekday:'long'}),month=d.toLocaleDateString('id-ID',d.getFullYear()===today.getFullYear()?{month:'long'}:{month:'long',year:'numeric'});return <span className="tx-day-title" aria-label={dayLabel(date)}><b>{d.getDate()}</b><span><strong>{days===0?'Hari ini':days===1?'Kemarin':weekday}</strong><small>{days<=1&&days>=0?`${weekday}, ${month}`:month}</small></span></span>;}
 const openingTypes=new Set(['claim_advance','receivable_issue','borrowing']);
+const FOLDED_KEY='dompet-ajaib:tx-folded-days';
+function readFolded():string[]{try{const v=JSON.parse(localStorage.getItem(FOLDED_KEY)||'[]');return Array.isArray(v)?v.filter(x=>typeof x==='string').slice(-120):[]}catch{return []}}
 export function TxList({items,onEdit,groupByDate=false}:{items:LedgerTx[];onEdit?:(tx:LedgerTx)=>void;groupByDate?:boolean}){
  const [expanded,setExpanded]=useState<string[]>([]),{hidden}=useUndoDelete();
+ // Days folded by the person (remembered on this device).
+ const [folded,setFolded]=useState<string[]>([]);
+ useEffect(()=>{setFolded(readFolded())},[]);
+ const fold=(date:string)=>setFolded(list=>{const next=list.includes(date)?list.filter(d=>d!==date):[...list,date];try{localStorage.setItem(FOLDED_KEY,JSON.stringify(next.slice(-120)))}catch{/* optional */}return next;});
  const visible=items.filter(t=>!hidden.has(t.id));
  if(!visible.length)return <Empty message="Belum ada transaksi pada periode ini."/>;
  const row=(t:LedgerTx)=><TxRow key={t.id} t={t} onEdit={onEdit} groupByDate={groupByDate} expanded={expanded} setExpanded={setExpanded}/>;
  if(!groupByDate)return <div className="tx-list">{visible.map(row)}</div>;
  const days:{date:string;items:LedgerTx[]}[]=[];for(const t of visible){const last=days[days.length-1];if(last&&last.date===t.date)last.items.push(t);else days.push({date:t.date,items:[t]})}
- return <div className="tx-days">{days.map(day=>{const out=day.items.reduce((n,x)=>n+transactionExpense(x),0),income=day.items.filter(x=>x.type==='income').reduce((n,x)=>n+x.amount,0);return <section key={day.date} className="tx-day-group"><header className="tx-day"><DayTitle date={day.date}/><span>{income>0&&<b className="amount-positive">+{rupiah(income)}</b>}{out>0&&<b className="amount-negative">−{rupiah(out)}</b>}</span></header><div className="tx-list">{day.items.map(row)}</div></section>})}</div>;
+ return <div className="tx-days">{days.map(day=>{const out=day.items.reduce((n,x)=>n+transactionExpense(x),0),income=day.items.filter(x=>x.type==='income').reduce((n,x)=>n+x.amount,0),closed=folded.includes(day.date);return <section key={day.date} className={`tx-day-group ${closed?'is-folded':''}`}><header className="tx-day"><button type="button" className="tx-day-toggle" aria-expanded={!closed} onClick={()=>fold(day.date)}><DayTitle date={day.date}/><span className="tx-day-sum">{closed&&<small>{day.items.length} transaksi</small>}{income>0&&<b className="amount-positive">+{rupiah(income)}</b>}{out>0&&<b className="amount-negative">−{rupiah(out)}</b>}<ChevronDown size={16} className="tx-day-chev" aria-hidden="true"/></span></button></header>{!closed&&<div className="tx-list">{day.items.map(row)}</div>}</section>})}</div>;
 }
