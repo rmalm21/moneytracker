@@ -61,7 +61,7 @@ function BalanceChart({ points, height, compact = false }: { points: { label: st
       <AreaChart data={points} margin={{ top: 10, right: compact ? 4 : 12, bottom: 0, left: compact ? 4 : 0 }}>
         <defs><linearGradient id={compact ? 'fc-mini' : 'fc-main'} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
         {!compact && <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>}
-        {!compact && <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} interval={0} height={30} tickMargin={6}/>}
+        {!compact && <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={8} height={30} tickMargin={6}/>}
         {!compact && <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={58}/>}
         {negative && <ReferenceLine y={0} stroke="var(--rose)" strokeDasharray="4 4"/>}
         <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.full || ''} formatter={value => [rupiah(Number(value)), 'Perkiraan']} content={<ChartTooltip/>}/>

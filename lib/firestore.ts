@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocFromCache, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { isCurrent, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { walletGroup } from './wallet-groups';
@@ -25,7 +25,13 @@ export async function transactionsAround(uid:string,date:string,days=2){const sh
 /** One document from the device copy when it is current, otherwise from the server. */
 async function readDoc(uid:string,name:SyncedName,target:DocumentReference){if(isCurrent(uid,name)){try{const snap=await getDocFromCache(target);if(snap.exists())return snap}catch{/* ask the server */}}return getDoc(target);}
 /** A note that these documents were deleted, so the user's other devices drop exactly them from their copy (lib/sync.ts). */
-export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){try{await settle(setDoc(doc(collection(database(),'users',uid,'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
+export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){await dropFromDevice(uid,items);try{await settle(setDoc(doc(collection(database(),'users',uid,'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
+/**
+ * The device copy only follows documents that change, so a document deleted inside a server transaction would stay in
+ * it (and come back on screen). Asking the server for it once (one read each) removes it from the copy, and every
+ * screen reading the copy drops it at once.
+ */
+async function dropFromDevice(uid:string,items:Partial<Record<Name,string[]>>){await Promise.all(Object.entries(items).flatMap(([name,ids])=>(ids||[]).slice(0,200).map(id=>getDocFromServer(ref(uid,name as Name,id)).catch(()=>undefined))));}
 /** After deleting many documents at once (restore, reset): other devices compare counts and re-read those collections. */
 export async function markDeleted(uid:string,...collections:Name[]){try{await settle(updateDoc(userRef(uid),Object.fromEntries(collections.map(name=>[`syncMarks.${name}`,serverTimestamp()]))))}catch{/* the daily count check still catches it */}}
 const loginKey=(uid:string)=>`dompet-ajaib:last-login:${uid}`;
@@ -160,9 +166,11 @@ export async function deleteTransaction(uid:string,id:string) {
     if(['claim_advance','receivable_issue','borrowing'].includes(old.type))throw Error('Transaksi ini dibuat otomatis dari catatan utang, klaim, atau piutang. Ubah atau hapus lewat catatan tersebut.');
     if(old.splitBillId&&old.type==='expense')throw Error('Transaksi ini bagian dari Split Bill. Batalkan atau ubah lewat menu Split Bill.');
     const side=relation(old,-1);const rr=side?ref(uid,side.kind,side.id):null;const sideSnap=rr?await trx.get(rr):null;
+    const draftRef=old.draftId?ref(uid,'drafts',old.draftId):null,draftSnap=draftRef?await trx.get(draftRef):null;
     for(const [wallet,delta] of Object.entries(effects(old)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});
     if(side&&rr&&sideSnap?.exists()){const obj=sideSnap.data();const key=side.kind==='claims'||side.kind==='receivables'?'remainingAmount':side.kind==='debts'?'outstandingAmount':'currentAmount';const next=Number(obj[key])+side.delta;trx.update(rr,{[key]:next,...(side.kind==='claims'?{status:next===0?'paid':['paid','rejected'].includes(obj.status)?'waiting':obj.status}:{}),...(side.kind==='debts'?{status:next===0?'paid':'open'}:{}),...(side.kind==='receivables'?{status:next===0?'paid':next<Number(obj.originalAmount)?'partial':'open'}:{}),updatedAt:serverTimestamp()});}
-    if(old.draftId)trx.update(ref(uid,'drafts',old.draftId),{status:'pending',updatedAt:serverTimestamp()});if(old.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});trx.delete(r);
+    // A deleted automatic entry stays skipped (back to "pending" it would be recorded again at once); one to confirm goes back to Perlu dikonfirmasi.
+    if(draftRef&&draftSnap?.exists())trx.update(draftRef,{status:draftSnap.data().mode==='auto'?'dismissed':'pending',updatedAt:serverTimestamp()});if(old.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});trx.delete(r);
   });if(removedDate){await noteDeleted(uid,{transactions:[id]});await syncSnapshot(uid,removedDate);}
 }
 export async function createClaim(uid:string,claim:Omit<Claim,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(claim.amount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'claims'));const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...claim,remainingAmount:claim.amount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_c,...claimTx}=newTx({type:'claim_advance',amount:claim.amount,walletId:claim.sourceWalletId,claimId:r.id,date:claim.submissionDate,description:claim.name});batch.set(t,{...claimTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',claim.sourceWalletId),{cachedBalance:increment(-claim.amount),updatedAt:serverTimestamp()});await settle(batch.commit());await syncSnapshot(uid,claim.submissionDate);return r.id;}

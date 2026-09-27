@@ -25,9 +25,10 @@ export function UndoDeleteProvider({ children }: { children: ReactNode }) {
     pending.current.delete(id);
     dismiss(`undo-${id}`);
     const task = item.commit();
-    // Bring the row back if the delete fails, so nothing silently vanishes.
+    // Bring the row back only if the delete fails, so nothing silently vanishes; a deleted row stays hidden even if
+    // a screen still holds its old copy for a moment.
     task.catch(() => show(id, false));
-    track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, detail: item.detail, failure: `${item.label} belum terhapus`, after: () => show(id, false), quiet: true, log: true });
+    track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, detail: item.detail, failure: `${item.label} belum terhapus`, quiet: true, log: true });
   }, [dismiss, show, track]);
 
   const remove = useCallback((id: string, label: string, run: () => Promise<unknown>, detail?: string) => {

@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '87', date: '27 Sep 2026', title: 'Hapus transaksi otomatis tidak muncul lagi, tampilan lebih rapi', items: [
+    ['✅', 'Menghapus transaksi dari jadwal rutin “Catat otomatis” kini benar-benar menghapusnya: jadwal hari itu ditandai dilewati, jadi tidak dicatat ulang. Sebelumnya transaksinya langsung muncul kembali.'],
+    ['🔒', 'Transaksi yang sudah terhapus juga langsung hilang dari salinan data di perangkat, dan baris yang dihapus hanya muncul lagi bila penghapusannya gagal.'],
+    ['📝', 'Wish list tidak lagi melebar keluar layar di HP. Menu “Lainnya” di kartu utang dan piutang tidak lagi terpotong di sisi kiri layar.'],
+    ['💡', 'Beranda lebih ringkas di HP: tanggal periode tidak diulang di setiap kartu, dan kartu terakhir yang sendirian dibuat melebar. Tombol Dompet, nama anggaran yang panjang, dan label grafik Proyeksi tidak lagi terpotong atau bertumpuk.'],
+  ] },
   { version: '86', date: '27 Sep 2026', title: 'Mengetik di Catat otomatis lebih ringan', items: [
     ['✅', 'Huruf yang kamu ketik di Catat otomatis langsung muncul; pembacaan kalimat dan kartunya menyusul sesaat kemudian, jadi tidak lagi terasa tersendat di HP. Kartu yang tidak berubah tidak digambar ulang.'],
     ['🔒', 'Menekan Enter tepat setelah mengetik tetap menyimpan kalimat yang lengkap, bukan potongan yang belum selesai dibaca.'],

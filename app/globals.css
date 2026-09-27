@@ -6361,3 +6361,33 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-pay-edit > span:last-child { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
 .rs-pay { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); margin-top: 4px; padding-top: 4px; }
 .rs-charge-mode-wrap { display: grid; gap: 6px; padding: 8px 0 4px; }
+
+/* 122. v87 layout audit: nothing wider than the phone, less repetition, balanced cards. */
+.wishlist-page, .wl-empty { grid-template-columns: minmax(0, 1fr); }
+.wl-empty-art { max-width: 100%; }
+.wl-empty-art span { max-width: 17vw; }
+.wl-empty-art img { max-width: 100%; height: auto; }
+.bgt-card-foot { flex-wrap: wrap; row-gap: 4px; }
+@media (max-width: 420px) {
+  .wallet-heading-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .wallet-heading-actions .btn { min-width: 0; padding-inline: 10px; gap: 6px; font-size: .84rem; white-space: nowrap; }
+}
+@media (max-width: 760px) {
+  /* The period is already chosen right above the cards: not repeated in each of them. */
+  .stat-card > small.stat-period { display: none; }
+  /* The odd last card spans the row: laid out across instead of a tall half-empty box. */
+  .widget-slot.metric-slot.metric-wide > .stat-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
+  .widget-slot.metric-slot.metric-wide > .stat-card > .stat-head { grid-column: 1 / -1; }
+  .widget-slot.metric-slot.metric-wide > .stat-card > .stat-value { grid-column: 1; }
+  .widget-slot.metric-slot.metric-wide > .stat-card > :not(.stat-head):not(.stat-value):not(small) { grid-column: 2; grid-row: 2; justify-self: end; }
+}
+@media (max-width: 480px) {
+  /* Smaller corner icons leave the card titles room for one line. */
+  .stat-card .metric-icon, .stat-card .stat-icon { width: 28px; height: 28px; border-radius: 9px; }
+  .stat-card .metric-icon svg, .stat-card .stat-icon svg { width: 15px; height: 15px; }
+}
+.more-actions[data-left] > .more-menu { right: auto; left: 0; transform-origin: top left; }
+.more-actions[data-left][data-up] > .more-menu { transform-origin: bottom left; }
+@media (max-width: 360px) { .wallet-heading-actions .btn svg { display: none; } .page-heading .wallet-heading-actions .btn.btn { padding-inline: 8px; font-size: .8rem; } }
+.bgt-card-title strong { overflow-wrap: anywhere; }
+@media (max-width: 360px) { .bgt-card-title strong { font-size: .9rem; } }
