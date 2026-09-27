@@ -19,12 +19,19 @@ function start() {
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installEvent = event as InstallEvent; set({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvent = null; set({ canInstall: false, installed: true }); });
   if (!('serviceWorker' in navigator) || process.env.NODE_ENV !== 'production') return;
-  let reloading = false;
+  let reloading = false, openedAt = Date.now();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') openedAt = Date.now(); });
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading) return; reloading = true; window.location.reload(); });
   navigator.serviceWorker.register('/sw.js').then(registration => {
     const track = (worker: ServiceWorker | null) => {
       if (!worker) return;
-      const check = () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) { waiting = worker; set({ updateReady: true }); } };
+      const check = () => {
+        if (worker.state !== 'installed' || !navigator.serviceWorker.controller) return;
+        waiting = worker; set({ updateReady: true });
+        // Found just after opening (or coming back to) the app and nothing is being edited: use it right away, so a
+        // deployed fix is not stuck behind an update notice. Otherwise the notice stays for the person to tap.
+        if (Date.now() - openedAt < 20000 && !document.querySelector('[role="dialog"]')) worker.postMessage('SKIP_WAITING');
+      };
       check(); worker.addEventListener('statechange', check);
     };
     track(registration.waiting);

@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { isCurrent, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
+import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
 import { walletGroup } from './wallet-groups';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
@@ -25,13 +26,15 @@ export async function transactionsAround(uid:string,date:string,days=2){const sh
 /** One document from the device copy when it is current, otherwise from the server. */
 async function readDoc(uid:string,name:SyncedName,target:DocumentReference){if(isCurrent(uid,name)){try{const snap=await getDocFromCache(target);if(snap.exists())return snap}catch{/* ask the server */}}return getDoc(target);}
 /** A note that these documents were deleted, so the user's other devices drop exactly them from their copy (lib/sync.ts). */
-export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){await dropFromDevice(uid,items);try{await settle(setDoc(doc(collection(database(),'users',uid,'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
+export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){markTxDeleted(items.transactions||[]);await dropFromDevice(uid,items);try{await settle(setDoc(doc(collection(database(),'users',uid,'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
 /**
  * The device copy only follows documents that change, so a document deleted inside a server transaction would stay in
  * it (and come back on screen). Asking the server for it once (one read each) removes it from the copy, and every
  * screen reading the copy drops it at once.
  */
 async function dropFromDevice(uid:string,items:Partial<Record<Name,string[]>>){await Promise.all(Object.entries(items).flatMap(([name,ids])=>(ids||[]).slice(0,200).map(id=>getDocFromServer(ref(uid,name as Name,id)).catch(()=>undefined))));}
+/** On opening the app: each transaction this device deleted is checked once with the server (see lib/tombstones.ts). */
+export async function checkDeletedTransactions(uid:string){if(isOffline())return;for(const id of deletedTxIds().slice(0,100)){try{const snap=await getDocFromServer(ref(uid,'transactions',id));if(snap.exists())forgetTxDeleted([id]);}catch{/* next time */}}}
 /** After deleting many documents at once (restore, reset): other devices compare counts and re-read those collections. */
 export async function markDeleted(uid:string,...collections:Name[]){try{await settle(updateDoc(userRef(uid),Object.fromEntries(collections.map(name=>[`syncMarks.${name}`,serverTimestamp()]))))}catch{/* the daily count check still catches it */}}
 const loginKey=(uid:string)=>`dompet-ajaib:last-login:${uid}`;
@@ -46,10 +49,10 @@ export function subscribeProfile(uid:string,onValue:(value:Profile|null)=>void,o
 // Screens read the device copy that lib/sync.ts keeps current: opening a report or switching tabs costs no reads.
 const local={source:'cache'} as const;
 export function subscribePeriodTransactions(uid:string,start:string,end:string,onValue:(items:LedgerTx[])=>void,onError:(error:Error)=>void):Unsubscribe {
-  return onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),local,snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort(newestFirst)),onError);
+  return onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),local,snapshot=>onValue(withoutDeleted(snapshot.docs.map(row=>hydrate<LedgerTx>(row))).sort(newestFirst)),onError);
 }
 export function subscribeRelatedTransactions(uid:string,field:'receivableId'|'claimId'|'debtId'|'fundId',id:string,onValue:(items:LedgerTx[])=>void,onError:(error:Error)=>void):Unsubscribe {
- return onSnapshot(query(coll(uid,'transactions'),where(field,'==',id)),local,snapshot=>onValue(snapshot.docs.map(row=>hydrate<LedgerTx>(row)).sort(newestFirst)),onError);
+ return onSnapshot(query(coll(uid,'transactions'),where(field,'==',id)),local,snapshot=>onValue(withoutDeleted(snapshot.docs.map(row=>hydrate<LedgerTx>(row))).sort(newestFirst)),onError);
 }
 export function subscribeData(uid:string,start:string,end:string,onPart:(key:Name,value:unknown[])=>void,onError:(e:Error)=>void,onSync?:(state:'syncing'|'synced'|'offline')=>void,asOf=new Date(),salaryDay=24):Unsubscribe {
   const all:Unsubscribe[]=[];
@@ -58,7 +61,7 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   const baselineEnd=end>month.end?end:month.end;
   const union=new Map<string,LedgerTx>();let recent:LedgerTx[]=[];let cycle:LedgerTx[]=[];let calendar:LedgerTx[]=[];let custom:LedgerTx[]=[];
   let customRange='',customStop:Unsubscribe|undefined;
-  const emit=()=>{ union.clear(); for(const t of [...recent,...cycle,...calendar,...custom]) union.set(t.id,t); onPart('transactions',[...union.values()].sort(newestFirst)); };
+  const emit=()=>{ union.clear(); for(const t of [...recent,...cycle,...calendar,...custom]) union.set(t.id,t); onPart('transactions',withoutDeleted([...union.values()]).sort(newestFirst)); };
   // Status: unsent changes or a copy that is still catching up → syncing; no connection → offline.
   let pending=false,current=false,failed='';
   const report=()=>onSync?.(isOffline()?'offline':pending||!current?'syncing':'synced');
@@ -180,7 +183,7 @@ export async function updateLinked(uid:string,name:'claims'|'debts'|'receivables
 export async function recalculateBalance(uid:string,wallet:Wallet) {const [a,b]=await Promise.all([getDocs(query(coll(uid,'transactions'),where('walletId','==',wallet.id))),getDocs(query(coll(uid,'transactions'),where('destinationWalletId','==',wallet.id)))]);const all=new Map<string,LedgerTx>();for(const snap of [...a.docs,...b.docs])all.set(snap.id,hydrate<LedgerTx>(snap));const n=walletBalance(wallet,[...all.values()]);await settle(updateDoc(ref(uid,'wallets',wallet.id),{cachedBalance:n,updatedAt:serverTimestamp()}));return n;}
 export async function exportData(uid:string) {const all:Record<string,unknown[]>={};for(const name of names){all[name]=[];let cursor:QueryDocumentSnapshot|undefined;while(true){const base=query(coll(uid,name),orderBy('__name__'),...(cursor?[startAfter(cursor)]:[]),limit(400));const snap=await getDocs(base);all[name].push(...snap.docs.map(d=>({id:d.id,...d.data()})));if(snap.size<400)break;cursor=snap.docs[snap.docs.length-1];}}return {format:'dompet-ajaib-v1',ownerUid:uid,exportedAt:new Date().toISOString(),data:all};}
 export function validateBackup(backup:unknown) {const b=backup as {format?:string;data?:Record<string,unknown>};if(!b||b.format!=='dompet-ajaib-v1'||!b.data)throw Error('Format file cadangan tidak dikenali.');const counts:Record<string,number>={};const extra=new Set<Name>(['plannedTransactions','categorizationRules','financialNotes','cycleSnapshots','wishlist','splitBills','splitPeople','splitGroups']);const normalized={...b.data};for(const name of names){if(extra.has(name)&&normalized[name]===undefined)normalized[name]=[];if(!Array.isArray(normalized[name]))throw Error(`Data ${name} tidak valid.`);for(const item of normalized[name] as unknown[]){if(!item||typeof item!=='object'||typeof (item as {id?:unknown}).id!=='string'||!/^[\w-]{1,100}$/.test((item as {id:string}).id))throw Error(`ID data ${name} tidak valid.`);}counts[name]=(normalized[name] as unknown[]).length;}return {counts,data:normalized as Record<Name,Array<{id:string;[key:string]:unknown}>>};}
-export async function importData(uid:string,backup:unknown,mode:'merge'|'replace',allowCrossAccount=false) {const {data}=validateBackup(backup);const owner=(backup as {ownerUid?:string}).ownerUid;if(owner&&owner!==uid&&!allowCrossAccount)throw Error('File cadangan ini berasal dari akun lain. Centang persetujuan jika tetap ingin mengimpornya.');if(mode==='replace'){for(const name of names){const snap=await getDocs(coll(uid,name));for(let i=0;i<snap.docs.length;i+=400){const batch=writeBatch(database());for(const d of snap.docs.slice(i,i+400))batch.delete(d.ref);await settle(batch.commit());}}await markDeleted(uid,...names);}
+export async function importData(uid:string,backup:unknown,mode:'merge'|'replace',allowCrossAccount=false) {const {data}=validateBackup(backup);forgetTxDeleted();const owner=(backup as {ownerUid?:string}).ownerUid;if(owner&&owner!==uid&&!allowCrossAccount)throw Error('File cadangan ini berasal dari akun lain. Centang persetujuan jika tetap ingin mengimpornya.');if(mode==='replace'){for(const name of names){const snap=await getDocs(coll(uid,name));for(let i=0;i<snap.docs.length;i+=400){const batch=writeBatch(database());for(const d of snap.docs.slice(i,i+400))batch.delete(d.ref);await settle(batch.commit());}}await markDeleted(uid,...names);}
   for(const name of names){const arr=data[name];for(let i=0;i<arr.length;i+=350){const batch=writeBatch(database());for(const row of arr.slice(i,i+350)){const {id,createdAt,updatedAt,...fields}=row;batch.set(ref(uid,name,id),{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}await settle(batch.commit());}}const wallets=await getDocs(coll(uid,'wallets'));for(const snap of wallets.docs)await recalculateBalance(uid,hydrate<Wallet>(snap));
 }
 
@@ -225,7 +228,7 @@ export async function attachClaimReceipt(uid:string,id:string,file:File){
   await settle(updateDoc(ref(uid,'claims',id),{attachmentPath:path,updatedAt:serverTimestamp()}));
 }
 export async function claimReceiptUrl(path:string){const {storage}=await import('./firebase');if(!storage)throw Error('Firebase Storage belum tersedia.');const {ref:storageRef,getDownloadURL}=await import('firebase/storage');return getDownloadURL(storageRef(storage,path));}
-export async function loadAllTransactions(uid:string){if(await whenCurrent(uid,['transactions'])){try{return (await getDocsFromCache(query(coll(uid,'transactions'),orderBy('date','desc')))).docs.map(d=>hydrate<LedgerTx>(d))}catch{/* read from the server below */}}const result:LedgerTx[]=[];let cursor:QueryDocumentSnapshot|undefined;while(true){const q=query(coll(uid,'transactions'),orderBy('date','desc'),...(cursor?[startAfter(cursor)]:[]),limit(300));const snap=await getDocs(q);result.push(...snap.docs.map(d=>hydrate<LedgerTx>(d)));if(snap.size<300)break;cursor=snap.docs[snap.docs.length-1];}return result;}
+export async function loadAllTransactions(uid:string){if(await whenCurrent(uid,['transactions'])){try{return withoutDeleted((await getDocsFromCache(query(coll(uid,'transactions'),orderBy('date','desc')))).docs.map(d=>hydrate<LedgerTx>(d)))}catch{/* read from the server below */}}const result:LedgerTx[]=[];let cursor:QueryDocumentSnapshot|undefined;while(true){const q=query(coll(uid,'transactions'),orderBy('date','desc'),...(cursor?[startAfter(cursor)]:[]),limit(300));const snap=await getDocs(q);result.push(...snap.docs.map(d=>hydrate<LedgerTx>(d)));if(snap.size<300)break;cursor=snap.docs[snap.docs.length-1];}return withoutDeleted(result);}
 export async function mergeCategory(uid:string,from:Category,to:Category){if(from.id===to.id||from.type!==to.type||Boolean(from.parentId)!==Boolean(to.parentId))throw Error('Pilih kategori tujuan dengan jenis dan tingkat yang sama.');
   const affected:{r:DocumentReference;field:'categoryId'|'subcategoryId'|'parentId'}[]=[];
   for(const name of ['transactions','budgets','categories'] as const)for(const field of (name==='categories'?['parentId']:['categoryId','subcategoryId']) as ('categoryId'|'subcategoryId'|'parentId')[]){const snaps=await getDocs(query(coll(uid,name),where(field,'==',from.id)));for(const row of snaps.docs)affected.push({r:row.ref,field});}

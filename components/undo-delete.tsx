@@ -27,7 +27,7 @@ export function UndoDeleteProvider({ children }: { children: ReactNode }) {
     const task = item.commit();
     // Bring the row back only if the delete fails, so nothing silently vanishes; a deleted row stays hidden even if
     // a screen still holds its old copy for a moment.
-    task.catch(() => show(id, false));
+    task.catch(error => { if (!(error as { committed?: boolean }).committed) show(id, false); });
     track(task, { pending: `Menghapus ${item.label.toLowerCase()}…`, success: `${item.label} dihapus.`, detail: item.detail, failure: `${item.label} belum terhapus`, quiet: true, log: true });
   }, [dismiss, show, track]);
 

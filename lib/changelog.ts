@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '91', date: '27 Sep 2026', title: 'Hapus transaksi lebih andal, formulir rapi lagi', items: [
+    ['🔒', 'Transaksi yang kamu hapus dicatat di perangkat ini dan tidak ditampilkan atau dihitung lagi, walau salinan lamanya masih tertinggal. Saat aplikasi dibuka, server ditanya sekali untuk memastikan; kalau ternyata masih ada di server, transaksinya ditampilkan lagi apa adanya.'],
+    ['✅', 'Pilihan Keluar · Masuk · Transfer di formulir transaksi tampil normal lagi (sempat menyempit).'],
+    ['💡', 'Transaksi bagian dari Split Bill menjelaskan cara menghapusnya: buka Split Bill lalu pilih Batalkan.'],
+    ['📷', 'Langkah Tentukan area struk: foto sedikit lebih pendek dan tombol di bawah diberi jarak dari tepi layar.'],
+    ['📝', 'Versi baru aplikasi langsung dipakai saat aplikasi dibuka, tanpa menunggu kamu mengetuk pemberitahuan pembaruan.'],
+  ] },
   { version: '90', date: '27 Sep 2026', title: 'Satu kartu per hari', items: [
     ['✅', 'Judul hari kini menyatu di kartu hari itu, ditulis tebal, dan total pengeluaran hari itu berwarna merah. Ketuk judulnya untuk melipat.'],
     ['💡', 'Isi kartu lebih modern: kategori tampil sebagai pil berwarna, dompet di sebelahnya, dan jam dalam pil kecil di bawah nominal.'],

@@ -4,7 +4,7 @@ import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, configured } from '@/lib/firebase';
 import { emptyData, type Data, type Profile } from '@/lib/types';
-import { initProfile, subscribeData, subscribeProfile, settleBudgets, createDueDrafts, postAutoDrafts, saveProfile } from '@/lib/firestore';
+import { checkDeletedTransactions, initProfile, subscribeData, subscribeProfile, settleBudgets, createDueDrafts, postAutoDrafts, saveProfile } from '@/lib/firestore';
 import { noteDeleteMarks, startSync } from '@/lib/sync';
 import { salaryCycle, calendarCycle } from '@/lib/accounting';
 import { applyAppearance, cacheAppearance, readCachedAppearance } from '@/lib/appearance';
@@ -24,6 +24,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u)initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
   // Keeps the device copy current (only changed documents are downloaded); the screens read that copy.
   useEffect(()=>{if(!user)return;return startSync(user.uid);},[user?.uid]);
+  // Transactions this device deleted: confirmed with the server once per opening (lib/tombstones.ts).
+  useEffect(()=>{if(!user)return;const uid=user.uid,timer=setTimeout(()=>{void checkDeletedTransactions(uid)},4000);return()=>clearTimeout(timer);},[user?.uid]);
   useEffect(()=>{if(user&&profile)noteDeleteMarks(user.uid,profile.syncMarks);},[user?.uid,profile?.syncMarks]);
   useEffect(()=>{if(!user)return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(p);cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user]);
   useEffect(()=>{if(!profile)return;applyAppearance(profile);const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(profile);media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize]);
