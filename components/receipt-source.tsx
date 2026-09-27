@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize2, Minimize2, RotateCcw, ScanText } from 'lucide-react';
 import { Button } from './ui/button';
-import { mapPoint, type Matrix, type Point, type Quad } from '@/lib/receipt-image';
+import { homography, mapPoint, quadSize, type Matrix, type Point, type Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
 
 /** A small upright copy of the original photo (the photo itself is never changed). */
@@ -58,32 +58,79 @@ export function ReceiptSource({ upright, mapping, box, label }: { upright: Uprig
 }
 
 /**
- * Setting the receipt's four corners by hand, on the original photo: drag the dots to the paper's corners, then read
- * again. Enough when the outline was not found; no need to take the photo again.
+ * Setting the receipt's four corners by hand, like a document scanner: a clean outline over the photo with the
+ * outside dimmed, four large corner handles and four edge handles (an edge moves both its corners), a loupe while
+ * dragging, snapping back to the detected corner when close, and a straightened preview of the result.
+ * "Ulangi" returns to the detected outline; "Gunakan" reads the receipt again with these corners.
  */
-export function ReceiptCorners({ upright, corners, onApply, onCancel }: { upright: Upright; corners: Quad; onApply: (corners: Quad) => void; onCancel: () => void }) {
-  const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<number | null>(null);
+const SNAP = .025;
+export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel }: { upright: Upright; corners: Quad; onApply: (corners: Quad) => void; onCancel: () => void }) {
+  const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
+  const [active, setActive] = useState<{ x: number; y: number } | null>(null), preview = useRef<HTMLCanvasElement>(null), source = useRef<ImageData | null>(null);
   const initial = useRef(corners);
+  const clamp = (v: number) => Math.max(0, Math.min(1, v));
+  const at = (event: React.PointerEvent) => { const rect = frame.current!.getBoundingClientRect(); return { x: clamp((event.clientX - rect.left) / rect.width), y: clamp((event.clientY - rect.top) / rect.height) }; };
   function move(event: React.PointerEvent) {
-    const index = drag.current, rect = frame.current?.getBoundingClientRect(); if (index === null || !rect) return;
-    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
-    setPoints(current => current.map((p, i) => i === index ? { x, y } : p) as Quad);
+    const d = drag.current; if (!d || !frame.current) return;
+    const p = at(event);
+    if (d.kind === 'corner') {
+      // Close to where the outline was found: snap back onto it.
+      const found = initial.current[d.index], snapped = Math.hypot(p.x - found.x, p.y - found.y) < SNAP ? found : p;
+      setPoints(current => current.map((q, i) => i === d.index ? snapped : q) as Quad); setActive(snapped);
+    } else {
+      const dx = p.x - d.from.x, dy = p.y - d.from.y, a = d.index, b = (d.index + 1) % 4;
+      setPoints(d.start.map((q, i) => i === a || i === b ? { x: clamp(q.x + dx), y: clamp(q.y + dy) } : q) as Quad);
+      setActive(p);
+    }
   }
-  const names = ['kiri atas', 'kanan atas', 'kanan bawah', 'kiri bawah'];
-  function nudge(index: number, dx: number, dy: number) { setPoints(current => current.map((p, i) => i === index ? { x: Math.max(0, Math.min(1, p.x + dx)), y: Math.max(0, Math.min(1, p.y + dy)) } : p) as Quad); }
+  function end() { drag.current = null; setActive(null); }
+  const names = ['kiri atas', 'kanan atas', 'kanan bawah', 'kiri bawah'], edges = ['atas', 'kanan', 'bawah', 'kiri'];
+  function nudge(index: number, dx: number, dy: number) { setPoints(current => current.map((p, i) => i === index ? { x: clamp(p.x + dx), y: clamp(p.y + dy) } : p) as Quad); }
+  const mid = (i: number) => ({ x: (points[i].x + points[(i + 1) % 4].x) / 2, y: (points[i].y + points[(i + 1) % 4].y) / 2 });
+
+  // The photo's pixels once, for the loupe and the straightened preview.
+  useEffect(() => {
+    const image = new Image(); let alive = true;
+    image.onload = () => { if (!alive) return; const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight)); const c = document.createElement('canvas'); c.width = Math.round(image.naturalWidth * scale); c.height = Math.round(image.naturalHeight * scale); const ctx = c.getContext('2d'); if (!ctx) return; ctx.drawImage(image, 0, 0, c.width, c.height); source.current = ctx.getImageData(0, 0, c.width, c.height); drawPreview(); };
+    image.src = upright.url; return () => { alive = false; };
+  }, [upright.url]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The straightened result, redrawn when a drag ends (cheap: a small image).
+  function drawPreview() {
+    const el = preview.current, img = source.current; if (!el || !img) return;
+    const W = img.width, H = img.height, q = points.map(p => ({ x: p.x * W, y: p.y * H })) as Quad;
+    const size = quadSize(q), outH = 150, outW = Math.max(40, Math.min(150, Math.round(outH * size.width / Math.max(1, size.height))));
+    const m = homography([{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }], q); if (!m) return;
+    el.width = outW; el.height = outH; const ctx = el.getContext('2d'); if (!ctx) return;
+    const out = ctx.createImageData(outW, outH);
+    for (let y = 0; y < outH; y++) for (let x = 0; x < outW; x++) {
+      const s = mapPoint(m, x + .5, y + .5), sx = Math.min(W - 1, Math.max(0, Math.round(s.x))), sy = Math.min(H - 1, Math.max(0, Math.round(s.y))), from = (sy * W + sx) * 4, to = (y * outW + x) * 4;
+      out.data[to] = img.data[from]; out.data[to + 1] = img.data[from + 1]; out.data[to + 2] = img.data[from + 2]; out.data[to + 3] = 255;
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+  useEffect(() => { if (!drag.current) drawPreview(); }, [points]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ratio = upright.width / upright.height;
+  const path = `M0 0H100V100H0Z M${points.map(p => `${p.x * 100} ${p.y * 100}`).join(' L')}Z`;
+  const changed = points.some((p, i) => Math.abs(p.x - initial.current[i].x) > .001 || Math.abs(p.y - initial.current[i].y) > .001);
   return <div className="rs-corners">
-    <p className="muted">Geser keempat titik ke sudut struk, lalu baca ulang.</p>
-    <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}` }} onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
-      <img src={upright.url} alt="Foto struk asli" draggable={false}/>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={points.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>
-      {points.map((p, i) => <button type="button" key={i} className="rs-corner" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Sudut ${names[i]}`}
-        onPointerDown={event => { drag.current = i; (event.target as HTMLElement).setPointerCapture?.(event.pointerId); event.preventDefault(); }}
-        onKeyDown={event => { const step = event.shiftKey ? .02 : .005; if (event.key === 'ArrowLeft') nudge(i, -step, 0); else if (event.key === 'ArrowRight') nudge(i, step, 0); else if (event.key === 'ArrowUp') nudge(i, 0, -step); else if (event.key === 'ArrowDown') nudge(i, 0, step); else return; event.preventDefault(); }}/>)}
+    <div className="rs-corners-stage">
+      <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}`, width: `min(100%, calc(58vh * ${ratio.toFixed(4)}))` }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+        <img src={upright.url} alt="Foto struk asli" draggable={false}/>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={path} fillRule="evenodd" className="rs-corners-dim"/><polygon points={points.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>
+        {[0, 1, 2, 3].map(i => { const p = mid(i); return <button type="button" key={`e${i}`} className="rs-edge" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Geser sisi ${edges[i]}`}
+          onPointerDown={event => { drag.current = { kind: 'edge', index: i, from: at(event), start: points }; (event.target as HTMLElement).setPointerCapture?.(event.pointerId); event.preventDefault(); }}/>; })}
+        {points.map((p, i) => <button type="button" key={i} className="rs-corner" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Sudut ${names[i]}`}
+          onPointerDown={event => { drag.current = { kind: 'corner', index: i, from: p, start: points }; setActive(p); (event.target as HTMLElement).setPointerCapture?.(event.pointerId); event.preventDefault(); }}
+          onKeyDown={event => { const step = event.shiftKey ? .02 : .005; if (event.key === 'ArrowLeft') nudge(i, -step, 0); else if (event.key === 'ArrowRight') nudge(i, step, 0); else if (event.key === 'ArrowUp') nudge(i, 0, -step); else if (event.key === 'ArrowDown') nudge(i, 0, step); else return; event.preventDefault(); }}/>)}
+        {active && <span className={`rs-loupe ${active.x < .5 ? 'is-right' : 'is-left'}`} aria-hidden="true" style={(() => { const r = frame.current?.getBoundingClientRect(), w = (r?.width || 300) * 2.5, h = (r?.height || 400) * 2.5; return { backgroundImage: `url(${upright.url})`, backgroundSize: `${w}px ${h}px`, backgroundPosition: `${48 - active.x * w}px ${48 - active.y * h}px` }; })()}><i/></span>}
+      </div>
+      <canvas ref={preview} className="rs-corners-preview" aria-label="Pratinjau struk yang diluruskan" role="img"/>
     </div>
+    <small className="muted rs-corners-hint">Geser titik atau sisi ke tepi struk.</small>
     <div className="rs-corners-actions">
-      <button type="button" className="link-button" onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Kembalikan</button>
-      <Button type="button" variant="secondary" onClick={onCancel}>Batal</Button>
-      <Button type="button" onClick={() => onApply(points)}><ScanText size={16}/> Baca ulang</Button>
+      <Button type="button" variant="secondary" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</Button>
+      <Button type="button" onClick={() => onApply(points)}><ScanText size={16}/> Gunakan</Button>
     </div>
   </div>;
 }

@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '83', date: '27 Sep 2026', title: 'Scan struk dan Catat otomatis lebih ringkas', items: [
+    ['🧾', 'Hasil scan dimulai dari yang penting: tempat, tanggal, cara bayar, total besar, jumlah item, dan “Total cocok dengan rincian” atau berapa bagian yang perlu dicek. Yang perlu dicek langsung di bawahnya, lengkap dengan “Gunakan …” dan “Baca ulang”.'],
+    ['💡', 'Item jadi baris sederhana (diskon item di bawahnya), biaya dan pajak dalam satu rincian, dan tombol foto (atur sudut, baca ulang, foto lanjutan, Split Bill, dll.) dikumpulkan di menu ⋯. Satu tombol Simpan yang jelas.'],
+    ['📷', 'Atur sudut seperti aplikasi pemindai: bagian luar digelapkan, titik sudut besar, sisi bisa digeser, kaca pembesar saat menggeser, pratinjau struk yang sudah diluruskan, lalu Ulangi atau Gunakan.'],
+    ['📝', 'Rincian struk ikut tersimpan: buka transaksinya nanti untuk melihat item, diskon, pajak, cara bayar, dan nomor struk. Catatan transaksi tidak lagi dipenuhi teks struk, dan struk tetap utuh walau nominal transaksinya diubah.'],
+    ['✅', 'Catat otomatis lebih tenang: empat pilihan jenis dulu (sisanya di “Lainnya”), tiga contoh, pratinjau berupa ringkasan dengan tombol Simpan dan Ubah, dan hanya isian yang belum jelas yang ditandai.'],
+  ] },
   { version: '82', date: '27 Sep 2026', title: 'Catat otomatis 2.0: satu pesan, banyak catatan', items: [
     ['📝', 'Satu pesan bisa berisi beberapa hal berbeda sekaligus: “besok bayar kos 1,5jt, ingetin perpanjang stnk tanggal 20, sama budget makan bulan depan 2jt” jadi rencana, pengingat, dan anggaran. Tiap catatan bisa diubah, dilewati, atau dibaca ulang sebagai jenis lain sebelum “Simpan semua”.'],
     ['💡', 'Mengerti koreksi dan rujukan: “makan 30rb eh 35rb”, “pakai gopay, bukan bca”, “kemarin, eh tadi pagi”, “dua-duanya pakai gopay”, “yang bensin pakai bca”, “sisanya pakai gopay”. Tanggal atau dompet yang disebut di satu bagian tidak menimpa yang disebut sendiri di bagian lain.'],

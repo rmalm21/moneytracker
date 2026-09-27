@@ -1,6 +1,6 @@
 'use client';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
@@ -29,6 +29,8 @@ const icons: Record<QuickKind, LucideIcon> = { expense: TrendingDown, income: Tr
 /** The other reading of each kind ("new" ↔ "paid", "new wallet" ↔ "its balance"), offered as a one-tap correction. */
 const sibling: Partial<Record<QuickKind, QuickKind>> = { debt_new: 'debt_payment', debt_payment: 'debt_new', receivable_new: 'receivable_payment', receivable_payment: 'receivable_new', claim_new: 'claim_payment', claim_payment: 'claim_new', target: 'wish', wish: 'target', fund_new: 'target', wish_new: 'wish', wallet_new: 'balance', balance: 'wallet_new', note_new: 'plan_new' };
 /** Tap-to-try examples: the sentence and what it becomes. A `section` starts a new block. */
+/** The chips always shown; the other kinds are one tap away behind "Lainnya". */
+const FIRST_GROUPS: QuickGroup[] = ['auto', 'expense', 'income', 'transfer'];
 type Example = { text: string; kind: QuickKind; result: string; section?: string };
 const examples: Record<QuickGroup, Example[]> = {
   auto: [
@@ -154,6 +156,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const plan = useMemo(() => text.trim() ? parseQuickPlan(text, ctx, mode) : null, [text, mode, ctx]);
   const actions = plan?.actions || [];
   const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
+  const [moreGroups, setMoreGroups] = useState(false), [allExamples, setAllExamples] = useState(false);
   useEffect(() => { setSkipped([]); setOpen([]); setError(''); }, [text, mode]);
   const registry = useRef(new Map<string, CardEntry>());
   const [, redraw] = useState(0);
@@ -210,11 +213,11 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   return <div className="quick-entry-wrap">
     <form className="quick-entry" onSubmit={submit}>
       <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
-      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Tulis apa saja di sini…" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
+      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form>
-    <div className="quick-groups" role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.map(([key, label]) => <Fragment key={key}>{(key === 'expense' || key === 'target' || key === 'open') && <span className="qg-sep" aria-hidden="true"/>}<button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}</div>
-    {!text.trim() && <div className="quick-examples"><span className="qe-title">Ketuk contoh untuk mencoba</span>{(examples[activeGroup] || examples.auto).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}</div>}
+    <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>
+    {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
     {text.trim() && !actions.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
     {actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
     {actions.length > 1 && <div className="quick-preview quick-batch">
@@ -348,7 +351,7 @@ function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode,
   })();
 
   function preset(): Partial<LedgerTx> {
-    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, ...(edit.date ? { date: edit.date } : {}) };
+    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}) };
     if (kind === 'transfer' && destination) base.destinationWalletId = destination;
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
@@ -451,7 +454,7 @@ function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode,
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
       fact('t', `${dayText(date)}${result.preset.time && !edit.date ? ` · ${result.preset.time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`);
-      if (result.preset.walletId || edit.walletId) fact('w', walletName(walletId));
+      if (walletId) fact('w', walletName(walletId));
       break;
     case 'transfer': fact('w', `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}`, walletId && destination && walletId !== destination ? '' : 'qp-missing'); fact('t', dayText(date)); break;
     case 'open': fact('o', result.menu?.target && result.menu.key === 'wallets' ? 'Buka detail dompet ini' : 'Pindah ke menu ini'); break;
@@ -542,7 +545,8 @@ function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode,
   const switcher = action.alternatives.length > 0 && <div className="qp-alts" role="group" aria-label="Bukan ini?"><small>Bukan ini?</small>{choice > 0 && <button type="button" className="sb-chip" onClick={() => setChoice(0)}>{QUICK_LABELS[action.result.kind]}</button>}{action.alternatives.map((alt, i) => i + 1 === choice ? null : <button type="button" key={alt.kind} className="sb-chip" onClick={() => setChoice(i + 1)}>{alt.label}</button>)}</div>;
   const reasons = !choice && action.evidence.length > 0 && <>{why && <ul className="qp-why-list">{action.evidence.map(e => <li key={e}>{e}</li>)}</ul>}</>;
   const whyButton = !choice && action.evidence.length > 0 && <button type="button" className="qp-why-toggle" aria-expanded={why} onClick={() => setWhy(v => !v)}>{why ? 'Tutup alasan' : 'Kenapa?'}</button>;
-  const showFields = fields.length > 0 && (!menuKinds.has(kind) || kind === 'budget' && !oldBudget || details || Boolean(missing) || amountOpen);
+  // Clean text by default; the editors open with "Ubah", or by themselves where something must be chosen.
+  const showFields = fields.length > 0 && (details || Boolean(missing) || amountOpen || kind === 'budget' && !oldBudget && !budgetScope);
   const body = <>
     {(facts.length > 0 || whyButton) && <div className="qp-facts">{facts}{whyButton}</div>}
     {flagList}
@@ -554,27 +558,34 @@ function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode,
 
   if (layout === 'row') {
     const cat = data.categories.find(c => c.id === (result.budget ? result.budget.subcategoryIds[0] || result.budget.categoryId : result.preset.subcategoryId || result.preset.categoryId));
-    const detail = kind === 'budget' ? `Anggaran · ${result.name || cat?.name || 'kategori?'} · ${result.budget?.id ? 'ubah' : 'baru'}` : kind === 'transfer' ? `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}` : kind === 'note_new' ? `${heading} · ${dayText(date)}` : textual ? heading : [description || result.preset.merchant || name, categoryName(cat), walletName(walletId), date && date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
+    const detail = kind === 'budget' ? (result.budget?.id ? 'ubah nominal' : 'anggaran baru') : kind === 'transfer' ? `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}` : kind === 'note_new' ? `${heading} · ${dayText(date)}` : textual ? heading : [kind === 'expense' || kind === 'income' ? description !== cat?.name ? description || result.preset.merchant : '' : description || result.preset.merchant || name, walletName(walletId), date && date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
     const attention = !skipped && Boolean(missing || flags.length);
-    return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${attention ? 'needs-review' : ''} ${expanded ? 'is-open' : ''}`}>
+    const rowTitle = textual ? headline : kind === 'expense' || kind === 'income' ? cat?.name || description || heading : kind === 'budget' ? `Anggaran ${result.name || cat?.name || ''}`.trim() : heading;
+    return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${expanded ? 'is-open' : ''}`}>
       <div className="qb-row">
         <span className="qb-icon" aria-hidden="true"><Icon size={15}/></span>
-        <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{textual ? headline : amount ? rupiah(amount) : 'Nominal?'} <small>{heading}</small></strong><small>{detail || action.text}</small>{attention && <em className="qb-attention">{missing ? 'Perlu dilengkapi' : 'Perlu dicek'}</em>}</button>
+        <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{rowTitle}</strong><small>{detail || action.text}</small>{attention && <em className="qb-attention"><AlertTriangle size={12}/> {flags[0]?.[1].note || missing}</em>}</button>
+        {!textual && <b className="qb-amount">{amount ? rupiah(amount) : 'Nominal?'}</b>}
         <button type="button" className="qb-drop" aria-label={skipped ? `Pakai lagi ${action.text}` : `Lewati ${action.text}`} onClick={onSkip}>{skipped ? <RotateCcw size={15}/> : <X size={15}/>}</button>
       </div>
       {(expanded || attention) && !skipped && <div className="qb-body">
         <small className="qb-source">“{action.text}”</small>
-        {body}
+        {/* The row already says what it is and the first thing to fix; the body only adds what to do about it. */}
+        {flags.length > 1 && <div className="qp-flags">{flags.slice(1).map(([key, f]) => <small key={key} className={`qp-flag is-${f.status}`}><b>{statusIcon[f.status]} {FIELD_STATUS[f.status]}</b> · {FIELD_LABELS[key]}{f.note ? `: ${f.note}` : ''}</small>)}</div>}
+        {picks.length > 0 && <div className="qp-pick-row">{picks}</div>}
+        {showFields && <div className="qp-fields">{fields}</div>}
+        {reasons}
+        {switcher}
         {(error || missing && !flags.length) && <small className="qp-warn" role="status">{error || missing}</small>}
-        <div className="qb-foot">{menuKinds.has(kind) && fields.length > 0 && !showFields && <button type="button" className="link-button" onClick={() => setDetails(true)}>Ubah detail</button>}</div>
+        <div className="qb-foot">{whyButton}{fields.length > 0 && !showFields && <button type="button" className="qp-form-link" onClick={() => setDetails(true)}>Ubah</button>}</div>
       </div>}
     </li>;
   }
 
-  return <div className={`quick-preview tone-${tone} ${flags.length ? 'needs-review' : ''}`}>
+  return <div className={`quick-preview tone-${tone}`}>
     <div className="qp-head"><span className="qp-icon" aria-hidden="true">{picture}</span><span className="qp-title"><small>{heading}</small><strong className={textual || !amount ? 'is-text' : ''}>{headline}</strong></span>{!action.alternatives.length && kind !== 'open' && onSwitchMode && sibling[kind] && <button type="button" className="qp-switch" onClick={() => onSwitchMode(sibling[kind]!)}><small>Bukan ini?</small>{QUICK_LABELS[sibling[kind]!]}</button>}</div>
     {body}
     {(error || outerError || missing && !flags.length) && <small className="qp-warn" role="status">{error || outerError || missing}</small>}
-    <div className="qp-actions">{openForm && <Button type="button" variant="secondary" onClick={openForm}>Ubah detail</Button>}{menuKinds.has(kind) && fields.length > 0 && !missing && !amountOpen && <Button type="button" variant="secondary" aria-expanded={details} onClick={() => setDetails(open => !open)}>{details ? 'Tutup detail' : 'Ubah detail'}</Button>}<Button type="button" onClick={() => { setError(''); onSave?.(); }} disabled={Boolean(missing)}>{kind === 'open' ? `Buka ${result.menu?.label || ''}`.trim() : 'Sesuai, simpan'}</Button></div>
+    <div className="qp-actions">{openForm && details && <button type="button" className="qp-form-link" onClick={openForm}>Buka formulir lengkap</button>}{fields.length > 0 && !missing && !amountOpen && <Button type="button" variant="secondary" aria-expanded={details} onClick={() => setDetails(open => !open)}>{details ? 'Selesai' : 'Ubah'}</Button>}<Button type="button" onClick={() => { setError(''); onSave?.(); }} disabled={Boolean(missing)}>{kind === 'open' ? `Buka ${result.menu?.label || ''}`.trim() : 'Simpan'}</Button></div>
   </div>;
 }

@@ -6059,3 +6059,159 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .qb-body .qp-field { grid-template-columns: 84px minmax(0, 1fr); }
 @media (max-width: 400px) { .qb-body .qp-field { grid-template-columns: 1fr; } }
 
+
+/* 116. Rincian struk in a transaction's detail: a quiet, read-only view of the receipt it was scanned from. */
+.rd { display: grid; border-top: 1px solid var(--line); padding-top: 6px; }
+.rd-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.rd-head > svg:first-child { color: var(--muted); }
+.rd-title { display: grid; min-width: 0; }
+.rd-title strong { font-size: .88rem; }
+.rd-title small { color: var(--muted); font-size: .74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-chev { color: var(--muted); transition: transform .15s ease; }
+.rd-head[aria-expanded="true"] .rd-chev { transform: rotate(180deg); }
+.rd-body { display: grid; gap: 8px; padding: 0 2px 6px; font-size: .84rem; }
+.rd-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rd-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+.rd-name { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.rd-name small, .rd-money small { color: var(--muted); font-size: .74rem; }
+.rd-items b, .rd-money span:last-child, .rd-total b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rd-sub { grid-column: 1 / -1; display: flex; justify-content: space-between; padding-left: 12px; color: var(--muted); font-size: .78rem; }
+.rd-money { display: grid; gap: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.rd-money > div { display: flex; justify-content: space-between; gap: 12px; }
+.rd-money > .is-included { color: var(--muted); }
+.rd-total { display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid var(--line); }
+.rd-total b { font-weight: 700; }
+.rd-diff { color: var(--muted); font-size: .74rem; }
+.rd-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; margin: 2px 0 0; font-size: .8rem; }
+.rd-facts dt { color: var(--muted); }
+.rd-facts dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.tx-origin { display: block; color: var(--muted); font-size: .72rem; text-align: center; }
+
+/* 117. Scan struk review, consolidated: summary → what needs checking → the transaction → items → money → one button.
+   Typography carries the hierarchy; rows are divided by lines, not boxed one by one. */
+.rs-review { gap: 14px; }
+.rs-top { display: grid; gap: 2px; padding: 2px 2px 4px; }
+.rs-top-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: start; }
+.rs-top-text { display: grid; gap: 1px; min-width: 0; }
+.rs-merchant { font: 650 1.02rem/1.25 var(--font-head); overflow-wrap: anywhere; }
+.rs-top-text small { color: var(--muted); font-size: .8rem; }
+.rs-top-thumb { width: 40px; height: 48px; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper-2); cursor: zoom-in; }
+.rs-top-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rs-grand { display: flex; align-items: center; gap: 6px; margin-top: 6px; min-width: 0; }
+.rs-grand b { font: 750 clamp(1.55rem, 7.4vw, 2.05rem)/1.1 var(--font-head); font-variant-numeric: tabular-nums; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.rs-grand.is-check b { color: var(--warn-ink); }
+.rs-count { color: var(--muted); font-size: .8rem; }
+.rs-count:empty { display: none; }
+.rs-state { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: .82rem; font-weight: 600; }
+.rs-state.is-ok { color: var(--positive); }
+.rs-state.is-warn { color: var(--warn-ink); }
+.rs-state.is-info { color: var(--muted); font-weight: 500; }
+.rs-state svg { flex: none; }
+
+/* "Lainnya": the secondary receipt actions in one small menu. */
+.rs-kebab { position: relative; }
+.rs-kebab > summary { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; list-style: none; cursor: pointer; color: var(--muted); border: 1px solid var(--line); background: var(--paper); }
+.rs-kebab > summary::-webkit-details-marker { display: none; }
+.rs-kebab[open] > summary { color: var(--ink); background: var(--paper-2); }
+.rs-kebab-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; min-width: 210px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 12px 32px rgba(0, 0, 0, .16); }
+.rs-kebab-menu button { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; font-size: .86rem; text-align: left; cursor: pointer; }
+.rs-kebab-menu button:hover, .rs-kebab-menu button:focus-visible { background: var(--paper-2); }
+.rs-kebab-menu svg { color: var(--muted); flex: none; }
+
+/* Perlu dicek: each doubt with its fix right there. */
+.rs-todo { display: grid; gap: 0; padding: 4px 12px; border: 1px solid var(--warn-line); border-radius: 16px; background: var(--warn-soft); }
+.rs-todo h4 { margin: 6px 0 2px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--warn-ink); }
+.rs-todo-item { display: grid; gap: 7px; padding: 9px 0; border-top: 1px solid color-mix(in srgb, var(--warn-line) 70%, transparent); }
+.rs-todo-item:first-of-type { border-top: 0; }
+.rs-todo-text { display: grid; gap: 1px; color: var(--ink); font-size: .84rem; line-height: 1.4; }
+.rs-todo-text span { color: var(--muted); font-size: .8rem; }
+.rs-todo-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-pill { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; }
+.rs-pill.is-primary { border-color: transparent; background: var(--accent); color: #fff; }
+.rs-pill.is-icon { width: 32px; padding: 0; justify-content: center; }
+.rs-pill.is-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+
+/* Section heads and plain rows. */
+.rs-sec-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 4px; }
+.rs-sec-head h4 { margin: 0; font-size: .84rem; font-weight: 700; }
+.rs-sec-head small { color: var(--muted); font-size: .76rem; }
+.rs-sec-head .link-button { margin-left: auto; font-size: .78rem; }
+.rs-items2, .rs-money, .rs-raw2 { display: grid; gap: 0; }
+.rs-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.rs-row { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.rs-row-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline; width: 100%; padding: 9px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.rs-row-name { display: grid; gap: 1px; min-width: 0; font-size: .86rem; overflow-wrap: anywhere; }
+.rs-row-name small { color: var(--muted); font-size: .74rem; }
+.rs-row-name em { display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: .72rem; font-weight: 600; color: var(--warn-ink); }
+.rs-row-main b { font-weight: 600; font-size: .86rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rs-row.is-check .rs-row-main b { color: var(--warn-ink); }
+.rs-row-sub { display: flex; justify-content: space-between; padding: 0 2px 8px 14px; margin-top: -4px; color: var(--muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.rs-row .rs-item-edit { padding: 0 2px 12px; }
+.rs-more-items, .rs-add-item { justify-self: start; margin-top: 6px; font-size: .8rem; }
+.rs-money-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 2px; font-size: .84rem; }
+.rs-money-row > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rs-money-row small { color: var(--muted); font-size: .74rem; }
+.rs-money-row.is-included, .rs-money-row.is-soft { color: var(--muted); }
+.rs-money-row.is-total { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); font-weight: 700; }
+.rs-money > .rs-money-row:first-of-type { border-top: 1px solid var(--line); padding-top: 8px; }
+.rs-pay { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.rs-money-edit { display: grid; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: var(--paper-2); }
+.rs-money-edit .rs-line { border-bottom: 0; padding: 2px 0; }
+.rs-use-total { justify-self: start; margin-top: 2px; }
+.rs-raw2 textarea { font-family: ui-monospace, monospace; font-size: .76rem; }
+.rs-raw2 { gap: 8px; }
+
+/* One clear finish, kept clear of the phone's bottom edge. */
+.rs-review .rs-actions { margin-top: 2px; padding: 10px 4px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.rs-review .rs-actions .btn { min-height: 48px; font-size: .95rem; }
+
+/* Photo quality: guidance, not an error page. */
+.rs-gate { grid-template-columns: auto minmax(0, 1fr); justify-items: stretch; text-align: left; gap: 10px 12px; align-items: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.rs-gate img { width: 64px; height: 84px; max-width: none; max-height: none; object-fit: cover; border-radius: 10px; box-shadow: none; border: 1px solid var(--line); }
+.rs-gate > div:not(.rs-gate-actions) { padding: 0; border: 0; background: none; color: var(--ink); gap: 2px; }
+.rs-gate > div:not(.rs-gate-actions) strong { font-size: .92rem; }
+.rs-gate small { color: var(--muted); font-size: .8rem; }
+.rs-gate-actions { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+.rs-review .rs-kebab > summary { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--muted); cursor: pointer; }
+.rs-review .rs-kebab > summary::before, .rs-review .rs-kebab > summary::after { content: none; display: none; }
+.rs-review .rs-kebab > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-review .rs-when { grid-template-columns: minmax(0, 1fr) 108px; gap: 6px; }
+.rs-review .rs-when .input, .rs-review .rs-when input { font-size: .82rem; padding-inline: 10px; }
+@media (max-width: 380px) { .rs-review .rs-when { grid-template-columns: 1fr; } }
+.rs-review .rs-line { grid-template-columns: 82px minmax(0, 1fr); }
+.rs-review .rs-line-control { min-width: 0; }
+.rs-review .rs-line-control .ca-trigger { max-width: 100%; min-width: 0; }
+.rs-review .rs-line-control .ca-value, .rs-review .rs-line-control .ca-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 118. Corner editor like a document scanner: dimmed outside, big handles, edge handles, loupe, straightened preview. */
+.rs-corners-stage { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.rs-corners .rs-corners-frame { max-height: none; margin: 0; justify-self: center; overflow: visible; }
+.rs-corners-frame .rs-corners-dim { fill: rgba(0, 0, 0, .45); }
+.rs-corners-frame polygon { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.rs-corners .rs-corner { width: 44px; height: 44px; margin: -22px 0 0 -22px; border: 0; background: transparent; box-shadow: none; z-index: 2; }
+.rs-corners .rs-corner::after { content: ''; position: absolute; inset: 12px; border: 3px solid #fff; border-radius: 99px; background: var(--accent); box-shadow: 0 1px 6px rgba(0, 0, 0, .4); }
+.rs-edge { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; padding: 0; border: 0; background: transparent; cursor: move; touch-action: none; z-index: 1; }
+.rs-edge::after { content: ''; position: absolute; left: 12px; right: 12px; top: 17px; height: 6px; border-radius: 99px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+.rs-loupe { position: absolute; top: 8px; width: 96px; height: 96px; border: 3px solid #fff; border-radius: 99px; background-repeat: no-repeat; box-shadow: 0 4px 16px rgba(0, 0, 0, .4); pointer-events: none; z-index: 3; }
+.rs-loupe.is-right { right: 8px; } .rs-loupe.is-left { left: 8px; }
+.rs-loupe i { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid var(--accent); border-radius: 99px; }
+.rs-corners-preview { width: 64px; height: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); }
+.rs-corners-hint { text-align: center; }
+.rs-corners-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: env(safe-area-inset-bottom); }
+.rs-corners-actions .btn { min-height: 46px; }
+@media (max-width: 360px) { .rs-corners-stage { grid-template-columns: 1fr; } .rs-corners-preview { display: none; } }
+
+/* 119. Catat otomatis, calmer: four chips first (the rest behind "Lainnya"), three examples, clean previews. */
+.quick-groups .qg-more { border-style: dashed; color: var(--muted); }
+.quick-groups.is-all { flex-wrap: wrap; overflow: visible; }
+.quick-examples .qe-more { justify-self: start; font-size: .78rem; }
+.qp-form-link { margin-right: auto; padding: 4px 2px; border: 0; background: none; color: var(--accent); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.qb-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.qb-row .qb-main strong { font-size: .88rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qb-amount { font-size: .88rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qb-card.is-off .qb-amount { text-decoration: line-through; }
+.qb-attention { display: inline-flex; align-items: center; gap: 4px; }
+.qb-foot { justify-content: flex-start; }
+.quick-groups { flex-wrap: wrap; overflow: visible; }
+.quick-groups button { padding: 0 11px; }
+.qb-foot .qp-why-toggle { padding: 3px 2px; border: 0; background: none; color: var(--accent); font: inherit; font-size: .78rem; font-weight: 600; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
