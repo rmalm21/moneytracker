@@ -23,11 +23,13 @@ export type PaymentMethod = '' | 'cash' | 'qris' | 'debit' | 'credit' | 'transfe
 export type ReceiptRead = {
   merchant: string; date: string; time: string; items: ReceiptLine[];
   subtotal: number; tax: number; service: number; discount: number; delivery: number; rounding: number; total: number;
+  /** Other charges: admin, handling, packaging, app fee, tip. */
+  fee?: number;
   paid: number; change: number; payment: PaymentMethod; skipped: number;
   /** Every total printed (Grand Total, Total Bayar, Total…), the most likely first. */
   totals?: number[];
   /** Percentages printed next to tax and service ("PB1 10%"), to catch a misread amount. */
-  rates?: Partial<Record<'tax' | 'service' | 'delivery', number>>;
+  rates?: Partial<Record<'tax' | 'service' | 'discount', number>>;
   /** Amounts corrected because they did not add up (shown to the user). */
   fixes?: string[];
 };
@@ -101,15 +103,16 @@ export function readAmount(text: string) {
   if (!Number.isSafeInteger(value)) return null;
   return { value: match[1] ? -value : value, start: match.index || 0 };
 }
-type Key = 'subtotal' | 'tax' | 'service' | 'discount' | 'delivery' | 'rounding' | 'total' | 'paid' | 'change' | 'ignore';
+type Key = 'subtotal' | 'tax' | 'service' | 'discount' | 'delivery' | 'fee' | 'rounding' | 'total' | 'paid' | 'change' | 'ignore';
 /** Checked in this order. */
 const KEYS: [Key, RegExp][] = [
   ['ignore', /\b(npwp|telp|tel|phone|hp|wa|kasir|cashier|operator|no\.?\s*(struk|nota|meja|order|trx|transaksi|invoice|ref|kartu|card)|order\s*(#|id|no)|table|meja|pax|shift|member\s*(id|no|card)|(no|id)\.?\s*member|poin|points?|stamp|saldo|sisa\s*saldo|dpp|approval|appr|trace|batch|tid|mid|rrn|auth|kode|code|terminal|merchant\s*id|invoice|pin|total\s*(item|items|qty|barang|pcs|jumlah\s*item)|jumlah\s*(item|barang|qty|pcs)|qty\s*total|item\s*:?|sms|call|hubungi|customer|konsumen|kritik|saran|www|http|email|wifi|password)\b|(#|\bno\.?|\bnomor)\s*:?\s*$/i],
-  ['subtotal', /\b(sub\s*-?\s*t[o0]ta[l1i]|s\/?t[o0]ta[l1i]|total\s*harga\s*barang|harga\s*jual|total\s*penjualan)\b/i],
-  ['discount', /\b(d[i1l]sk[o0]n|disc(ount)?|potongan|promo|voucher|hemat|cashback|member\s*disc|rabat)\b/i],
-  ['service', /\b(serv[i1l]ce(\s*charge)?|serv[i1l]s|srv|svc|s\.?c\.?|biaya\s*layanan|layanan\s*\d+\s*%)\b/i],
-  ['tax', /\b(pb\s*-?\s*[1il]|p\.b\.?\s*1|pajak(\s*resto(ran)?)?|ppn|tax|vat|pbjt)\b/i],
-  ['delivery', /\b(ongkir|ongkos\s*kirim|delivery(\s*fee)?|pengiriman|biaya\s*antar|shipping)\b/i],
+  ['subtotal', /\b(sub\s*-?\s*t[o0]ta[l1i]|s\/?t[o0]ta[l1i]|total\s*harga\s*barang|harga\s*jual|total\s*penjualan|harga\s*(makanan|pesanan|barang|produk)|subtotal\s*(produk|pesanan|untuk\s*produk)|jumlah\s*harga|total\s*harga\s*produk|sub\s*jumlah)\b/i],
+  ['discount', /\b(d[i1l]sk[o0]n|disc(ount)?|dsc|potongan|promo|voucher|vouc|kupon|coupon|hemat|cashback|member\s*disc|rabat|reduksi|koin\s*(shopee|dipakai)|poin\s*dipakai|subsidi)\b/i],
+  ['service', /\b(serv[i1l]ce(\s*charge)?|serv[i1l]s|srv|svc(\s*chg)?|s\/c|service\s*&\s*tax|tax\s*&\s*service|s\.?c\.?|biaya\s*layanan|layanan\s*\d+\s*%)\b/i],
+  ['tax', /\b(pb\s*-?\s*[1il]|p\.b\.?\s*1|pajak(\s*(resto(ran)?|daerah|pembangunan))?|ppn|tax|vat|pbjt|gst)\b/i],
+  ['delivery', /\b(ongkir|ongkos\s*kirim|delivery(\s*fee|\s*charge)?|pengiriman|biaya\s*(antar|kirim)|shipping|kurir|ongkos\s*angkut|biaya\s*angkut|angkutan|ongkos\s*bongkar|jasa\s*antar)\b/i],
+  ['fee', /\b(biaya\s*(admin|administrasi|aplikasi|penanganan|kemasan|packing|pengemasan|platform|jasa|transaksi|tambahan|pemesanan|proteksi|asuransi\s*pengiriman)|admin(\s*fee)?|handling(\s*fee)?|packaging|platform\s*fee|convenience\s*fee|order\s*fee|small\s*order\s*fee|tip|tips|gratuity|kemasan|bungkus|takeaway\s*fee|asuransi\s*pengiriman)\b/i],
   ['rounding', /\b(pembulatan|rounding|round|pembul)\b/i],
   ['change', /\b(kembal[i1l](an)?|change|kembali\s*uang|kemb)\b/i],
   ['total', /\b(grand\s*t[o0]ta[l1i]|t[o0]ta[l1i](\s*(bayar|tagihan|belanja|harga|pembayaran|akhir|pesanan|penjualan))?|t[o0]t|ttl|jumlah(\s*(bayar|tagihan|harga))?|tagihan|amount\s*due|net\s*(amount|total|sales)|harus\s*dibayar|total\s*due)\b/i],
@@ -119,7 +122,7 @@ const KEYS: [Key, RegExp][] = [
 const PAID_STRONG = /^\s*(tunai|cash|bayar|dibayar|pembayaran|payment|paid|tendered|qris|edc)\b/i;
 const FUZZY: [Key, string[]][] = [
   ['subtotal', ['subtotal']], ['total', ['total', 'grandtotal', 'tagihan']], ['change', ['kembali', 'kembalian']], ['paid', ['tunai']],
-  ['discount', ['diskon', 'discount', 'potongan']], ['service', ['service']], ['tax', ['pajak']], ['rounding', ['pembulatan']],
+  ['discount', ['diskon', 'discount', 'potongan', 'voucher']], ['service', ['service']], ['tax', ['pajak']], ['rounding', ['pembulatan']], ['delivery', ['ongkir', 'pengiriman']],
 ];
 function editDistance(a: string, b: string) {
   if (Math.abs(a.length - b.length) > 2) return 9;
@@ -154,13 +157,14 @@ const PAYMENTS: [PaymentMethod, RegExp][] = [
   ['qris', /\bqris\b|\bqr\s*(code|payment)\b/i], ['credit', /\b(kartu\s*kredit|credit\s*card|kredit|visa|master\s*card|mastercard|amex|jcb)\b/i], ['debit', /\b(debit|debet|kartu\s*debit|edc|bca\s*card|atm|gpn|flazz|e-?money|brizzi|tapcash)\b/i],
   ['transfer', /\b(transfer|trf|tf|virtual\s*account|va)\b/i], ['cash', /\b(tunai|cash)\b/i],
 ];
+const UNITS = 'sak|kg|kilo|gr|gram|ons|pcs|bh|buah|btl|botol|pck|pack|bks|bungkus|porsi|lusin|dus|box|m|meter|ltr|liter|lbr|lembar|set|unit|roll|batang|ikat|sachet';
 const NUMBER = String.raw`(\d{1,3}(?:[.,]\d{3})+|\d{3,})`;
 const readNumber = (text: string) => Number(text.replace(/[.,]/g, ''));
 /** Name, quantity and unit price from the text before a line's total; a reading counts only when quantity × price = total. */
 function readItem(label: string, total: number): { name: string; qty: number; price: number; alt?: number } {
   label = label.replace(/(\s+[^\w\s.,]{1,2})+$/, '').trim();
   const tries: [RegExp, (match: RegExpMatchArray) => [number, number] | null][] = [
-    [new RegExp(String.raw`(?:^|\s)(\d{1,3})\s*(?:pcs|x|×|@)\s*(?:rp\.?\s*)?${NUMBER}\s*$`, 'i'), match => [+match[1], readNumber(match[2])]],
+    [new RegExp(String.raw`(?:^|\s)(\d{1,3})\s*(?:${UNITS})?\s*(?:pcs|x|×|@)\s*(?:rp\.?\s*)?${NUMBER}\s*$`, 'i'), match => [+match[1], readNumber(match[2])]],
     [new RegExp(String.raw`(?:^|\s)@\s*(?:rp\.?\s*)?${NUMBER}\s*$`, 'i'), match => { const unit = readNumber(match[1]); return unit && total % unit === 0 ? [total / unit, unit] : null; }],
     [new RegExp(String.raw`(?:^|\s)${NUMBER}\s*[x×]\s*(\d{1,3})\s*$`, 'i'), match => [+match[2], readNumber(match[1])]],
     [new RegExp(String.raw`(?:^|\s)(\d{1,3})\s*(?:pcs|bh|buah|btl|pck|porsi)?\s+(?:rp\.?\s*)?${NUMBER}\s*$`, 'i'), match => [+match[1], readNumber(match[2])]],
@@ -192,11 +196,25 @@ export function readReceiptDate(text: string) {
   const match = text.match(DATE_TEXT);
   if (!match) return '';
   if (match[1]) return valid(+match[1], +match[2], +match[3]);
-  if (match[4]) return valid(year(match[6]), +match[5], +match[4]);
+  if (match[4]) { let d = +match[4], m = +match[5]; if (m > 12 && d <= 12) [d, m] = [m, d]; return valid(year(match[6]), m, d); }
   if (match[7]) { const month = monthOf(match[8]); return month ? valid(year(match[9]), month, +match[7]) : ''; }
   const month = monthOf(match[10]); return month ? valid(+match[12], month, +match[11]) : '';
 }
 const TIME = /\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b/;
+const TIMES = /\b([01]?\d|2[0-3])([:.])([0-5]\d)(?:[:.][0-5]\d)?(?!\d)\s*(am|pm|a\.m\.|p\.m\.)?/gi;
+const TIME_WORDS = /\b(jam|pukul|time|waktu|wib|wita|wit|am|pm)\b/i;
+/** A clock time on a line (not inside its date): "19:45", "7:45 PM", "19.45 WIB", "Jam 19.45". */
+function timeOf(line: string) {
+  const rest = line.replace(DATE_TEXT, ' ');
+  const all = [...rest.matchAll(TIMES)];
+  const pick = all.find(m => m[2] === ':') || (TIME_WORDS.test(rest) ? all[0] : undefined);
+  if (!pick) return '';
+  let hour = +pick[1]; const half = pick[4]?.toLowerCase();
+  if (half?.startsWith('p') && hour < 12) hour += 12; if (half?.startsWith('a') && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:${pick[3]}`;
+}
+/** Dates that are not the purchase: a voucher's or card's expiry, a due date. */
+const NOT_PURCHASE = /\b(berlaku|s\/d|sampai|hingga|exp|expired|expiry|valid|kadaluarsa|kedaluwarsa|jatuh\s*tempo|due|masa\s*aktif|periode)\b/i;
 
 /* ------------------------------------------------------------------ The place */
 
@@ -205,15 +223,20 @@ const SHOPS = ['Indomaret', 'Alfamart', 'Alfamidi', 'Alfaexpress', 'Lawson', 'Fa
 const squash = (text: string) => lettersOf(text).replace(/\s/g, '');
 const SHOP_ALIASES: Record<string, string> = { indomarco: 'Indomaret', sumberalfaria: 'Alfamart', midimutiara: 'Alfamidi', lawsonindonesia: 'Lawson', sumberalfariatrijaya: 'Alfamart' };
 function knownShop(lines: string[]) {
-  const picked = [...lines.slice(0, 8), ...lines.slice(-4)], candidates = picked.map(squash), raw = picked.map(l => l.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  // Lines without prices only (the header and footer), compared word by word, so an item never becomes a shop.
+  const picked = [...lines.slice(0, 8), ...lines.slice(-4)].filter(line => !/\d[.,]\d{3}/.test(line) && !/^(jl|jln|jalan|alamat|ruko|komplek|kel|kec|kota|kab)\b|\bjl\.|\b(yogyakarta|jakarta|bandung|surabaya|semarang|medan|bogor|depok|tangerang|bekasi|malang|bali|denpasar)\b.*\d|,\s*\w+\s*$/i.test(line.trim()));
+  const candidates = picked.map(squash), raw = picked.map(l => l.toLowerCase().replace(/[^a-z0-9]/g, ''));
   for (const [alias, shop] of Object.entries(SHOP_ALIASES)) if (candidates.some(line => line.includes(alias))) return shop;
   for (const shop of SHOPS) {
     const key = squash(shop.replace(/'/g, '')), exact = shop.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (/^(apotek|kopi|toko|point|fore|grand|circle)/i.test(shop)) { if (candidates.some((line, i) => line.includes(key) && raw[i].includes(exact))) return shop; continue; }
     if (key.length < 3) continue;
-    for (const line of candidates) {
-      if (line.includes(key)) return shop;
-      if (key.length >= 6) for (let i = 0; i + key.length - 1 <= line.length; i++) if (editDistance(line.slice(i, i + key.length), key) <= 1) return shop;
+    if (/^(apotek|kopi|toko|point|fore|grand|circle)/i.test(shop)) { if (candidates.some((line, i) => line.includes(key) && raw[i].includes(exact))) return shop; continue; }
+    for (let i = 0; i < picked.length; i++) {
+      const words = lettersOf(picked[i]).split(' ');
+      // Short names ("Yogya", "Hero") only as a whole word, never inside another ("Yogyakarta").
+      if (key.length < 6) { if (words.some((w, j) => w === key || w + (words[j + 1] || '') === key)) return shop; continue; }
+      if (candidates[i].includes(key)) return shop;
+      for (let w = 0; w < words.length; w++) for (const joined of [words[w], words[w] + (words[w + 1] || '')]) if (joined.length >= key.length - 1 && editDistance(joined, key) <= 1) return shop;
     }
   }
   return '';
@@ -225,23 +248,23 @@ const looksLikeName = (line: string) => { const letters = (line.match(/[a-z]/gi)
 
 /** Items, charges, totals and payment from receipt text, for the user to check. */
 export function readReceiptText(text: string): ReceiptRead {
-  const out: ReceiptRead = { merchant: '', date: '', time: '', items: [], subtotal: 0, tax: 0, service: 0, discount: 0, delivery: 0, rounding: 0, total: 0, paid: 0, change: 0, payment: '', skipped: 0, totals: [] };
+  const out: ReceiptRead = { merchant: '', date: '', time: '', items: [], subtotal: 0, tax: 0, service: 0, discount: 0, delivery: 0, rounding: 0, total: 0, paid: 0, change: 0, payment: '', skipped: 0, totals: [], fee: 0 };
   const cleaned = cleanOcrText(text);
   const lines = pairColumns(cleaned.split('\n').slice(0, 300));
   out.payment = PAYMENTS.find(([, pattern]) => pattern.test(cleaned))?.[0] || '';
   const quantityLine = (line: string | undefined) => Boolean(line && /^\d{1,3}\s*[x×@]/i.test(line));
   const totals: { value: number; strength: number; position: number }[] = [];
-  let pendingName = '', summary = false, sawHemat = false;
+  let pendingName = '', summary = false, sawHemat = false, unplaced = 0;
   const alts = new Map<ReceiptLine, number>();
+  const dates: { date: string; time: string; position: number; score: number }[] = [], times: { time: string; position: number }[] = [];
   lines.forEach((line, position) => {
-    const date = out.date ? '' : readReceiptDate(line);
-    const time = line.match(TIME);
+    const date = readReceiptDate(line), time = timeOf(line);
     if (date || (time && /\b(jam|time|waktu|pukul|tgl|tanggal|date)\b/i.test(line))) {
-      if (date) out.date = date;
-      if (time && !out.time) out.time = `${time[1].padStart(2, '0')}:${time[2]}`;
+      if (date) dates.push({ date, time, position, score: (/\b(tgl|tanggal|date|tanggal transaksi|waktu)\b/i.test(line) ? 3 : 0) + (time ? 2 : 0) + (position < Math.max(8, lines.length * .4) ? 1 : 0) - (NOT_PURCHASE.test(line) ? 20 : 0) });
+      else times.push({ time, position });
       const rest = line.replace(DATE_TEXT, '').replace(new RegExp(TIME.source, 'g'), '');
       if ((readAmount(rest)?.value || 0) < 100) return;
-    }
+    } else if (time && !readAmount(line.replace(TIMES, ' '))) { times.push({ time, position }); return; }
     const amount = readAmount(line);
     if (!amount) {
       // A name alone: its quantity and price may be on the next line ("ES TEH" / "2 x 6.000 12.000").
@@ -265,12 +288,12 @@ export function readReceiptText(text: string): ReceiptRead {
       else if (key === 'paid') { if (!out.paid) out.paid = value; }
       else if (key === 'change') out.change = value;
       else if (key === 'subtotal') out.subtotal = value;
-      else if (key === 'discount') { const hemat = /hemat/i.test(label); if (!(hemat && out.discount && !sawHemat)) out.discount += value; sawHemat ||= hemat; }
-      else { out[key] += value; const pct = label.match(/(\d{1,2}(?:[.,]\d)?)\s*%/); if (pct) (out.rates ||= {})[key as 'tax' | 'service'] = Number(pct[1].replace(',', '.')); }
+      else if (key === 'discount') { const hemat = /hemat/i.test(label); if (!(hemat && out.discount && !sawHemat)) out.discount += value; sawHemat ||= hemat; const pct = label.match(/(\d{1,2}(?:[.,]\d)?)\s*%/); if (pct) (out.rates ||= {}).discount = Number(pct[1].replace(',', '.')); }
+      else { out[key] = (out[key] || 0) + value; const pct = label.match(/(\d{1,2}(?:[.,]\d)?)\s*%/); if (pct && (key === 'tax' || key === 'service')) (out.rates ||= {})[key] = Number(pct[1].replace(',', '.')); }
       return;
     }
     // After the summary starts, a price is never an item (card numbers, approval codes, "Anda hemat"…).
-    if (summary) { out.skipped++; pendingName = ''; return; }
+    if (summary) { out.skipped++; unplaced++; pendingName = ''; return; }
     if (amount.value < 0) { out.discount += -amount.value; pendingName = ''; return; }
     if (amount.value < 100 || out.items.length >= 150) { out.skipped++; return; }
     const read = readItem(label, amount.value);
@@ -283,8 +306,14 @@ export function readReceiptText(text: string): ReceiptRead {
     out.items.push({ name, qty: read.qty, price: read.price, total: read.qty * read.price });
     if (read.alt && read.alt !== read.qty * read.price) alts.set(out.items[out.items.length - 1], read.alt);
   });
+  // The purchase date: key words, a time on the same line and a place near the top count; expiry dates never win.
+  const when = dates.filter(d => d.score > -10).sort((a, b) => b.score - a.score || a.position - b.position)[0];
+  if (when) { out.date = when.date; out.time = when.time || times.sort((a, b) => Math.abs(a.position - when.position) - Math.abs(b.position - when.position))[0]?.time || ''; }
+  else if (times.length) out.time = times[0].time;
   // The total to pay: the strongest total line; when several are equally strong, the last one.
   totals.sort((a, b) => b.strength - a.strength || b.position - a.position);
+  const itemSum = out.items.reduce((n, i) => n + i.total, 0);
+  if (!out.subtotal && totals.length > 1) { const sub = totals.find(t => t !== totals[0] && t.value === itemSum && t.value !== totals[0].value); if (sub) { out.subtotal = sub.value; totals.splice(totals.indexOf(sub), 1); } }
   out.totals = [...new Set(totals.map(t => t.value))];
   out.total = out.totals[0] || 0;
   // A total the OCR mangled beyond recognition can still end up as the last "item": drop items that are exactly a total
@@ -293,7 +322,7 @@ export function readReceiptText(text: string): ReceiptRead {
   while (out.items.length > 1 && money.has(out.items[out.items.length - 1].total) && out.items.slice(0, -1).reduce((n, i) => n + i.total, 0) > 0) { out.items.pop(); out.skipped++; }
   if (out.total) { const before = out.items.length; out.items = out.items.filter(item => item.total <= out.total * 1.02); out.skipped += before - out.items.length; }
   if (out.merchant) { const t = out.merchant.split(' '); if (t.length > 2 && t[0].length === 1) t.shift(); if (t.length > 2 && t[t.length - 1].length <= 2 && /[a-z]/.test(t[t.length - 1])) t.pop(); out.merchant = t.join(' '); }
-  repairItems(out, alts);
+  repairItems(out, alts, unplaced > 0);
   repairCharges(out);
   const shop = knownShop(lines);
   if (shop) out.merchant = shop;
@@ -312,7 +341,7 @@ function lookalikes(value: number) {
  * misread digit in one or two prices ("6.920" for "6.900"). A correction is kept only when exactly one cheapest set of
  * changes makes the items add up exactly; otherwise nothing is touched and the user is told to check.
  */
-function repairItems(read: ReceiptRead, alts: Map<ReceiptLine, number>) {
+function repairItems(read: ReceiptRead, alts: Map<ReceiptLine, number>, unexplained = false) {
   const items = read.items, sum = items.reduce((n, i) => n + i.total, 0);
   if (items.length < 2 || items.length > 40) return;
   const targets = [...new Set([read.subtotal, read.totals?.[0] || read.total, read.total ? read.total + read.discount : 0].filter(v => v > 0))];
@@ -330,6 +359,8 @@ function repairItems(read: ReceiptRead, alts: Map<ReceiptLine, number>) {
     read.fixes = fixes;
     return;
   }
+  // One-digit guesses only when every amount under the items is understood (an unknown charge could be the difference).
+  if (unexplained || read.items.length < 3) return;
   for (const target of targets) {
     const need = target - sum;
     if (Math.abs(need) > target * .3) continue;
@@ -355,8 +386,8 @@ function repairItems(read: ReceiptRead, alts: Map<ReceiptLine, number>) {
 function repairCharges(read: ReceiptRead) {
   const rates = read.rates, target = read.totals?.[0] || read.total;
   if (!rates || !target) return;
-  const itemsTotal = read.items.reduce((n, i) => n + i.total, 0), base = read.subtotal || itemsTotal;
-  if (!base || solve(read, itemsTotal).best) return;
+  const itemsTotal = read.items.reduce((n, i) => n + i.total, 0), gross = read.subtotal || itemsTotal, base = gross - read.discount;
+  if (!gross || solve(read, itemsTotal).best) return;
   const service = rates.service ? [Math.round(base * rates.service / 100)] : [read.service];
   for (const s of new Set([read.service, ...service])) {
     const taxes = rates.tax ? [Math.round(base * rates.tax / 100), Math.round((base + s) * rates.tax / 100)] : [read.tax];
@@ -375,16 +406,17 @@ function repairCharges(read: ReceiptRead) {
 
 /* ------------------------------------------------------------------ Which total to trust */
 
-export type ReceiptCheck = { total: number; itemsTotal: number; computed: number; source: 'printed' | 'computed' | 'paid' | 'items' | 'none'; confidence: 'tinggi' | 'sedang' | 'rendah'; matches: boolean; notes: string[] };
+export type ReceiptCheck = { total: number; itemsTotal: number; computed: number; source: 'printed' | 'computed' | 'paid' | 'items' | 'none'; confidence: 'tinggi' | 'sedang' | 'rendah'; matches: boolean; notes: string[]; /** Charges printed but already inside the prices (or only information), so not added again. */ included: ChargeKey[] };
+export type ChargeKey = 'discount' | 'tax' | 'service' | 'delivery' | 'fee' | 'rounding';
 const near = (a: number, b: number) => a > 0 && b > 0 && Math.abs(a - b) <= Math.max(100, Math.round(b * .002));
 const rp = (n: number) => `Rp${Math.round(n).toLocaleString('id-ID')}`;
-const CHARGE_LABELS: Record<string, string> = { tax: 'pajak', service: 'service', delivery: 'ongkir', discount: 'diskon', rounding: 'pembulatan' };
+const CHARGE_LABELS: Record<string, string> = { tax: 'pajak', service: 'service', delivery: 'ongkir', fee: 'biaya lain', discount: 'diskon', rounding: 'pembulatan' };
 /**
  * Every printed total and paid − change against items (or subtotal) plus every combination of the charges. A combination
  * that leaves a charge out explains it: PPN already inside the prices, a "hemat" line that was only information.
  */
 function solve(read: ReceiptRead, itemsTotal: number) {
-  const charges = ([['tax', read.tax], ['service', read.service], ['delivery', read.delivery], ['discount', -read.discount], ['rounding', read.rounding]] as [string, number][]).filter(([, value]) => value);
+  const charges = ([['tax', read.tax], ['service', read.service], ['delivery', read.delivery], ['fee', read.fee || 0], ['discount', -read.discount], ['rounding', read.rounding]] as [string, number][]).filter(([, value]) => value);
   const bases = [...new Set([read.subtotal, itemsTotal].filter(v => v > 0))];
   const byPayment = read.paid && read.change && read.paid > read.change ? read.paid - read.change : 0;
   const targets = [...(read.totals?.length ? read.totals : read.total ? [read.total] : []), ...(byPayment ? [byPayment] : [])];
@@ -423,12 +455,61 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   if (tiny) notes.push('Nominal sangat kecil; mungkin angka depannya tidak terbaca. Periksa lagi dengan struknya.');
   const confidence: ReceiptCheck['confidence'] = !total || tiny ? 'rendah' : crossChecked ? 'tinggi' : lonely ? 'rendah' : source === 'printed' || source === 'paid' ? 'sedang' : 'rendah';
   if (!total) notes.push('Total belum terbaca. Isi nominalnya sendiri.');
-  return { total, itemsTotal, computed, source, confidence, matches, notes };
+  return { total, itemsTotal, computed, source, confidence, matches, notes, included: (best?.left || []) as ChargeKey[] };
 }
 /** How good a reading is, to pick the best of several OCR passes. */
 export function receiptScore(read: ReceiptRead) {
   const check = checkReceipt(read);
   return read.items.length * 2 + (read.total ? 4 : 0) + (check.matches ? 10 : 0) + (check.confidence === 'tinggi' ? 3 : 0) + (read.subtotal ? 1 : 0) + (read.date ? 1 : 0) + (read.merchant ? 1 : 0) - read.skipped * .3;
+}
+
+/* ------------------------------------------------------------------ Charges in the expense */
+
+export const CHARGE_NAMES: Record<ChargeKey, string> = { discount: 'Diskon / potongan', tax: 'Pajak / PB1 / PPN', service: 'Service', delivery: 'Ongkir', fee: 'Biaya lain (admin, kemasan, tip)', rounding: 'Pembulatan' };
+export const CHARGE_ORDER: ChargeKey[] = ['discount', 'tax', 'service', 'delivery', 'fee', 'rounding'];
+/** Charges that can be recorded under their own category. Discounts and rounding always stay with the purchase. */
+export const SEPARABLE: ChargeKey[] = ['tax', 'service', 'delivery', 'fee'];
+type CatRef = { categoryId: string; subcategoryId: string | null };
+/**
+ * Where a charge goes when recorded separately: tax to "Biaya Keuangan › Pajak", other fees to its "Biaya Lainnya"
+ * or "Admin", delivery to a "Delivery / Ongkir" subcategory next to the purchase; the purchase's own category otherwise.
+ * Only the person's own categories are used.
+ */
+export function chargeCategory(key: ChargeKey, categories: Pick<Category, 'id' | 'name' | 'type' | 'parentId' | 'isArchived'>[], purchase: CatRef): CatRef {
+  const own = categories.filter(c => !c.isArchived && c.type === 'expense');
+  const finance = own.find(c => !c.parentId && /biaya keuangan|keuangan|biaya/i.test(c.name));
+  const under = (parentId: string | undefined, pattern: RegExp) => parentId ? own.find(c => c.parentId === parentId && pattern.test(c.name)) : undefined;
+  const pick = (c: typeof own[number] | undefined): CatRef | undefined => c && (c.parentId ? { categoryId: c.parentId, subcategoryId: c.id } : { categoryId: c.id, subcategoryId: null });
+  const anywhere = (pattern: RegExp) => own.find(c => c.parentId && pattern.test(c.name)) || own.find(c => !c.parentId && pattern.test(c.name));
+  // No fitting category of one's own: left empty so the person picks one (never quietly merged back).
+  const none = { categoryId: '', subcategoryId: null };
+  if (key === 'tax') return pick(under(finance?.id, /pajak/i) || anywhere(/^pajak|pajak$/i)) || none;
+  if (key === 'fee') return pick(under(finance?.id, /biaya lain/i) || under(finance?.id, /admin/i) || anywhere(/biaya lain|biaya admin|admin/i)) || none;
+  if (key === 'delivery') return pick(under(purchase.categoryId, /delivery|ongkir|pengiriman|pesan antar|kurir/i)) || purchase;
+  return purchase;
+}
+/**
+ * The expense's lines: charges recorded separately keep their amount and category; the rest of the amount (the
+ * purchase, with discounts, rounding and any charge not separated inside it) is divided over the purchase lines by
+ * their size. Lines with the same category are joined; the lines always add up to the amount exactly.
+ */
+export function receiptSplits(amount: number, purchase: SplitLine[], separate: SplitLine[]): SplitLine[] {
+  const own = separate.filter(line => line.amount > 0);
+  const rest = amount - own.reduce((n, line) => n + line.amount, 0);
+  if (rest <= 0 || !purchase.length) return [];
+  const parts = allocate(rest, purchase.map(line => line.amount > 0 ? line.amount : 1));
+  const joined = new Map<string, SplitLine>();
+  for (const line of [...purchase.map((line, i) => ({ ...line, amount: parts[i] })), ...own]) {
+    const id = `${line.categoryId}:${line.subcategoryId || ''}`, current = joined.get(id);
+    joined.set(id, current ? { ...current, amount: current.amount + line.amount } : { categoryId: line.categoryId, subcategoryId: line.subcategoryId || null, amount: line.amount });
+  }
+  return [...joined.values()].filter(line => line.amount > 0);
+}
+/** "Belanja Rp105.000 · Diskon −Rp5.000 · PB1 Rp10.000" for the transaction's notes. */
+export function chargeSummary(base: number, charges: Partial<Record<ChargeKey, number>>, included: ChargeKey[] = []) {
+  const short: Record<ChargeKey, string> = { discount: 'Diskon', tax: 'Pajak', service: 'Service', delivery: 'Ongkir', fee: 'Biaya lain', rounding: 'Pembulatan' };
+  const parts = CHARGE_ORDER.filter(key => charges[key]).map(key => `${short[key]} ${key === 'discount' ? '−' : (charges[key] || 0) < 0 ? '−' : ''}${rp(Math.abs(charges[key] || 0))}${included.includes(key) ? ' (sudah termasuk)' : ''}`);
+  return parts.length ? [base ? `Belanja ${rp(base)}` : '', ...parts].filter(Boolean).join(' · ') : '';
 }
 
 /* ------------------------------------------------------------------ A transaction to confirm */

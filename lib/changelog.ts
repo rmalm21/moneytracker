@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '76', date: '27 Sep 2026', title: 'Scan struk membaca semua biaya, Catat otomatis lebih cerdas', items: [
+    ['🧾', 'Scan struk membaca diskon dan potongan (termasuk persen, voucher, promo ongkir), pajak (PB1, PPN, PBJT), service, ongkir, biaya lain (admin, kemasan, aplikasi, tip), dan pembulatan, dari struk resto, minimarket, GoFood/GrabFood, sampai marketplace.'],
+    ['📝', 'Pengeluaran dari struk kini punya Rincian biaya yang bisa diubah, dengan hasil hitung yang langsung dicocokkan. Biaya bisa digabung ke belanja atau dicatat terpisah dengan kategorinya sendiri, dan rinciannya tersimpan di catatan transaksi.'],
+    ['✅', 'Tanggal dan jam lebih tepat: tanggal kedaluwarsa voucher dan kode kasir tidak lagi terbaca sebagai tanggal, dan format AM/PM, WIB, serta tanggal gaya Amerika dikenali. PPN yang sudah termasuk harga tidak dihitung dua kali.'],
+    ['💡', 'Catat otomatis lebih cerdas: “budget makan 2jt” masuk Makan & Minum, sedangkan “budget makan traveling” masuk Travel › Makan. Kata seperti ngopi, groceries, ortu, dan “pulsa dan kuota” dikenali.'],
+    ['💰', 'Pengeluaran saat liburan atau dinas masuk ke subkategori yang pas, misalnya “makan pas liburan” ke Travel › Makan dan “grab waktu liburan” ke Transport Lokal.'],
+  ] },
   { version: '75', date: '27 Sep 2026', title: 'Tambah/kurangi utang & piutang, Scan struk lebih pintar', items: [
     ['💸', 'Utang dan piutang kini bisa ditambah atau dikurangi. Pinjam atau meminjamkan lagi bisa langsung lewat dompet; potongan dan diskon cukup dikurangi. Ada juga Atur sisa, dan perubahan terakhir bisa dibatalkan dari Riwayat.'],
     ['📷', 'Scan struk mencari struk di foto, meluruskan foto miring, meratakan bayangan, dan membaca ulang dengan cara lain bila belum cocok. Foto yang diambil menyamping diputar otomatis.'],

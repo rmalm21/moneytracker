@@ -78,3 +78,35 @@ test('the person’s own habits count: the same item, place or words as before',
   const galon = [{ type: 'expense', description: 'Galon Aqua', merchant: '', categoryId: 'makan', subcategoryId: null }, { type: 'expense', description: 'Isi galon', merchant: '', categoryId: 'makan', subcategoryId: null }];
   assert.equal(cat('galon 20rb', own, galon), 'makan');
 });
+
+test('an Anggaran is read like a person would: "makan" is Makan & Minum, not Travel › Makan', () => {
+  const budget = text => { const r = parseQuickText(text, { ...base, categories: templates, history: [], budgets: [] }); return r && [r.budget.subcategoryIds.length ? r.budget.subcategoryIds.join('+') : r.budget.categoryId, r.budget.cycleType]; };
+  assert.deepEqual(budget('budget makan 2jt'), ['expense.makan-minum', 'salary']);
+  assert.deepEqual(budget('anggaran makan dan minum 3jt'), ['expense.makan-minum', 'salary']);
+  assert.deepEqual(budget('budget makan traveling 1jt'), ['expense.travel-liburan.makan', 'salary']);
+  assert.deepEqual(budget('budget transport liburan 2jt'), ['expense.travel-liburan.transport-lokal', 'salary']);
+  assert.deepEqual(budget('budget ngopi 300rb per minggu'), ['expense.makan-minum.kopi-minuman', 'weekly']);
+  assert.deepEqual(budget('budget groceries 1,5jt'), ['expense.makan-minum.bahan-makanan', 'salary']);
+  assert.deepEqual(budget('budget ortu 1jt'), ['expense.sosial-sedekah.keluarga', 'salary']);
+  assert.deepEqual(budget('budget kopi & jajan 400rb'), ['expense.makan-minum.kopi-minuman+expense.makan-minum.jajan', 'salary']);
+  assert.deepEqual(budget('anggaran minggu ini makan 500rb'), ['expense.makan-minum', 'weekly']);
+  assert.deepEqual(budget('budget makan kantor 1jt'), ['expense.kerja.makan-kerja', 'salary']);
+  // With only one's own names: a top-level "Makan" and a "Makan" under Liburan.
+  const mine = [{ id: 'mkn', name: 'Makan', type: 'expense' }, { id: 'lib', name: 'Liburan', type: 'expense' }, { id: 'lib-mkn', name: 'Makan', type: 'expense', parentId: 'lib' }];
+  const own = text => { const r = parseQuickText(text, { ...base, categories: mine, history: [], budgets: [] }); return r.budget.subcategoryIds[0] || r.budget.categoryId; };
+  assert.equal(own('budget makan 2jt'), 'mkn');
+  assert.equal(own('budget makan liburan 1jt'), 'lib-mkn');
+});
+
+test('spending on a trip or for work lands in that category\'s matching subcategory', () => {
+  const at = text => { const r = parseQuickText(text, { ...base, categories: templates, history: [] }); return r.preset.subcategoryId || r.preset.categoryId; };
+  assert.equal(at('makan pas liburan 100rb'), 'expense.travel-liburan.makan');
+  assert.equal(at('makan waktu traveling di jogja 85rb'), 'expense.travel-liburan.makan');
+  assert.equal(at('grab waktu liburan 45rb'), 'expense.travel-liburan.transport-lokal');
+  assert.equal(at('tiket pesawat liburan 1,5jt'), 'expense.travel-liburan.tiket-pesawat');
+  assert.equal(at('makan dinas 50rb'), 'expense.kerja.makan-kerja');
+  assert.equal(at('taksi meeting klien 80rb'), 'expense.kerja.transport-kerja');
+  // No scene: the usual meaning.
+  assert.equal(at('makan 25rb'), 'expense.makan-minum');
+  assert.equal(at('makan siang kantor 35rb'), 'expense.makan-minum.makan-siang');
+});

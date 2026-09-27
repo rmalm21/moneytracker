@@ -1,15 +1,15 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, ClipboardPaste, FileText, ImagePlus, Plus, ReceiptText, RotateCw, ScanText, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardPaste, FileText, ImagePlus, Percent, Plus, ReceiptText, RotateCw, ScanText, ShieldCheck, Trash2 } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { CategoryPicker } from './category-picker';
 import { Field, Input, Money, Select, categoryOptions } from './fields';
-import { allocate, rupiah } from '@/lib/accounting';
+import { rupiah } from '@/lib/accounting';
 import { newTx, upsertTransaction, validateTx } from '@/lib/firestore';
 import { todayInTimeZone } from '@/lib/period';
-import { PAYMENT_LABELS, checkReceipt, readReceiptText, receiptToTransaction, type ReceiptCheck, type ReceiptRead } from '@/lib/receipt';
+import { CHARGE_NAMES, CHARGE_ORDER, PAYMENT_LABELS, SEPARABLE, chargeCategory, chargeSummary, checkReceipt, readReceiptText, receiptSplits, receiptToTransaction, type ChargeKey, type ReceiptCheck, type ReceiptRead } from '@/lib/receipt';
 import { ocrAvailable, readReceiptPhoto, type OcrProgress } from '@/lib/receipt-ocr';
 import { walletAllows } from '@/lib/wallet-capabilities';
 import type { LedgerTx, SplitLine } from '@/lib/types';
@@ -21,7 +21,12 @@ import type { LedgerTx, SplitLine } from '@/lib/types';
 
 type Background = (run: () => Promise<unknown>, info: { message: string; detail?: string; retry: { preset?: Partial<LedgerTx> } }) => void;
 type Item = { key: string; name: string; qty: number; price: number; categoryId: string; subcategoryId: string };
-type Draft = { type: 'expense' | 'income'; amount: number; date: string; time: string; merchant: string; description: string; walletId: string; categoryId: string; subcategoryId: string; notes: string; items: Item[]; bySplit: boolean };
+type CatRef = { categoryId: string; subcategoryId: string | null };
+type Draft = {
+  type: 'expense' | 'income'; amount: number; date: string; time: string; merchant: string; description: string; walletId: string; categoryId: string; subcategoryId: string; notes: string; items: Item[]; bySplit: boolean;
+  /** Printed subtotal (when there are no items), charges as read (discount positive), which are counted, and how they are recorded. */
+  subtotal: number; ch: Record<ChargeKey, number>; inc: Record<ChargeKey, boolean>; chargeMode: 'spread' | 'separate'; chargeCats: Partial<Record<ChargeKey, CatRef>>;
+};
 
 /** A receipt handed to Split Bill (same page, so the photo can go along without being stored anywhere). */
 let handoff: { read: ReceiptRead; photo: Blob | null } | null = null;
@@ -37,10 +42,11 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const [progress, setProgress] = useState<OcrProgress | null>(null), [problem, setProblem] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState('');
   const [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
   const job = useRef(0);
+  const [shownKeys, setShownKeys] = useState<ChargeKey[]>([]);
   const payWallets = data.wallets.filter(w => walletAllows(w, 'pay'));
   const inWallets = data.wallets.filter(w => !w.isArchived);
 
-  function reset() { job.current++; if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(null); setPhotoUrl(''); setTurn(0); setProgress(null); setProblem(''); setPasteOpen(false); setPasted(''); setRead(null); setRawText(''); setOcrMeta(''); setDraft(null); setWhy({}); setError(''); }
+  function reset() { job.current++; if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(null); setPhotoUrl(''); setTurn(0); setProgress(null); setProblem(''); setPasteOpen(false); setPasted(''); setRead(null); setRawText(''); setOcrMeta(''); setDraft(null); setWhy({}); setError(''); setShownKeys([]); }
   useEffect(() => { if (!open) reset(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
 
@@ -48,7 +54,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     const guess = receiptToTransaction(next, { categories: data.categories, history: data.transactions, wallets: type === 'expense' ? payWallets : inWallets, today, defaultWalletId: type === 'expense' ? profile?.defaultExpenseWalletId : profile?.defaultIncomeWalletId }, type);
     setRead(next);
     setWhy({ category: guess.why, wallet: guess.walletWhy });
-    setDraft({ type, amount: guess.amount, date: guess.date, time: guess.time, merchant: guess.merchant, description: guess.description, walletId: guess.walletId, categoryId: guess.categoryId || (type === 'income' ? profile?.salaryIncomeCategoryId || '' : ''), subcategoryId: guess.subcategoryId || '', notes: '', items: guess.items.map(item => ({ key: key(), name: item.name, qty: item.qty, price: item.price, categoryId: item.categoryId || '', subcategoryId: item.subcategoryId || '' })), bySplit: guess.splits.length > 1 });
+    const counted = checkReceipt(next).included;
+    setDraft({ subtotal: next.subtotal, ch: { discount: next.discount, tax: next.tax, service: next.service, delivery: next.delivery, fee: next.fee || 0, rounding: next.rounding }, inc: Object.fromEntries(CHARGE_ORDER.map(k => [k, !counted.includes(k)])) as Record<ChargeKey, boolean>, chargeMode: 'spread', chargeCats: {}, type, amount: guess.amount, date: guess.date, time: guess.time, merchant: guess.merchant, description: guess.description, walletId: guess.walletId, categoryId: guess.categoryId || (type === 'income' ? profile?.salaryIncomeCategoryId || '' : ''), subcategoryId: guess.subcategoryId || '', notes: '', items: guess.items.map(item => ({ key: key(), name: item.name, qty: item.qty, price: item.price, categoryId: item.categoryId || '', subcategoryId: item.subcategoryId || '' })), bySplit: guess.splits.length > 1 });
     setError(''); setLowOk(false);
   }
   async function scan(source: Blob, quarter = 0) {
@@ -79,16 +86,27 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const patchItem = (id: string, changes: Partial<Item>) => setDraft(current => current && { ...current, items: current.items.map(item => item.key === id ? { ...item, ...changes } : item) });
   const itemsTotal = draft?.items.reduce((sum, item) => sum + item.qty * item.price, 0) || 0;
   const check = useMemo(() => read ? checkReceipt(read) : null, [read]);
-  /** Split by category: item groups scaled to the amount (tax, service and discounts spread by size). */
-  const splits = useMemo<SplitLine[]>(() => {
-    if (!draft || draft.type !== 'expense' || !draft.bySplit || !draft.amount || !itemsTotal) return [];
+  /** The purchase lines: one per item category when "Pisah per kategori" is on, otherwise the chosen category. */
+  const purchase = useMemo<SplitLine[]>(() => {
+    if (!draft) return [];
     const groups = new Map<string, SplitLine>();
-    for (const item of draft.items) { if (!item.categoryId || !(item.qty * item.price)) continue; const id = `${item.categoryId}:${item.subcategoryId}`; const line = groups.get(id) || { categoryId: item.categoryId, subcategoryId: item.subcategoryId || null, amount: 0 }; line.amount += item.qty * item.price; groups.set(id, line); }
-    const lines = [...groups.values()];
-    if (lines.length < 2) return [];
-    const parts = allocate(draft.amount, lines.map(line => line.amount));
-    return lines.map((line, i) => ({ ...line, amount: parts[i] })).filter(line => line.amount > 0);
+    if (draft.bySplit && itemsTotal) for (const item of draft.items) { if (!item.categoryId || !(item.qty * item.price)) continue; const id = `${item.categoryId}:${item.subcategoryId}`; const line = groups.get(id) || { categoryId: item.categoryId, subcategoryId: item.subcategoryId || null, amount: 0 }; line.amount += item.qty * item.price; groups.set(id, line); }
+    return groups.size > 1 ? [...groups.values()] : [{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null, amount: 1 }];
   }, [draft, itemsTotal]);
+  const purchaseRef: CatRef = { categoryId: draft?.categoryId || purchase[0]?.categoryId || '', subcategoryId: draft?.categoryId ? draft.subcategoryId || null : purchase[0]?.subcategoryId || null };
+  const catFor = (key: ChargeKey) => draft?.chargeCats[key] || chargeCategory(key, data.categories, purchaseRef);
+  const counted = (key: ChargeKey) => draft && draft.inc[key] ? draft.ch[key] : 0;
+  const separated = draft && draft.type === 'expense' && draft.chargeMode === 'separate' ? SEPARABLE.filter(key => counted(key) > 0) : [];
+  /** The expense's lines (charges separate or inside the purchase); always adding up to the amount. */
+  const splits = useMemo<SplitLine[]>(() => {
+    if (!draft || draft.type !== 'expense' || !draft.amount) return [];
+    const lines = receiptSplits(draft.amount, purchase, separated.map(key => ({ ...catFor(key), amount: counted(key) })));
+    return lines.length > 1 ? lines : [];
+  }, [draft, purchase, separated.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = itemsTotal || draft?.subtotal || 0;
+  const extra = CHARGE_ORDER.reduce((n, key) => n + (key === 'discount' ? -counted(key) : counted(key)), 0);
+  const computedTotal = base ? base + extra : 0;
+  const shownCharges = draft ? CHARGE_ORDER.filter(key => draft.ch[key]) : [];
   const categoriesUsed = new Set(draft?.items.filter(item => item.categoryId).map(item => `${item.categoryId}:${item.subcategoryId}`)).size;
   const catName = (id: string | null | undefined) => data.categories.find(c => c.id === id)?.name || '';
   const alternatives = useMemo(() => {
@@ -102,8 +120,9 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   function toTx() {
     if (!draft) return null;
     const useSplit = draft.type === 'expense' && splits.length > 1;
+    const breakdown = draft.type === 'expense' ? chargeSummary(base, draft.ch, CHARGE_ORDER.filter(k => draft.ch[k] && !draft.inc[k])) : '';
     const itemNote = draft.items.length > 2 ? draft.items.map(item => `${item.name}${item.qty > 1 ? ` ${item.qty}×` : ''} ${rupiah(item.qty * item.price)}`).join(', ') : '';
-    const notes = [draft.notes.trim(), itemNote && `Isi struk: ${itemNote}`].filter(Boolean).join('\n').slice(0, 1000);
+    const notes = [draft.notes.trim(), itemNote && `Isi struk: ${itemNote}`, breakdown && `Rincian: ${breakdown}`].filter(Boolean).join('\n').slice(0, 1000);
     return newTx({ type: draft.type, amount: draft.amount, date: draft.date, time: draft.time, walletId: draft.walletId, categoryId: useSplit ? null : draft.categoryId || null, subcategoryId: useSplit ? null : draft.subcategoryId || null, merchant: draft.merchant.trim(), description: draft.description.trim(), notes, tags: ['struk'], splits: useSplit ? splits : [] });
   }
   function save() {
@@ -114,12 +133,12 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     if (check?.confidence === 'rendah' && (read?.items.length || read?.total) && !lowOk) { setLowOk(true); setError(`Nominal ${rupiah(tx.amount)} belum pasti terbaca. Cocokkan dengan struk, lalu tekan Simpan sekali lagi.`); return; }
     const uid = user.uid, label = draft.type === 'expense' ? 'Pengeluaran' : 'Pemasukan';
     onOpenChange(false);
-    background(() => upsertTransaction(uid, tx), { message: `${label} ${rupiah(tx.amount)} dari struk tersimpan.`, detail: tx.splits?.length ? `Dipisah ke ${tx.splits.length} kategori` : [tx.merchant, catName(tx.subcategoryId || tx.categoryId)].filter(Boolean).join(' · '), retry: { preset: tx } });
+    background(() => upsertTransaction(uid, tx), { message: `${label} ${rupiah(tx.amount)} dari struk tersimpan.`, detail: tx.splits?.length ? `Dipisah ke ${tx.splits.length} kategori${separated.length ? `, termasuk ${separated.map(k => ({ tax: 'pajak', service: 'service', delivery: 'ongkir', fee: 'biaya lain' } as Record<string, string>)[k]).join(', ')}` : ''}` : [tx.merchant, catName(tx.subcategoryId || tx.categoryId)].filter(Boolean).join(' · '), retry: { preset: tx } });
   }
   function toForm() { const tx = toTx(); if (!tx) return; const { id: _id, ...preset } = tx; onOpenChange(false); openTx(preset); }
   function toSplitBill() {
     if (!read || !draft) return;
-    handoff = { read: { ...read, merchant: draft.merchant || read.merchant, date: draft.date, total: draft.amount, items: draft.items.filter(item => item.name.trim() && item.price > 0).map(item => ({ name: item.name.trim(), qty: item.qty, price: item.price, total: item.qty * item.price })) }, photo };
+    handoff = { read: { ...read, discount: draft.ch.discount, tax: counted('tax'), service: counted('service'), delivery: counted('delivery'), fee: counted('fee'), rounding: counted('rounding'), merchant: draft.merchant || read.merchant, date: draft.date, total: draft.amount, items: draft.items.filter(item => item.name.trim() && item.price > 0).map(item => ({ name: item.name.trim(), qty: item.qty, price: item.price, total: item.qty * item.price })) }, photo };
     onOpenChange(false); navigate('splitbill', 'receipt-draft');
   }
 
@@ -164,7 +183,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       <div className="form-grid"><Field label="Tanggal"><Input type="date" required value={draft.date} max={today} onChange={e => patch({ date: e.target.value })}/></Field><Field label="Jam"><Input type="time" value={draft.time} onChange={e => patch({ time: e.target.value })}/></Field></div>
       <div className="form-grid"><Field label={draft.type === 'income' ? 'Dari' : 'Tempat'}><Input value={draft.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Nama toko atau tempat"/></Field><Field label="Keterangan"><Input value={draft.description} maxLength={120} onChange={e => patch({ description: e.target.value })}/></Field></div>
       <Field label={draft.type === 'income' ? 'Masuk ke dompet' : 'Dibayar dari'} hint={why.wallet || undefined}><Select required value={draft.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></Field>
-      {!(draft.type === 'expense' && draft.bySplit && splits.length > 1) && <Field label="Kategori" hint={why.category ? `Tebakan: ${why.category}` : undefined}><CategoryPicker type={draft.type} categoryId={draft.categoryId} subcategoryId={draft.subcategoryId} required={draft.type === 'expense'} onChange={value => patch(value)}/></Field>}
+      {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <Field label={separated.length ? 'Kategori belanja' : 'Kategori'} hint={why.category ? `Tebakan: ${why.category}` : undefined}><CategoryPicker type={draft.type} categoryId={draft.categoryId} subcategoryId={draft.subcategoryId} required={draft.type === 'expense'} onChange={value => patch(value)}/></Field>}
 
       <details className="rs-items" open={draft.items.length > 0 && draft.items.length <= 8}>
         <summary><ReceiptText size={16}/> Item di struk <span className="muted">{draft.items.length} item · {rupiah(itemsTotal)}</span></summary>
@@ -178,12 +197,33 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
           </div>
         </div>)}
         <button type="button" className="link-button" onClick={() => setDraft(current => current && { ...current, items: [...current.items, { key: key(), name: '', qty: 1, price: 0, categoryId: current.categoryId, subcategoryId: current.subcategoryId }] })}><Plus size={15}/> Tambah item</button>
-        {itemsTotal > 0 && draft.amount > 0 && itemsTotal !== draft.amount && <p className="muted rs-diff">Jumlah item {rupiah(itemsTotal)}, nominal {rupiah(draft.amount)}. Selisih {rupiah(Math.abs(draft.amount - itemsTotal))} {draft.amount > itemsTotal ? 'biasanya pajak, service, atau ongkir' : 'biasanya diskon'}.</p>}
+        {itemsTotal > 0 && draft.amount > 0 && itemsTotal !== draft.amount && !shownCharges.length && <p className="muted rs-diff">Jumlah item {rupiah(itemsTotal)}, nominal {rupiah(draft.amount)}. Selisih {rupiah(Math.abs(draft.amount - itemsTotal))} {draft.amount > itemsTotal ? 'biasanya pajak, service, atau ongkir' : 'biasanya diskon'}.</p>}
+      </details>
+
+      <details className="rs-charges" open={shownCharges.length > 0}>
+        <summary><Percent size={16}/> Rincian & biaya tambahan <span className="muted">{shownCharges.length ? `${shownCharges.length} biaya` : 'tidak ada'}</span></summary>
+        {base > 0 && <div className="rs-charge-row is-base"><span>Belanja{itemsTotal ? ` (${draft.items.length} item)` : ' (subtotal)'}</span>{itemsTotal ? <strong>{rupiah(base)}</strong> : <span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span>}</div>}
+        {!base && <div className="rs-charge-row is-base"><span>Subtotal</span><span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span></div>}
+        {CHARGE_ORDER.filter(key => draft.ch[key] || shownKeys.includes(key)).map(key => <div className={`rs-charge-row ${draft.inc[key] ? '' : 'is-off'}`} key={key}>
+          <span>{CHARGE_NAMES[key]}{!draft.inc[key] && <small>sudah termasuk harga · tidak dihitung lagi</small>}</span>
+          <span className="rs-charge-money">{key === 'discount' ? <b aria-hidden="true">−</b> : key === 'rounding' ? <button type="button" className="rs-sign" aria-label="Ganti tanda" onClick={() => patch({ ch: { ...draft.ch, rounding: -draft.ch.rounding } })}>{draft.ch.rounding < 0 ? '−' : '+'}</button> : null}<Money value={Math.abs(draft.ch[key])} onChange={value => patch({ ch: { ...draft.ch, [key]: key === 'rounding' && draft.ch.rounding < 0 ? -value : value } })}/></span>
+          <button type="button" className={`rs-include ${draft.inc[key] ? 'is-on' : ''}`} aria-pressed={draft.inc[key]} title={draft.inc[key] ? 'Dihitung' : 'Sudah termasuk harga'} onClick={() => patch({ inc: { ...draft.inc, [key]: !draft.inc[key] } })}>{draft.inc[key] ? 'Dihitung' : 'Termasuk'}</button>
+        </div>)}
+        {CHARGE_ORDER.some(key => !draft.ch[key] && !shownKeys.includes(key)) && <div className="rs-alts">{CHARGE_ORDER.filter(key => !draft.ch[key] && !shownKeys.includes(key)).map(key => <button type="button" key={key} className="sb-chip" onClick={() => setShownKeys(list => [...list, key])}><Plus size={13}/> {CHARGE_NAMES[key].split(' (')[0]}</button>)}</div>}
+        {computedTotal > 0 && <div className="rs-charge-row is-total"><span>Hasil hitung</span><strong>{rupiah(computedTotal)}</strong></div>}
+        {computedTotal > 0 && computedTotal !== draft.amount && <button type="button" className="sb-chip rs-use-total" onClick={() => patch({ amount: computedTotal })}>Jadikan nominal {rupiah(computedTotal)} <small>sekarang {rupiah(draft.amount)}</small></button>}
+        {draft.type === 'expense' && SEPARABLE.some(key => counted(key) > 0) && <>
+          <div className="ip-seg rs-charge-mode" role="group" aria-label="Cara mencatat biaya"><button type="button" className={draft.chargeMode === 'spread' ? 'active' : ''} onClick={() => patch({ chargeMode: 'spread' })}>Gabung ke belanja</button><button type="button" className={draft.chargeMode === 'separate' ? 'active' : ''} onClick={() => patch({ chargeMode: 'separate' })}>Catat terpisah</button></div>
+          <small className="muted">{draft.chargeMode === 'spread' ? 'Pajak, service, ongkir, dan biaya lain ikut masuk ke kategori belanja. Rinciannya tetap tersimpan di catatan transaksi.' : 'Setiap biaya jadi baris sendiri dengan kategorinya, jadi terlihat di laporan dan anggaran. Diskon dan pembulatan tetap mengurangi belanja.'}</small>
+          {draft.chargeMode === 'separate' && separated.map(key => { const ref = catFor(key); return <div className="rs-charge-cat" key={key}><span>{CHARGE_NAMES[key].split(' (')[0]} <b>{rupiah(counted(key))}</b></span><Select aria-label={`Kategori ${CHARGE_NAMES[key]}`} value={ref.subcategoryId || ref.categoryId} onChange={e => { const cat = data.categories.find(c => c.id === e.target.value); patch({ chargeCats: { ...draft.chargeCats, [key]: cat?.parentId ? { categoryId: cat.parentId, subcategoryId: cat.id } : { categoryId: e.target.value, subcategoryId: null } } }); }}><option value="">Kategori</option>{categoryOptions(data.categories, ['expense'])}</Select></div>; })}
+          {draft.chargeMode === 'separate' && separated.some(key => !catFor(key).categoryId) && <p className="sb-note is-warn">Pilih kategori untuk setiap biaya yang dicatat terpisah.</p>}
+          {draft.chargeMode === 'separate' && splits.length > 1 && <div className="rs-split-preview">{splits.map(line => <div className="budget-line" key={`${line.categoryId}:${line.subcategoryId}`}><span>{catName(line.categoryId)}{line.subcategoryId ? ` › ${catName(line.subcategoryId)}` : ''}</span><strong>{rupiah(line.amount)}</strong></div>)}</div>}
+        </>}
       </details>
 
       {draft.type === 'expense' && categoriesUsed > 1 && <div className="rs-split">
-        <label className="rs-toggle"><input type="checkbox" checked={draft.bySplit} onChange={e => patch({ bySplit: e.target.checked })}/> <span><strong>Pisah per kategori</strong><small>Item di struk ini masuk ke {categoriesUsed} kategori. Pajak, service, dan diskon dibagi sesuai besar belanjanya.</small></span></label>
-        {draft.bySplit && splits.map(line => <div className="budget-line" key={`${line.categoryId}:${line.subcategoryId}`}><span>{catName(line.categoryId)}{line.subcategoryId ? ` › ${catName(line.subcategoryId)}` : ''}</span><strong>{rupiah(line.amount)}</strong></div>)}
+        <label className="rs-toggle"><input type="checkbox" checked={draft.bySplit} onChange={e => patch({ bySplit: e.target.checked })}/> <span><strong>Pisah per kategori</strong><small>Item di struk ini masuk ke {categoriesUsed} kategori. {separated.length ? 'Biaya yang dicatat terpisah tetap di kategorinya sendiri.' : 'Pajak, service, dan diskon dibagi sesuai besar belanjanya.'}</small></span></label>
+        {draft.bySplit && !separated.length && splits.map(line => <div className="budget-line" key={`${line.categoryId}:${line.subcategoryId}`}><span>{catName(line.categoryId)}{line.subcategoryId ? ` › ${catName(line.subcategoryId)}` : ''}</span><strong>{rupiah(line.amount)}</strong></div>)}
       </div>}
 
       <details className="disclosure" open={Boolean(draft.notes) || undefined}><summary>Catatan</summary><Field label="Catatan"><Input value={draft.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })}/></Field></details>

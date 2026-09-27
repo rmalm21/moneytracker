@@ -187,3 +187,76 @@ test('three misread line totals are corrected from their own quantity × unit pr
   assert.ok(checkReceipt(read).matches);
   assert.equal(readReceiptText('TT aan\nWARUNG BAROKAH\nKopi 5.000').merchant, 'WARUNG BAROKAH');
 });
+
+test('a food delivery receipt: delivery, service, several discounts, date and time without key words', () => {
+  const read = readReceiptText(`GoFood
+Pesanan dari: Ayam Geprek Bensu
+Jumat, 26 September 2026 · 19:45
+1x Ayam Geprek Keju 25.000
+2x Es Teh Manis 10.000
+Harga makanan 35.000
+Biaya pengiriman 9.000
+Biaya layanan & lainnya 4.000
+Diskon ongkir -5.000
+Promo resto (7.000)
+Total pembayaran 36.000
+Dibayar dengan GoPay`);
+  assert.deepEqual([read.subtotal, read.delivery, read.service, read.discount, read.total], [35000, 9000, 4000, 12000, 36000]);
+  assert.equal(read.date, '2026-09-26'); assert.equal(read.time, '19:45'); assert.equal(read.payment, 'gopay');
+  assert.ok(checkReceipt(read).matches);
+});
+
+test('percentage discount before service and PB1, English and US formats, marketplace fees', () => {
+  const resto = readReceiptText('Nasi Bakar 200.000\nSubtotal 200.000\nDisc 10% -20.000\nService Charge 5% 9.000\nPB1 10% 18.900\nGrand Total 207.900');
+  assert.deepEqual([resto.discount, resto.service, resto.tax, resto.total], [20000, 9000, 18900, 207900]);
+  assert.ok(checkReceipt(resto).matches);
+  const us = readReceiptText('Date: 09/26/2026 Time: 07:45 PM\nPasta 150,000.00\nSub Total 150,000.00\nTax 10% 15,000.00\nSvc Chg 7,500.00\nTotal Due 172,500.00');
+  assert.equal(us.date, '2026-09-26'); assert.equal(us.time, '19:45');
+  assert.deepEqual([us.subtotal, us.tax, us.service, us.total], [150000, 15000, 7500, 172500]);
+  const shop = readReceiptText('Kaos Polos 2 x 50.000 100.000\nSubtotal Produk 100.000\nOngkos Kirim 12.000\nBiaya Penanganan 1.000\nBiaya Layanan 1.000\nDiskon Ongkir -12.000\nVoucher Toko -5.000\nTotal Pembayaran 97.000');
+  assert.deepEqual([shop.delivery, shop.fee, shop.service, shop.discount, shop.total], [12000, 1000, 1000, 17000, 97000]);
+  assert.ok(checkReceipt(shop).matches);
+  const tip = readReceiptText('Kopi 30.000\nBiaya Admin 2.500\nTip 5.000\nTotal 37.500');
+  assert.equal(tip.fee, 7500); assert.ok(checkReceipt(tip).matches);
+});
+
+test('the right date and time: not a voucher expiry, not a cashier code', () => {
+  const read = readReceiptText('BERLAKU S/D 31/12/2026\nINDOMARET\n26.09.26-18:05 2.3.42/KSR01\nAqua 3.500\nTOTAL 3.500');
+  assert.equal(read.date, '2026-09-26'); assert.equal(read.time, '18:05');
+  assert.equal(readReceiptText('Sabtu 26/09/2026 19.45 WIB\nKopi 20.000').time, '19:45');
+  assert.equal(readReceiptText('Tgl 26 Sept 26  09:05:33\nKopi 20.000').date, '2026-09-26');
+  assert.equal(readReceiptText('Tanggal: 26-Sep-2026\nJam: 7:05 pm\nKopi 20.000').time, '19:05');
+  // "Voucher berlaku sampai" at the bottom does not replace the date at the top.
+  assert.equal(readReceiptText('27/09/2026 10:00\nKopi 20.000\nTOTAL 20.000\nVoucher berlaku sampai 30/10/2026').date, '2026-09-27');
+});
+
+test('more real layouts: nota toko, Grab, Starbucks, KFC, Alfamart', () => {
+  const nota = readReceiptText('TOKO BANGUNAN MAJU\nNOTA No. 0451  Tgl 20/09/2026\nSemen Tiga Roda 5 sak x 65.000 = 325.000\nPaku 2 kg x 25.000 = 50.000\nCat Tembok 1 x 150.000 = 150.000\nJumlah 525.000\nPotongan 25.000\nOngkos Angkut 50.000\nTotal Bayar 550.000');
+  assert.deepEqual(nota.items.map(i => [i.qty, i.price]), [[5, 65000], [2, 25000], [1, 150000]]);
+  assert.deepEqual([nota.subtotal, nota.discount, nota.delivery, nota.total], [525000, 25000, 50000, 550000]);
+  assert.equal(nota.fixes, undefined); assert.ok(checkReceipt(nota).matches);
+  const grab = readReceiptText('Grab\nWaktu pemesanan 26 Sep 2026, 20:10\nMartabak Manis Keju 1x 45.000\nSubtotal 45.000\nOngkos kirim 12.000\nBiaya pemesanan 3.000\nBiaya kemasan 2.000\nDiskon -15.000\nTotal 47.000\nOVO');
+  assert.deepEqual([grab.delivery, grab.fee, grab.discount, grab.time, grab.payment], [12000, 5000, 15000, '20:10', 'ovo']);
+  const sbux = readReceiptText('STARBUCKS COFFEE\nOrder 1234  Sep 26, 2026 8:12 AM\nGrande Caffe Latte 58,000\nButter Croissant 32,000\nSubtotal 90,000\nDiscount 20% (18,000)\nPB1 10% 7,200\nTotal 79,200\nVisa ****1234 79,200');
+  assert.deepEqual([sbux.merchant, sbux.date, sbux.time, sbux.discount, sbux.tax, sbux.payment], ['Starbucks', '2026-09-26', '08:12', 18000, 7200, 'credit']);
+  const kfc = readReceiptText('KFC Indonesia\n26/09/2026 12:05\n1 PAHE GEPREK 35.455\n1 COLONEL BURGER 30.909\nSUBTOTAL 66.364\nPB1 11% 7.300\nROUNDING -64\nTOTAL 73.600\nQRIS 73.600');
+  assert.ok(checkReceipt(kfc).matches); assert.equal(kfc.rounding, -64);
+  assert.equal(readReceiptText('RESTORAN SEDERHANA\nTeh Manis 3 @ 7.000 21.000\nTotal 21.000').merchant, 'RESTORAN SEDERHANA');
+});
+
+import { chargeCategory, receiptSplits, chargeSummary } from '../lib/receipt.ts';
+test('charges in the expense: recorded separately or inside the purchase, always adding up', () => {
+  const food = { categoryId: 'expense.makan-minum', subcategoryId: null };
+  assert.deepEqual(chargeCategory('tax', templates, food), { categoryId: 'expense.biaya-keuangan', subcategoryId: 'expense.biaya-keuangan.pajak' });
+  assert.deepEqual(chargeCategory('delivery', templates, food), { categoryId: 'expense.makan-minum', subcategoryId: 'expense.makan-minum.delivery' });
+  assert.deepEqual(chargeCategory('service', templates, food), food);
+  // GoFood: 36.000 = food 35.000 + ongkir 9.000 + layanan 4.000 − diskon 12.000; ongkir and layanan separate.
+  const lines = receiptSplits(36000, [{ ...food, amount: 35000 }], [{ ...chargeCategory('delivery', templates, food), amount: 9000 }, { ...chargeCategory('fee', templates, food), amount: 4000 }]);
+  assert.equal(lines.reduce((n, l) => n + l.amount, 0), 36000);
+  assert.deepEqual(lines.map(l => [l.subcategoryId || l.categoryId, l.amount]), [['expense.makan-minum', 23000], ['expense.makan-minum.delivery', 9000], ['expense.biaya-keuangan.biaya-lainnya', 4000]]);
+  // Two purchase categories share what is left in proportion.
+  const two = receiptSplits(100000, [{ categoryId: 'a', subcategoryId: null, amount: 60000 }, { categoryId: 'b', subcategoryId: null, amount: 30000 }], [{ categoryId: 'tax', subcategoryId: null, amount: 10000 }]);
+  assert.deepEqual(two.map(l => l.amount), [60000, 30000, 10000]);
+  assert.deepEqual(receiptSplits(5000, [{ ...food, amount: 1 }], [{ ...food, amount: 9000 }]), []);
+  assert.equal(chargeSummary(105000, { discount: 5000, tax: 10000, rounding: -70 }, ['tax']), 'Belanja Rp105.000 · Diskon −Rp5.000 · Pajak Rp10.000 (sudah termasuk) · Pembulatan −Rp70');
+});

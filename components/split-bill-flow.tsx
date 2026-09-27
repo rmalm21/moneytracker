@@ -170,7 +170,10 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   function applyReceipt(read: ReceiptRead) {
     const extras: SplitExtra[] = [];
     const push = (kind: SplitExtraKind, amount: number, label: string) => { if (amount) extras.push({ id: newId('x'), kind, label, amount: kind === 'rounding' ? amount : Math.abs(amount), distribution: defaultDistribution(kind) }); };
-    push('service', read.service, 'Service'); push('tax', read.tax, 'PB1'); push('discount', read.discount, 'Diskon'); push('delivery', read.delivery, 'Ongkos kirim'); push('rounding', read.rounding, 'Pembulatan');
+    // Charges already inside the prices (a PPN printed for information) are not added again.
+    const included = new Set<string>(checkReceipt(read).included);
+    const add = (kind: SplitExtraKind, key: string, amount: number, label: string) => { if (!included.has(key)) push(kind, amount, label); };
+    add('service', 'service', read.service, 'Service'); add('tax', 'tax', read.tax, 'PB1'); add('discount', 'discount', read.discount, 'Diskon'); add('delivery', 'delivery', read.delivery, 'Ongkos kirim'); add('admin', 'fee', read.fee || 0, 'Biaya lain'); add('rounding', 'rounding', read.rounding, 'Pembulatan');
     setBill(current => ({
       ...current,
       merchant: current.merchant || read.merchant,
@@ -178,7 +181,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
       date: !current.fromTransaction && read.date ? read.date : current.date,
       total: current.fromTransaction ? current.total : read.total || current.total,
       items: read.items.map(line => ({ id: newId('i'), name: line.name, qty: line.qty, price: line.price, assign: 'shared' as const, people: [] })),
-      extras: [...current.extras.filter(extra => !['service', 'tax', 'discount', 'delivery', 'rounding'].includes(extra.kind)), ...extras],
+      extras: [...current.extras.filter(extra => !['service', 'tax', 'discount', 'delivery', 'admin', 'rounding'].includes(extra.kind)), ...extras],
       method: read.items.length ? 'items' : current.method,
     }));
     setReceipt(null); setPasteOpen(false); setStep(1);
@@ -232,7 +235,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
           {(() => { const check = checkReceipt(receipt); return <div className={`rs-check is-${check.confidence}`}><div><strong>{check.confidence === 'tinggi' ? 'Hasil baca meyakinkan' : check.confidence === 'sedang' ? 'Periksa lagi sebelum dipakai' : 'Hasil baca belum pasti'}</strong>{check.notes.map(note => <small key={note}>{note}</small>)}</div></div>; })()}
           {receipt.merchant && <div className="budget-line"><span>Tempat</span><strong>{receipt.merchant}</strong></div>}
           {receipt.items.map((line, i) => <div className="budget-line" key={i}><span>{line.name}{line.qty > 1 ? ` · ${line.qty} × ${rupiah(line.price)}` : ''}</span><strong>{rupiah(line.total)}</strong></div>)}
-          {([['Service', receipt.service], ['Pajak / PB1', receipt.tax], ['Diskon', -receipt.discount], ['Ongkos kirim', receipt.delivery], ['Pembulatan', receipt.rounding]] as [string, number][]).filter(([, value]) => value).map(([label, value]) => <div className="budget-line" key={label}><span>{label}</span><strong>{value < 0 ? '−' : ''}{rupiah(Math.abs(value))}</strong></div>)}
+          {([['Service', receipt.service], ['Pajak / PB1', receipt.tax], ['Diskon', -receipt.discount], ['Ongkos kirim', receipt.delivery], ['Biaya lain', receipt.fee || 0], ['Pembulatan', receipt.rounding]] as [string, number][]).filter(([, value]) => value).map(([label, value]) => <div className="budget-line" key={label}><span>{label}</span><strong>{value < 0 ? '−' : ''}{rupiah(Math.abs(value))}</strong></div>)}
           {receipt.total > 0 && <div className="budget-line sb-strong"><span>Total</span><strong>{rupiah(receipt.total)}</strong></div>}
           {receipt.skipped > 0 && <small className="muted">{receipt.skipped} baris tidak terbaca dan dilewati.</small>}
           <div className="toolbar-row"><button type="button" className="link-button" onClick={() => setReceipt(null)}>Abaikan</button><Button type="button" className="small" onClick={() => applyReceipt(receipt)}>Pakai hasil ini</Button></div>

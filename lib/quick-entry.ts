@@ -415,6 +415,100 @@ function namedCategory(text: string, own: Cat[]) {
   }
   return tie ? undefined : best;
 }
+/** Words that set the scene for a whole top-level category ("makan traveling" is Travel's Makan). */
+const SCENES: [RegExp, string[]][] = [
+  [/\b(liburan|traveling|travelling|travel|trip|wisata|jalan-jalan|jalan jalan|mudik|staycation|vacation|holiday|healing)\b/, ['travel', 'liburan', 'perjalanan']],
+  [/\b(kantor|kerja|dinas|meeting|klien|client)\b/, ['kerja']],
+  [/\b(kendaraan|motor|mobil)\b/, ['kendaraan']],
+  [/\b(rumah|dapur|kamar)\b/, ['rumah']],
+  [/\b(kuliah|sekolah|kampus|les)\b/, ['pendidikan']],
+];
+const sameWord = (a: string, b: string) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)));
+const wordsOf = (text: string) => lower(text).replace(/&/g, ' dan ').split(/[^\p{L}\p{N}]+/u).filter(w => w.length >= 3 && !['dan', 'yang', 'untuk', 'buat', 'lainnya'].includes(w));
+/**
+ * What an Anggaran is for, read like a person would:
+ *  1. a scene word picks the top-level category and a word naming one of its subcategories picks that
+ *     ("makan traveling", "transport liburan" → Travel › Makan / Transport Lokal);
+ *  2. a category named in full ("Makan & Minum", "makan dan minum", "Makan Siang");
+ *  3. otherwise the same context engine as spending (lib/categorize.ts: "ngopi" → Kopi, "sayur" → Bahan Makanan,
+ *     "makan" → Makan & Minum), which also knows the person's habits. A subcategory named exactly but living under a
+ *     different parent ("Makan" under Travel) only wins when its parent is mentioned;
+ *  4. several things joined by "dan", "&" or commas under one parent become several subcategories.
+ */
+function budgetCategory(scope: string, text: string, own: Cat[], _history: QuickContext['history']): { cat: Cat; subs: Cat[]; why: string } | undefined {
+  const tops = own.filter(c => !c.parentId), childrenOf = (id: string) => own.filter(c => c.parentId === id);
+  scope = lower(scope).replace(/\bskin care\b/g, 'skincare').replace(/\bkos\b/g, 'kost');
+  const words = wordsOf(scope);
+  if (!words.length) return undefined;
+  const parentOf = (c: Cat) => c.parentId ? own.find(p => p.id === c.parentId) : undefined;
+  // 1. The scene.
+  for (const [pattern, names] of SCENES) {
+    if (!pattern.test(text)) continue;
+    const top = tops.find(t => names.some(n => lower(t.name).includes(n)));
+    if (!top) continue;
+    const sceneWords = new Set(wordsOf(text.match(pattern)?.[0] || '').concat(wordsOf(top.name)));
+    const rest = words.filter(w => !sceneWords.has(w));
+    const sub = childrenOf(top.id).find(c => !/lainnya/i.test(c.name) && wordsOf(c.name).some(n => rest.some(w => sameWord(w, n))));
+    if (sub) return { cat: sub, subs: [sub], why: `“${rest.join(' ')}” saat ${lower(top.name)} → ${top.name} › ${sub.name}` };
+    if (!rest.length || rest.every(w => names.some(n => w.includes(n)))) return { cat: top, subs: [], why: `untuk ${lower(top.name)}` };
+  }
+  // Word meaning only: a habit of logging "makan" as Makan siang must not shrink a budget for all food.
+  const guessFor = (t: string) => { const g = suggestCategory({ text: lower(t), item: lower(t), amount: 0, type: 'expense' }, { categories: own, history: [] }); const c = g && own.find(x => x.id === (g.subcategoryId || g.categoryId)); return c ? { c, why: g?.why } : undefined; };
+  // 2. Several things under one parent ("pulsa dan kuota").
+  const parts = scope.split(/\s*(?:,|&|\+|\bdan\b|\bsama\b|\/)\s*/).map(p => p.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    const found = parts.map(part => guessFor(part)?.c).filter((c): c is Cat => Boolean(c));
+    const parentIds = new Set(found.map(c => c.parentId || c.id));
+    if (found.length === parts.length && parentIds.size === 1) {
+      const top = own.find(c => c.id === [...parentIds][0])!;
+      const subs = [...new Map(found.filter(c => c.parentId).map(c => [c.id, c])).values()];
+      if (found.some(c => !c.parentId) || !subs.length) return { cat: top, subs: [], why: `semua masuk ${top.name}` };
+      return { cat: subs[0], subs, why: `${subs.map(c => c.name).join(' + ')} di ${top.name}` };
+    }
+  }
+  // 3. Named in full (& read as "dan"), the longest name first.
+  const normal = ` ${words.join(' ')} `;
+  const full = [...own].filter(c => !/lainnya/i.test(c.name)).sort((a, b) => b.name.length - a.name.length).find(c => { const n = wordsOf(c.name).join(' '); return n && normal.includes(` ${n} `); });
+  if (full) {
+    const parent = parentOf(full);
+    if (!parent || words.some(w => wordsOf(parent.name).some(n => sameWord(w, n)))) return { cat: full, subs: full.parentId ? [full] : [], why: `kategori ${full.name}` };
+    // A subcategory's name alone ("makan"): trust it only if the context engine agrees on its parent.
+    const guess = guessFor(scope);
+    if (guess && (guess.c.parentId || guess.c.id) !== parent.id) return { cat: guess.c, subs: guess.c.parentId ? [guess.c] : [], why: `${guess.why || `“${scope.trim()}”`} (bukan ${parent.name} › ${full.name})` };
+    return { cat: full, subs: [full], why: `kategori ${parent.name} › ${full.name}` };
+  }
+  // 4. The context engine.
+  const guess = guessFor(scope);
+  if (guess) return { cat: guess.c, subs: guess.c.parentId ? [guess.c] : [], why: guess.why || `“${scope.trim()}” → ${guess.c.name}` };
+  return undefined;
+}
+/**
+ * Spending during a trip or for work goes to that category's matching subcategory: the item's own meaning (from the
+ * context engine, without the scene words) is matched to the scene's subcategories by name ("makan" → Travel › Makan,
+ * "grab" → Taxi / Online → Travel › Transport Lokal, "makan" on "dinas" → Kerja › Makan Kerja).
+ */
+const SPEND_SCENES: [RegExp, string[]][] = [SCENES[0], [/\b(dinas|perjalanan dinas|klien|client|meeting)\b/, ['kerja']]];
+function sceneCategory(text: string, item: string, own: Cat[], history: QuickContext['history'], current: { categoryId: string | null; subcategoryId: string | null } | null) {
+  for (const [pattern, names] of SPEND_SCENES) {
+    const found = text.match(pattern);
+    if (!found) continue;
+    const top = own.find(c => !c.parentId && c.type === 'expense' && names.some(n => lower(c.name).includes(n)));
+    if (!top) continue;
+    const subs = own.filter(c => c.parentId === top.id && !/lainnya/i.test(c.name));
+    if (current?.subcategoryId && subs.some(c => c.id === current.subcategoryId)) return null;
+    const plain = lower(item).replace(pattern, ' ').replace(/\b(pas|waktu|saat|selama|ketika|di|ke|pada|untuk|buat)\b/g, ' ').trim();
+    const meaning = plain ? suggestCategory({ text: plain, item: plain, amount: 0, type: 'expense' }, { categories: own, history }) : null;
+    const hints = [
+      ...wordsOf(plain).map(w => [w, 3] as [string, number]),
+      ...(meaning ? wordsOf(own.find(c => c.id === meaning.subcategoryId)?.name || '').map(w => [w, 2] as [string, number]) : []),
+      ...(meaning ? wordsOf(own.find(c => c.id === meaning.categoryId)?.name || '').map(w => [w, 1] as [string, number]) : []),
+    ].filter(([w]) => !names.some(n => w.includes(n)));
+    let best: Cat | undefined, score = 0;
+    for (const sub of subs) { const value = wordsOf(sub.name).reduce((n, word) => n + Math.max(0, ...hints.filter(([w]) => sameWord(w, word)).map(([, v]) => v)), 0); if (value > score) { best = sub; score = value; } }
+    if (best) return { categoryId: top.id, subcategoryId: best.id, why: `${plain || 'ini'} saat ${found[0]} → ${top.name} › ${best.name}` };
+  }
+  return null;
+}
 /** The top-level category that common words point to (kopi → Makan & Minum). */
 function hintedCategory(text: string, own: Cat[]) {
   const hinted = HINTS.find(([words]) => words.test(text));
@@ -582,10 +676,12 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   if (kind === 'budget') {
     const own = ctx.categories.filter(c => !c.isArchived && (c.type === 'expense' || c.type === 'savings'));
     const scope = strip(without(text, main), BUDGET_WORDS, FREQ_PHRASES, DATE_PHRASES, /\b(baru|buat|bikin|untuk|utk|jadi|sebesar|maksimal|maks|max|batas|limit|naik|naikin|naikkan|tambah|tambahin|tambahkan|turun|turunin|turunkan|kurang|kurangi|kurangin|potong|ubah|ganti|kalender|siklus|gajian|mulai)\b/g);
-    const cat = namedCategory(scope, own) || hintedCategory(scope || text, own);
-    const categoryId = cat ? cat.parentId || cat.id : undefined, subs = cat?.parentId ? [cat.id] : [];
+    const smart = budgetCategory(scope, text, own, ctx.history || []);
+    const cat = smart?.cat || namedCategory(scope, own) || hintedCategory(scope || text, own);
+    const categoryId = cat ? cat.parentId || cat.id : undefined, subs = smart ? smart.subs.map(c => c.id) : cat?.parentId ? [cat.id] : [];
+    if (smart?.why) result.why = smart.why;
     const subsOf = (b: NonNullable<QuickContext['budgets']>[number]) => (b.subcategoryIds?.length ? b.subcategoryIds : b.subcategoryId ? [b.subcategoryId] : []).slice().sort().join();
-    const weekly = /\b(?:per|tiap|setiap)\s*(?:minggu|pekan)\b|\/\s*minggu\b|\b(mingguan|seminggu)\b/.test(text);
+    const weekly = /\b(?:per|tiap|setiap)\s*(?:minggu|pekan)\b|\/\s*minggu\b|\b(mingguan|seminggu|minggu ini|pekan ini)\b/.test(text);
     const calendar = /\b(kalender|bulan kalender)\b/.test(text), custom = text.match(/\bmulai\s*(?:tgl|tanggal)\s*(\d{1,2})\b/);
     const salary = /\b(siklus|gajian|per gajian)\b/.test(text);
     const period = weekly || calendar || custom || salary;
@@ -598,7 +694,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
       else if (/\b(turun|turunin|turunkan|kurang|kurangi|kurangin|potong)\b/.test(text)) amount = Math.max(0, existing.amount - amount);
     }
     result.amount = amount;
-    result.name = existing?.name || cat?.name || '';
+    result.name = existing?.name || (smart && smart.subs.length > 1 ? smart.subs.map(c => c.name).join(' & ') : cat?.name) || '';
     const weekday = text.match(/\bmulai\s+(?:hari\s+)?(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)\b/);
     result.budget = { ...(existing ? { id: existing.id, previous: existing.amount } : {}), categoryId: existing?.categoryId ?? categoryId, subcategoryIds: existing ? subsOf(existing).split(',').filter(Boolean) : subs, cycleType: existing ? existing.cycleType || 'salary' : cycleType, ...(cycleType === 'weekly' ? { cycleStartDay: weekday ? (WEEKDAYS[weekday[1]] + 6) % 7 + 1 : 1 } : custom ? { cycleStartDay: Math.min(31, Math.max(1, Number(custom[1]))) } : {}) };
     return result;
@@ -726,6 +822,8 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   if (flow === 'expense' || flow === 'income') {
     const guess = suggestCategory({ text, item, merchant: preset.merchant, amount, type: flow }, ctx);
     if (guess) { preset.categoryId = guess.categoryId; preset.subcategoryId = guess.subcategoryId; if (guess.why) result.why = guess.why; }
+    const scene = flow === 'expense' ? sceneCategory(text, item, ctx.categories.filter(c => !c.isArchived), ctx.history || [], guess) : null;
+    if (scene) { preset.categoryId = scene.categoryId; preset.subcategoryId = scene.subcategoryId; result.why = scene.why; }
     const chosen = ctx.categories.find(c => c.id === (preset.subcategoryId || preset.categoryId));
     if (chosen) understood.push(chosen.name);
   }

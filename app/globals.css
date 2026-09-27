@@ -5617,6 +5617,34 @@ details.sb-extra > summary > strong { font: 800 .92rem var(--font-head); font-va
 .owed-adjust svg + svg { margin-left: -5px; }
 .owed-delta strong { font-weight: 800; }
 
+/* 109. Scan struk: rincian & biaya tambahan */
+.rs-charges { border: 1px solid var(--line); border-radius: 16px; background: var(--paper); padding: 0 12px; }
+.rs-charges > summary { display: flex; align-items: center; gap: 8px; padding: 12px 0; font-weight: 800; cursor: pointer; list-style: none; }
+.rs-charges > summary::-webkit-details-marker { display: none; }
+.rs-charges > summary .muted { margin-left: auto; font-weight: 600; font-size: .8rem; }
+.rs-charges[open] { display: grid; gap: 8px; padding-bottom: 12px; }
+.rs-charge-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 140px) auto; gap: 8px; align-items: center; }
+.rs-charge-row > span:first-child { display: grid; gap: 1px; font-size: .88rem; }
+.rs-charge-row > span:first-child small { color: var(--muted); font-size: .72rem; }
+.rs-charge-row.is-base, .rs-charge-row.is-total { grid-template-columns: minmax(0, 1fr) auto; }
+.rs-charge-row.is-base strong { font-variant-numeric: tabular-nums; }
+.rs-charge-row.is-total { padding-top: 8px; border-top: 1px dashed var(--line); }
+.rs-charge-row.is-total strong { font: 800 1rem var(--font-head); font-variant-numeric: tabular-nums; }
+.rs-charge-row.is-off .rs-charge-money { opacity: .55; }
+.rs-charge-money { display: flex; align-items: center; gap: 4px; }
+.rs-charge-money .input { min-height: 38px; padding-inline: 10px; }
+.rs-charge-money > b { color: var(--muted); }
+.rs-sign { width: 26px; height: 26px; flex: none; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font-weight: 800; cursor: pointer; }
+.rs-include { min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font: 700 .72rem var(--font-body); cursor: pointer; }
+.rs-include.is-on { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); color: var(--accent); }
+.rs-use-total { justify-self: start; }
+.rs-charge-mode { display: flex; justify-self: stretch; }
+.rs-charge-mode button { flex: 1; }
+.rs-charge-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 8px; align-items: center; font-size: .86rem; }
+.rs-charge-cat b { font-variant-numeric: tabular-nums; }
+.rs-split-preview { display: grid; gap: 4px; padding: 10px; border-radius: 12px; background: var(--accent-soft); }
+@media (max-width: 420px) { .rs-charge-row { grid-template-columns: minmax(0, 1fr) minmax(96px, 120px) auto; } .rs-charge-cat { grid-template-columns: minmax(0, 1fr); } }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */
