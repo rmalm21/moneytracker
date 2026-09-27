@@ -1,13 +1,14 @@
 'use client';
-import { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeftRight, ArrowRight, Check, ListChecks, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
 import { Input, Select } from './fields';
 import { Emoji } from './emoji';
 import { AppIcon, brandForName, emojiLibrary, emojiOrFallback } from './visual-identity';
-import { groupOf, parseQuickBatch, parseQuickText, QUICK_GROUPS, QUICK_LABELS, type QuickBatchItem, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
+import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
+import { FIELD_LABELS, FIELD_STATUS, parseQuickPlan, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus } from '@/lib/quick-plan';
 import { createClaim, createDebt, createReceivable, newTx, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
 import { dateInTimeZone, formatDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
@@ -35,6 +36,7 @@ const examples: Record<QuickGroup, Example[]> = {
     { text: 'gaji 7,5jt masuk bca', kind: 'income', result: 'Rp7.500.000 masuk ke BCA' },
     { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
     { text: 'kemarin makan 25rb, parkir goceng, bensin 30rb pakai gopay', kind: 'expense', result: '3 pengeluaran sekaligus, kemarin, dari GoPay' },
+    { text: 'besok bayar kos 1,5jt, ingetin perpanjang stnk tgl 20', kind: 'plan_new', result: 'rencana dan pengingat sekaligus' },
     { text: 'anggaran makan 2jt kecuali delivery', kind: 'budget', result: 'Makan & Minum tanpa Delivery', section: 'Menu lain' },
     { text: 'saldo bca sekarang 12jt', kind: 'balance', result: 'saldo BCA disamakan dengan aslinya' },
     { text: 'langganan netflix 54rb tiap tanggal 5', kind: 'recurring_new', result: 'jadwal bulanan, tinggal konfirmasi' },
@@ -53,7 +55,7 @@ const examples: Record<QuickGroup, Example[]> = {
   transfer: [
     { text: 'tf 200rb dari bca ke gopay', kind: 'transfer', result: 'pindah dari BCA ke GoPay' },
     { text: 'tarik tunai 500rb dari bca', kind: 'transfer', result: 'dari BCA ke dompet Tunai' },
-    { text: 'topup gopay 100rb', kind: 'transfer', result: 'isi saldo dari dompet utama' },
+    { text: 'topup gopay 100rb dari bca', kind: 'transfer', result: 'isi saldo GoPay dari BCA' },
   ],
   debt: [
     { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
@@ -134,51 +136,140 @@ function iconFor(name: string) {
   return words.length ? emojiLibrary.flatMap(group => group.items).find(([, keys]) => words.some(word => keys.split(' ').some(key => key.startsWith(word))))?.[0] : undefined;
 }
 /** Only the fields the text or the person changed; everything else comes from the sentence. */
-type Edit = { person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
+type Edit = { amount?: number; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
+
+/** What one card saves when it is confirmed, built only when the person presses save. */
+type SaveJob = { run: () => Promise<unknown>; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
+type CardEntry = { missing: string; build: () => SaveJob; openForm?: () => void; kind: QuickKind; amount: number };
+type Register = (id: string, entry: CardEntry | null) => void;
+const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈', check: '!', missing: '?' };
 
 export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean }) {
   const { data, profile, user } = useApp();
   const { track } = useNotify();
   const [text, setText] = useState(''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
-  const [edit, setEdit] = useState<Edit>({}), [details, setDetails] = useState(false);
+  const today = todayInTimeZone(profile?.timeZone);
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay }), [data, today, profile?.salaryCycleStartDay]);
+  /** The whole message read as a plan: one card per action. */
+  const plan = useMemo(() => text.trim() ? parseQuickPlan(text, ctx, mode) : null, [text, mode, ctx]);
+  const actions = plan?.actions || [];
+  const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
+  useEffect(() => { setSkipped([]); setOpen([]); setError(''); }, [text, mode]);
+  const registry = useRef(new Map<string, CardEntry>());
+  const [, redraw] = useState(0);
+  // Cards register their save after every render; the totals are drawn again when an amount or a missing field changes.
+  const register = useCallback<Register>((id, entry) => {
+    const before = registry.current.get(id);
+    if (entry) registry.current.set(id, entry); else registry.current.delete(id);
+    if (!entry || !before || before.missing !== entry.missing || before.amount !== entry.amount || before.kind !== entry.kind) redraw(n => n + 1);
+  }, []);
+  const kept = actions.filter(a => !skipped.includes(a.id));
+
+  function reset() { setText(''); setMode('auto'); }
+  /** Saves the chosen cards the way their own menus do, with one progress message. */
+  function commit(ids: string[]) {
+    if (!user || !ids.length) return;
+    const entries = ids.map(id => [id, registry.current.get(id)] as const);
+    const blocked = entries.filter(([, e]) => !e || e.missing);
+    if (blocked.length) {
+      setOpen(list => [...new Set([...list, ...blocked.map(([id]) => id)])]);
+      setError(ids.length === 1 ? blocked[0][1]?.missing || '' : `${blocked.length} catatan masih perlu dilengkapi (ditandai di bawah).`);
+      return;
+    }
+    let jobs: SaveJob[];
+    try { jobs = entries.map(([, e]) => e!.build()); } catch (e) { setError((e as Error).message); return; }
+    const nav = jobs.find(j => j.navigate)?.navigate, work = jobs.filter(j => !j.navigate);
+    if (work.length === 1) { const j = work[0]; track(j.run(), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry }); }
+    else if (work.length) {
+      // Started in order in one go, like the forms: queued writes keep their order offline too.
+      const spent = entries.filter(([, e]) => e!.kind === 'expense').reduce((n, [, e]) => n + e!.amount, 0);
+      track(Promise.all(work.map(j => j.run())), { pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
+    }
+    reset(); onDone?.();
+    if (nav) onNavigate?.(nav.key, nav.target);
+  }
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!actions.length) { if (text.trim()) setError(plan?.references[0] || 'Sebutkan nominalnya, misalnya "beli pocari 8rb di alfa".'); return; }
+    if (actions.length === 1) {
+      const entry = registry.current.get(actions[0].id);
+      if (entry?.missing && entry.openForm) { entry.openForm(); return; }
+      commit([actions[0].id]); return;
+    }
+    commit(kept.map(a => a.id));
+  }
+
+  const activeGroup = mode === 'auto' ? 'auto' : mode in QUICK_LABELS ? groupOf(mode as QuickKind) : mode as QuickGroup;
+  const detected = actions.length === 1 ? groupOf(actions[0].result.kind) : null;
+  const entries = kept.map(a => registry.current.get(a.id)).filter(Boolean) as CardEntry[];
+  const sum = (kind: QuickKind) => entries.filter(e => e.kind === kind).reduce((n, e) => n + e.amount, 0);
+  const out = sum('expense'), income = sum('income'), budgets = sum('budget');
+  const needs = kept.filter(a => registry.current.get(a.id)?.missing).length;
+  const openForm = (preset: Partial<LedgerTx>) => { setText(''); onOpenForm(preset); };
+
+  return <div className="quick-entry-wrap">
+    <form className="quick-entry" onSubmit={submit}>
+      <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
+      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Tulis apa saja di sini…" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
+      <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
+    </form>
+    <div className="quick-groups" role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.map(([key, label]) => <Fragment key={key}>{(key === 'expense' || key === 'target' || key === 'open') && <span className="qg-sep" aria-hidden="true"/>}<button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}</div>
+    {!text.trim() && <div className="quick-examples"><span className="qe-title">Ketuk contoh untuk mencoba</span>{(examples[activeGroup] || examples.auto).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}</div>}
+    {text.trim() && !actions.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
+    {actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
+    {actions.length > 1 && <div className="quick-preview quick-batch">
+      <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{[...new Set(kept.map(a => QUICK_LABELS[a.result.kind]))].slice(0, 3).join(' · ')}{needs ? ` · ${needs} perlu dilengkapi` : ''}</small><strong>{entries.length && entries.every(e => e.kind === 'expense') ? <>{rupiah(out)}<em> keluar</em></> : entries.length && entries.every(e => e.kind === 'income') ? <>{rupiah(income)}<em> masuk</em></> : entries.length && entries.every(e => e.kind === 'budget') ? <>{rupiah(budgets)}<em> anggaran</em></> : <>{kept.length}<em> catatan</em></>}</strong></span></div>
+      {plan?.references.map(u => <small key={u} className="qp-flag is-check"><b>! Perlu dicek</b> · {u}</small>)}
+      <ul className="qb-list">{actions.map(a => <QuickCard key={`${a.id}:${a.result.kind}`} action={a} layout="row" register={register} skipped={skipped.includes(a.id)} onSkip={() => setSkipped(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} expanded={open.includes(a.id)} onToggle={() => setOpen(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} onOpenForm={openForm}/>)}</ul>
+      {error && <small className="qp-warn" role="status">{error}</small>}
+      <small className="qp-note">{kept.length < actions.length ? `${actions.length - kept.length} dilewati. ` : ''}Tanggal atau dompet yang disebut sekali berlaku untuk yang lain. Ketuk baris untuk mengubah, ✕ untuk melewati.</small>
+      <div className="qp-actions"><Button type="button" onClick={() => commit(kept.map(a => a.id))} disabled={!kept.length}>Simpan semua ({kept.length})</Button></div>
+    </div>}
+  </div>;
+}
+
+/**
+ * One action of the plan: the compact preview ("single") or a row that opens to the same preview ("row").
+ * Only what needs attention is highlighted; the reasons stay behind "Kenapa?".
+ */
+function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle }: { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void }) {
+  const { data, profile, user } = useApp();
+  const [choice, setChoice] = useState(0), [why, setWhy] = useState(false);
+  const result = choice ? action.alternatives[choice - 1].result : action.result;
+  const [edit, setEdit] = useState<Edit>({}), [details, setDetails] = useState(false), [error, setError] = useState('');
   const today = todayInTimeZone(profile?.timeZone), salaryDay = profile?.salaryCycleStartDay || 24;
-  const result = useMemo(() => text.trim() ? parseQuickText(text, { wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets }, mode) : null, [text, mode, data, today]);
-  const ctxFor = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets }), [data, today]);
-  /** Several entries at once ("makan 25rb, parkir 5rb", or one per line). */
-  const batch = useMemo(() => text.trim() ? parseQuickBatch(text, ctxFor, mode) : null, [text, mode, ctxFor]);
-  const [dropped, setDropped] = useState<number[]>([]);
-  useEffect(() => { setDropped([]); }, [text]);
-  const kind = result?.kind;
-  // A different kind means different fields: start them fresh.
-  useEffect(() => { setEdit({}); setError(''); setDetails(false); }, [kind]);
+  const kind = result.kind;
+  // A different reading means different fields: start them fresh.
+  useEffect(() => { setEdit({}); setError(''); setDetails(false); }, [choice]);
   const change = (patch: Edit) => setEdit(v => ({ ...v, ...patch }));
 
-  const amount = result?.amount || 0;
+  const amount = edit.amount ?? result.amount ?? 0;
   const isFlow = kind === 'recurring_new' || kind === 'plan_new';
-  const flow: 'expense' | 'income' = edit.flow ?? (result?.preset.type === 'income' ? 'income' : 'expense');
-  const txType = isFlow ? flow : result?.preset.type;
-  const walletsFor = (action: 'pay' | 'receive' | 'transferOut' | 'transferIn') => data.wallets.filter(w => walletAllows(w as Wallet, action));
+  const flow: 'expense' | 'income' = edit.flow ?? (result.preset.type === 'income' ? 'income' : 'expense');
+  const txType = isFlow ? flow : result.preset.type;
+  const walletsFor = (act: 'pay' | 'receive' | 'transferOut' | 'transferIn') => data.wallets.filter(w => walletAllows(w as Wallet, act));
   const sourceAction = txType ? walletActions({ type: txType, adjustmentDirection: 'in' }).source as 'pay' | 'receive' | 'transferOut' : kind === 'debt_new' ? 'receive' : 'pay';
   const choices = kind === 'balance' || kind === 'fund_new' ? data.wallets.filter(w => !w.isArchived) : walletsFor(sourceAction);
-  const preferred = kind && (incoming.has(kind) || isFlow && flow === 'income') ? profile?.defaultIncomeWalletId : profile?.defaultExpenseWalletId;
-  // These only use a wallet that is named or picked: new debts and receivables (like their own forms), plans, tujuan dana, a balance.
-  const optionalWallet = kind === 'debt_new' || kind === 'receivable_new' || kind === 'plan_new' || kind === 'fund_new' || kind === 'balance';
-  const presetDestination = result?.preset.destinationWalletId || '';
+  const preferred = incoming.has(kind) || isFlow && flow === 'income' ? profile?.defaultIncomeWalletId : profile?.defaultExpenseWalletId;
+  // These only use a wallet that is named or picked: new debts and receivables (like their own forms), plans, tujuan dana,
+  // a balance, and the source of a transfer (never guessed).
+  const optionalWallet = kind === 'debt_new' || kind === 'receivable_new' || kind === 'plan_new' || kind === 'fund_new' || kind === 'balance' || kind === 'transfer';
+  const presetDestination = edit.destinationId ?? result.preset.destinationWalletId ?? '';
   const fallbackWallet = optionalWallet ? '' : (choices.find(w => w.id === preferred && w.id !== presetDestination) || choices.find(w => w.id !== presetDestination))?.id || '';
-  const walletId = edit.walletId ?? result?.preset.walletId ?? fallbackWallet;
+  const walletId = edit.walletId ?? result.preset.walletId ?? fallbackWallet;
   const linkOptions = kind === 'debt_payment' ? data.debts.filter(d => d.outstandingAmount > 0).map(d => ({ id: d.id, label: `${d.name} · sisa ${rupiah(d.outstandingAmount)}` }))
     : kind === 'receivable_payment' ? data.receivables.filter(r => r.remainingAmount > 0).map(r => ({ id: r.id, label: `${r.person} · sisa ${rupiah(r.remainingAmount)}` }))
     : kind === 'claim_payment' ? data.claims.filter(c => c.remainingAmount > 0).map(c => ({ id: c.id, label: `${c.name} · sisa ${rupiah(c.remainingAmount)}` }))
     : kind === 'target' ? data.funds.filter(f => !f.isArchived).map(f => ({ id: f.id, label: f.name }))
     : kind === 'wish' ? data.wishlist.filter(w => w.status === 'active').map(w => ({ id: w.id, label: `${w.name} · ${rupiah(w.saved || 0)} / ${rupiah(w.price)}` })) : [];
-  const presetLink = kind === 'debt_payment' ? result?.preset.debtId : kind === 'receivable_payment' ? result?.preset.receivableId : kind === 'claim_payment' ? result?.preset.claimId : kind === 'target' ? result?.preset.fundId : kind === 'wish' ? result?.wishId : '';
+  const presetLink = kind === 'debt_payment' ? result.preset.debtId : kind === 'receivable_payment' ? result.preset.receivableId : kind === 'claim_payment' ? result.preset.claimId : kind === 'target' ? result.preset.fundId : kind === 'wish' ? result.wishId : '';
   const linkId = edit.linkId ?? presetLink ?? '';
   const fund = kind === 'target' ? data.funds.find(f => f.id === linkId) : undefined;
   const destination = kind === 'target' ? fund?.linkedWalletId || (fund?.walletIds?.length === 1 ? fund.walletIds[0] : '') : presetDestination;
-  const person = edit.person ?? result?.person ?? '', name = edit.name ?? result?.name ?? '', description = edit.description ?? result?.preset.description ?? '';
-  const date = edit.date ?? result?.date ?? today;
+  const person = edit.person ?? result.person ?? '', name = edit.name ?? result.name ?? '', description = edit.description ?? result.preset.description ?? '';
+  const date = edit.date ?? result.date ?? today;
   const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
-  const category = data.categories.find(c => c.id === (result?.preset.subcategoryId || result?.preset.categoryId));
+  const category = data.categories.find(c => c.id === (result.preset.subcategoryId || result.preset.categoryId));
   const categoryName = (c?: Pick<Category, 'name' | 'parentId'>) => c ? c.parentId ? `${data.categories.find(p => p.id === c.parentId)?.name || ''} › ${c.name}` : c.name : '';
   const bySort = (a: Category, b: Category) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name);
   const topLevel = (types: Category['type'][]) => data.categories.filter(c => !c.isArchived && !c.parentId && types.includes(c.type)).sort(bySort);
@@ -186,62 +277,69 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const dayText = (value: string) => { const d = new Date(`${today}T12:00:00`), plus = (n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toLocaleDateString('en-CA'); }; return value === today ? 'Hari ini' : value === plus(1) ? 'Besok' : value === plus(-1) ? 'Kemarin' : formatDate(value, value.slice(0, 4) !== today.slice(0, 4)); };
 
   // Anggaran
-  const budget = result?.budget, oldBudget = budget?.id ? data.budgets.find(b => b.id === budget.id) : undefined;
+  const budget = result.budget, oldBudget = budget?.id ? data.budgets.find(b => b.id === budget.id) : undefined;
   const budgetScope = edit.categoryId ?? (budget ? budget.subcategoryIds[0] || budget.categoryId || '' : '');
   const scopeCategory = data.categories.find(c => c.id === budgetScope);
   const scopeParent = scopeCategory ? (scopeCategory.parentId ? data.categories.find(c => c.id === scopeCategory.parentId) : scopeCategory) : undefined;
   const scopeChildren = scopeParent ? data.categories.filter(c => !c.isArchived && c.parentId === scopeParent.id).sort(bySort) : [];
   const budgetSubs = edit.subIds ?? (edit.categoryId ? (scopeCategory?.parentId ? [scopeCategory.id] : []) : budget?.subcategoryIds || []);
-  const budgetName = !scopeParent ? '' : !budgetSubs.length || budgetSubs.length === scopeChildren.length ? scopeParent.name : edit.subIds || edit.categoryId ? (budgetSubs.length > 3 ? `${scopeParent.name} (${budgetSubs.length} subkategori)` : budgetSubs.map(id => data.categories.find(c => c.id === id)?.name || '').join(' & ')) : result?.name || scopeParent.name;
+  const budgetName = !scopeParent ? '' : !budgetSubs.length || budgetSubs.length === scopeChildren.length ? scopeParent.name : edit.subIds || edit.categoryId ? (budgetSubs.length > 3 ? `${scopeParent.name} (${budgetSubs.length} subkategori)` : budgetSubs.map(id => data.categories.find(c => c.id === id)?.name || '').join(' & ')) : result.name || scopeParent.name;
   const toggleSub = (id: string) => change({ subIds: budgetSubs.includes(id) ? budgetSubs.filter(x => x !== id) : [...budgetSubs, id] });
   const cycleType = edit.cycleType ?? budget?.cycleType ?? 'salary';
   const cycleDay = cycleType === 'weekly' ? (edit.cycleType ? 1 : budget?.cycleStartDay || 1) : cycleType === 'custom' ? budget?.cycleStartDay || salaryDay : salaryDay;
   const periodText = (type: Budget['cycleType'], day: number) => type === 'weekly' ? `Mingguan · mulai ${weekdays[(day - 1) % 7]}` : type === 'calendar' ? 'Bulan kalender' : type === 'custom' ? `Mulai tanggal ${day}` : 'Siklus gaji';
   // Tujuan dana and wish list
-  const goal = result?.goal;
+  const goal = result.goal;
   const oldFund = kind === 'fund_new' && goal?.existingId ? data.funds.find(f => f.id === goal.existingId) : undefined;
   const targetDate = edit.date ?? goal?.targetDate ?? '';
   const wishTwin = kind === 'wish_new' ? data.wishlist.find(w => w.status === 'active' && same(w.name, name)) : undefined;
   // Dompet
-  const walletType = edit.walletType ?? result?.wallet?.type ?? 'bank';
+  const walletType = edit.walletType ?? result.wallet?.type ?? 'bank';
   const walletTwin = kind === 'wallet_new' ? data.wallets.find(w => !w.isArchived && same(w.name, name)) : undefined;
   const brand = kind === 'wallet_new' ? brandForName(name) : undefined;
   const walletGroup: WalletGroup = walletType === 'investment' ? 'investment' : walletType === 'savings' ? 'savings' : 'operational';
   const balanceOf = kind === 'balance' ? data.wallets.find(w => w.id === walletId) : undefined;
   const delta = balanceOf ? amount - balanceOf.cachedBalance : 0;
   // Kategori
-  const parentId = edit.parentId ?? result?.category?.parentId ?? '';
+  const parentId = edit.parentId ?? result.category?.parentId ?? '';
   const parent = data.categories.find(c => c.id === parentId);
-  const categoryType = parent?.type ?? edit.categoryType ?? result?.category?.type ?? 'expense';
+  const categoryType = parent?.type ?? edit.categoryType ?? result.category?.type ?? 'expense';
   const categoryTwin = kind === 'category_new' ? data.categories.find(c => !c.isArchived && same(c.name, name) && (c.parentId || '') === parentId && (parentId || c.type === categoryType)) : undefined;
   const categoryIcon = iconFor(name) || (parent ? emojiOrFallback(parent.icon) : '🗂️');
   // Jadwal rutin and rencana
-  const flowCategory = edit.categoryId ?? (kind === 'plan_new' ? result?.preset.subcategoryId || result?.preset.categoryId : result?.preset.categoryId) ?? '';
+  const flowCategory = edit.categoryId ?? (kind === 'plan_new' ? result.preset.subcategoryId || result.preset.categoryId : result.preset.categoryId) ?? '';
   const flowCategoryRecord = data.categories.find(c => c.id === flowCategory);
-  const scheduleMode = edit.scheduleMode ?? result?.schedule?.mode ?? 'inbox';
-  const frequency = edit.frequency ?? result?.schedule?.frequency ?? 'monthly';
-  const anchorDay = edit.date || !result?.schedule ? Number(date.slice(8, 10)) || 1 : result.schedule.anchorDay;
+  const scheduleMode = edit.scheduleMode ?? result.schedule?.mode ?? 'inbox';
+  const frequency = edit.frequency ?? result.schedule?.frequency ?? 'monthly';
+  const anchorDay = edit.date || !result.schedule ? Number(date.slice(8, 10)) || 1 : result.schedule.anchorDay;
   const frequencyText = frequency === 'weekly' ? `Tiap ${weekdays[(new Date(`${date}T12:00:00`).getDay() + 6) % 7]}` : frequency === 'yearly' ? `Tiap tahun, ${formatDate(date, false)}` : `Tiap bulan, tgl ${anchorDay}`;
   const committed = edit.committed ?? false;
 
+  // What the text left open or contradicted, unless the person already chose it here.
+  const touched: Partial<Record<FieldKey, boolean>> = { amount: edit.amount !== undefined, date: edit.date !== undefined, wallet: edit.walletId !== undefined, to: edit.destinationId !== undefined, link: edit.linkId !== undefined, person: edit.person !== undefined, name: edit.name !== undefined, category: edit.categoryId !== undefined };
+  const flags = choice ? [] : (Object.entries(action.fields) as [FieldKey, FieldState][]).filter(([key, f]) => (f.status === 'check' || f.status === 'missing') && !touched[key]);
+  // A choice the text left between two values must be made here: two amounts, two dates, two wallets.
+  const unchosen = choice ? '' : action.options.amount && !touched.amount ? 'Pilih nominal yang benar.' : action.options.date && !touched.date ? 'Pilih tanggal yang benar.' : action.options.wallet && !touched.wallet ? 'Pilih dompet yang benar.' : '';
+
   // What still stops a direct save (for transactions the form can always be opened instead).
-  const missing = !result || !kind ? '' : (() => {
+  const missing = unchosen || (() => {
     switch (kind) {
-      case 'open': return result.menu ? onNavigate ? '' : 'Menu ini belum bisa dibuka dari sini.' : 'Menu apa yang mau dibuka? Contoh: “buka laporan”.';
+      case 'open': return result.menu ? '' : 'Menu apa yang mau dibuka? Contoh: “buka laporan”.';
       case 'budget': return !amount ? 'Tulis nominal anggarannya, misalnya “anggaran makan 2jt”.' : !budgetScope ? 'Pilih kategori anggarannya.' : oldBudget && amount === oldBudget.amount ? `Anggaran ${oldBudget.name} sudah ${rupiah(amount)}.` : '';
       case 'fund_new': return !amount ? 'Tulis target nominalnya, misalnya “target liburan 10jt”.' : !oldFund && !name.trim() ? 'Beri nama tujuan dananya.' : oldFund && amount === oldFund.targetAmount ? `Target ${oldFund.name} sudah ${rupiah(amount)}.` : '';
       case 'wish_new': return !amount ? 'Tulis harganya, misalnya “pengen headphone 1,5jt”.' : !name.trim() ? 'Tulis nama barangnya.' : wishTwin ? `“${wishTwin.name}” sudah ada di wish list. Pilih “${QUICK_LABELS.wish}” untuk menyisihkan uang ke sana.` : '';
       case 'wallet_new': return !name.trim() ? 'Tulis nama dompetnya, misalnya “rekening baru jago”.' : walletTwin ? `Dompet ${walletTwin.name} sudah ada. Untuk mengubah saldonya, pilih “${QUICK_LABELS.balance}”.` : '';
-      case 'balance': return !balanceOf ? 'Sebut dompetnya, misalnya “saldo bca sekarang 12jt”.' : !amount ? 'Tulis saldo sekarang, misalnya 12jt.' : !delta ? `Saldo ${balanceOf.name} sudah ${rupiah(amount)}, tidak ada yang berubah.` : '';
+      case 'balance': return !balanceOf ? 'Pilih dompet yang saldonya diperbarui.' : !amount ? 'Tulis saldo sekarang, misalnya 12jt.' : !delta ? `Saldo ${balanceOf.name} sudah ${rupiah(amount)}, tidak ada yang berubah.` : '';
       case 'category_new': return !name.trim() ? 'Tulis nama kategorinya, misalnya “kategori baru jajan”.' : result.category?.parentAsked && !parentId ? 'Pilih kategori induknya.' : categoryTwin ? parent ? `${categoryTwin.name} sudah ada di ${parent.name}.` : `Kategori ${categoryTwin.name} sudah ada.` : '';
       case 'recurring_new': return !amount ? 'Tulis nominalnya, misalnya 54rb.' : !name.trim() ? 'Beri nama jadwalnya.' : !walletId ? 'Pilih dompetnya.' : scheduleMode === 'auto' && flow === 'expense' && !flowCategory ? 'Pilih kategori agar bisa dicatat otomatis.' : '';
       case 'plan_new': return !amount ? 'Tulis nominalnya, misalnya 200rb.' : !name.trim() ? 'Beri judul rencananya.' : !date ? 'Pilih tanggalnya.' : '';
       case 'note_new': return !name.trim() ? 'Tulis isi catatannya.' : !date ? 'Pilih tanggalnya.' : '';
-      default: return kind === 'expense' && !result.preset.categoryId ? 'Kategorinya belum ketemu. Sebut kategorinya (mis. “makan”), atau tekan Ubah detail.'
+      default: return !amount ? 'Tulis nominalnya.' : kind === 'expense' && !result.preset.categoryId ? 'Kategorinya belum ketemu. Sebut kategorinya (mis. “makan”), atau tekan Ubah detail.'
+        : kind === 'transfer' && !walletId ? 'Pilih dompet asalnya.'
         : txKinds.has(kind) && !walletId ? 'Pilih dompetnya dulu.'
-        : kind === 'transfer' && (!destination || destination === walletId) ? 'Sebut dompet asal dan tujuan, mis. “dari bca ke gopay”.'
-        : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId ? 'Pilih catatan yang dimaksud di atas.'
-        : kind === 'target' && !linkId ? 'Pilih tujuan dananya di atas.'
+        : kind === 'transfer' && (!destination || destination === walletId) ? 'Pilih dompet tujuan yang berbeda dari dompet asal.'
+        : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId ? 'Pilih catatan yang dimaksud.'
+        : kind === 'target' && !linkId ? 'Pilih tujuan dananya.'
         : kind === 'target' && (!destination || destination === walletId) ? 'Tujuan dana ini belum punya dompet sendiri. Tekan Ubah detail untuk memilih dompet tujuan.'
         : kind === 'receivable_new' && !person.trim() ? 'Tulis nama orangnya.'
         : kind === 'claim_new' && (!name.trim() || !walletId) ? 'Lengkapi nama klaim dan dompet asalnya.'
@@ -250,154 +348,115 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   })();
 
   function preset(): Partial<LedgerTx> {
-    if (!result) return {};
-    const base: Partial<LedgerTx> = { ...result.preset, walletId: walletId || undefined };
+    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, ...(edit.date ? { date: edit.date } : {}) };
+    if (kind === 'transfer' && destination) base.destinationWalletId = destination;
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
     return base;
   }
-  function reset() { setText(''); setMode('auto'); }
-  function openForm() { if (!result || !txKinds.has(result.kind)) return; const next = preset(); setText(''); onOpenForm(next); }
-  function save() {
-    if (!user || !result || !kind || missing) return;
-    if (kind === 'open' && result.menu) { const menu = result.menu; reset(); onDone?.(); onNavigate?.(menu.key, menu.target); return; }
-    const uid = user.uid, label = heading, money = rupiah(amount);
-    let task: Promise<unknown>, detail = '', success = `${label} ${money} tersimpan.`;
-    try {
-      switch (kind) {
-        case 'budget': {
-          if (oldBudget) { task = saveRecord<Budget>(uid, 'budgets', { amount }, oldBudget.id); success = `Anggaran ${oldBudget.name} jadi ${money}.`; detail = `sebelumnya ${rupiah(oldBudget.amount)}`; break; }
-          // Every subcategory ticked is the same as the whole category.
-          const scope = scopeParent!, categoryId = scope.id, subs = budgetSubs.length === scopeChildren.length ? [] : budgetSubs;
-          const base: Partial<Budget> = { name: budgetName, categoryId, subcategoryId: subs[0] || null, subcategoryIds: subs, amount, classification: data.categories.find(c => c.id === categoryId)?.type === 'savings' ? 'savings' : 'living', cycleType, cycleStartDay: cycleDay, warningPercent: profile?.budgetWarningPercent || 80, notes: '', rolloverEnabled: false, active: true, sortOrder: data.budgets.reduce((n, x) => Math.max(n, (x.sortOrder ?? -1) + 1), data.budgets.length), createdDate: today, lastSettledStart: budgetWindow({ cycleType, cycleStartDay: cycleDay } as Budget, dateInTimeZone(new Date(), profile?.timeZone), salaryDay).start, rolloverCarry: 0 };
-          task = saveRecord<Budget>(uid, 'budgets', base); success = `Anggaran ${budgetName} ${money} dibuat.`; detail = periodText(cycleType, cycleDay);
-          break;
-        }
-        case 'fund_new':
-          if (oldFund) { task = saveRecord<Fund>(uid, 'funds', { targetAmount: amount }, oldFund.id); success = `Target ${oldFund.name} jadi ${money}.`; detail = `sebelumnya ${rupiah(oldFund.targetAmount)}`; break; }
-          task = saveRecord<Fund>(uid, 'funds', { name: name.trim(), kind: goal?.emergency ? 'emergency' : 'goal', targetAmount: amount, currentAmount: 0, monthlyContribution: goal?.monthly || 0, targetDate, linkedWalletId: walletId || '', notes: '' });
-          success = `Tujuan dana ${name.trim()} dibuat.`; detail = [`target ${money}`, targetDate && `tenggat ${formatDate(targetDate)}`, walletId && `di ${walletName(walletId)}`].filter(Boolean).join(' · ');
-          break;
-        case 'wish_new': {
-          const active = data.wishlist.filter(w => w.status === 'active');
-          task = saveWish(uid, { name: name.trim(), emoji: goal?.emoji || '🎁', color: wishColors[active.length % wishColors.length], price: amount, monthly: goal?.monthly || 0, priority: goal?.priority || 2, link: '', notes: '', targetDate, saved: 0, status: 'active', addedDate: today, sortOrder: data.wishlist.reduce((n, w) => Math.max(n, (w.sortOrder ?? -1) + 1), 0), history: [] });
-          success = `${name.trim()} masuk wish list ✨`; detail = money;
-          break;
-        }
-        case 'wallet_new':
-          task = saveWallet(uid, { name: name.trim(), type: walletType, group: walletGroup, openingBalance: amount, purpose: '', icon: brand ? `brand:${brand.key}` : walletIcons[walletType], color: brand ? brand.bg.toLowerCase() : presetHex('teal'), cardStyle: 'soft', isReserved: groupDefaults[walletGroup].isReserved, isSpendable: groupDefaults[walletGroup].isSpendable, includeInNetWorth: true, canPay: true, canReceive: true, canTransferOut: true, canTransferIn: true, displayOrder: data.wallets.length });
-          success = `Dompet ${name.trim()} ditambahkan.`; detail = `${walletTypes.find(([key]) => key === walletType)?.[1]} · saldo awal ${money}`;
-          break;
-        case 'balance': {
-          const wallet = balanceOf!;
-          task = import('@/lib/finance-store').then(async store => {
-            // A stored balance that drifted from the transactions is lined up with them first (like "Hitung ulang saldo"),
-            // then the difference to the real balance is recorded as an adjustment.
-            const check = await store.walletBalancePreview(uid, wallet.id);
-            if (check.cached !== check.calculated) await store.repairWalletCache(uid, wallet.id, check.cached);
-            if (amount !== check.calculated) await store.reconcileWallet(uid, wallet.id, check.calculated, amount, '', today);
-          });
-          success = `Saldo ${wallet.name} diperbarui jadi ${money}.`; detail = 'Selisihnya tercatat sebagai penyesuaian di riwayat transaksi';
-          break;
-        }
-        case 'category_new': {
-          const siblings = data.categories.filter(c => !c.isArchived && c.type === categoryType && (c.parentId || '') === parentId);
-          task = saveRecord<Category>(uid, 'categories', { name: name.trim(), type: categoryType, parentId: parentId || null, icon: categoryIcon, color: parentId ? '' : presetHex('teal'), isArchived: false, sortOrder: siblings.length });
-          success = parent ? `Subkategori ${name.trim()} ditambahkan di ${parent.name}.` : `Kategori ${name.trim()} ditambahkan.`; detail = categoryTypes.find(([key]) => key === categoryType)?.[1] || '';
-          break;
-        }
-        case 'recurring_new':
-          task = saveRecord<Recurring>(uid, 'recurring', { name: name.trim(), type: flow, amount, walletId, destinationWalletId: null, categoryId: flowCategory || null, frequency, mode: scheduleMode, nextDate: date, anchorDay, active: true });
-          success = `Jadwal rutin ${name.trim()} tersimpan.`; detail = [money, frequencyText, walletName(walletId)].join(' · ');
-          break;
-        case 'plan_new': {
-          const chosen = data.categories.find(c => c.id === flowCategory);
-          task = import('@/lib/finance-store').then(store => store.savePlan(uid, { title: name.trim(), type: flow, amount, date, walletId: walletId || null, categoryId: chosen ? chosen.parentId || chosen.id : null, subcategoryId: chosen?.parentId ? chosen.id : null, notes: '', committed: flow === 'expense' && committed, status: 'planned' }));
-          success = 'Rencana tersimpan. Saldo dompet belum berubah.'; detail = [name.trim(), money, formatDate(date)].join(' · ');
-          break;
-        }
-        case 'note_new':
-          task = import('@/lib/finance-store').then(store => store.saveFinancialNote(uid, { title: name.trim(), description: '', date, ...(amount ? { amount } : {}) }));
-          success = result.reminder ? 'Pengingat tersimpan di kalender.' : 'Catatan tersimpan di kalender.'; detail = [name.trim(), formatDate(date)].join(' · ');
-          break;
-        case 'debt_new': task = createDebt(uid, { name: name.trim(), provider: person.trim(), originalAmount: amount, dueDate: '', interestRate: 0, installmentAmount: 0, notes: '' }, walletId || undefined, date); detail = [person && `dari ${person}`, walletId && `masuk ke ${walletName(walletId)}`].filter(Boolean).join(' · '); break;
-        case 'receivable_new': task = createReceivable(uid, { person: person.trim(), description: description.trim(), originalAmount: amount, sourceWalletId: walletId || '', date, dueDate: '', status: 'open' }); detail = [person, description, walletId && `dari ${walletName(walletId)}`].filter(Boolean).join(' · '); break;
-        case 'claim_new': task = createClaim(uid, { name: name.trim(), amount, sourceWalletId: walletId, submissionDate: date, expectedPaymentDate: '', paidDate: '', status: 'submitted', description: '', notes: '' }); detail = `${name} · dari ${walletName(walletId)}`; break;
-        case 'wish': { const item = data.wishlist.find(w => w.id === linkId)!; task = saveWish(uid, { saved: (item.saved || 0) + amount, history: [...(item.history || []), { date, amount }].slice(-60) }, item.id); detail = item.name; break; }
-        default: {
-          const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: date === today ? timeInTimeZone(profile?.timeZone) : '' } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
-          validateTx(tx);
-          task = upsertTransaction(uid, tx);
-          detail = [tx.description || tx.merchant, category?.name, kind === 'transfer' || kind === 'target' ? `${walletName(walletId)} → ${walletName(destination)}` : walletName(walletId)].filter(Boolean).join(' · ');
-        }
-      }
-    } catch (e) { setError((e as Error).message); return; }
-    const retryPreset = preset();
-    track(task, { pending: `Menyimpan ${label.toLowerCase()}…`, success, detail, failure: `${label} belum tersimpan`, retry: txKinds.has(kind) ? { label: 'Buka formulir', run: () => onOpenForm(retryPreset) } : undefined });
-    reset(); onDone?.();
-  }
-  /** Saves every entry of a batch the way their own forms do; one progress message for all of them. */
-  const kept = batch ? batch.filter((_, i) => !dropped.includes(i)) : [];
-  const defaultWallet = (type: 'expense' | 'income') => { const list = walletsFor(type === 'income' ? 'receive' : 'pay'); const want = type === 'income' ? profile?.defaultIncomeWalletId : profile?.defaultExpenseWalletId; return (list.find(w => w.id === want) || list[0])?.id || ''; };
-  function batchTask(uid: string, item: QuickBatchItem, index: number): Promise<unknown> {
-    const r = item.result, time = (r.preset.date || today) === today ? timeInTimeZone(profile?.timeZone) : '';
-    if (r.kind === 'budget' && r.budget) {
-      const b = r.budget;
-      if (b.id) return saveRecord<Budget>(uid, 'budgets', { amount: r.amount }, b.id);
-      const categoryId = b.categoryId; if (!categoryId) throw Error(`Pilih kategori untuk “${item.text}”.`);
-      const day = b.cycleType === 'weekly' || b.cycleType === 'custom' ? b.cycleStartDay || 1 : salaryDay;
-      return saveRecord<Budget>(uid, 'budgets', { name: r.name || data.categories.find(c => c.id === categoryId)?.name || 'Anggaran', categoryId, subcategoryId: b.subcategoryIds[0] || null, subcategoryIds: b.subcategoryIds, amount: r.amount, classification: data.categories.find(c => c.id === categoryId)?.type === 'savings' ? 'savings' : 'living', cycleType: b.cycleType, cycleStartDay: day, warningPercent: profile?.budgetWarningPercent || 80, notes: '', rolloverEnabled: false, active: true, sortOrder: data.budgets.reduce((n, x) => Math.max(n, (x.sortOrder ?? -1) + 1), data.budgets.length) + index, createdDate: today, lastSettledStart: budgetWindow({ cycleType: b.cycleType, cycleStartDay: day } as Budget, dateInTimeZone(new Date(), profile?.timeZone), salaryDay).start, rolloverCarry: 0 });
-    }
-    const type = r.preset.type!, walletId = r.preset.walletId || defaultWallet(type === 'income' ? 'income' : 'expense');
-    const tx = newTx({ ...r.preset, type, amount: r.amount, walletId, date: r.preset.date || today, time } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
-    validateTx(tx);
-    return upsertTransaction(uid, tx);
-  }
-  function saveBatch() {
-    if (!user || !kept.length) return;
-    const uid = user.uid, list = kept;
-    let tasks: Promise<unknown>[];
-    try { tasks = list.map((item, i) => batchTask(uid, item, i)); } catch (e) { setError((e as Error).message); return; }
-    const spent = list.filter(i => i.result.kind === 'expense').reduce((n, i) => n + i.result.amount, 0), budgets = list.filter(i => i.result.kind === 'budget').length;
-    track(Promise.all(tasks), { pending: `Menyimpan ${list.length} catatan…`, success: `${list.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', budgets ? `${budgets} anggaran` : ''].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
-    reset(); onDone?.();
-  }
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (batch) { saveBatch(); return; }
-    if (!result) { if (text.trim()) setError('Sebutkan nominalnya, misalnya "beli pocari 8rb di alfa".'); return; }
-    if (!missing) save(); else if (txKinds.has(result.kind)) openForm();
-  }
-
-  const activeGroup = mode === 'auto' ? 'auto' : mode in QUICK_LABELS ? groupOf(mode as QuickKind) : mode as QuickGroup;
-  const detected = kind ? groupOf(kind) : null;
-  // "Bukan ini?": a schedule or a plan can be recorded right away instead.
-  const other = kind === 'recurring_new' || kind === 'plan_new' ? flow : kind === 'target' && !data.wishlist.some(w => w.status === 'active') ? 'fund_new' : kind ? sibling[kind] : undefined;
-  const hasOther = other && (other !== 'wish' || data.wishlist.some(w => w.status === 'active')) && (other !== 'target' || data.funds.some(f => !f.isArchived)) && (other !== 'balance' || data.wallets.some(w => !w.isArchived)) && (other !== 'plan_new' || amount > 0);
-  const tone = kind && toneOf(kind, flow);
-  const heading = !kind ? '' : kind === 'budget' ? (oldBudget ? 'Ubah anggaran' : 'Anggaran baru') : kind === 'fund_new' ? (oldFund ? 'Ubah target dana' : QUICK_LABELS.fund_new)
+  const heading = kind === 'budget' ? (oldBudget ? 'Ubah anggaran' : 'Anggaran baru') : kind === 'fund_new' ? (oldFund ? 'Ubah target dana' : QUICK_LABELS.fund_new)
     : kind === 'category_new' ? (parentId ? 'Subkategori baru' : 'Kategori baru') : kind === 'plan_new' ? (flow === 'income' ? 'Rencana pemasukan' : 'Rencana pengeluaran')
-    : kind === 'recurring_new' ? (flow === 'income' ? 'Pemasukan rutin' : 'Pengeluaran rutin') : kind === 'note_new' ? (result?.reminder ? 'Pengingat' : 'Catatan kalender') : QUICK_LABELS[kind];
+    : kind === 'recurring_new' ? (flow === 'income' ? 'Pemasukan rutin' : 'Pengeluaran rutin') : kind === 'note_new' ? (result.reminder ? 'Pengingat' : 'Catatan kalender') : QUICK_LABELS[kind];
+
+  /** The save of this card, the same way the menu's own form saves it. */
+  function build(): SaveJob {
+    const uid = user!.uid, money = rupiah(amount), label = heading;
+    let run: () => Promise<unknown>, detail = '', success = `${label} ${money} tersimpan.`;
+    switch (kind) {
+      case 'open': return { run: async () => undefined, pending: '', success: '', failure: '', navigate: { key: result.menu!.key, target: result.menu!.target } };
+      case 'budget': {
+        if (oldBudget) { run = () => saveRecord<Budget>(uid, 'budgets', { amount }, oldBudget.id); success = `Anggaran ${oldBudget.name} jadi ${money}.`; detail = `sebelumnya ${rupiah(oldBudget.amount)}`; break; }
+        // Every subcategory ticked is the same as the whole category.
+        const scope = scopeParent!, categoryId = scope.id, subs = budgetSubs.length === scopeChildren.length ? [] : budgetSubs;
+        const base: Partial<Budget> = { name: budgetName, categoryId, subcategoryId: subs[0] || null, subcategoryIds: subs, amount, classification: data.categories.find(c => c.id === categoryId)?.type === 'savings' ? 'savings' : 'living', cycleType, cycleStartDay: cycleDay, warningPercent: profile?.budgetWarningPercent || 80, notes: '', rolloverEnabled: false, active: true, sortOrder: data.budgets.reduce((n, x) => Math.max(n, (x.sortOrder ?? -1) + 1), data.budgets.length) + action.clause, createdDate: today, lastSettledStart: budgetWindow({ cycleType, cycleStartDay: cycleDay } as Budget, dateInTimeZone(new Date(), profile?.timeZone), salaryDay).start, rolloverCarry: 0 };
+        run = () => saveRecord<Budget>(uid, 'budgets', base); success = `Anggaran ${budgetName} ${money} dibuat.`; detail = periodText(cycleType, cycleDay);
+        break;
+      }
+      case 'fund_new':
+        if (oldFund) { run = () => saveRecord<Fund>(uid, 'funds', { targetAmount: amount }, oldFund.id); success = `Target ${oldFund.name} jadi ${money}.`; detail = `sebelumnya ${rupiah(oldFund.targetAmount)}`; break; }
+        run = () => saveRecord<Fund>(uid, 'funds', { name: name.trim(), kind: goal?.emergency ? 'emergency' : 'goal', targetAmount: amount, currentAmount: 0, monthlyContribution: goal?.monthly || 0, targetDate, linkedWalletId: walletId || '', notes: '' });
+        success = `Tujuan dana ${name.trim()} dibuat.`; detail = [`target ${money}`, targetDate && `tenggat ${formatDate(targetDate)}`, walletId && `di ${walletName(walletId)}`].filter(Boolean).join(' · ');
+        break;
+      case 'wish_new': {
+        const active = data.wishlist.filter(w => w.status === 'active');
+        run = () => saveWish(uid, { name: name.trim(), emoji: goal?.emoji || '🎁', color: wishColors[active.length % wishColors.length], price: amount, monthly: goal?.monthly || 0, priority: goal?.priority || 2, link: '', notes: '', targetDate, saved: 0, status: 'active', addedDate: today, sortOrder: data.wishlist.reduce((n, w) => Math.max(n, (w.sortOrder ?? -1) + 1), 0), history: [] });
+        success = `${name.trim()} masuk wish list ✨`; detail = money;
+        break;
+      }
+      case 'wallet_new':
+        run = () => saveWallet(uid, { name: name.trim(), type: walletType, group: walletGroup, openingBalance: amount, purpose: '', icon: brand ? `brand:${brand.key}` : walletIcons[walletType], color: brand ? brand.bg.toLowerCase() : presetHex('teal'), cardStyle: 'soft', isReserved: groupDefaults[walletGroup].isReserved, isSpendable: groupDefaults[walletGroup].isSpendable, includeInNetWorth: true, canPay: true, canReceive: true, canTransferOut: true, canTransferIn: true, displayOrder: data.wallets.length });
+        success = `Dompet ${name.trim()} ditambahkan.`; detail = `${walletTypes.find(([key]) => key === walletType)?.[1]} · saldo awal ${money}`;
+        break;
+      case 'balance': {
+        const wallet = balanceOf!;
+        run = () => import('@/lib/finance-store').then(async store => {
+          // A stored balance that drifted from the transactions is lined up with them first (like "Hitung ulang saldo"),
+          // then the difference to the real balance is recorded as an adjustment.
+          const check = await store.walletBalancePreview(uid, wallet.id);
+          if (check.cached !== check.calculated) await store.repairWalletCache(uid, wallet.id, check.cached);
+          if (amount !== check.calculated) await store.reconcileWallet(uid, wallet.id, check.calculated, amount, '', today);
+        });
+        success = `Saldo ${wallet.name} diperbarui jadi ${money}.`; detail = 'Selisihnya tercatat sebagai penyesuaian di riwayat transaksi';
+        break;
+      }
+      case 'category_new': {
+        const siblings = data.categories.filter(c => !c.isArchived && c.type === categoryType && (c.parentId || '') === parentId);
+        run = () => saveRecord<Category>(uid, 'categories', { name: name.trim(), type: categoryType, parentId: parentId || null, icon: categoryIcon, color: parentId ? '' : presetHex('teal'), isArchived: false, sortOrder: siblings.length });
+        success = parent ? `Subkategori ${name.trim()} ditambahkan di ${parent.name}.` : `Kategori ${name.trim()} ditambahkan.`; detail = categoryTypes.find(([key]) => key === categoryType)?.[1] || '';
+        break;
+      }
+      case 'recurring_new':
+        run = () => saveRecord<Recurring>(uid, 'recurring', { name: name.trim(), type: flow, amount, walletId, destinationWalletId: null, categoryId: flowCategory || null, frequency, mode: scheduleMode, nextDate: date, anchorDay, active: true });
+        success = `Jadwal rutin ${name.trim()} tersimpan.`; detail = [money, frequencyText, walletName(walletId)].join(' · ');
+        break;
+      case 'plan_new': {
+        const chosen = data.categories.find(c => c.id === flowCategory);
+        run = () => import('@/lib/finance-store').then(store => store.savePlan(uid, { title: name.trim(), type: flow, amount, date, walletId: walletId || null, categoryId: chosen ? chosen.parentId || chosen.id : null, subcategoryId: chosen?.parentId ? chosen.id : null, notes: '', committed: flow === 'expense' && committed, status: 'planned' }));
+        success = 'Rencana tersimpan. Saldo dompet belum berubah.'; detail = [name.trim(), money, formatDate(date)].join(' · ');
+        break;
+      }
+      case 'note_new':
+        run = () => import('@/lib/finance-store').then(store => store.saveFinancialNote(uid, { title: name.trim(), description: '', date, ...(amount ? { amount } : {}) }));
+        success = result.reminder ? 'Pengingat tersimpan di kalender.' : 'Catatan tersimpan di kalender.'; detail = [name.trim(), formatDate(date)].join(' · ');
+        break;
+      case 'debt_new': run = () => createDebt(uid, { name: name.trim(), provider: person.trim(), originalAmount: amount, dueDate: '', interestRate: 0, installmentAmount: 0, notes: '' }, walletId || undefined, date); detail = [person && `dari ${person}`, walletId && `masuk ke ${walletName(walletId)}`].filter(Boolean).join(' · '); break;
+      case 'receivable_new': run = () => createReceivable(uid, { person: person.trim(), description: description.trim(), originalAmount: amount, sourceWalletId: walletId || '', date, dueDate: '', status: 'open' }); detail = [person, description, walletId && `dari ${walletName(walletId)}`].filter(Boolean).join(' · '); break;
+      case 'claim_new': run = () => createClaim(uid, { name: name.trim(), amount, sourceWalletId: walletId, submissionDate: date, expectedPaymentDate: '', paidDate: '', status: 'submitted', description: '', notes: '' }); detail = `${name} · dari ${walletName(walletId)}`; break;
+      case 'wish': { const item = data.wishlist.find(w => w.id === linkId)!; run = () => saveWish(uid, { saved: (item.saved || 0) + amount, history: [...(item.history || []), { date, amount }].slice(-60) }, item.id); detail = item.name; break; }
+      default: {
+        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: result.preset.time || (date === today ? timeInTimeZone(profile?.timeZone) : '') } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        validateTx(tx);
+        run = () => upsertTransaction(uid, tx);
+        detail = [tx.description || tx.merchant, category?.name, kind === 'transfer' || kind === 'target' ? `${walletName(walletId)} → ${walletName(destination)}` : walletName(walletId), date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
+      }
+    }
+    const retryPreset = preset();
+    return { run, pending: `Menyimpan ${label.toLowerCase()}…`, success, detail, failure: `${label} belum tersimpan`, retry: txKinds.has(kind) ? { label: 'Buka formulir', run: () => onOpenForm(retryPreset) } : undefined };
+  }
+  const openForm = txKinds.has(kind) ? () => onOpenForm(preset()) : undefined;
+  useEffect(() => { register(action.id, { missing, build, openForm, kind, amount }); });
+  useEffect(() => () => register(action.id, null), [action.id, register]);
+
+  const tone = toneOf(kind, flow);
   const textual = kind === 'open' || kind === 'category_new' || kind === 'note_new' || kind === 'wallet_new';
-  const headline = kind === 'open' ? result?.menu?.label || 'Menu belum dikenali' : textual ? name.trim() || (kind === 'wallet_new' ? 'Nama dompetnya?' : kind === 'category_new' ? 'Nama kategorinya?' : 'Isi catatannya?') : amount ? rupiah(amount) : 'Nominalnya berapa?';
-  const Icon = kind ? icons[kind] : Sparkles;
+  const headline = kind === 'open' ? result.menu?.label || 'Menu belum dikenali' : textual ? name.trim() || (kind === 'wallet_new' ? 'Nama dompetnya?' : kind === 'category_new' ? 'Nama kategorinya?' : 'Isi catatannya?') : amount ? rupiah(amount) : 'Nominalnya berapa?';
+  const Icon = icons[kind];
   const picture = kind === 'category_new' ? <Emoji e={categoryIcon}/> : kind === 'wish_new' ? <Emoji e={goal?.emoji || '🎁'}/> : kind === 'wallet_new' ? <AppIcon icon={brand ? `brand:${brand.key}` : walletIcons[walletType]}/> : <Icon size={18}/>;
 
   // Short facts under the headline.
   const facts: ReactNode[] = [];
   const fact = (key: string, content: ReactNode, className = '') => facts.push(<span key={key} className={className}>{content}</span>);
-  if (result && kind) switch (kind) {
+  switch (kind) {
     case 'expense': case 'income':
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
-      fact('t', dayText(date));
-      // Why that category, when it took reading the context or the person's habits ("“air” dibaca sebagai minuman").
-      if (category && result.why) fact('w', result.why, 'qp-why'); break;
-    case 'transfer': fact('w', `${walletName(walletId) || '?'} → ${walletName(destination) || '?'}`); fact('t', dayText(date)); break;
+      fact('t', `${dayText(date)}${result.preset.time && !edit.date ? ` · ${result.preset.time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`);
+      if (result.preset.walletId || edit.walletId) fact('w', walletName(walletId));
+      break;
+    case 'transfer': fact('w', `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}`, walletId && destination && walletId !== destination ? '' : 'qp-missing'); fact('t', dayText(date)); break;
     case 'open': fact('o', result.menu?.target && result.menu.key === 'wallets' ? 'Buka detail dompet ini' : 'Pindah ke menu ini'); break;
     case 'budget':
       fact('c', scopeParent ? `${scopeParent.name}${oldBudget ? '' : budgetSubs.length ? ` › ${budgetSubs.length > 3 ? `${budgetSubs.length} subkategori` : budgetSubs.map(id => data.categories.find(c => c.id === id)?.name).join(', ')}` : ' · semua subkategori'}` : 'Kategori belum dipilih', scopeParent ? 'qp-cat' : 'qp-missing');
-      if (result.why && !oldBudget) fact('w', result.why, 'qp-why');
       fact('p', oldBudget ? periodText(oldBudget.cycleType, oldBudget.cycleStartDay || salaryDay) : periodText(cycleType, cycleDay));
       if (oldBudget) fact('b', `Sebelumnya ${rupiah(oldBudget.amount)}`); break;
     case 'fund_new':
@@ -416,7 +475,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       fact('n', name.trim() || 'Nama belum ada', name.trim() ? 'qp-cat' : 'qp-missing'); fact('f', frequencyText); fact('d', `Mulai ${dayText(date)}`);
       if (flowCategoryRecord) fact('c', flowCategoryRecord.name); if (walletId) fact('w', walletName(walletId)); if (scheduleMode !== 'inbox') fact('m', modes.find(([key]) => key === scheduleMode)?.[1].split(' · ')[0] || ''); break;
     case 'plan_new':
-      fact('n', name.trim() || 'Judul belum ada', name.trim() ? 'qp-cat' : 'qp-missing'); fact('t', dayText(date)); if (flowCategoryRecord) fact('c', flowCategoryRecord.name); if (walletId) fact('w', walletName(walletId));
+      fact('n', name.trim() || 'Judul belum ada', name.trim() ? 'qp-cat' : 'qp-missing'); fact('t', date ? dayText(date) : 'Tanggal?', date ? '' : 'qp-missing'); if (flowCategoryRecord) fact('c', flowCategoryRecord.name); if (walletId) fact('w', walletName(walletId));
       fact('s', 'Saldo belum berubah', 'qp-soft'); break;
     case 'note_new': fact('t', dayText(date)); if (amount) fact('a', rupiah(amount)); break;
     default: fact('t', dayText(date));
@@ -427,7 +486,10 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const walletSelect = (label: string, empty: string) => field(label, <Select value={walletId} onChange={e => change({ walletId: e.target.value })}><option value="">{empty}</option>{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>);
   const flowSelect = field('Jenis', <Select value={flow} onChange={e => change({ flow: e.target.value as 'expense' | 'income', categoryId: '' })}><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></Select>);
   const fields: ReactNode[] = [];
-  if (result && kind) switch (kind) {
+  // The amount can be typed here when the text had none, or had two.
+  const amountOpen = !textual && (!result.amount || action.fields.amount?.status === 'check' || edit.amount !== undefined);
+  if (amountOpen) fields.push(field('Nominal', <Input inputMode="numeric" value={amount ? amount.toLocaleString('id-ID') : ''} onChange={e => change({ amount: Number(e.target.value.replace(/\D/g, '')) || 0 })} placeholder="Mis. 25.000"/>, 'amount'));
+  switch (kind) {
     case 'budget':
       if (!oldBudget) fields.push(field('Kategori', <Select value={scopeParent?.id || ''} onChange={e => change({ categoryId: e.target.value, subIds: [] })}><option value="">Pilih kategori</option>{topLevel(['expense', 'savings']).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>),
         ...(scopeChildren.length ? [<div className="qp-subs" key="subs"><span>Subkategori</span><div className="qp-sub-chips"><button type="button" className={`sb-chip ${!budgetSubs.length ? 'is-on' : ''}`} aria-pressed={!budgetSubs.length} onClick={() => change({ subIds: [] })}>Semua</button>{scopeChildren.map(c => <button type="button" key={c.id} className={`sb-chip ${budgetSubs.includes(c.id) ? 'is-on' : ''}`} aria-pressed={budgetSubs.includes(c.id)} onClick={() => toggleSub(c.id)}>{budgetSubs.includes(c.id) && <Check size={13}/>}<Emoji e={emojiOrFallback(c.icon)}/> {c.name}</button>)}</div><small>{budgetSubs.length ? `Hanya ${budgetSubs.length} subkategori yang dihitung.` : `Semua pengeluaran ${scopeParent?.name} dihitung.`}</small></div>] : []),
@@ -466,34 +528,53 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       if (kind === 'debt_new' || kind === 'claim_new') fields.push(nameField(kind === 'debt_new' ? 'Nama utang' : 'Nama klaim'));
       if (kind === 'receivable_new') fields.push(field('Keperluan', <Input value={description} onChange={e => change({ description: e.target.value })} placeholder="Opsional, mis. makan siang"/>));
       if (linkOptions.length > 0) fields.push(field(kind === 'debt_payment' ? 'Utang' : kind === 'receivable_payment' ? 'Piutang' : kind === 'claim_payment' ? 'Klaim' : kind === 'wish' ? 'Wish list' : 'Target', <Select value={linkId} onChange={e => change({ linkId: e.target.value })}><option value="">Pilih…</option>{linkOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</Select>));
-      if (kind !== 'wish') fields.push(field(kind === 'debt_new' ? 'Uangnya masuk ke' : kind === 'receivable_new' ? 'Uangnya keluar dari' : incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet', <Select value={walletId} onChange={e => change({ walletId: e.target.value })}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">Pilih dompet</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'wallet'));
+      if (kind !== 'wish') fields.push(field(kind === 'debt_new' ? 'Uangnya masuk ke' : kind === 'receivable_new' ? 'Uangnya keluar dari' : kind === 'transfer' ? 'Dari dompet' : incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet', <Select value={walletId} onChange={e => change({ walletId: e.target.value })}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">{kind === 'transfer' ? 'Pilih dompet asal' : 'Pilih dompet'}</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'wallet'));
+      if (kind === 'transfer') fields.push(field('Ke dompet', <Select value={destination} onChange={e => change({ destinationId: e.target.value })}><option value="">Pilih dompet tujuan</option>{walletsFor('transferIn').filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'to'));
       if (kind === 'target' && fund) fields.push(<small className="qp-note" key="note">Masuk ke {walletName(destination) || 'dompet target'}</small>);
   }
 
-  return <div className="quick-entry-wrap">
-    <form className="quick-entry" onSubmit={submit}>
-      <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
-      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Tulis apa saja di sini…" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
-      <button type="submit" aria-label={result && !missing ? kind === 'open' ? 'Buka' : 'Simpan' : 'Lanjut'} disabled={!text.trim()}><ArrowRight size={17}/></button>
-    </form>
-    <div className="quick-groups" role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.map(([key, label]) => <Fragment key={key}>{(key === 'expense' || key === 'target' || key === 'open') && <span className="qg-sep" aria-hidden="true"/>}<button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}</div>
-    {!text.trim() && <div className="quick-examples"><span className="qe-title">Ketuk contoh untuk mencoba</span>{(examples[activeGroup] || examples.auto).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}</div>}
-    {text.trim() && !result && !batch && <small className="quick-entry-hint" role="alert">{error || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
-    {batch && <div className="quick-preview quick-batch">
-      <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{kept.length} catatan sekaligus</small>{(() => { const out = kept.filter(i => i.result.kind === 'expense').reduce((n, i) => n + i.result.amount, 0), budget = kept.filter(i => i.result.kind === 'budget').reduce((n, i) => n + i.result.amount, 0), income = kept.filter(i => i.result.kind === 'income').reduce((n, i) => n + i.result.amount, 0); return <strong>{rupiah(out || budget || income)}<em> {out ? 'keluar' : budget ? 'anggaran' : income ? 'masuk' : ''}</em></strong>; })()}</span></div>
-      <ul className="qb-list">{batch.map((item, i) => { const r = item.result, Row = icons[r.kind], off = dropped.includes(i); const cat = data.categories.find(c => c.id === (r.budget ? r.budget.subcategoryIds[0] || r.budget.categoryId : r.preset.subcategoryId || r.preset.categoryId));
-        const detail = r.kind === 'budget' ? `Anggaran · ${r.name || cat?.name || 'kategori?'} · ${r.budget?.id ? 'ubah' : 'baru'}` : r.kind === 'transfer' ? `${walletName(r.preset.walletId || defaultWallet('expense')) || '?'} → ${walletName(r.preset.destinationWalletId || '') || '?'}` : [r.preset.description || r.preset.merchant, categoryName(cat) || (r.kind === 'expense' ? 'Tanpa kategori' : ''), walletName(r.preset.walletId || defaultWallet(r.kind === 'income' ? 'income' : 'expense')), r.preset.date && r.preset.date !== today ? dayText(r.preset.date) : ''].filter(Boolean).join(' · ');
-        return <li key={i} className={`tone-${toneOf(r.kind)} ${off ? 'is-off' : ''}`}><span className="qb-icon" aria-hidden="true"><Row size={15}/></span><span className="qb-main"><strong>{rupiah(r.amount)} <small>{QUICK_LABELS[r.kind]}</small></strong><small>{detail}</small></span><button type="button" className="qb-drop" aria-label={off ? `Pakai lagi ${item.text}` : `Lewati ${item.text}`} onClick={() => setDropped(list => off ? list.filter(x => x !== i) : [...list, i])}>{off ? <Check size={15}/> : <X size={15}/>}</button></li>; })}</ul>
-      {error && <small className="qp-warn" role="status">{error}</small>}
-      <small className="qp-note">Tiap baris dibaca terpisah; tanggal atau dompet yang disebut sekali berlaku untuk semuanya. Ketuk ✕ untuk melewati.</small>
-      <div className="qp-actions"><Button type="button" onClick={saveBatch} disabled={!kept.length}>Simpan semua ({kept.length})</Button></div>
-    </div>}
-    {!batch && result && kind && <div className={`quick-preview tone-${tone}`}>
-      <div className="qp-head"><span className="qp-icon" aria-hidden="true">{picture}</span><span className="qp-title"><small>{heading}</small><strong className={textual || !amount ? 'is-text' : ''}>{headline}</strong></span>{hasOther && other && <button type="button" className="qp-switch" onClick={() => setMode(other)}><small>Bukan ini?</small>{QUICK_LABELS[other]}</button>}</div>
-      {facts.length > 0 && <div className="qp-facts">{facts}</div>}
-      {fields.length > 0 && (!menuKinds.has(kind) || kind === 'budget' && !oldBudget || details || Boolean(missing)) && <div className="qp-fields">{fields}</div>}
-      {(missing || error) && <small className="qp-warn" role="status">{error || missing}</small>}
-      <div className="qp-actions">{txKinds.has(kind) && <Button type="button" variant="secondary" onClick={openForm}>Ubah detail</Button>}{menuKinds.has(kind) && fields.length > 0 && !missing && <Button type="button" variant="secondary" aria-expanded={details} onClick={() => setDetails(open => !open)}>{details ? 'Tutup detail' : 'Ubah detail'}</Button>}<Button type="button" onClick={save} disabled={Boolean(missing)}>{kind === 'open' ? `Buka ${result.menu?.label || ''}`.trim() : 'Sesuai, simpan'}</Button></div>
-    </div>}
+  // One-tap choices the text left open.
+  const picks: ReactNode[] = [];
+  if (!choice && action.options.amount && !touched.amount) picks.push(<span key="a" className="qp-picks" role="group" aria-label="Pilih nominal">{action.options.amount.map(v => <button type="button" key={v} className="sb-chip" onClick={() => change({ amount: v })}>{rupiah(v)}</button>)}</span>);
+  if (!choice && action.options.date && !touched.date) picks.push(<span key="d" className="qp-picks" role="group" aria-label="Pilih tanggal">{action.options.date.map(d => <button type="button" key={d.date} className="sb-chip" onClick={() => change({ date: d.date })}>{dayText(d.date)} <small>“{d.label}”</small></button>)}</span>);
+  if (!choice && action.options.wallet && !touched.wallet) picks.push(<span key="w" className="qp-picks" role="group" aria-label="Pilih dompet">{action.options.wallet.map(id => <button type="button" key={id} className="sb-chip" onClick={() => change({ walletId: id })}>{walletName(id)}</button>)}</span>);
+  const flagList = flags.length > 0 && <div className="qp-flags">{flags.map(([key, f]) => <small key={key} className={`qp-flag is-${f.status}`}><b>{statusIcon[f.status]} {FIELD_STATUS[f.status]}</b> · {FIELD_LABELS[key]}{f.note ? `: ${f.note}` : ''}</small>)}{!choice && action.warnings.filter(w => !flags.some(([, f]) => f.note && w.includes(f.note))).map(w => <small key={w} className="qp-flag is-check"><b>! Perlu dicek</b> · {w}</small>)}</div>;
+  const switcher = action.alternatives.length > 0 && <div className="qp-alts" role="group" aria-label="Bukan ini?"><small>Bukan ini?</small>{choice > 0 && <button type="button" className="sb-chip" onClick={() => setChoice(0)}>{QUICK_LABELS[action.result.kind]}</button>}{action.alternatives.map((alt, i) => i + 1 === choice ? null : <button type="button" key={alt.kind} className="sb-chip" onClick={() => setChoice(i + 1)}>{alt.label}</button>)}</div>;
+  const reasons = !choice && action.evidence.length > 0 && <>{why && <ul className="qp-why-list">{action.evidence.map(e => <li key={e}>{e}</li>)}</ul>}</>;
+  const whyButton = !choice && action.evidence.length > 0 && <button type="button" className="qp-why-toggle" aria-expanded={why} onClick={() => setWhy(v => !v)}>{why ? 'Tutup alasan' : 'Kenapa?'}</button>;
+  const showFields = fields.length > 0 && (!menuKinds.has(kind) || kind === 'budget' && !oldBudget || details || Boolean(missing) || amountOpen);
+  const body = <>
+    {(facts.length > 0 || whyButton) && <div className="qp-facts">{facts}{whyButton}</div>}
+    {flagList}
+    {picks.length > 0 && <div className="qp-pick-row">{picks}</div>}
+    {showFields && <div className="qp-fields">{fields}</div>}
+    {reasons}
+    {switcher}
+  </>;
+
+  if (layout === 'row') {
+    const cat = data.categories.find(c => c.id === (result.budget ? result.budget.subcategoryIds[0] || result.budget.categoryId : result.preset.subcategoryId || result.preset.categoryId));
+    const detail = kind === 'budget' ? `Anggaran · ${result.name || cat?.name || 'kategori?'} · ${result.budget?.id ? 'ubah' : 'baru'}` : kind === 'transfer' ? `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}` : kind === 'note_new' ? `${heading} · ${dayText(date)}` : textual ? heading : [description || result.preset.merchant || name, categoryName(cat), walletName(walletId), date && date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
+    const attention = !skipped && Boolean(missing || flags.length);
+    return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${attention ? 'needs-review' : ''} ${expanded ? 'is-open' : ''}`}>
+      <div className="qb-row">
+        <span className="qb-icon" aria-hidden="true"><Icon size={15}/></span>
+        <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{textual ? headline : amount ? rupiah(amount) : 'Nominal?'} <small>{heading}</small></strong><small>{detail || action.text}</small>{attention && <em className="qb-attention">{missing ? 'Perlu dilengkapi' : 'Perlu dicek'}</em>}</button>
+        <button type="button" className="qb-drop" aria-label={skipped ? `Pakai lagi ${action.text}` : `Lewati ${action.text}`} onClick={onSkip}>{skipped ? <RotateCcw size={15}/> : <X size={15}/>}</button>
+      </div>
+      {(expanded || attention) && !skipped && <div className="qb-body">
+        <small className="qb-source">“{action.text}”</small>
+        {body}
+        {(error || missing && !flags.length) && <small className="qp-warn" role="status">{error || missing}</small>}
+        <div className="qb-foot">{menuKinds.has(kind) && fields.length > 0 && !showFields && <button type="button" className="link-button" onClick={() => setDetails(true)}>Ubah detail</button>}</div>
+      </div>}
+    </li>;
+  }
+
+  return <div className={`quick-preview tone-${tone} ${flags.length ? 'needs-review' : ''}`}>
+    <div className="qp-head"><span className="qp-icon" aria-hidden="true">{picture}</span><span className="qp-title"><small>{heading}</small><strong className={textual || !amount ? 'is-text' : ''}>{headline}</strong></span>{!action.alternatives.length && kind !== 'open' && onSwitchMode && sibling[kind] && <button type="button" className="qp-switch" onClick={() => onSwitchMode(sibling[kind]!)}><small>Bukan ini?</small>{QUICK_LABELS[sibling[kind]!]}</button>}</div>
+    {body}
+    {(error || outerError || missing && !flags.length) && <small className="qp-warn" role="status">{error || outerError || missing}</small>}
+    <div className="qp-actions">{openForm && <Button type="button" variant="secondary" onClick={openForm}>Ubah detail</Button>}{menuKinds.has(kind) && fields.length > 0 && !missing && !amountOpen && <Button type="button" variant="secondary" aria-expanded={details} onClick={() => setDetails(open => !open)}>{details ? 'Tutup detail' : 'Ubah detail'}</Button>}<Button type="button" onClick={() => { setError(''); onSave?.(); }} disabled={Boolean(missing)}>{kind === 'open' ? `Buka ${result.menu?.label || ''}`.trim() : 'Sesuai, simpan'}</Button></div>
   </div>;
 }

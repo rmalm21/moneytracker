@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '82', date: '27 Sep 2026', title: 'Catat otomatis 2.0: satu pesan, banyak catatan', items: [
+    ['📝', 'Satu pesan bisa berisi beberapa hal berbeda sekaligus: “besok bayar kos 1,5jt, ingetin perpanjang stnk tanggal 20, sama budget makan bulan depan 2jt” jadi rencana, pengingat, dan anggaran. Tiap catatan bisa diubah, dilewati, atau dibaca ulang sebagai jenis lain sebelum “Simpan semua”.'],
+    ['💡', 'Mengerti koreksi dan rujukan: “makan 30rb eh 35rb”, “pakai gopay, bukan bca”, “kemarin, eh tadi pagi”, “dua-duanya pakai gopay”, “yang bensin pakai bca”, “sisanya pakai gopay”. Tanggal atau dompet yang disebut di satu bagian tidak menimpa yang disebut sendiri di bagian lain.'],
+    ['✅', 'Tiap isian punya status: Terverifikasi, Kemungkinan benar, Perlu dicek, atau Belum terbaca. Hanya yang ragu yang ditandai, dan ketuk “Kenapa?” untuk melihat alasannya.'],
+    ['🔒', 'Tidak menebak data keuangan: transfer tanpa dompet asal, dua nominal, dua dompet, dua tanggal, atau utang yang hanya mirip sebagian (“cicilan motor” bukan “Cicilan laptop”) diminta dipilih dulu, bukan diisi sendiri.'],
+    ['💸', 'Lebih paham tulisan sehari-hari: kemaren, trf, go pay, 350rbu, 1.5jt, akhir bulan, awal bulan depan, pas gajian berikutnya, senin kemarin, jam 7 pagi. Nomor kamar, meja, atau rekening tidak lagi dibaca sebagai uang.'],
+  ] },
   { version: '81', date: '27 Sep 2026', title: 'Konfirmasi struk lebih rapi', items: [
     ['📝', 'Tanggal, jam, tempat, dompet, kategori, keterangan, dan catatan kini dalam satu kartu ringkas: label di kiri, isian di kanan.'],
     ['🧾', 'Biaya tambahan jadi bagian yang bisa dibuka-tutup (tertutup dulu), dengan jumlah dan hasil hitungnya terlihat di judul.'],

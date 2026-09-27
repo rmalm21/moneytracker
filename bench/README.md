@@ -1,4 +1,8 @@
-# Benchmark Scan struk
+# Benchmark
+
+Two benchmarks live here: `quick/` for Catat otomatis (plain Node, see `quick/README.md`) and `receipts/` for Scan struk (below).
+
+## Scan struk
 
 A repeatable, **sanitized** benchmark for the on-device receipt reader. Every receipt in it is made up (shop names,
 addresses and numbers included) and rendered by Chromium as a phone-like photo, so no real receipt photo is

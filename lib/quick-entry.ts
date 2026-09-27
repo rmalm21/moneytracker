@@ -75,6 +75,8 @@ export type QuickContext = {
   claims?: Pick<Claim, 'id' | 'name' | 'remainingAmount'>[];
   funds?: (Pick<Fund, 'id' | 'name' | 'isArchived' | 'linkedWalletId' | 'walletIds'> & { targetAmount?: number })[];
   wishlist?: Pick<WishItem, 'id' | 'name' | 'status'>[];
+  /** Day of the month the salary comes (Pengaturan › Profil), for "pas gajian". */
+  salaryDay?: number;
   budgets?: (Pick<Budget, 'id' | 'name' | 'categoryId' | 'subcategoryId' | 'amount' | 'active'> & { subcategoryIds?: string[]; cycleType?: Budget['cycleType'] })[];
 };
 
@@ -92,7 +94,8 @@ const strip = (text: string, ...patterns: RegExp[]) => patterns.reduce((t, p) =>
 const AMOUNT = /(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(rb|ribu|k|jt|juta|m|miliar)?\b/gi;
 function readAmount(raw: string, unit = '') {
   const u = lower(unit);
-  if (u) { const n = Number(raw.replace(/\./g, '').replace(',', '.')); const times = u === 'rb' || u === 'ribu' || u === 'k' ? 1e3 : u === 'jt' || u === 'juta' ? 1e6 : 1e9; return Math.round(n * times); }
+  // "1,5jt" and "1.5jt" are one and a half million; "1.500rb" is one thousand five hundred thousand.
+  if (u) { const n = Number(/^\d+\.\d{1,2}$/.test(raw) ? raw : raw.replace(/\./g, '').replace(',', '.')); const times = u === 'rb' || u === 'ribu' || u === 'k' ? 1e3 : u === 'jt' || u === 'juta' ? 1e6 : 1e9; return Math.round(n * times); }
   return Number(raw.replace(/[.,]/g, ''));
 }
 
@@ -140,8 +143,11 @@ const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 /** A day in a month, moved to the month's last day when it's shorter (31 → 30 November). Months past 11 roll into the next year. */
 const on = (y: number, m: number, d: number) => { const first = new Date(y, m, 1, 12), fy = first.getFullYear(), fm = first.getMonth(); return new Date(fy, fm, Math.min(d, lastDay(fy, fm)), 12); };
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** Salary day said as a time ("pas gajian berikutnya"), not the salary itself ("gajian 7jt"). */
+export const SALARY_WHEN = /\b(?:(?:pas|saat|waktu|habis|abis|setelah|sesudah|nunggu|tunggu|sebelum)\s+gajian(?:\s+(?:berikutnya|depan|nanti|selanjutnya|bulan depan))?|gajian\s+(?:berikutnya|depan|nanti|selanjutnya))\b/;
 /** The words of a date, taken out of a name ("liburan bali desember 2027" → "liburan bali"). */
-const DATE_PHRASES = new RegExp([
+export const DATE_PHRASES = new RegExp([
+  SALARY_WHEN.source,
   `\\b(?:mulai\\s+)?(?:(?:tiap|setiap|saban)\\s+)?(?:(?:tgl|tanggal)\\s*)?\\d{1,2}\\s+${MONTH}(?:\\s+\\d{4})?\\b`,
   `\\b(?:mulai\\s+)?(?:(?:tiap|setiap|saban|per)\\s+)?(?:tgl|tanggal)\\s*\\d{1,2}\\b`,
   `\\b(?:(?:bulan|bln|sebelum|sampai|hingga|pada)\\s+)?${MONTH_FULL}(?:\\s+\\d{4})?\\b`,
@@ -151,8 +157,8 @@ const DATE_PHRASES = new RegExp([
   `\\bdalam\\s*\\d{1,2}\\s*(?:hari|minggu|pekan|bulan)\\b`,
   `(?<![\\d.,])\\d{1,2}[/-]\\d{1,2}(?:[/-]\\d{2,4})?(?![\\d.,])`,
   `\\b(?:mulai\\s+)?(?:hari ini|kemarin lusa|kemarin|kmrn|kmarin|besok|besuk|bsk|lusa|nanti|(?:minggu|pekan|bulan|tahun) (?:depan|lalu|kemarin)|akhir (?:bulan|bln|tahun)|awal (?:bulan|tahun)(?: depan)?)\\b`,
-  `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?(?:hari\\s+)?(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu)(?:\\s+depan)?\\b`,
-  `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?hari minggu\\b`,
+  `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?(?:hari\\s+)?(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu)(?:\\s+(?:depan|lalu|kemarin))?\\b`,
+  `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?hari minggu(?:\\s+(?:depan|lalu|kemarin))?\\b`,
 ].join('|'), 'g');
 /** "tiap bulan", "per minggu", "bulanan"… */
 const FREQ_PHRASES = /\b(?:tiap|setiap|saban|per)\s*(?:hari\s+)?(?:minggu|pekan|bulan|bln|tahun|thn|siklus|gajian)\b|\/\s*(?:minggu|bulan|bln|tahun|thn)\b|\b(?:bulanan|mingguan|tahunan|rutin|sebulan sekali|seminggu sekali|setahun sekali|sebulan|seminggu|setahun)\b/g;
@@ -163,14 +169,22 @@ type When = { date: string; label: string; ahead?: boolean };
  * otherwise it's something that already happened ("tgl 28" is the last 28th). `end`: a month or a year alone means its last day.
  * `ahead` marks a date after today, which turns a spending sentence into a plan.
  */
-function readDate(text: string, today: string, future = false, end = false): When | null {
+export function readDate(text: string, today: string, future = false, end = false, salaryDay?: number): When | null {
   const base = new Date(`${today}T12:00:00`), y = base.getFullYear(), m = base.getMonth(), d = base.getDate();
   const plus = (days: number) => new Date(y, m, d + days, 12);
   const when = (date: Date, label: string): When => ({ date: iso(date), label, ...(iso(date) > today ? { ahead: true } : {}) });
   let r: RegExpMatchArray | null;
+  // "pas gajian berikutnya": the next salary day, only when it is known.
+  if ((r = text.match(SALARY_WHEN))) {
+    if (!salaryDay) return null;
+    let date = on(y, m, salaryDay); if (iso(date) <= today) date = on(y, m + 1, salaryDay);
+    if (/\bsebelum\b/.test(r[0])) date = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12);
+    return when(date, /\bsebelum\b/.test(r[0]) ? 'sebelum gajian' : 'gajian berikutnya');
+  }
   if (/\bhari ini\b/.test(text)) return when(base, 'hari ini');
   if (/\bkemarin lusa\b/.test(text)) return when(plus(-2), 'kemarin lusa');
-  if (/\b(kemarin|kmrn|kmarin)\b/.test(text) && !/\b(minggu|pekan|bulan) kemarin\b/.test(text)) return when(plus(-1), 'kemarin');
+  // "senin kemarin" is last Monday, read with the weekdays below.
+  if (/\b(kemarin|kmrn|kmarin)\b/.test(text) && !/\b(minggu|pekan|bulan|senin|selasa|rabu|kamis|jumat|jum'at|sabtu) kemarin\b/.test(text)) return when(plus(-1), 'kemarin');
   if (/\b(besok|besuk|bsk)\b/.test(text)) return when(plus(1), 'besok');
   if (/\blusa\b/.test(text)) return when(plus(2), 'lusa');
   if ((r = text.match(/\b(\d{1,2})\s*hari\s*(?:lalu|yang lalu|yg lalu)\b/))) return when(plus(-Number(r[1])), `${r[1]} hari lalu`);
@@ -224,6 +238,10 @@ function readDate(text: string, today: string, future = false, end = false): Whe
     if (/\bawal tahun( depan)?\b/.test(text)) return when(new Date(y + 1, 0, 1, 12), 'awal tahun depan');
     if (/\bawal bulan( depan)?\b/.test(text)) return when(on(y, m + 1, 1), 'awal bulan depan');
   }
+  // Not only for plans: "bayar kos akhir bulan" is still to come, "awal bulan" already happened.
+  if (/\bakhir (bulan|bln)\b/.test(text) && !/\bakhir (bulan|bln) (lalu|kemarin)\b/.test(text)) return when(on(y, m, 31), 'akhir bulan');
+  if (/\bawal (bulan|bln) depan\b/.test(text)) return when(on(y, m + 1, 1), 'awal bulan depan');
+  if (/\bawal (bulan|bln)( ini)?\b/.test(text)) return when(on(y, m, 1), 'awal bulan');
   if (/\b(minggu|pekan) depan\b/.test(text)) return when(plus(7), 'minggu depan');
   if (/\bbulan depan\b/.test(text)) return when(end ? on(y, m + 1, 31) : on(y, m + 1, d), 'bulan depan');
   if (/\btahun depan\b/.test(text)) return when(end ? new Date(y + 1, 11, 31, 12) : on(y + 1, m, d), 'tahun depan');
@@ -266,15 +284,18 @@ function scheduleOf(text: string, today: string, loose = false): { frequency: Re
   return { frequency, date: start, anchorDay: Number(start.slice(8, 10)), label: frequency === 'weekly' ? 'tiap minggu' : frequency === 'yearly' ? 'tiap tahun' : 'tiap bulan' };
 }
 
-type Amount = { value: number; text: string; index: number; marked: boolean; monthly: boolean };
+const NOT_MONEY_BEFORE = /\b(?:jam|pukul|pkl|meja|kamar|lantai|lt|no|nomor|nomer|nmr|rek|rekening|norek|kode|gate|kursi|umur|usia|ke|nik|hp|wa|telp|telepon|km|kilo|seat|blok|gang|rt|rw)\.?\s*$/;
+export type Amount = { value: number; text: string; index: number; marked: boolean; monthly: boolean };
 const COUNTS = `(?:hari|minggu|pekan|bulan|bln|tahun|thn|x|kali|jam|menit|orang|org|pcs|buah|porsi|bungkus|botol|gelas|kg|gram|gr|liter|ltr|lt|lembar|persen|${MONTH})`;
 /** Every amount in the text, leaving out dates ("tgl 5", "17 agustus", "2027"), counts ("3 hari", "2 porsi") and model numbers ("ps5"). */
-function findAmounts(text: string): Amount[] {
+export function findAmounts(text: string): Amount[] {
   const found: Amount[] = [];
   for (const m of text.matchAll(AMOUNT)) {
     const index = m.index ?? 0, before = text.slice(0, index), after = text.slice(index + m[0].length);
     const marked = Boolean(m[2]) || /rp/.test(m[0]);
     if (/\b(tgl|tanggal)\s*$/.test(before)) continue;
+    // A clock time, a table, a room or an account number is not money ("jam 7", "meja 12", "kamar 205", "rekening 1234567890").
+    if (!marked && (NOT_MONEY_BEFORE.test(before) || /^\d{10,}$/.test(m[1]))) continue;
     if (!marked && (/\p{L}$/u.test(before) || new RegExp(`^\\s*(?:${COUNTS}\\b|%)`).test(after))) continue;
     if (!marked && /^(19|20)\d{2}$/.test(m[1]) && new RegExp(`(?:${MONTH}|tahun|thn|th)\\s*$`).test(before)) continue;
     const value = readAmount(m[1], m[2]);
@@ -289,11 +310,12 @@ const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a
 const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|tambah saldo)\b/;
 /** Cash in and out of a bank: tarik tunai (bank → cash), setor tunai (cash → bank). Not the fee ("biaya tarik tunai"). */
 const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil uang(?: di)? atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
-const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor)\b/;
+const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor|diklaim|diklaimkan|klaimkan|direimburse)\b/;
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
 const FILL_WORDS = /\b(isi|tambah|nambah|masukin|masukkan|top ?up)\b/;
 const LEND_OUT = /\b(pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin)\b/;
+const LENT_TO_ME = /\b(?:pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|utangin|ngutangin)\s+(?:aku|saya|gue|gw|ku)\b/;
 const BORROW = /\b(pinjam|minjem|pinjem|minjam|meminjam|ngutang|ngehutang|berutang|berhutang|utang|hutang|dipinjemin|dipinjamin|dipinjami|kasbon|pinjaman)\b/;
 const PAY = /\b(bayar|byr|cicil|nyicil|angsur|lunas|lunasin|lunasi|balikin|ngembaliin|kembaliin|mengembalikan|transfer|tf|kirim|ngirim)\b/;
 const RECEIVE = /\b(terima|nerima|dapat|dapet|masuk)\b/;
@@ -391,13 +413,18 @@ export const QUICK_MENUS: (QuickMenu & { words: string[] })[] = [
 const OPEN_VERB = /^(?:tolong\s+)?(?:buka|bukain|bukakan|lihat|liat|lihatin|cek|ke|pergi ke|masuk ke|tampilkan|tunjukkan|tunjukin|open|show)\b\s*/;
 
 /** A wallet named in the text ("pakai gopay", "dari bca"), matching whole words of its name. */
-function walletsIn(text: string, wallets: QuickContext['wallets']) {
+export function walletsIn(text: string, wallets: QuickContext['wallets']) {
   const found: { id: string; name: string; at: number; word: string }[] = [];
   const aliases: Record<string, string[]> = { tunai: ['cash', 'kas'], cash: ['tunai'] };
   for (const w of wallets.filter(w => !w.isArchived)) {
     const name = lower(w.name), words = [name, ...name.split(/\s+/).filter(p => p.length >= 3), ...(aliases[name] || [])];
     let at = -1, hit = '';
-    for (const word of words) { const i = wordAt(text, word); if (i >= 0 && (at < 0 || i < at)) { at = i; hit = word; } }
+    for (const word of words) {
+      const i = wordAt(text, word);
+      // "promo gopay", "cashback ovo": the wallet's name, not the wallet paid with.
+      if (i >= 0 && /\b(?:promo|diskon|disc|cashback|voucher|voucer|kode promo|poin)\s+$/.test(text.slice(0, i))) continue;
+      if (i >= 0 && (at < 0 || i < at)) { at = i; hit = word; }
+    }
     if (at >= 0) found.push({ id: w.id, name: w.name, at, word: hit });
   }
   return found.sort((a, b) => a.at - b.at);
@@ -420,7 +447,7 @@ function menuIn(text: string, ctx: QuickContext, loose = false): QuickMenu | nul
 }
 
 /** Generic words in record names count less than the specific ones ("cicilan" vs "laptop"). */
-const GENERIC = new Set(['utang', 'hutang', 'cicilan', 'pinjaman', 'kredit', 'kartu', 'bank', 'dana', 'tabungan', 'klaim', 'kantor', 'target', 'untuk', 'buat', 'yang', 'dan', 'baru']);
+export const GENERIC = new Set(['utang', 'hutang', 'cicilan', 'pinjaman', 'kredit', 'kartu', 'bank', 'dana', 'tabungan', 'klaim', 'kantor', 'target', 'untuk', 'buat', 'yang', 'dan', 'baru']);
 /**
  * The record whose name words appear in the text: one clear winner, or none. Several records for the same
  * name (e.g. two loans to Andi) are not a real tie: the first one in `records` (the oldest) is taken.
@@ -625,7 +652,9 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   /** The person is the one doing it: their name comes before the verb ("andi bayar", "andi pinjam"). */
   const subject = (words: string[], verb: RegExp) => { const v = firstVerb(verb); if (v < 0) return false; return words.some(word => { const i = wordAt(text, word); return i >= 0 && i < v; }); };
   const schedule = scheduleOf(text, today, group !== 'auto');
-  const soon = readDate(text, today);
+  const soon = readDate(text, today, false, false, ctx.salaryDay);
+  // "bayar pajak pas gajian": the salary day is a time here, not income.
+  const flowText = SALARY_WHEN.test(text) ? text.replace(SALARY_WHEN, ' ') : text;
   const saving = SAVE_WORDS.test(text) || FILL_WORDS.test(text);
   // "bunga pinjaman 200rb", "denda cicilan 50rb": the cost of a loan is spending, not a new loan or a repayment of one.
   const loanCost = /\b(bunga|biaya|denda|admin|provisi|asuransi)\s+(?:pinjaman|kredit|utang|hutang|cicilan|paylater|kpr)\b/.test(text);
@@ -661,24 +690,28 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (group === 'claim') return claimKind();
     if (group === 'receivable') return receivableKind();
     if (group === 'debt') return debtKind();
-    if (CLAIM_WORDS.test(text)) return claimKind();
+    if (CLAIM_WORDS.test(text) || LEND_OUT.test(text) && /\bkantor\b/.test(text)) return claimKind();
+    // "uang hotel bandung udah cair": an open claim named with a payout word.
+    if (claim && /\b(cair|dicairkan|diganti|reimburse)\b/.test(text)) return 'claim_payment';
     if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !/\b(biaya|admin|fee)\b/.test(text) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
     if (wallets.length >= 2 && wallets.some(w => /\b(isi|isi saldo|top ?up|topup)\s+$/.test(text.slice(0, w.at)))) return 'transfer';
     if (TRANSFER_WORDS.test(text) && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
+    // "budi minjemin aku 300rb": somebody lent to me.
+    if (LEND_OUT.test(text) && LENT_TO_ME.test(text)) return 'debt_new';
     if (LEND_OUT.test(text)) return 'receivable_new';
     if (receivable && (subject(receivable.words, PAY) || RECEIVE.test(text) && /\b(dari|dr)\b/.test(text))) return 'receivable_payment';
-    if (loanCost) return flowOf(text);
+    if (loanCost) return flowOf(flowText);
     if (PAY.test(text) && (debt || DEBT_WORDS.test(text))) return 'debt_payment';
     if (BORROW.test(text)) {
       // "andi pinjam 100rb" → Andi owes me; "pinjam 100rb dari budi" / "dipinjemin budi" → I owe Budi.
       const before = text.slice(0, Math.max(0, firstVerb(BORROW))).trim().split(/\s+/).filter(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w));
       return before.length && !/\b(dipinjemin|dipinjamin|dipinjami)\b/.test(text) ? 'receivable_new' : 'debt_new';
     }
-    return flowOf(text);
+    return flowOf(flowText);
   };
   /** Spending or income, for schedules and plans. */
-  const flowKind = (): 'expense' | 'income' => flowOf(text);
+  const flowKind = (): 'expense' | 'income' => flowOf(flowText);
   let base: QuickKind | null = null;
   if (mode in QUICK_LABELS) kind = mode as QuickKind;
   else if (group === 'auto') {
@@ -792,7 +825,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     return result;
   }
   if (kind === 'note_new') {
-    const when = readDate(text, today, true);
+    const when = readDate(text, today, true, false, ctx.salaryDay);
     result.date = when?.date || today;
     result.reminder = REMIND.test(text);
     result.name = sentence(strip(without(text, main), NOTE_WORDS, /\b(ingetin|ingatkan|ingetkan|ingatin|pengingat|reminder|remind|jangan lupa|rencana|rencananya|berencana|planning|tolong|aku|saya|gue|gw|untuk|utk|buat|ya|dong|nanti)\b/g, DATE_PHRASES, /^[:\-–]+|[:]/g));
@@ -802,7 +835,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   // Transactions (and the schedules and plans built on them).
   const flow: QuickKind = kind === 'recurring_new' || kind === 'plan_new' ? (base === 'expense' || base === 'income' ? base : flowKind()) : kind;
   // A date still to come only belongs to plans; a transaction picked on a chip is recorded today.
-  const when = kind === 'plan_new' ? readDate(text, today, true) : kind === 'recurring_new' || soon?.ahead ? null : soon;
+  const when = kind === 'plan_new' ? readDate(text, today, true, false, ctx.salaryDay) : kind === 'recurring_new' || soon?.ahead ? null : soon;
   if (when?.label) understood.push(when.label);
 
   // "lunas" without a number: the whole remaining amount.
@@ -867,6 +900,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     // Who: a known person if their name is in the text, otherwise the word next to the verb or "dari/ke/sama".
     const knownName = flow === 'debt_new' ? debt?.record.provider : receivable?.record.person;
     const person = knownName && known.some(word => wordAt(lower(knownName), word) >= 0) ? knownName
+      : flow === 'debt_new' && LENT_TO_ME.test(text) ? text.slice(0, Math.max(0, firstVerb(LEND_OUT))).trim().split(/\s+/).filter(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w)).pop() || ''
       : flow === 'debt_new' ? personAfter(text, /\b(dipinjemin|dipinjamin|dipinjami|dari|dr|sama|ama|sm|ke)\b/) || personAfter(text, BORROW)
       : personAfter(text, LEND_OUT) || personAfter(text, /\b(buat|untuk|utk|ke|sama|ama)\b/) || text.slice(0, Math.max(0, firstVerb(BORROW))).trim().split(/\s+/).find(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w)) || '';
     result.person = person ? title(person) : '';

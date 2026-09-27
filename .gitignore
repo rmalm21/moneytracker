@@ -7,3 +7,4 @@ out
 .DS_Store
 public/ocr
 bench/receipts/out
+bench/quick/out
