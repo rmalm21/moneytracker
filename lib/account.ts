@@ -9,7 +9,7 @@ import { isOffline } from './offline';
  * (users/{uid}/…), page by page, and need a connection: offline, the device cache cannot see every record.
  */
 type Name = typeof names[number];
-export const recordLabels: Record<Name, string> = { wallets: 'dompet', categories: 'kategori', budgets: 'anggaran', transactions: 'transaksi', claims: 'klaim kantor', receivables: 'piutang', debts: 'utang', funds: 'tujuan dana', recurring: 'jadwal rutin', drafts: 'draf', plannedTransactions: 'rencana', categorizationRules: 'aturan kategori', financialNotes: 'catatan', cycleSnapshots: 'riwayat siklus', wishlist: 'wish list' };
+export const recordLabels: Record<Name, string> = { wallets: 'dompet', categories: 'kategori', budgets: 'anggaran', transactions: 'transaksi', claims: 'klaim kantor', receivables: 'piutang', debts: 'utang', funds: 'tujuan dana', recurring: 'jadwal rutin', drafts: 'draf', plannedTransactions: 'rencana', categorizationRules: 'aturan kategori', financialNotes: 'catatan', cycleSnapshots: 'riwayat siklus', wishlist: 'wish list', splitBills: 'split bill', splitPeople: 'orang tersimpan', splitGroups: 'grup split bill' };
 /** Schedules and drafts go first so nothing new is created from them mid-way; wallets and categories go last. */
 const first: Name[] = ['recurring', 'drafts', 'plannedTransactions', 'budgets', 'categorizationRules', 'transactions'];
 export const wipeOrder: Name[] = [...first, ...names.filter(name => !first.includes(name))];
@@ -17,7 +17,7 @@ export type WipeProgress = { step: number; total: number; label: string };
 
 function requireOnline() { if (isOffline()) throw Error('Butuh koneksi internet. Sambungkan dulu, lalu coba lagi.'); }
 
-/** Receipt files of office claims. Removed when the storage rules allow it; the records are deleted either way. */
+/** Receipt files of office claims and Split Bills. Removed when the storage rules allow it; the records are deleted either way. */
 async function removeReceipts(uid: string, paths: unknown[]) {
   const own = paths.filter((path): path is string => typeof path === 'string' && path.startsWith(`users/${uid}/`));
   if (!own.length) return;
@@ -37,6 +37,7 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
       const snap = await getDocs(query(coll(uid, name), limit(400)));
       if (snap.empty) break;
       if (name === 'claims') await removeReceipts(uid, snap.docs.map(row => row.get('attachmentPath')));
+      if (name === 'splitBills') await removeReceipts(uid, snap.docs.map(row => row.get('receiptPath')));
       const batch = writeBatch(db); snap.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
       if (snap.size < 400) break;
     }

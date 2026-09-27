@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChartTooltip } from './chart-tooltip';
-import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, Banknote, Printer, Receipt, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, Banknote, Printer, Receipt, ReceiptText, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
 import { Empty, Field, Select, categoryOptions } from './fields';
@@ -11,7 +11,7 @@ import { Delta } from './delta';
 import { AnimatedRupiah } from './forecast';
 import { AppIcon, IdentityBadge } from './visual-identity';
 import { TxList } from './dashboard';
-import { budgetCurrent, metrics, rupiah, transactionExpense } from '@/lib/accounting';
+import { budgetCurrent, metrics, rupiah, splitBillFlows, transactionExpense } from '@/lib/accounting';
 import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
 import { cumulativeSpending, monthlyTotals, incomeBreakdown, largestExpenses, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '@/lib/insights';
 import { saveProfile } from '@/lib/firestore';
@@ -88,6 +88,30 @@ export function ReportView({ navigate }: { navigate?: (key: string, focus?: stri
   return mode === 'year' ? <AnnualReport navigate={navigate} toggle={toggle}/> : <PeriodReport navigate={navigate} toggle={toggle}/>;
 }
 
+/** Split Bill money in the period, kept apart: what left wallets is not the same as what the user spent. */
+function SplitBillReport({ items, go }: { items: LedgerTx[]; go: (key: string, focus?: string) => void }) {
+  const { data } = useApp();
+  const flows = useMemo(() => splitBillFlows(items), [items]);
+  const toMe = data.receivables.filter(r => r.sourceType === 'split_bill').reduce((n, r) => n + Math.max(0, r.remainingAmount), 0);
+  const fromMe = data.debts.filter(d => d.sourceType === 'split_bill').reduce((n, d) => n + Math.max(0, d.outstandingAmount), 0);
+  if (!flows.bills && !toMe && !fromMe) return null;
+  const rows: [string, number, string][] = [
+    ['Uang keluar untuk tagihan bersama', flows.cashOut, 'Dari dompet, termasuk bagian teman'],
+    ['Pengeluaran pribadi (bagianmu)', flows.ownShare, 'Sudah termasuk di Pengeluaran'],
+    ['Ditalangi untuk orang lain', flows.advanced, 'Bukan pengeluaranmu'],
+    ['Uang kembali dari teman', flows.repaid, 'Bukan pemasukan'],
+    ['Bagianmu yang dibayar ke orang lain', flows.settled, 'Tidak dihitung pengeluaran lagi'],
+  ];
+  return <Section icon={<ReceiptText size={18}/>} title="Split Bill" hint={`${flows.bills} tagihan bersama di periode ini`}>
+    <div className="report-split">
+      {rows.map(([label, value, note]) => <div className="budget-line" key={label}><span>{label}<small className="muted">{note}</small></span><strong>{rupiah(value)}</strong></div>)}
+      <div className="budget-line report-split-now"><span>Masih di teman (piutang)<small className="muted">Saat ini</small></span><strong>{rupiah(toMe)}</strong></div>
+      <div className="budget-line"><span>Harus kamu bayar (utang)<small className="muted">Saat ini</small></span><strong className={fromMe ? 'amount-negative' : ''}>{rupiah(fromMe)}</strong></div>
+      <button type="button" className="link-button" onClick={() => go('splitbill')}>Buka Split Bill →</button>
+    </div>
+  </Section>;
+}
+
 function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: string) => void; toggle: ReactNode }) {
   const { data, cycle, profile } = useApp();
   const pair = usePeriodPair();
@@ -157,6 +181,8 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
           </button>; })}</div> : <Empty message="Belum ada anggaran aktif."/>}
         </Section>
       </div>
+
+      <SplitBillReport items={pair.items} go={go}/>
 
       <Section icon={<Sparkles size={18}/>} title="Transaksi terbesar" hint="Lima pengeluaran terbesar periode ini">
         {biggest.length ? <div className="panel flush report-tx"><TxList items={biggest}/></div> : <Empty message="Belum ada pengeluaran."/>}

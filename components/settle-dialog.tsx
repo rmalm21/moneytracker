@@ -13,7 +13,8 @@ import { walletAllows } from '@/lib/wallet-capabilities';
 import { formatDate, todayInTimeZone } from '@/lib/period';
 import type { ManualPayment } from '@/lib/types';
 
-export type SettleTarget = { kind: 'receivables' | 'debts'; id: string; name: string; remaining: number; suggested?: number };
+/** `split`: a share of a Split Bill; paying it is neither income nor spending, so no category is asked. */
+export type SettleTarget = { kind: 'receivables' | 'debts'; id: string; name: string; remaining: number; suggested?: number; split?: boolean };
 
 /** Record a repayment either through a wallet (balance changes) or as a plain settlement (only the remaining amount changes). */
 export function SettleDialog({ target, onClose }: { target: SettleTarget | null; onClose: () => void }) {
@@ -33,7 +34,7 @@ export function SettleDialog({ target, onClose }: { target: SettleTarget | null;
       if (!walletId) { setError('Pilih dompet.'); return; }
       // Optional category: the payment then shows under it in reports; otherwise it has its own group (Bayar utang / Piutang diterima).
       const picked = data.categories.find(c => c.id === category), parent = picked?.parentId || picked?.id || null;
-      const tx = newTx({ type: receivable ? 'receivable_payment' : 'debt_payment', amount, walletId, date, categoryId: parent, subcategoryId: picked?.parentId ? picked.id : null, description: note.trim() || `${receivable ? 'Dibayar' : 'Bayar'} ${target.name}`, ...(receivable ? { receivableId: target.id } : { debtId: target.id }) });
+      const tx = newTx({ type: receivable ? 'receivable_payment' : 'debt_payment', amount, walletId, date, categoryId: target.split ? null : parent, subcategoryId: target.split ? null : picked?.parentId ? picked.id : null, description: note.trim() || `${receivable ? 'Dibayar' : 'Bayar'} ${target.name}${target.split ? ' (Split Bill)' : ''}`, ...(receivable ? { receivableId: target.id } : { debtId: target.id }) });
       try { validateTx(tx); } catch (e) { setError((e as Error).message); return; }
       task = upsertTransaction(uid, tx);
     }
@@ -51,9 +52,10 @@ export function SettleDialog({ target, onClose }: { target: SettleTarget | null;
         <Field label="Nominal"><Money value={amount} onChange={setAmount} required/></Field>
         <Field label="Tanggal"><AppDatePicker value={date} onChange={e => setDate(e.target.value)} required/></Field>
         {mode === 'wallet' && <Field label={receivable ? 'Masuk ke dompet' : 'Dari dompet'}><Select value={walletId} onChange={e => setWalletId(e.target.value)}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select></Field>}
-        {mode === 'wallet' && <Field label="Kategori (opsional)"><Select value={category} onChange={e => setCategory(e.target.value)}><option value="">{receivable ? 'Piutang diterima' : 'Bayar utang'} (tanpa kategori)</option>{categoryOptions(data.categories, [receivable ? 'income' : 'expense'])}</Select></Field>}
+        {mode === 'wallet' && !target.split && <Field label="Kategori (opsional)"><Select value={category} onChange={e => setCategory(e.target.value)}><option value="">{receivable ? 'Piutang diterima' : 'Bayar utang'} (tanpa kategori)</option>{categoryOptions(data.categories, [receivable ? 'income' : 'expense'])}</Select></Field>}
         <Field label="Catatan (opsional)"><Input value={note} maxLength={100} onChange={e => setNote(e.target.value)} placeholder="Contoh: dibayar tunai"/></Field>
       </div>
+      {target.split && <p className="muted sb-settle-note">{receivable ? 'Uang kembali dari Split Bill tidak dihitung sebagai pemasukan.' : 'Bagianmu sudah dihitung sebagai pengeluaran saat tagihan dicatat, jadi pembayaran ini tidak dihitung lagi.'}</p>}
       <div className="toolbar-row">{[target.remaining, Math.round(target.remaining / 2)].filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(v => <button type="button" key={v} className="link-button" onClick={() => setAmount(v)}>{v === target.remaining ? 'Lunasi semua' : 'Separuh'} · {rupiah(v)}</button>)}</div>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>Batal</Button><Button type="submit">Simpan</Button></div>

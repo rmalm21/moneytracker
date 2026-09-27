@@ -8,7 +8,7 @@ import { Input } from './fields';
 import { changeContextNote } from '@/lib/firestore';
 import type { ContextNote } from '@/lib/types';
 
-export function ContextNotes({kind,id,notes=[],legacy,notify}:{kind:'receivables'|'claims'|'debts'|'funds'|'wallets';id:string;notes?:ContextNote[];legacy?:string;notify:(message:string)=>void}){
+export function ContextNotes({kind,id,notes=[],legacy,notify}:{kind:'receivables'|'claims'|'debts'|'funds'|'wallets'|'splitBills';id:string;notes?:ContextNote[];legacy?:string;notify:(message:string)=>void}){
  const {user}=useApp();const [text,setText]=useState(''),[editing,setEditing]=useState<string|null>(null),[expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const ordered=[...notes].sort((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))||b.createdAt.localeCompare(a.createdAt));
  async function change(change:Parameters<typeof changeContextNote>[3],message:string){if(!user)return;setBusy(true);setError('');try{await changeContextNote(user.uid,kind,id,change);notify(message);if(change.kind==='add'||change.kind==='edit'){setText('');setEditing(null)}}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
  function submit(event:FormEvent){event.preventDefault();if(editing)void change({kind:'edit',id:editing,text},'Catatan diperbarui.');else void change({kind:'add',text},'Catatan ditambahkan.')}

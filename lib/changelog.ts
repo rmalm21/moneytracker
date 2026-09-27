@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '72', date: '27 Sep 2026', title: 'Split Bill', items: [
+    ['🧾', 'Menu baru Split Bill: bagi rata, sesuai pesanan (item berbagi dan per porsi), nominal manual, atau persentase, lengkap dengan pajak, service, diskon, ongkir, pembulatan, dan biaya bersama. Pembagian selalu pas sampai Rupiah terakhir.'],
+    ['💳', 'Uang keluar dan pengeluaranmu dibedakan: bayar Rp600rb untuk berempat, saldo dompet berkurang Rp600rb tapi anggaran dan analisis hanya menghitung bagianmu. Bagian teman jadi piutang yang tertaut.'],
+    ['🤝', 'Teman membayar balik tidak dihitung pemasukan; kalau orang lain yang bayar, bagianmu jadi pengeluaran dan utang, dan melunasinya tidak dihitung pengeluaran lagi.'],
+    ['📷', 'Bisa dari transaksi yang sudah ada, dari foto struk (teks dibaca bila perangkat mendukung, atau tempel teks struk), atau dihitung manual; hasil baca selalu diperiksa dulu.'],
+    ['📝', 'Status tiap orang, pembayaran sebagian, orang tersimpan dan grup, bagikan teks atau gambar ke WhatsApp, dan pengingat yang bisa kamu ubah sebelum dikirim.'],
+    ['📊', 'Terhubung ke Beranda, Insight, Laporan, Periksa Data, Piutang, dan Utang.'],
+  ] },
   { version: '71', date: '27 Sep 2026', title: 'Kategori yang membaca konteks', items: [
     ['💡', 'Kata yang punya banyak arti dibaca dari konteksnya: “beli air 5rb di alfa” jadi minuman, “bayar air 150rb” jadi tagihan air; “tiket kereta” masuk transportasi, “tiket konser” masuk hiburan; “grabfood” masuk makanan.'],
     ['✅', 'Arah uang ikut dibaca: “gaji art”, “thr art”, dan “tiket masuk” tetap pengeluaran; “bunga deposito”, “komisi”, dan “dapat hadiah” jadi pemasukan.'],

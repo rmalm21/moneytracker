@@ -109,6 +109,45 @@ export function potentialSaving(list: Finding[]) {
   return Math.max(wantsTotal, sum([...perCategory.values()])) + other;
 }
 
+/**
+ * Split Bill: money still out with friends, how long paying back usually takes, and the user's own unpaid shares.
+ * Read from the Piutang/Utang the bills created; plain observations, no judgement.
+ */
+export function splitBillFindings(data: Pick<Data, 'receivables' | 'debts'>, history: LedgerTx[], today: string): Finding[] {
+  const out: Finding[] = [];
+  const shared = data.receivables.filter(r => r.sourceType === 'split_bill');
+  const open = shared.filter(r => r.remainingAmount > 0);
+  const age = (date: string) => Math.round((parse(today).getTime() - parse(date).getTime()) / DAY);
+  // Days from the bill to the last payment, for shares that are fully paid back.
+  const paidOn = (r: typeof shared[number]) => [...history.filter(tx => tx.type === 'receivable_payment' && tx.receivableId === r.id).map(tx => tx.date), ...(r.manualPayments || []).map(p => p.date)].sort().pop();
+  const waits = shared.filter(r => r.remainingAmount <= 0).map(r => { const last = paidOn(r); return last ? Math.max(0, age(r.date) - age(last)) : null; }).filter((n): n is number => n !== null);
+  const avgWait = waits.length >= 2 ? mean(waits) : null;
+  if (open.length) {
+    const total = sum(open.map(r => r.remainingAmount));
+    const people = new Set(open.map(r => r.person.trim().toLowerCase())).size;
+    const bills = new Set(open.map(r => r.splitBillId || r.id));
+    const old = new Set(open.filter(r => age(r.date) > 14).map(r => r.splitBillId || r.id));
+    const late = open.filter(r => r.dueDate && r.dueDate < today);
+    const others = data.receivables.filter(r => r.sourceType !== 'split_bill' && r.remainingAmount > 0);
+    const mostlyShared = others.length > 0 && total > sum(others.map(r => r.remainingAmount));
+    const parts = [
+      `**${rp(total)}** masih ada di ${people} orang dari ${bills.size} Split Bill.`,
+      old.size ? `${old.size} Split Bill belum lunas lebih dari 14 hari.` : '',
+      late.length ? `${late.length} sudah lewat jatuh tempo.` : '',
+      avgWait !== null ? `Biasanya teman membayar kembali dalam **${avgWait.toLocaleString('id-ID', { maximumFractionDigits: 1 })} hari**.` : '',
+      mostlyShared ? 'Sebagian besar piutang aktif berasal dari patungan.' : '',
+      '==Kirim pengingat dari Split Bill bila perlu==.',
+    ].filter(Boolean);
+    out.push({ id: 'split-owed', tone: late.length || old.size ? 'warn' : 'info', stat: { label: 'Belum kembali', value: shortRp(total), note: `${people} orang` }, title: old.size ? `${old.size} Split Bill belum lunas lebih dari 14 hari` : `${rp(total)} uangmu masih tertahan di Split Bill`, detail: parts.join(' '), target: { view: 'splitbill' } });
+  }
+  const mine = data.debts.filter(d => d.sourceType === 'split_bill' && d.outstandingAmount > 0);
+  if (mine.length) {
+    const total = sum(mine.map(d => d.outstandingAmount)), late = mine.filter(d => d.dueDate && d.dueDate < today);
+    out.push({ id: 'split-payable', tone: late.length ? 'warn' : 'info', stat: { label: 'Harus dibayar', value: shortRp(total), note: `${mine.length} tagihan` }, title: `Bagianmu ${rp(total)} di Split Bill belum dibayar`, detail: `Ke ${[...new Set(mine.map(d => d.name))].slice(0, 3).join(', ')}. Sudah dihitung sebagai pengeluaranmu, jadi saat dibayar tidak dihitung lagi.${late.length ? ` ${late.length} sudah lewat jatuh tempo.` : ''}`, target: { view: 'splitbill' } });
+  }
+  return out;
+}
+
 export function analyzeFinances(input: AdvisorInput): Advice {
   const { history, today, salaryDay, warnPercent } = input;
   // A kantong's amount is the balance of its wallets.
@@ -280,7 +319,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   }
 
   // 7. Obligations: debts, receivables, goals.
-  const openDebts = data.debts.filter(d => d.status !== 'paid' && d.outstandingAmount > 0);
+  // A Split Bill share owed to a friend is a short-term payback, covered by its own card below.
+  const openDebts = data.debts.filter(d => d.status !== 'paid' && d.outstandingAmount > 0 && d.sourceType !== 'split_bill');
   const installments = sum(openDebts.map(d => d.installmentAmount || 0));
   const dsr = avgIncome ? installments / avgIncome : 0;
   if (openDebts.length) {
@@ -288,7 +328,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
     const first = order[0];
     obligations.push({ id: 'debt', tone: dsr > .4 ? 'bad' : dsr > .3 ? 'warn' : 'info', stat: installments && avgIncome ? { label: 'Cicilan / pemasukan', value: pct(dsr), note: 'batas sehat 30%', progress: Math.min(1, dsr / .3) } : { label: 'Sisa utang', value: shortRp(sum(openDebts.map(d => d.outstandingAmount))), note: `${openDebts.length} utang aktif` }, title: installments ? `Cicilan ${pct(dsr)} dari pemasukan` : `${openDebts.length} utang aktif`, detail: `${openDebts.length} utang aktif, sisa **${rp(sum(openDebts.map(d => d.outstandingAmount)))}**. ${!installments ? 'Nominal cicilan per bulan belum diisi, jadi bebannya belum bisa dihitung. ' : !avgIncome ? '' : dsr > .3 ? '**Di atas batas sehat 30%** — ==hindari utang baru dulu==. ' : 'Masih di bawah batas sehat 30%. '} ==Prioritaskan melunasi “${first.name}”==${first.interestRate ? ` (bunga ${first.interestRate}%)` : ' (sisa terkecil)'} lebih cepat.`, target: { view: 'debts' } });
   }
-  const overdue = data.receivables.filter(r => r.remainingAmount > 0 && r.dueDate && r.dueDate < today);
+  const overdue = data.receivables.filter(r => r.remainingAmount > 0 && r.dueDate && r.dueDate < today && r.sourceType !== 'split_bill');
+  obligations.push(...splitBillFindings(data, history, today));
   if (overdue.length) obligations.push({ id: 'receivable', tone: 'warn', stat: { label: 'Belum kembali', value: shortRp(sum(overdue.map(r => r.remainingAmount))), note: `${overdue.length} orang` }, title: `${overdue.length} piutang lewat jatuh tempo`, detail: `Total **${rp(sum(overdue.map(r => r.remainingAmount)))} belum kembali**, termasuk dari ${overdue.slice(0, 3).map(r => r.person).join(', ')}. ==Tagih pelan-pelan sekarang==, sebelum makin lama.`, target: { view: 'receivables' } });
   const monthlySurplus = Math.max(0, avgIncome - avgExpense);
   // Emergency funds are covered by the emergency-fund card (with its own target), so they are not repeated here.

@@ -19,7 +19,7 @@ import type { LedgerTx } from '@/lib/types';
  * Extra Beranda cards the user can add from "Tambah kartu". Each is its own component so it can load
  * what it needs; they share one look: a foldable panel with a total and a short list.
  */
-export const extraWidgets = ['savingsRate', 'weekSpend', 'bigExpenses', 'topMerchants', 'categoryChanges', 'budgetAlerts', 'kantong', 'assetMix', 'emergency', 'wishlist', 'debts', 'bills', 'notes', 'lastCycle'] as const;
+export const extraWidgets = ['savingsRate', 'weekSpend', 'bigExpenses', 'topMerchants', 'categoryChanges', 'budgetAlerts', 'kantong', 'assetMix', 'emergency', 'wishlist', 'debts', 'bills', 'notes', 'lastCycle', 'splitBill'] as const;
 export type ExtraWidgetId = typeof extraWidgets[number];
 export type ExtraContext = { navigate: (view: string, focus?: string) => void; openTx: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; range: DateRange; items: LedgerTx[]; prevItems: LedgerTx[]; loading: boolean; basis: string; today: string; /** Same Aset bersih as the hero card (receivables only when the user counts them). */ worth: { netWorth: number; receivables: number } };
 
@@ -167,6 +167,22 @@ function Debts({ ctx }: { ctx: ExtraContext }) {
   </Card>;
 }
 
+/** Split Bill at a glance, from the Piutang and Utang the bills created (no bill is loaded for this card). */
+function SplitBills({ ctx }: { ctx: ExtraContext }) {
+  const { data } = useApp();
+  const owed = data.receivables.filter(r => r.sourceType === 'split_bill' && r.remainingAmount > 0).sort((a, b) => b.remainingAmount - a.remainingAmount);
+  const mine = data.debts.filter(d => d.sourceType === 'split_bill' && d.outstandingAmount > 0);
+  const toMe = owed.reduce((n, r) => n + r.remainingAmount, 0), fromMe = mine.reduce((n, d) => n + d.outstandingAmount, 0);
+  const people = new Set(owed.map(r => r.person.trim().toLocaleLowerCase('id-ID'))).size;
+  return <Card title="Split Bill" sub={people ? `${people} orang belum bayar` : 'Patungan dan tagihan bersama'} value={toMe ? rupiah(toMe) : undefined} link={['Lihat Split Bill', () => ctx.navigate('splitbill')]}>
+    {toMe || fromMe ? <>
+      {toMe > 0 && <div className="dx-kpis"><span><small>Belum kembali</small><b>{short(toMe)}</b></span>{fromMe > 0 && <span><small>Harus dibayar</small><b className="amount-negative">{short(fromMe)}</b></span>}</div>}
+      {owed.slice(0, 4).map(r => <Row key={r.id} icon={<Emoji e="🧾"/>} title={r.person} sub={(r.description || 'Split Bill').replace(/^Split Bill — /, '')} amount={rupiah(r.remainingAmount)} amountSub={r.remainingAmount < r.originalAmount ? 'bayar sebagian' : undefined} onClick={() => ctx.navigate('splitbill', r.splitBillId ? `bill:${r.splitBillId}` : undefined)}/>)}
+      {mine.slice(0, 2).map(d => <Row key={d.id} icon={<Emoji e="🤝"/>} title={`Bayar ke ${d.name}`} sub={(d.provider || 'Split Bill').replace(/^Split Bill — /, '')} amount={rupiah(d.outstandingAmount)} tone="amount-negative" onClick={() => ctx.navigate('splitbill', d.splitBillId ? `bill:${d.splitBillId}` : undefined)}/>)}
+    </> : <Empty>Tidak ada tagihan bersama yang belum lunas. Patungan makan atau nongkrong bisa dicatat di Split Bill.</Empty>}
+  </Card>;
+}
+
 function Bills({ ctx }: { ctx: ExtraContext }) {
   const { data } = useApp();
   const next = data.recurring.filter(r => r.active && r.type !== 'income' && r.type !== 'transfer' && r.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate)).slice(0, 5);
@@ -217,5 +233,6 @@ export function ExtraWidget({ id, ctx }: { id: ExtraWidgetId; ctx: ExtraContext 
     case 'bills': return <Bills ctx={ctx}/>;
     case 'notes': return <Notes ctx={ctx}/>;
     case 'lastCycle': return <LastCycle ctx={ctx}/>;
+    case 'splitBill': return <SplitBills ctx={ctx}/>;
   }
 }

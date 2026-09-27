@@ -8,12 +8,31 @@ service cloud.firestore {
         && wallet.data.get('isSpendable', true) == true
         && wallet.data.get('canPay', true) == true;
     }
+    // A Split Bill share paid by someone else is spending without any wallet (no money moved yet).
+    function splitShareWithoutWallet() {
+      return request.resource.data.get('walletId', '') == ''
+        && request.resource.data.get('splitBillId', '') is string
+        && request.resource.data.get('splitBillId', '') != '';
+    }
     function expenseAllowed(userId, previous) {
       return request.resource.data.get('type', '') != 'expense'
+        || splitShareWithoutWallet()
         || (previous != null && previous.data.get('type', '') == 'expense'
             && previous.data.get('walletId', '') == request.resource.data.get('walletId', ''))
         || canPay(userId, request.resource.data.get('walletId', ''));
     }
+    function validSplitBill(data) {
+      return data.title is string && data.title.size() <= 120
+        && data.total is int && data.total >= 0
+        && data.status in ['draft', 'active', 'cancelled']
+        && data.payer in ['me', 'other']
+        && data.method in ['equal', 'items', 'amount', 'percent']
+        && data.participants is list && data.participants.size() <= 60
+        && data.items is list && data.items.size() <= 400
+        && data.extras is list && data.extras.size() <= 60
+        && data.payments is list && data.payments.size() <= 500;
+    }
+    function validName(data, longest) { return data.name is string && data.name.size() > 0 && data.name.size() <= longest; }
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {
@@ -21,8 +40,22 @@ service cloud.firestore {
         allow create: if own(userId) && expenseAllowed(userId, null);
         allow update: if own(userId) && expenseAllowed(userId, resource);
       }
+      // Split Bill: bills, saved people and groups belong to the signed-in user only.
+      match /splitBills/{billId} {
+        allow read, delete: if own(userId);
+        allow create, update: if own(userId) && validSplitBill(request.resource.data);
+      }
+      match /splitPeople/{personId} {
+        allow read, delete: if own(userId);
+        allow create, update: if own(userId) && validName(request.resource.data, 60);
+      }
+      match /splitGroups/{groupId} {
+        allow read, delete: if own(userId);
+        allow create, update: if own(userId) && validName(request.resource.data, 60)
+          && request.resource.data.memberIds is list && request.resource.data.memberIds.size() <= 60;
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if own(userId) && collectionName != 'transactions';
+        allow read, write: if own(userId) && !(collectionName in ['transactions', 'splitBills', 'splitPeople', 'splitGroups']);
       }
     }
   }

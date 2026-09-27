@@ -15,7 +15,7 @@ import { db } from './firebase';
  * instead, and once a day the document counts are compared as a safety net: on a mismatch that
  * collection is read in full once, which lets Firestore drop whatever was deleted.
  */
-export const syncedCollections = ['wallets', 'categories', 'budgets', 'transactions', 'claims', 'receivables', 'debts', 'funds', 'recurring', 'drafts', 'plannedTransactions', 'financialNotes', 'cycleSnapshots', 'wishlist', 'deletions'] as const;
+export const syncedCollections = ['wallets', 'categories', 'budgets', 'transactions', 'claims', 'receivables', 'debts', 'funds', 'recurring', 'drafts', 'plannedTransactions', 'financialNotes', 'cycleSnapshots', 'wishlist', 'splitBills', 'splitPeople', 'splitGroups', 'deletions'] as const;
 export type SyncedName = typeof syncedCollections[number];
 
 type Mark = { s: number; n: number };

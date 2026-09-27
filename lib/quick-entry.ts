@@ -319,6 +319,7 @@ export const QUICK_MENUS: (QuickMenu & { words: string[] })[] = [
   { key: 'wallets', label: 'Dompet', words: ['dompet', 'rekening', 'saldo', 'akun', 'semua dompet', 'saldo dompet'] },
   { key: 'debts', label: 'Utang', words: ['utang', 'hutang', 'cicilan', 'pinjaman'] },
   { key: 'receivables', label: 'Piutang', words: ['piutang'] },
+  { key: 'splitbill', label: 'Split Bill', words: ['split bill', 'splitbill', 'split', 'patungan', 'bagi tagihan', 'bagi bill', 'split tagihan'] },
   { key: 'claims', label: 'Klaim kantor', words: ['klaim', 'klaim kantor', 'reimburse'] },
   { key: 'funds', label: 'Tujuan dana', words: ['tujuan dana', 'target', 'target tabungan', 'tujuan', 'dana darurat'] },
   { key: 'wishlist', label: 'Wish list', words: ['wish list', 'wishlist', 'impian'] },

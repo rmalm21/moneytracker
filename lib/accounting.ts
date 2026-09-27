@@ -17,17 +17,65 @@ export function effects(tx: LedgerTx): Record<string, number> {
   else if (tx.type === 'transfer' || tx.type === 'fund_contribution') { add(tx.walletId, -tx.amount-(tx.type==='transfer'?(tx.transferFee||0):0)); add(tx.destinationWalletId, tx.amount); }
   return delta;
 }
+/**
+ * Divides a whole Rupiah amount by weights so the parts add up exactly: everyone gets the rounded-down part and the Rupiah
+ * left over go one by one to the largest fractions (ties: the earlier one). Rp100.000 / 3 → 33.334 + 33.333 + 33.333.
+ * All-zero weights divide equally; a negative amount is divided as positive and returned negative.
+ */
+export function allocate(total: number, weights: number[]): number[] {
+  const n = weights.length;
+  if (!n) return [];
+  const whole = BigInt(Math.abs(Math.round(total || 0))), sign = total < 0 ? -1 : 1;
+  let w = weights.map(value => BigInt(Math.max(0, Math.round(value || 0))));
+  let sum = w.reduce((a, b) => a + b, BigInt(0));
+  if (sum === BigInt(0)) { w = w.map(() => BigInt(1)); sum = BigInt(n); }
+  const parts = w.map(value => whole * value / sum);
+  let left = whole - parts.reduce((a, b) => a + b, BigInt(0));
+  const order = w.map((value, index) => ({ index, rest: whole * value % sum })).sort((a, b) => a.rest === b.rest ? a.index - b.index : a.rest > b.rest ? -1 : 1);
+  for (const { index } of order) { if (left <= BigInt(0)) break; parts[index] += BigInt(1); left -= BigInt(1); }
+  return parts.map(value => sign * Number(value));
+}
+/** A Split Bill paid by the user: only their own share is spending, by category (the rest was paid for others and is owed back). */
+function ownShareLines(tx:LedgerTx){
+  const own=Math.max(0,Math.min(tx.amount,Math.round(tx.ownShare||0)));
+  if(!own)return [];
+  const lines=tx.ownSplits||[];
+  if(lines.length&&lines.reduce((sum,line)=>sum+line.amount,0)===own)return lines.map(line=>({categoryId:line.categoryId,subcategoryId:line.subcategoryId,amount:line.amount}));
+  if(tx.splits?.length){const parts=allocate(own,tx.splits.map(line=>line.amount));return tx.splits.map((line,i)=>({categoryId:line.categoryId,subcategoryId:line.subcategoryId,amount:parts[i]})).filter(line=>line.amount>0);}
+  return [{categoryId:tx.categoryId,subcategoryId:tx.subcategoryId,amount:own}];
+}
+/** Whether a transaction is the cash payment of a Split Bill (the full amount left the wallet, part of it for others). */
+export const isSplitPayment=(tx:Pick<LedgerTx,'type'|'splitBillId'|'ownShare'|'walletId'>)=>tx.type==='expense'&&Boolean(tx.splitBillId)&&Boolean(tx.walletId)&&tx.ownShare!=null;
 export function expenseAllocations(tx:LedgerTx){
   if(tx.type==='transfer')return tx.transferFee ? [{categoryId:tx.transferFeeCategoryId||null,subcategoryId:null,amount:tx.transferFee}] : [];
   if(tx.type==='claim_writeoff')return [{categoryId:null,subcategoryId:null,amount:tx.amount}];
   // Paying off a debt is money spent: under the category chosen for it, otherwise in its own "Bayar utang" group.
-  if(tx.type==='debt_payment')return [{categoryId:tx.categoryId||null,subcategoryId:tx.subcategoryId||null,amount:tx.amount}];
+  // Paying back a Split Bill share is not: that share was already counted as spending on the day of the bill.
+  if(tx.type==='debt_payment')return tx.splitBillId?[]:[{categoryId:tx.categoryId||null,subcategoryId:tx.subcategoryId||null,amount:tx.amount}];
   if(tx.type!=='expense')return [];
+  if(tx.ownShare!=null)return ownShareLines(tx);
   return tx.splits?.length?tx.splits.map(line=>({categoryId:line.categoryId,subcategoryId:line.subcategoryId,amount:line.amount})):[{categoryId:tx.categoryId,subcategoryId:tx.subcategoryId,amount:tx.amount}];
 }
 export const transactionExpense=(tx:LedgerTx)=>expenseAllocations(tx).reduce((total,line)=>total+line.amount,0);
-/** Money received: income, and a friend paying back a receivable (under its category or "Piutang diterima"). */
-export const transactionIncome=(tx:LedgerTx)=>tx.type==='income'||tx.type==='receivable_payment'?tx.amount:0;
+/** Money received: income, and a friend paying back a receivable (under its category or "Piutang diterima").
+ * A friend paying back their Split Bill share is not income: it is the user's own money coming back. */
+export const transactionIncome=(tx:LedgerTx)=>tx.type==='income'||tx.type==='receivable_payment'&&!tx.splitBillId?tx.amount:0;
+/**
+ * Split Bill money in a set of transactions, kept apart from spending and income:
+ * cash that left wallets for bills, the user's own share (spending), what was paid for others (advanced),
+ * what came back from others (repaid), and what the user paid back to someone who paid for them (settled).
+ */
+export function splitBillFlows(items:LedgerTx[]){
+  const flows={cashOut:0,ownShare:0,advanced:0,repaid:0,settled:0,bills:new Set<string>()};
+  for(const tx of items){
+    if(!tx.splitBillId)continue;
+    flows.bills.add(tx.splitBillId);
+    if(tx.type==='expense'){const own=transactionExpense(tx);flows.ownShare+=own;if(tx.walletId){flows.cashOut+=tx.amount;flows.advanced+=tx.amount-own;}}
+    else if(tx.type==='receivable_payment')flows.repaid+=tx.amount;
+    else if(tx.type==='debt_payment')flows.settled+=tx.amount;
+  }
+  return {...flows,bills:flows.bills.size};
+}
 export function walletBalance(wallet: Wallet, txs: LedgerTx[]) { return wallet.openingBalance + txs.reduce((sum, tx) => sum + (effects(tx)[wallet.id] || 0), 0); }
 export function salaryCycle(date: Date, day: number) {
   const d = Math.min(31, Math.max(1, day || 24));
