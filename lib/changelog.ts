@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '77', date: '27 Sep 2026', title: 'Catat otomatis paling bisa diandalkan', items: [
+    ['📝', 'Beberapa catatan sekaligus: “kemarin makan 25rb, parkir goceng, bensin 30rb pakai gopay” atau satu baris per catatan. Tanggal atau dompet yang disebut sekali berlaku untuk semuanya; baris bisa dilewati sebelum “Simpan semua”.'],
+    ['💡', 'Anggaran bisa memilih subkategori: “budget makan 2jt untuk sarapan, makan siang dan kopi”, “kecuali delivery”, “selain bioskop”, “khusus sarapan”, “makan siang dan malam”. Pratinjau menampilkan chip subkategori yang bisa diketuk.'],
+    ['💰', 'Nominal dalam kata dan bahasa gaul: dua puluh lima ribu, satu setengah juta, sejuta setengah, setengah juta, goceng, ceban, gocap, cepek. Tanggal “3/9” juga dikenali.'],
+    ['💸', 'Arah uang selalu benar: top up GoPay dari BCA, isi GoPay pakai BCA, tarik tunai (bank ke Tunai), dan setor tunai (Tunai ke bank).'],
+    ['✅', 'Konteks lebih pintar: freelance dan proyek jadi pemasukan, transferan dari orang tua jadi Hadiah Uang, dan grab/gojek masuk Taxi / Online.'],
+  ] },
   { version: '76', date: '27 Sep 2026', title: 'Scan struk membaca semua biaya, Catat otomatis lebih cerdas', items: [
     ['🧾', 'Scan struk membaca diskon dan potongan (termasuk persen, voucher, promo ongkir), pajak (PB1, PPN, PBJT), service, ongkir, biaya lain (admin, kemasan, aplikasi, tip), dan pembulatan, dari struk resto, minimarket, GoFood/GrabFood, sampai marketplace.'],
     ['📝', 'Pengeluaran dari struk kini punya Rincian biaya yang bisa diubah, dengan hasil hitung yang langsung dicocokkan. Biaya bisa digabung ke belanja atau dicatat terpisah dengan kategorinya sendiri, dan rinciannya tersimpan di catatan transaksi.'],

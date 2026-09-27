@@ -32,7 +32,7 @@ const CONCEPTS: ConceptDef[] = [
   C('fuel', 'expense', 'transport', 'bensin', 'bensin|bbm|fuel|pertalite|pertamax|solar', '⛽'),
   C('parking', 'expense', 'transport', 'parkir', 'parkir|parking', '🅿️'),
   C('toll', 'expense', 'transport', 'tol', 'tol|toll|e-toll|etoll', '🛣️'),
-  C('ride', 'expense', 'transport', 'ojek / taksi online', 'ride hailing|transportasi online|grab|gojek|maxim', ''),
+  C('ride', 'expense', 'transport', 'ojek / taksi online', 'ride hailing|transportasi online|taxi / online|taksi / online|taxi online|taksi online|ojek online|grab|gojek|maxim', ''),
   C('ojek', 'expense', 'ride', 'ojek', 'ojek|ojol|ojek online', '🛵'),
   C('taxi', 'expense', 'ride', 'taksi', 'taxi|taksi|taxi online|taksi online', '🚕'),
   C('public', 'expense', 'transport', 'transportasi umum', 'transportasi umum|angkutan umum|bus|busway|transjakarta|angkot|krl|mrt|lrt|commuter', '🚌🚇'),
@@ -258,6 +258,7 @@ const RULES: Rule[] = [
   R(/\b(refund|pengembalian dana|dana kembali|uang kembali|retur|pengembalian)\b/, 'refund', 4.6),
   R(/\b(patungan|urunan|split bill|splitbill)\b/, 'split', 3.6),
   R(/\b(angpao|angpau|hadiah|kado uang|kiriman|uang saku|uang jajan|warisan|dikasih|pemberian|dikirim|dikirimi|dikirimin)\b/, 'gift_in', 3.6),
+  R(/\b(dari|dr|sama|ama)\s+(mama|mamah|mami|papa|papah|papi|ibu|bapak|ayah|ortu|orang tua|om|tante|nenek|kakek|kakak|abang|adik|mertua|pacar|suami|istri)\b/, 'gift_in', 3.4),
   R(/\b(sewa|kos|kost|kosan|kontrakan)\b/, 'rent_in', 3),
   R(/\b(reimburse|reimbursement|klaim|claim|penggantian)\b/, 'reimbursement', 3.6),
   R(/\barisan\b/, 'other_in', 2.6),
@@ -300,6 +301,10 @@ const INCOME_CUES: [RegExp, number][] = [
   // Things that are only ever received. ("hadiah", "kos", "patungan" can go either way, so they don't count here.)
   [/\b(gaji|gajian|salary|payroll|upah|lembur|overtime|bonus|insentif|thr|tunjangan|rapel|komisi|dividen|dividend|cashback|cash back|refund|pengembalian dana|imbal hasil|bunga deposito|bunga tabungan|capital gain|honor|honorarium|omzet|omset|penjualan|hasil jual)\b/, 3.5],
   [/\b(jual|jualan)\b/, 3],
+  // Work paid to you: freelance, projects, endorsements ("bayar freelancer" stays spending: the verb comes first).
+  [/\b(freelance|proyek|project|projek|honor|honorarium|endorse|endorsement|fee proyek|job sampingan|sampingan|orderan|royalti|royalty|affiliate|afiliasi)\b/, 3.5],
+  // Money sent by family or friends.
+  [/\b(transferan|kiriman|dikirim|dikasih|dapat|dapet)\b.{0,24}\b(dari|dr|sama|ama)\b/, 2],
   [/\b(transferan masuk|uang masuk|dana masuk|masuk (?:ke )?(?:rekening|rek|dompet|saldo|tabungan))\b/, 3.5],
   [/\bmasuk\b(?!\s+(?:angin|kerja|kantor|sekolah|kuliah|kelas|rumah sakit|rs|tol|kos))/, 1.5],
 ];

@@ -210,3 +210,57 @@ test('everyday spending that only sounds like another menu stays spending', () =
   assert.equal(m('arisan 100rb mingguan', 'recurring').schedule.frequency, 'weekly');
   assert.deepEqual(m('lap', 'open').menu, { key: 'report', label: 'Laporan' });
 });
+
+import { amountWords, parseQuickBatch } from '../lib/quick-entry.ts';
+import { categoryTemplates as allTemplates } from '../lib/category-templates.ts';
+const tpl = [];
+for (const t of allTemplates) { tpl.push({ id: t.key, name: t.name, type: t.type, parentId: null }); for (const s of t.subcategories) tpl.push({ id: s.key, name: s.name, type: t.type, parentId: t.key }); }
+const wctx = { today: '2026-09-27', wallets: [{ id: 'bca', name: 'BCA', type: 'bank' }, { id: 'gopay', name: 'GoPay', type: 'ewallet' }, { id: 'jago', name: 'Jago', type: 'bank' }, { id: 'cash', name: 'Tunai', type: 'cash' }], categories: tpl, history: [], budgets: [] };
+
+test('amounts in words and slang', () => {
+  assert.equal(amountWords('makan dua puluh lima ribu'), 'makan 25000');
+  assert.equal(amountWords('bayar kos satu setengah juta'), 'bayar kos 1500000');
+  assert.equal(amountWords('sejuta setengah'), '1500000');
+  assert.equal(amountWords('belanja setengah juta'), 'belanja 500000');
+  assert.equal(amountWords('dua ratus lima puluh ribu'), '250000');
+  assert.equal(amountWords('tiga belas ribu'), '13000');
+  assert.equal(amountWords('beli satu kopi'), 'beli satu kopi');
+  for (const [text, value] of [['parkir goceng', 5000], ['makan ceban', 10000], ['bensin gocap', 50000], ['pulsa cepek', 100000], ['jajan seceng', 1000]]) assert.equal(parseQuickText(text, wctx).amount, value, text);
+  assert.equal(parseQuickText('makan 30rb 3/9', wctx).preset.date, '2026-09-03');
+});
+
+test('money moving between wallets goes the right way', () => {
+  const move = text => { const r = parseQuickText(text, wctx); return [r.kind, r.preset.walletId || '', r.preset.destinationWalletId || '']; };
+  assert.deepEqual(move('top up gopay 100rb dari bca'), ['transfer', 'bca', 'gopay']);
+  assert.deepEqual(move('tf 200rb ke gopay dari bca'), ['transfer', 'bca', 'gopay']);
+  assert.deepEqual(move('isi gopay 50rb pakai bca'), ['transfer', 'bca', 'gopay']);
+  assert.deepEqual(move('tarik tunai 500rb dari jago'), ['transfer', 'jago', 'cash']);
+  assert.deepEqual(move('setor tunai 1jt ke bca'), ['transfer', 'cash', 'bca']);
+  assert.equal(parseQuickText('biaya tarik tunai 6.500', wctx).kind, 'expense');
+  assert.equal(parseQuickText('freelance desain 2,5jt', wctx).kind, 'income');
+  assert.equal(parseQuickText('dapat transferan dari mama 500rb', wctx).preset.subcategoryId, 'income.penghasilan-tambahan.hadiah-uang');
+});
+
+test('a budget covers exactly the subcategories asked for', () => {
+  const subs = text => { const r = parseQuickText(text, wctx); return r.budget.subcategoryIds.map(id => id.split('.').pop()).join(','); };
+  assert.equal(subs('budget makan 2jt untuk sarapan, makan siang dan kopi'), 'sarapan,makan-siang,kopi-minuman');
+  assert.equal(subs('budget makan siang dan malam 1,5jt'), 'makan-siang,makan-malam');
+  assert.equal(subs('budget transport 1jt: bensin, parkir, tol'), 'bensin,parkir,tol');
+  assert.equal(subs('budget makan khusus sarapan 400rb'), 'sarapan');
+  const except = parseQuickText('budget hiburan 500rb selain bioskop', wctx);
+  assert.ok(!except.budget.subcategoryIds.includes('expense.nongkrong-hiburan.bioskop') && except.budget.subcategoryIds.length === 9);
+  assert.equal(except.name, 'Nongkrong & Hiburan (tanpa Bioskop)');
+  assert.equal(parseQuickText('budget makan 2jt kecuali delivery', wctx).budget.subcategoryIds.includes('expense.makan-minum.delivery'), false);
+});
+
+test('several entries at once, sharing a date or a wallet said once', () => {
+  const b = parseQuickBatch('kemarin makan 25rb, parkir goceng, bensin 30rb pakai gopay', wctx);
+  assert.deepEqual(b.map(i => [i.result.amount, i.result.preset.date, i.result.preset.walletId]), [[25000, '2026-09-26', 'gopay'], [5000, '2026-09-26', 'gopay'], [30000, '2026-09-26', 'gopay']]);
+  const budgets = parseQuickBatch('budget makan 2jt, transport 800rb, hiburan 500rb', wctx);
+  assert.deepEqual(budgets.map(i => [i.result.kind, i.result.budget.categoryId]), [['budget', 'expense.makan-minum'], ['budget', 'expense.transportasi'], ['budget', 'expense.nongkrong-hiburan']]);
+  const lines = parseQuickBatch('gaji 7jt\nmakan 30rb\ntf 500rb dari bca ke gopay', wctx);
+  assert.deepEqual(lines.map(i => [i.result.kind, i.result.preset.walletId || '']), [['income', ''], ['expense', ''], ['transfer', 'bca']]);
+  assert.equal(parseQuickBatch('makan 25rb terus ngopi 18rb', wctx).length, 2);
+  // One entry stays one entry.
+  for (const text of ['laptop 12,5jt', 'beli nasi dan es teh 25rb', 'tf 200rb dari bca ke gopay']) assert.equal(parseQuickBatch(text, wctx), null, text);
+});

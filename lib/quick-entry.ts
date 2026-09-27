@@ -66,7 +66,7 @@ export type QuickResult = {
   why?: string;
 };
 export type QuickContext = {
-  wallets: Pick<Wallet, 'id' | 'name' | 'isArchived'>[];
+  wallets: (Pick<Wallet, 'id' | 'name' | 'isArchived'> & { type?: Wallet['type'] })[];
   categories: (Pick<Category, 'id' | 'name' | 'type' | 'parentId' | 'isArchived'> & { templateKey?: string; icon?: string })[];
   history: Pick<LedgerTx, 'type' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId' | 'date'>[];
   today: string;
@@ -96,6 +96,38 @@ function readAmount(raw: string, unit = '') {
   return Number(raw.replace(/[.,]/g, ''));
 }
 
+/**
+ * Amounts said in words or slang, turned into digits before anything else is read:
+ * "dua puluh lima ribu" → 25000, "satu setengah juta" / "1 setengah juta" → 1500000, "sejuta setengah" → 1500000,
+ * "setengah juta" → 500000, "goceng" → 5000, "ceban" → 10000, "gocap" → 50000, "cepek" → 100000.
+ */
+const SLANG: Record<string, number> = { seceng: 1000, noceng: 2000, goceng: 5000, ceban: 10000, noban: 20000, goban: 50000, gocap: 50000, cepek: 100000, sejutaan: 1000000 };
+const NUM_WORDS: Record<string, number> = { nol: 0, satu: 1, se: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10, sebelas: 11, seratus: 100, seribu: 1000, sejuta: 1000000 };
+const SCALES: Record<string, number> = { ribu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, jt: 1e6, miliar: 1e9, milyar: 1e9, m: 1e9 };
+const NUMBER_RUN = new RegExp(`(?<![\\p{L}\\p{N}])((?:(?:${[...Object.keys(NUM_WORDS), 'puluh', 'belas', 'ratus', 'setengah', ...Object.keys(SCALES)].sort((a, b) => b.length - a.length).join('|')}|\\d+(?:[.,]\\d+)?)\\s*)+)(?![\\p{L}\\p{N}])`, 'gu');
+export function amountWords(text: string) {
+  let out = text.replace(new RegExp(`\\b(${Object.keys(SLANG).join('|')})\\b`, 'g'), word => `${SLANG[word]}`);
+  out = out.replace(NUMBER_RUN, (run: string) => {
+    const tokens = run.trim().split(/\s+/);
+    // Only runs with a number word; plain "1,5 juta" is read later as it is.
+    if (!tokens.some(t => t in NUM_WORDS || ['puluh', 'belas', 'ratus', 'setengah'].includes(t))) return run;
+    if (!tokens.some(t => t in SCALES || t === 'seribu' || t === 'seratus' || t === 'sejuta')) return run;
+    let total = 0, small = 0, last = 0, lastScale = 0;
+    for (const t of tokens) {
+      if (/^\d/.test(t)) { last = Number(t.replace(',', '.')); small += last; }
+      else if (t in NUM_WORDS) { last = NUM_WORDS[t]; if (last >= 1000) { total += last; lastScale = last; last = 0; } else small += last; }
+      else if (t === 'puluh') { small += last * 9; last *= 10; }
+      else if (t === 'belas') { small += 10; last += 10; }
+      else if (t === 'ratus') { small += last * 99; last *= 100; }
+      else if (t === 'setengah') { if (small || !lastScale) small += .5; else total += lastScale / 2; }
+      else if (t in SCALES) { total += (small || 1) * SCALES[t]; lastScale = SCALES[t]; small = 0; last = 0; }
+    }
+    total += small;
+    return total ? ` ${Math.round(total)} ` : run;
+  });
+  return out.replace(/\s+/g, ' ').trim();
+}
+
 // Dates in words.
 const MONTHS = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
 const MONTH_SHORT: Record<string, number> = { pebruari: 1, jan: 0, feb: 1, peb: 1, mar: 2, apr: 3, jun: 5, jul: 6, agu: 7, agt: 7, ags: 7, aug: 7, sep: 8, sept: 8, okt: 9, oct: 9, nov: 10, nop: 10, des: 11, dec: 11 };
@@ -117,6 +149,7 @@ const DATE_PHRASES = new RegExp([
   `\\b(?:(?:sebelum|sampai|hingga|pada)\\s+)?(?:tahun|thn|th)\\s*\\d{4}\\b`,
   `\\b\\d{1,2}\\s*(?:hari|minggu|pekan|bulan)\\s*(?:lagi|lalu|yang lalu|yg lalu|ke depan|kedepan)\\b`,
   `\\bdalam\\s*\\d{1,2}\\s*(?:hari|minggu|pekan|bulan)\\b`,
+  `(?<![\\d.,])\\d{1,2}[/-]\\d{1,2}(?:[/-]\\d{2,4})?(?![\\d.,])`,
   `\\b(?:mulai\\s+)?(?:hari ini|kemarin lusa|kemarin|kmrn|kmarin|besok|besuk|bsk|lusa|nanti|(?:minggu|pekan|bulan|tahun) (?:depan|lalu|kemarin)|akhir (?:bulan|bln|tahun)|awal (?:bulan|tahun)(?: depan)?)\\b`,
   `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?(?:hari\\s+)?(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu)(?:\\s+depan)?\\b`,
   `\\b(?:(?:tiap|setiap|saban|mulai)\\s+)?hari minggu\\b`,
@@ -153,6 +186,16 @@ function readDate(text: string, today: string, future = false, end = false): Whe
       let date = on(r[4] ? Number(r[4]) : y, month, day);
       if (!r[4] && future && iso(date) < today) date = on(y + 1, month, day);
       return when(date, `${day} ${MONTHS[month]}${r[4] ? ` ${r[4]}` : ''}`);
+    }
+  }
+  // "3/9", "03-09-2026", "3/9/26": day first, as written in Indonesia.
+  if ((r = text.match(/(?<![\d.,])(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?(?![\d.,])/))) {
+    const day = Number(r[1]), month = Number(r[2]) - 1, year = r[3] ? (r[3].length === 2 ? 2000 + Number(r[3]) : Number(r[3])) : y;
+    if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
+      let date = on(year, month, day);
+      if (!r[3] && !future && iso(date) > today) date = on(y - 1, month, day);
+      if (!r[3] && future && iso(date) < today) date = on(y + 1, month, day);
+      return when(date, `${day} ${MONTHS[month]}${r[3] ? ` ${year}` : ''}`);
     }
   }
   // "tgl 5", "tanggal 25 bulan depan".
@@ -244,6 +287,8 @@ function findAmounts(text: string): Amount[] {
 const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a => a.value >= 100).sort((a, b) => b.value - a.value)[0];
 
 const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|tambah saldo)\b/;
+/** Cash in and out of a bank: tarik tunai (bank → cash), setor tunai (cash → bank). Not the fee ("biaya tarik tunai"). */
+const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil uang(?: di)? atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
 const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor)\b/;
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
@@ -435,9 +480,23 @@ const wordsOf = (text: string) => lower(text).replace(/&/g, ' dan ').split(/[^\p
  *     different parent ("Makan" under Travel) only wins when its parent is mentioned;
  *  4. several things joined by "dan", "&" or commas under one parent become several subcategories.
  */
-function budgetCategory(scope: string, text: string, own: Cat[], _history: QuickContext['history']): { cat: Cat; subs: Cat[]; why: string } | undefined {
+function budgetCategory(scope: string, text: string, own: Cat[], _history: QuickContext['history']): { cat: Cat; subs: Cat[]; why: string; label?: string } | undefined {
   const tops = own.filter(c => !c.parentId), childrenOf = (id: string) => own.filter(c => c.parentId === id);
-  scope = lower(scope).replace(/\bskin care\b/g, 'skincare').replace(/\bkos\b/g, 'kost');
+  scope = lower(scope).replace(/\bskin care\b/g, 'skincare').replace(/\bkos\b/g, 'kost').replace(/[:;]/g, ' ');
+  // "makan kecuali delivery", "hiburan selain bioskop dan konser": every subcategory of the main one but those.
+  const except = scope.match(/^(.*?)\s*\b(?:kecuali|selain|tanpa|di ?luar|minus|except|bukan)\b\s+(.+)$/);
+  if (except) {
+    const whole = budgetCategory(except[1], except[1], own, _history);
+    const top = whole && (whole.cat.parentId ? own.find(c => c.id === whole.cat.parentId) : whole.cat);
+    if (top) {
+      const left = except[2].split(/\s*(?:,|&|\+|\bdan\b|\/)\s*/).map(p => p.trim()).filter(Boolean).map(part => budgetCategory(part, part, own, _history)?.cat).filter((c): c is Cat => Boolean(c && c.parentId === top.id));
+      const keep = own.filter(c => c.parentId === top.id && !left.some(x => x.id === c.id));
+      if (left.length && keep.length) return { cat: keep[0], subs: keep, why: `${top.name} tanpa ${left.map(c => c.name).join(', ')}`, label: `${top.name} (tanpa ${left.map(c => c.name).join(', ')})` };
+    }
+  }
+  // "khusus / hanya / cuma X": only X.
+  const only = scope.match(/\b(?:khusus|hanya|cuma|cuman|only)\b\s+(.+)$/);
+  if (only) { const inner = budgetCategory(only[1], only[1], own, _history); if (inner) return inner; }
   const words = wordsOf(scope);
   if (!words.length) return undefined;
   const parentOf = (c: Cat) => c.parentId ? own.find(p => p.id === c.parentId) : undefined;
@@ -457,7 +516,12 @@ function budgetCategory(scope: string, text: string, own: Cat[], _history: Quick
   // 2. Several things under one parent ("pulsa dan kuota").
   const parts = scope.split(/\s*(?:,|&|\+|\bdan\b|\bsama\b|\/)\s*/).map(p => p.trim()).filter(Boolean);
   if (parts.length > 1) {
-    const found = parts.map(part => guessFor(part)?.c).filter((c): c is Cat => Boolean(c));
+    // "makan siang dan malam": a short part borrows the first word of the part before it ("malam" → "makan malam").
+    const found = parts.map((part, i) => {
+      const direct = guessFor(part)?.c, head = i ? parts[i - 1].split(' ')[0] : '';
+      if (i && !direct && !part.includes(' ') && head && head !== part) { const joined = guessFor(`${head} ${part}`)?.c; if (joined?.parentId) return joined; }
+      return direct;
+    }).filter((c): c is Cat => Boolean(c));
     const parentIds = new Set(found.map(c => c.parentId || c.id));
     if (found.length === parts.length && parentIds.size === 1) {
       const top = own.find(c => c.id === [...parentIds][0])!;
@@ -480,7 +544,9 @@ function budgetCategory(scope: string, text: string, own: Cat[], _history: Quick
   // 4. The context engine.
   const guess = guessFor(scope);
   if (guess) return { cat: guess.c, subs: guess.c.parentId ? [guess.c] : [], why: guess.why || `“${scope.trim()}” → ${guess.c.name}` };
-  return undefined;
+  // 5. A name that only partly matches ("hiburan" → Nongkrong & Hiburan), or common words.
+  const named = namedCategory(scope, own) || hintedCategory(scope, own);
+  return named ? { cat: named, subs: named.parentId ? [named] : [], why: `kategori ${named.name}` } : undefined;
 }
 /**
  * Spending during a trip or for work goes to that category's matching subcategory: the item's own meaning (from the
@@ -536,7 +602,7 @@ function walletTypeOf(text: string): Wallet['type'] {
 /** `mode`: 'auto', a kind group picked on a chip (Utang, Anggaran…), or an exact kind (e.g. 'receivable_payment'). */
 export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickResult | null {
   const group = mode as QuickGroup;
-  const text = lower(input.trim()).replace(/\s+/g, ' ');
+  const text = amountWords(lower(input.trim()).replace(/\s+/g, ' '));
   if (!text) return null;
   const understood: string[] = [];
   const today = ctx.today;
@@ -596,6 +662,8 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (group === 'receivable') return receivableKind();
     if (group === 'debt') return debtKind();
     if (CLAIM_WORDS.test(text)) return claimKind();
+    if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !/\b(biaya|admin|fee)\b/.test(text) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
+    if (wallets.length >= 2 && wallets.some(w => /\b(isi|isi saldo|top ?up|topup)\s+$/.test(text.slice(0, w.at)))) return 'transfer';
     if (TRANSFER_WORDS.test(text) && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
     if (LEND_OUT.test(text)) return 'receivable_new';
@@ -694,7 +762,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
       else if (/\b(turun|turunin|turunkan|kurang|kurangi|kurangin|potong)\b/.test(text)) amount = Math.max(0, existing.amount - amount);
     }
     result.amount = amount;
-    result.name = existing?.name || (smart && smart.subs.length > 1 ? smart.subs.map(c => c.name).join(' & ') : cat?.name) || '';
+    result.name = existing?.name || smart?.label || (smart && smart.subs.length > 3 ? `${own.find(c => c.id === smart.subs[0].parentId)?.name || ''} (${smart.subs.length} subkategori)` : smart && smart.subs.length > 1 ? smart.subs.map(c => c.name).join(' & ') : cat?.name) || '';
     const weekday = text.match(/\bmulai\s+(?:hari\s+)?(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)\b/);
     result.budget = { ...(existing ? { id: existing.id, previous: existing.amount } : {}), categoryId: existing?.categoryId ?? categoryId, subcategoryIds: existing ? subsOf(existing).split(',').filter(Boolean) : subs, cycleType: existing ? existing.cycleType || 'salary' : cycleType, ...(cycleType === 'weekly' ? { cycleStartDay: weekday ? (WEEKDAYS[weekday[1]] + 6) % 7 + 1 : 1 } : custom ? { cycleStartDay: Math.min(31, Math.max(1, Number(custom[1]))) } : {}) };
     return result;
@@ -760,15 +828,23 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
 
   // Wallets: "dari bca ke gopay" for transfers; otherwise the wallet that was named.
   if (flow === 'transfer') {
-    const from = text.match(/\bdari\s+(.+?)\s+ke\s+(.+)$/);
-    const one = !from && wallets.length === 1 ? wallets[0] : undefined, outOf = one && /\b(dari|dr)\s+$/.test(text.slice(0, one.at));
-    const source = from ? walletsIn(from[1], ctx.wallets)[0] : one ? (outOf ? one : undefined) : wallets[0], target = from ? walletsIn(from[2], ctx.wallets)[0] : one ? (outOf ? undefined : one) : wallets[1];
+    // Each wallet's role comes from the word before it: "dari" = out of it; "ke", "masuk", "top up", "isi" = into it.
+    const role = (w: typeof wallets[number]) => { const before = text.slice(0, w.at); return /\b(dari|dr|pakai|pake|via|lewat)\s+$/.test(before) ? 'from' : /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?|tambah saldo)\s+$/.test(before) ? 'to' : ''; };
+    const cash = ctx.wallets.find(w => !w.isArchived && (w.type === 'cash' || /tunai|cash/i.test(w.name)));
+    let source = wallets.find(w => role(w) === 'from'), target = wallets.find(w => role(w) === 'to' && w.id !== source?.id);
+    const loose = wallets.filter(w => w !== source && w !== target && w.id !== cash?.id);
+    if (CASH_OUT.test(text) && cash) { target = { ...cash, at: -1, word: '' }; source = source || loose[0]; }
+    else if (CASH_IN.test(text) && cash) { source = { ...cash, at: -1, word: '' }; target = target || loose[0]; }
+    else if (!source && !target) { source = wallets[0]; target = wallets[1]; }
+    else if (!source) source = wallets.find(w => w.id !== target?.id && !role(w));
+    else if (!target) target = wallets.find(w => w.id !== source?.id && !role(w));
     if (source) preset.walletId = source.id; if (target && target.id !== source?.id) preset.destinationWalletId = target.id;
   } else {
     // A wallet word that is really part of a record's name ("Dana Darurat" vs the wallet "Tabungan Darurat") doesn't count;
     // a wallet right after "dari / pake / via / masuk" wins.
     const taken = new Set([debt, receivable, claim, fund, wish].filter(Boolean).flatMap(match => match!.words));
-    const named = wallets.filter(w => !taken.has(w.word));
+    // "tarik tunai", "setor tunai" name an action, not the Tunai wallet.
+    const named = wallets.filter(w => !taken.has(w.word) && !(/^(tunai|cash)$/.test(w.word) && /\b(tarik|narik|setor|nyetor)\s+$/.test(text.slice(0, w.at))));
     const cued = named.find(w => /\b(dari|dr|pakai|pake|pakek|pk|via|masuk|masuk ke|lewat)\s+$/.test(text.slice(0, w.at)));
     const chosen = cued || named[0];
     if (chosen) preset.walletId = chosen.id;
@@ -832,4 +908,42 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     result.name = preset.description || preset.merchant || (flow === 'income' && /\b(gaji|gajian)\b/.test(text) ? 'Gaji' : category?.name || '');
   }
   return result;
+}
+
+/* ------------------------------------------------------------------ Several entries at once */
+
+export type QuickBatchItem = { text: string; result: QuickResult };
+const BATCH_KINDS = new Set<QuickKind>(['expense', 'income', 'transfer', 'budget']);
+/**
+ * "makan 25rb, parkir 5rb, bensin 30rb", "budget makan 2jt, transport 800rb", or one entry per line: several entries.
+ * Split only where every piece has its own amount (so "1,5jt" or "beli nasi dan es teh 25rb" stay one). A date or a
+ * wallet said once ("kemarin …", "… pakai gopay") applies to the pieces that don't have their own, and "budget" at the
+ * start covers the pieces after it. Returns null when the text is a single entry.
+ */
+export function parseQuickBatch(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickBatchItem[] | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const hasAmount = (piece: string) => findAmounts(amountWords(lower(piece))).some(a => a.marked || a.value >= 100);
+  let pieces = raw.split(/\n|;/).map(p => p.trim()).filter(Boolean);
+  pieces = pieces.flatMap(piece => {
+    const parts = piece.split(/,\s+|\s+\+\s+|\s+(?:dan|terus|lalu|trus|sama|habis itu|abis itu)\s+(?=\S+(?:\s+\S+){0,5}?\s+(?:rp\.?\s*)?\d)/i).map(p => p.trim()).filter(Boolean);
+    return parts.length > 1 && parts.every(hasAmount) ? parts : [piece];
+  });
+  if (pieces.length < 2 || pieces.length > 20 || !pieces.every(hasAmount)) return null;
+  const first = parseQuickText(pieces[0], ctx, mode);
+  const budgetAll = first?.kind === 'budget';
+  const items = pieces.map(text => ({ text, result: budgetAll && !/\b(anggaran|budget|bujet|jatah)\b/i.test(text) ? parseQuickText(`budget ${text}`, ctx, mode) : parseQuickText(text, ctx, mode) }));
+  if (items.some(item => !item.result || !BATCH_KINDS.has(item.result.kind) || !item.result.amount)) return null;
+  // A date or a wallet said once counts for the others.
+  const dated = items.find(item => new RegExp(DATE_PHRASES.source).test(lower(item.text)));
+  const flows = items.filter(item => item.result!.kind === 'expense' || item.result!.kind === 'income');
+  const said = flows.filter(item => item.result!.preset.walletId && walletsIn(lower(item.text), ctx.wallets).length);
+  const walletIds = new Set(said.map(item => item.result!.preset.walletId));
+  const saidWallet = said[0];
+  for (const item of items) {
+    const r = item.result!;
+    if (dated && dated !== item && !new RegExp(DATE_PHRASES.source).test(lower(item.text)) && r.kind !== 'budget') { r.preset.date = dated.result!.preset.date || dated.result!.date; r.date = r.preset.date || r.date; }
+    if (saidWallet && walletIds.size === 1 && !walletsIn(lower(item.text), ctx.wallets).length && r.kind === saidWallet.result!.kind) r.preset.walletId = saidWallet.result!.preset.walletId;
+  }
+  return items as QuickBatchItem[];
 }

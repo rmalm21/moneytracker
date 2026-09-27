@@ -34,7 +34,7 @@ test('"air" is read from its context: a drink, or the water bill', () => {
 test('the same word means different things next to different words', () => {
   const cases = {
     'tiket kereta 150rb': 'expense.transportasi.kereta', 'tiket konser 800rb': 'expense.nongkrong-hiburan.konser', 'tiket pesawat 1,2jt': 'expense.transportasi.pesawat',
-    'grab 25rb': 'expense.transportasi', 'grabfood 60rb': 'expense.makan-minum.delivery', 'gojek makan 45rb': 'expense.makan-minum.delivery', 'ojek 15rb': 'expense.transportasi.ojek',
+    'grab 25rb': 'expense.transportasi.taxi-online', 'grabfood 60rb': 'expense.makan-minum.delivery', 'gojek makan 45rb': 'expense.makan-minum.delivery', 'ojek 15rb': 'expense.transportasi.ojek',
     'ayam goreng 20rb': 'expense.makan-minum', 'ayam 1 kg 40rb': 'expense.makan-minum.bahan-makanan', 'beras 5kg 70rb': 'expense.makan-minum.bahan-makanan',
     'servis motor 150rb': 'expense.kendaraan.service', 'servis hp 300rb': 'expense.belanja', 'cuci motor 20rb': 'expense.kendaraan.cuci-kendaraan', 'laundry 35rb': 'expense.rumah-kebutuhan.laundry',
     'obat 20rb': 'expense.kesehatan.obat', 'obat nyamuk 15rb': 'expense.rumah-kebutuhan', 'beli bunga 100rb': 'expense.sosial-sedekah.hadiah', 'bunga pinjaman 200rb': 'expense.biaya-keuangan.bunga-biaya',
