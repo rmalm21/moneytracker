@@ -6311,3 +6311,53 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .sb-extra-picker.is-compact .sb-extra-menu { position: absolute; top: 100%; z-index: 10; grid-template-columns: minmax(0, 1fr); }
 .rs-camera-focus { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid #fff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); animation: rs-focus .6s ease-out; pointer-events: none; }
 @keyframes rs-focus { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* 121. v85: set the receipt area before reading; one extras editor look for Scan struk and Split Bill; camera lens. */
+.rs-area { display: grid; gap: 10px; }
+.rs-area-head { display: grid; gap: 2px; }
+.rs-area-head strong { font-size: 1rem; }
+.rs-area-head small { color: var(--muted); font-size: .82rem; }
+.rs-area .sb-note { display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+.rs-area-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rs-area-tools small { flex: 1 1 140px; font-size: .8rem; }
+.rs-area-tool { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 99px; background: var(--paper); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+.rs-area-tool:disabled { opacity: .45; cursor: default; }
+.rs-camera-lens { position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, .35); border-radius: 99px; background: rgba(0, 0, 0, .55); color: #fff; font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+/* Charges and discounts, one look in Split Bill and in Scan struk: a row per charge, tap to edit; kinds as chips. */
+.xe-kinds { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 6px; animation: select-appear .16s var(--ease-out); }
+.xe-kind { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 12px 3px 4px; border: 1px solid var(--line); border-radius: 99px; background: var(--paper); color: var(--ink); font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; }
+.xe-kind .sb-extra-menu-icon { width: 28px; height: 28px; border-radius: 99px; }
+.xe-kind:hover, .xe-kind:focus-visible { border-color: var(--accent); }
+.xe-row { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.xe-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; width: 100%; padding: 8px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.xe-head > strong { font-size: .88rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xe-head .sb-extra-menu-icon { width: 28px; height: 28px; }
+.xe-chev { color: var(--muted); transition: transform .18s ease; }
+.xe-row.is-open .xe-chev { transform: rotate(180deg); }
+.xe-row .sb-extra-body { display: grid; gap: 10px; padding: 0 2px 12px; border: 0; }
+/* "Nominal manual" / "Persentase": name left, a compact input right, the full share under the name. */
+.sb-person-line.is-typed { grid-template-columns: minmax(0, 1fr) 128px; align-items: center; gap: 10px; }
+.sb-person-line.is-typed .sbx-row-main { grid-template-columns: auto minmax(0, 1fr); padding-bottom: 0; }
+.sb-person-line.is-typed .sbx-row-name { overflow: hidden; }
+.sb-person-line.is-typed > .input, .sb-person-line.is-typed .input { min-height: 40px; height: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.sb-person-line.is-typed .sb-percent { gap: 4px; }
+.sb-person-line.is-typed .sb-percent .input { width: 100%; }
+.sb-people-totals.is-typed .sbx-row { padding: 2px 0 8px; }
+.sb-typed-sum { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.sb-typed-sum.is-ok { background: color-mix(in srgb, var(--good, #2f9e6e) 10%, var(--paper)); color: var(--ink); }
+.sb-typed-sum.is-warn { background: var(--warn-soft); color: var(--warn-ink); }
+.sb-typed-sum small { font-weight: 700; white-space: nowrap; }
+@media (max-width: 360px) { .sb-person-line.is-typed { grid-template-columns: minmax(0, 1fr) 112px; } }
+.rs-extras-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; padding: 2px; color: var(--muted); font-size: .76rem; font-weight: 700; }
+.rs-money .xe-row:last-of-type { border-bottom: 0; }
+.xe-row.is-off .xe-head > strong { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.xe-row.is-check .sb-extra-title small { color: var(--warn-ink); font-weight: 600; }
+.rs-xe-amount { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.rs-xe-amount .rs-sign { width: 30px; height: 40px; }
+.rs-xe-amount .input { min-height: 40px; height: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.rs-money-input { align-items: center; }
+.rs-money-input .input { width: 140px; min-height: 38px; height: 38px; text-align: right; }
+.rs-pay-edit { width: 100%; border: 0; background: none; color: var(--ink); font: inherit; font-size: .84rem; cursor: pointer; text-align: left; }
+.rs-pay-edit > span:last-child { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.rs-pay { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); margin-top: 4px; padding-top: 4px; }
+.rs-charge-mode-wrap { display: grid; gap: 6px; padding: 8px 0 4px; }

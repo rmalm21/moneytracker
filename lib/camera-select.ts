@@ -8,14 +8,17 @@
  *   - lens words for other lenses ("ultra", "wide angle", "0.5", "macro", "tele", "depth", "infrared") count against;
  *   - iOS "Back Camera" is the 1× lens; its "Dual Wide" / "Triple" virtual cameras may start wide, so they rank below it;
  *   - Android "camera2 0, facing back" is usually the main sensor; higher numbers are usually the extra lenses.
- * When nothing can be told apart (no labels, one camera) the choice is left to the browser (environment).
+ * Phones name their cameras in the phone's language (an iPhone set to Indonesian says "Kamera Belakang",
+ * "Kamera Ultra Lebar Belakang", "Kamera Tiga Belakang"), so the lens words are matched in Indonesian too.
+ * When labels cannot tell the rear cameras apart, the camera itself is asked (continuous autofocus, sensor size:
+ * `chooseByCapabilities`); when that cannot either, nothing is remembered and the person can switch lenses.
  */
 export type CameraInfo = { deviceId: string; label: string };
 
 const FRONT = /\b(front|user|selfie|depan|facing front)\b/i;
 const REAR = /\b(back|rear|belakang|environment|facing back|world)\b/i;
-const OTHER_LENS = /(ultra[\s-]?wide|ultrawide|wide[\s-]?angle|\b0[.,]5\s*x?\b|\bmacro\b|\btele(photo)?\b|\bdepth\b|\binfra ?red\b|\bir\b)/i;
-const VIRTUAL = /\b(dual|triple)\b/i;
+const OTHER_LENS = /(ultra[\s-]?wide|ultrawide|wide[\s-]?angle|ultra[\s-]?lebar|sudut[\s-]?lebar|\b0[.,]5\s*x?\b|\bmacro\b|\bmakro\b|\btele(photo|foto)?\b|\bdepth\b|\bkedalaman\b|\binfra ?(red|merah)\b|\bir\b)/i;
+const VIRTUAL = /\b(dual|triple|ganda|tiga)\b/i;
 
 /** Higher is more likely the normal rear camera; below zero means "not this one". */
 export function cameraScore(camera: CameraInfo, index = 0) {
@@ -25,7 +28,7 @@ export function cameraScore(camera: CameraInfo, index = 0) {
   let score = REAR.test(label) ? 20 : 5;
   if (OTHER_LENS.test(label)) score -= 30;
   if (VIRTUAL.test(label)) score -= 6;
-  if (/^back camera$/i.test(label.trim())) score += 6;
+  if (/^(back camera|kamera belakang)$/i.test(label.trim())) score += 6;
   const number = label.match(/camera\s*2?\s*(\d+)/i)?.[1] ?? label.match(/\b(\d+)\b/)?.[1];
   if (number !== undefined) score -= Math.min(5, Number(number)) * .5;
   return score - index * .01;
@@ -62,3 +65,34 @@ export function focusConstraints(capabilities: { focusMode?: string[]; zoom?: { 
 }
 /** Whether a tap can ask the camera to focus on a point (real support only; nothing is faked). */
 export const canTapFocus = (capabilities: { focusMode?: string[]; pointsOfInterest?: unknown } | undefined) => Boolean(capabilities?.focusMode?.includes('single-shot') || capabilities?.focusMode?.includes('manual') && capabilities?.pointsOfInterest);
+
+/** Rear cameras the labels rank equally at the top: the ones worth asking for their capabilities. */
+export function tiedRearCameras(cameras: CameraInfo[]) {
+  const ranked = rankCameras(cameras.filter(camera => camera.label)).filter(camera => cameraScore(camera) > 0);
+  if (ranked.length < 2) return [];
+  const top = cameraScore(ranked[0]);
+  const tied = ranked.filter(camera => cameraScore(camera) === top);
+  return tied.length > 1 ? tied.map(camera => camera.deviceId) : [];
+}
+
+export type LensCapabilities = { focusMode?: string[]; width?: { max?: number }; height?: { max?: number } };
+/** The main camera focuses by itself and has the biggest sensor; ultra-wides are often fixed-focus and smaller. */
+export function lensScore(caps: LensCapabilities | undefined) {
+  const focus = caps?.focusMode?.includes('continuous') ? 100 : 0;
+  const megapixels = (caps?.width?.max || 0) * (caps?.height?.max || 0) / 1e6;
+  return focus + Math.min(50, megapixels);
+}
+/** The clearly best lens by its capabilities, or `undefined` when they look alike (then nothing is guessed). */
+export function chooseByCapabilities(list: { deviceId: string; caps: LensCapabilities | undefined }[]) {
+  const scored = list.map(entry => ({ id: entry.deviceId, score: lensScore(entry.caps) })).sort((a, b) => b.score - a.score);
+  if (!scored.length) return undefined;
+  if (scored.length > 1 && scored[0].score - scored[1].score < .5) return undefined;
+  return scored[0].id;
+}
+/** "Ganti lensa": the next rear camera in ranked order, wrapping around. */
+export function nextRearCamera(cameras: CameraInfo[], current: string | undefined) {
+  const rear = rankCameras(cameras.filter(camera => camera.label)).filter(camera => cameraScore(camera) > 0).map(camera => camera.deviceId);
+  if (rear.length < 2) return undefined;
+  const at = current ? rear.indexOf(current) : -1;
+  return rear[(at + 1) % rear.length];
+}

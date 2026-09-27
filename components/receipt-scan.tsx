@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, MoreHorizontal, Bug, Camera, Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardPaste, Copy, CreditCard, Crop, Eye, FileText, ImagePlus, Info, Percent, Plus, ReceiptText, RotateCw, ScanText, ShieldCheck, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, ConciergeBell, Receipt, Scale, Tag, Truck, MoreHorizontal, Bug, Camera, Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardPaste, Copy, CreditCard, Crop, Eye, FileText, ImagePlus, Info, Percent, Plus, ReceiptText, RotateCw, ScanText, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -46,6 +46,9 @@ export function takeReceiptHandoff() { const value = handoff; if (value) setTime
 const key = () => Math.random().toString(36).slice(2, 9);
 const CHARGE_SHORT: Record<ChargeKey, string> = { discount: 'Diskon', tax: 'Pajak / PB1', service: 'Service', delivery: 'Ongkir', fee: 'Biaya lain', rounding: 'Pembulatan' };
 const CHARGE_HINT: Partial<Record<ChargeKey, string>> = { discount: 'potongan, promo, voucher', tax: 'PPN, PBJT', fee: 'admin, kemasan, tip' };
+/** The same icons and colours as Split Bill's "Tambahan & diskon". */
+const CHARGE_LOOKS: Record<ChargeKey, [typeof Percent, string]> = { discount: [Tag, 'discount'], tax: [Percent, 'tax'], service: [ConciergeBell, 'service'], delivery: [Truck, 'delivery'], fee: [Receipt, 'admin'], rounding: [Scale, 'rounding'] };
+const PERCENTS: Partial<Record<ChargeKey, number[]>> = { tax: [10, 11], service: [5, 10], discount: [5, 10, 15] };
 const STAGES: [OcrProgress['stage'][], string][] = [[['prepare'], 'Menyiapkan foto'], [['straighten'], 'Meluruskan struk'], [['load', 'read', 'second'], 'Membaca tulisan'], [['parse'], 'Mengenali rincian'], [['check', 'done'], 'Memeriksa total']];
 const TYPE_LABELS: Record<string, string> = { restaurant: 'Restoran', cafe: 'Kafe', minimarket: 'Minimarket', supermarket: 'Supermarket', retail: 'Toko', pharmacy: 'Apotek', fuel: 'SPBU / BBM', parking: 'Parkir', food_delivery: 'Pesan antar makanan', marketplace: 'Belanja online', travel: 'Perjalanan', generic: 'Umum', unknown: 'Belum dikenali' };
 const DEBUG_KEY = 'dompet-ajaib:ocr-debug';
@@ -69,11 +72,12 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [turn, setTurn] = useState(0), [upright, setUpright] = useState<Upright | null>(null);
   const [progress, setProgress] = useState<OcrProgress | null>(null), [problem, setProblem] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState('');
   const [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
-  const [result, setResult] = useState<OcrResult | null>(null), [gate, setGate] = useState<{ prepared: Prepared } | null>(null), [cameraOpen, setCameraOpen] = useState(false);
+  const [result, setResult] = useState<OcrResult | null>(null), [area, setArea] = useState<{ prepared: Prepared; quarter: number } | null>(null), [cameraOpen, setCameraOpen] = useState(false);
   const [source, setSource] = useState<{ label: string; box: Box | null } | null>(null), [cornersOpen, setCornersOpen] = useState(false), [reread, setReread] = useState<Reread | null>(null);
   const [settledFields, setSettledFields] = useState<string[]>([]), [duplicate, setDuplicate] = useState<Duplicate | null>(null), [dupOk, setDupOk] = useState(false), [parts, setParts] = useState(1), [debug, setDebug] = useState(false);
   const job = useRef(0), captureInput = useRef<HTMLInputElement>(null), moreInput = useRef<HTMLInputElement>(null);
   const [shownKeys, setShownKeys] = useState<ChargeKey[]>([]), [bigPhoto, setBigPhoto] = useState(false), [openItem, setOpenItem] = useState<string | null>(null);
+  const [openCharge, setOpenCharge] = useState<ChargeKey | ''>(''), [addingCharge, setAddingCharge] = useState(false);
   const [editMoney, setEditMoney] = useState(false), [allItems, setAllItems] = useState(false), [rawOpen, setRawOpen] = useState(false), moreMenu = useRef<HTMLDetailsElement>(null);
   const payWallets = data.wallets.filter(w => walletAllows(w, 'pay'));
   const inWallets = data.wallets.filter(w => !w.isArchived);
@@ -83,8 +87,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     job.current++; if (photoUrl) URL.revokeObjectURL(photoUrl); if (upright) URL.revokeObjectURL(upright.url);
     setPhoto(null); setPhotoUrl(''); setUpright(null); setTurn(0); setProgress(null); setProblem(''); setPasteOpen(false); setPasted(''); setRead(null); setRawText(''); setOcrMeta(''); setDraft(null); setWhy({}); setError(''); setShownKeys([]);
     // The working images are released with the result (memory on phones).
-    setResult(null); setGate(null); setCameraOpen(false); setSource(null); setCornersOpen(false); setReread(null); setSettledFields([]); setDuplicate(null); setDupOk(false); setParts(1);
-    setEditMoney(false); setAllItems(false); setRawOpen(false);
+    setResult(null); setArea(null); setCameraOpen(false); setSource(null); setCornersOpen(false); setReread(null); setSettledFields([]); setDuplicate(null); setDupOk(false); setParts(1);
+    setEditMoney(false); setAllItems(false); setRawOpen(false); setOpenCharge(''); setAddingCharge(false);
   }
   useEffect(() => { if (!open) { cancelIfBusy(); reset(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
@@ -103,11 +107,11 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   }
   function cancelIfBusy() { if (progress) cancelReceiptRead(); }
   async function showUpright(source: Blob, quarter: number) {
-    try { const next = await uprightPreview(source, quarter); setUpright(current => { if (current) URL.revokeObjectURL(current.url); return next; }); } catch { /* the plain photo is still shown */ }
+    try { const next = await uprightPreview(source, quarter); setUpright(current => { if (current) URL.revokeObjectURL(current.url); return next; }); return true; } catch { /* the plain photo is still shown */ return false; }
   }
   async function scan(source: Blob, quarter = 0, corners?: Quad, prepared?: Prepared) {
     const id = ++job.current;
-    setProblem(''); setDraft(null); setRead(null); setResult(null); setGate(null); setSource(null); setReread(null); setParts(1);
+    setProblem(''); setDraft(null); setRead(null); setResult(null); setArea(null); setSource(null); setReread(null); setParts(1);
     setProgress({ stage: 'prepare', progress: 0, label: 'Menyiapkan foto…' });
     try {
       const next = await readReceiptPhoto(source, value => { if (job.current === id) setProgress(value); }, { turn: quarter, corners, prepared });
@@ -121,23 +125,31 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     } catch (e) { if (job.current === id) setProblem((e as Error).message || 'Foto belum bisa dibaca.'); }
     finally { if (job.current === id) setProgress(null); }
   }
-  /** A new photo: its quality is checked first (quick); a photo that will not read well offers a retake. */
+  /**
+   * A new photo: its quality is checked and the receipt's edges are found (quick), then the person sets the area to
+   * read before anything is read. Without a preview (rare) the photo is read straight away.
+   */
   async function pick(file: Blob | undefined) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { setProblem('Pilih file gambar (JPG, PNG, atau WebP).'); return; }
     if (file.size > 25 * 1024 * 1024) { setProblem('Foto terlalu besar (lebih dari 25 MB).'); return; }
     if (photoUrl) URL.revokeObjectURL(photoUrl);
-    setPhoto(file); setPhotoUrl(URL.createObjectURL(file)); setTurn(0); void showUpright(file, 0);
-    if (!ocrAvailable()) { setProblem('Perangkat ini belum bisa membaca foto. Tempel teks struknya, atau isi sendiri.'); return; }
+    setPhoto(file); setPhotoUrl(URL.createObjectURL(file)); setTurn(0); setArea(null);
+    if (!ocrAvailable()) { void showUpright(file, 0); setProblem('Perangkat ini belum bisa membaca foto. Tempel teks struknya, atau isi sendiri.'); return; }
+    await prepareArea(file, 0);
+  }
+  async function prepareArea(file: Blob, quarter: number) {
     const id = ++job.current;
-    setProblem(''); setProgress({ stage: 'prepare', progress: .02, label: 'Memeriksa foto…' });
+    setProblem(''); setProgress({ stage: 'prepare', progress: .02, label: 'Mencari tepi struk…' });
     try {
-      const prepared = await analyzeReceiptPhoto(file, 0);
+      const [prepared, shown] = await Promise.all([analyzeReceiptPhoto(file, quarter), showUpright(file, quarter)]);
       if (job.current !== id) return;
-      if (prepared.quality.retake) { setProgress(null); setGate({ prepared }); return; }
-      void scan(file, 0, undefined, prepared);
+      setProgress(null);
+      if (shown) setArea({ prepared, quarter }); else void scan(file, quarter, undefined, prepared);
     } catch (e) { if (job.current === id) { setProgress(null); setProblem((e as Error).message || 'Foto belum bisa dibaca.'); } }
   }
+  function rotateArea() { if (!photo || !area) return; const next = (area.quarter + 1) % 4; setTurn(next); setArea(null); void prepareArea(photo, next); }
+  function retake() { reset(); if (liveCameraAvailable()) setCameraOpen(true); else captureInput.current?.click(); }
   function rotate() { if (!photo) return; const next = (turn + 1) % 4; setTurn(next); void showUpright(photo, next); void scan(photo, next); }
   function readText(text: string) { const next = readReceiptText(text); setRawText(text.trim()); setResult(null); setParts(1); if (!next.items.length && !next.total) { setProblem('Belum ada item atau total yang terbaca dari teks itu.'); } else setProblem(''); build(next); setPasteOpen(false); }
   function manual() { setResult(null); build(readReceiptText('')); setProblem(''); }
@@ -185,6 +197,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   /** Checked again after every change (items, charges, total). */
   const live = draft ? reconcileAmounts({ total: draft.amount, computed: computedTotal, hasParts: base > 0 }) : null;
   const shownCharges = draft ? CHARGE_ORDER.filter(key => draft.ch[key]) : [];
+  const chargeKeys = draft ? CHARGE_ORDER.filter(key => draft.ch[key] || shownKeys.includes(key)) : [];
+  const addableCharges = CHARGE_ORDER.filter(key => !chargeKeys.includes(key));
   const categoriesUsed = new Set(draft?.items.filter(item => item.categoryId).map(item => `${item.categoryId}:${item.subcategoryId}`)).size;
   const catName = (id: string | null | undefined) => data.categories.find(c => c.id === id)?.name || '';
   const alternatives = useMemo(() => {
@@ -286,7 +300,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const busy = Boolean(progress);
   const wallets = draft?.type === 'income' ? inWallets : payWallets;
   const stageIndex = progress ? STAGES.findIndex(([stages]) => stages.includes(progress.stage)) : -1;
-  const quality = result?.quality || gate?.prepared.quality;
+  const quality = result?.quality || area?.prepared.quality;
   const itemStatus = (item: Item) => item.source !== undefined && !settledFields.includes(`item:${item.source}`) ? intel?.items[item.source]?.amount.status || 'likely' : 'likely';
   const totalStatus = statusOf('total', intel?.grandTotal.status);
   const dateStatus = read?.items.length || read?.total ? statusOf('date', intel?.date.status) : 'likely';
@@ -297,7 +311,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     <input ref={captureInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { void pick(e.target.files?.[0]); e.target.value = ''; }}/>
     <input ref={moreInput} type="file" accept="image/*" hidden onChange={e => { void addMore(e.target.files?.[0]); e.target.value = ''; }}/>
 
-    {!draft && !busy && !gate && <div className="rs-start">
+    {!draft && !busy && !area && <div className="rs-start">
       <div className="rs-hero"><span className="rs-hero-icon" aria-hidden="true"><ScanText size={26}/></span><div><strong>Foto struk atau nota</strong><small>Nominal, tanggal, tempat, item, pajak, dan cara bayar dibaca otomatis. Kamu cukup memeriksa bagian yang ditandai.</small></div></div>
       <div className="rs-pick">
         <button type="button" className="rs-pick-button is-main" onClick={() => liveCameraAvailable() ? setCameraOpen(true) : captureInput.current?.click()}><Camera size={22}/><span>Ambil foto</span></button>
@@ -311,11 +325,12 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       <button type="button" className="link-button" onClick={manual}>Isi sendiri tanpa foto →</button>
     </div>}
 
-    {gate && !busy && <div className="rs-gate" role="status">
-      {photoUrl && <img src={photoUrl} alt="Foto struk"/>}
-      <div><strong>{gate.prepared.quality.warnings[0] || 'Foto ini mungkin sulit dibaca.'}</strong><small>{gate.prepared.quality.warnings.length > 1 ? gate.prepared.quality.warnings[1] : 'Hasilnya mungkin perlu lebih banyak dicek.'}</small></div>
-      <div className="rs-gate-actions"><Button type="button" variant="secondary" onClick={() => { reset(); if (liveCameraAvailable()) setCameraOpen(true); else captureInput.current?.click(); }}><Camera size={16}/> Ambil ulang</Button><Button type="button" onClick={() => { const prepared = gate.prepared; setGate(null); if (photo) void scan(photo, turn, undefined, prepared); }}>Gunakan tetap</Button></div>
-    </div>}
+    {area && !busy && upright && <section className="rs-area" aria-label="Area struk">
+      <div className="rs-area-head"><strong>Tentukan area struk</strong><small>Hanya bagian di dalam garis yang dibaca.</small></div>
+      {area.prepared.quality.warnings[0] && <p className="sb-note is-warn" role="status"><AlertTriangle size={15}/> {area.prepared.quality.warnings[0]}</p>}
+      <ReceiptCorners key={upright.url} upright={upright} corners={area.prepared.corners} applyLabel="Baca struk" onRetake={retake} onRotate={rotateArea} onCancel={retake}
+        onApply={(corners, changed) => { const { prepared, quarter } = area; setArea(null); if (photo) void scan(photo, quarter, changed ? corners : undefined, changed ? undefined : prepared); }}/>
+    </section>}
 
     {busy && progress && <div className="rs-reading" role="status" aria-live="polite">
       {photoUrl && <img src={upright?.url || photoUrl} alt="Foto struk" style={upright ? undefined : { transform: `rotate(${turn * 90}deg)` }}/>}
@@ -419,37 +434,47 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         <button type="button" className="link-button rs-add-item" onClick={() => { const id = key(); setOpenItem(id); setAllItems(true); setDraft(current => current && { ...current, items: [...current.items, { key: id, name: '', qty: 1, price: 0, discount: 0, modifiers: [], categoryId: current.categoryId, subcategoryId: current.subcategoryId }] }); }}><Plus size={14}/> Tambah item</button>
       </section>
 
-      {/* 5. Money: subtotal, every charge and the total in one list; payment beside it. Edited only on request. */}
-      {(moneyRows.length > 0 || draft.payment || read?.paid || read?.change || read?.cashback || editMoney) && <section className="rs-money">
-        <div className="rs-sec-head"><h4>Rincian biaya</h4><button type="button" className="link-button" aria-expanded={editMoney} onClick={() => setEditMoney(v => !v)}>{editMoney ? 'Selesai' : 'Ubah'}</button></div>
-        {moneyRows.map((row, i) => <div className={`rs-money-row ${row.note ? 'is-included' : ''}`} key={i}><span>{row.label}{row.note && <small> · {row.note}</small>}</span><span>{row.amount < 0 ? '−' : ''}{rupiah(Math.abs(row.amount))}</span></div>)}
-        {moneyRows.length > 0 && <div className="rs-money-row is-total"><span>Total</span><span>{rupiah(draft.amount)}</span></div>}
+      {/* 5. Money: the shopping, each charge or discount as a row like in Split Bill (tap to change), the total, payment. */}
+      <section className="rs-money">
+        <div className="rs-sec-head"><h4>Rincian biaya</h4></div>
+        {itemsTotal ? <div className="rs-money-row"><span>Belanja ({draft.items.length} item)</span><span>{rupiah(itemsTotal)}</span></div>
+          : <label className="rs-money-row rs-money-input"><span>Subtotal</span><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></label>}
+        <div className="rs-extras-head"><span>Tambahan &amp; diskon</span>{addableCharges.length > 0 && <button type="button" className="sb-link" aria-expanded={addingCharge} onClick={() => setAddingCharge(v => !v)}>{addingCharge ? 'Tutup' : <><Plus size={14}/> Tambah</>}</button>}</div>
+        {addingCharge && <div className="xe-kinds" role="group" aria-label="Jenis biaya">{addableCharges.map(key => { const [Icon, kind] = CHARGE_LOOKS[key]; return <button type="button" key={key} className={`xe-kind is-${kind}`} onClick={() => { setShownKeys(list => [...list, key]); setOpenCharge(key); setAddingCharge(false); patch({ inc: { ...draft.inc, [key]: true } }); }}><span className="sb-extra-menu-icon"><Icon size={15}/></span>{CHARGE_SHORT[key]}</button>; })}</div>}
+        {!chargeKeys.length && !addingCharge && <small className="muted">Tidak ada pajak, service, atau diskon.</small>}
+        {chargeKeys.map(key => {
+          const [Icon, kind] = CHARGE_LOOKS[key], status = statusOf(key, intel?.charges[key]?.status), opened = openCharge === key, value = draft.ch[key], off = !draft.inc[key];
+          const minus = key === 'discount' || (key === 'rounding' && value < 0);
+          return <div className={`xe-row is-${kind} ${opened ? 'is-open' : ''} ${off ? 'is-off' : ''} ${status === 'check' ? 'is-check' : ''}`} key={key}>
+            <button type="button" className="xe-head" aria-expanded={opened} onClick={() => setOpenCharge(opened ? '' : key)}><span className="sb-extra-menu-icon"><Icon size={15}/></span><span className="sb-extra-title"><strong>{CHARGE_SHORT[key]}</strong><small>{off ? 'sudah termasuk harga' : status === 'check' ? 'perlu dicek' : CHARGE_HINT[key] || 'dihitung'}</small></span><strong className={minus && !off ? 'amount-positive' : ''}>{value ? `${minus ? '−' : ''}${rupiah(Math.abs(value))}` : rupiah(0)}</strong><ChevronDown size={15} className="xe-chev"/></button>
+            {opened && <div className="sb-extra-body">
+              <div className="rs-xe-amount">
+                {key === 'rounding' ? <button type="button" className="rs-sign" aria-label="Ganti tanda" onClick={() => patch({ ch: { ...draft.ch, rounding: -draft.ch.rounding } })}>{draft.ch.rounding < 0 ? '−' : '+'}</button> : <b className="rs-sign is-fixed" aria-hidden="true">{key === 'discount' ? '−' : '+'}</b>}
+                <Money value={Math.abs(value)} onChange={next => { patch({ ch: { ...draft.ch, [key]: key === 'rounding' && draft.ch.rounding < 0 ? -next : next } }); settle(key); }}/>
+                <button type="button" className="icon-btn" aria-label={`Hapus ${CHARGE_SHORT[key]}`} onClick={() => { patch({ ch: { ...draft.ch, [key]: 0 }, inc: { ...draft.inc, [key]: true } }); setShownKeys(list => list.filter(k => k !== key)); setOpenCharge(''); settle(key); }}><Trash2 size={16}/></button>
+              </div>
+              {base > 0 && PERCENTS[key] && <div className="toolbar-row">{PERCENTS[key]!.map(pct => { const amount = Math.round(base * pct / 100); return <button type="button" key={pct} className={`link-button ${Math.abs(value) === amount ? 'is-active' : ''}`} onClick={() => { patch({ ch: { ...draft.ch, [key]: amount } }); settle(key); }}>{pct}%</button>; })}</div>}
+              {key !== 'rounding' && <div className="sb-extra-how"><small>Di struk</small><div className="ip-seg sb-seg"><button type="button" className={!off ? 'active' : ''} onClick={() => patch({ inc: { ...draft.inc, [key]: true } })}>Ditambahkan</button><button type="button" className={off ? 'active' : ''} onClick={() => patch({ inc: { ...draft.inc, [key]: false } })}>Sudah termasuk harga</button></div></div>}
+            </div>}
+          </div>;
+        })}
+        {draft.type === 'expense' && !split && SEPARABLE.some(key => counted(key) > 0) && <div className="rs-charge-mode-wrap">
+          <div className="ip-seg rs-charge-mode" role="group" aria-label="Cara mencatat biaya"><button type="button" className={draft.chargeMode === 'spread' ? 'active' : ''} onClick={() => patch({ chargeMode: 'spread' })}>Gabungkan</button><button type="button" className={draft.chargeMode === 'separate' ? 'active' : ''} onClick={() => patch({ chargeMode: 'separate' })}>Pisahkan</button></div>
+          <small className="muted">{draft.chargeMode === 'spread' ? 'Biaya tambahan ikut masuk ke kategori belanja; rinciannya tetap tersimpan.' : 'Setiap biaya jadi baris sendiri dengan kategorinya.'}</small>
+          {draft.chargeMode === 'separate' && separated.map(key => { const ref = catFor(key); return <div className="rs-charge-cat" key={key}><span>{CHARGE_SHORT[key]} <b>{rupiah(counted(key))}</b></span><CategoryAccordion type="expense" compact label={`Kategori ${CHARGE_SHORT[key]}`} value={{ categoryId: ref.categoryId, subcategoryId: ref.subcategoryId }} onChange={value => patch({ chargeCats: { ...draft.chargeCats, [key]: value } })}/></div>; })}
+          {draft.chargeMode === 'separate' && separated.some(key => !catFor(key).categoryId) && <p className="sb-note is-warn">Pilih kategori untuk setiap biaya yang dicatat terpisah.</p>}
+        </div>}
+        <div className="rs-money-row is-total"><span>Total</span><span>{rupiah(draft.amount)}</span></div>
         {computedTotal > 0 && computedTotal !== draft.amount && <button type="button" className="rs-text-button rs-use-total" onClick={() => { patch({ amount: computedTotal }); settle('total'); }}>Hasil hitung {rupiah(computedTotal)} · pakai sebagai nominal</button>}
-        {itemsTotal > 0 && draft.amount > 0 && itemsTotal !== draft.amount && !shownCharges.length && <p className="muted rs-diff">Item {rupiah(itemsTotal)}, nominal {rupiah(draft.amount)}: selisih {rupiah(Math.abs(draft.amount - itemsTotal))}{draft.amount > itemsTotal ? ' (mungkin pajak, service, atau item yang belum terbaca)' : ' (mungkin diskon)'}.</p>}
-        {(draft.payment || read?.paid || read?.change || read?.cashback) ? <div className="rs-pay">
-          <div className="rs-money-row"><span>Pembayaran</span><span>{draft.payment ? PAYMENT_LABELS[draft.payment] : 'tidak tertulis'}</span></div>
+        {itemsTotal > 0 && draft.amount > 0 && itemsTotal !== draft.amount && !shownCharges.length && <p className="muted rs-diff">Item {rupiah(itemsTotal)}, nominal {rupiah(draft.amount)}: selisih {rupiah(Math.abs(draft.amount - itemsTotal))}{draft.amount > itemsTotal ? ' (mungkin pajak, service, atau item yang belum terbaca)' : ' (mungkin diskon)'}. Tambahkan lewat “Tambah”.</p>}
+        <div className="rs-pay">
+          {editMoney ? <label className="rs-line"><span className="rs-line-label">Cara bayar</span><span className="rs-line-control"><Select value={draft.payment} onChange={e => { patch({ payment: e.target.value as PaymentMethod }); setEditMoney(false); }}><option value="">Tidak tertulis</option>{(Object.keys(PAYMENT_LABELS) as PaymentMethod[]).filter(Boolean).map(m => <option key={m} value={m}>{PAYMENT_LABELS[m]}</option>)}</Select></span></label>
+            : <button type="button" className="rs-money-row rs-pay-edit" onClick={() => setEditMoney(true)}><span>Pembayaran</span><span>{draft.payment ? PAYMENT_LABELS[draft.payment] : 'tidak tertulis'} <ChevronRight size={14}/></span></button>}
           {read?.paid && read.paid !== draft.amount ? <div className="rs-money-row is-soft"><span>Dibayar</span><span>{rupiah(read.paid)}</span></div> : null}
           {read?.change ? <div className="rs-money-row is-soft"><span>Kembalian</span><span>{rupiah(read.change)}</span></div> : null}
           {read?.cashback ? <div className="rs-money-row is-soft"><span>Cashback / poin <small>· info</small></span><span>{rupiah(read.cashback)}</span></div> : null}
-        </div> : null}
-        {editMoney && <div className="rs-money-edit">
-          {base > 0 ? <div className="rs-charge-row is-base"><span>Belanja{itemsTotal ? ` (${draft.items.length} item)` : ' (subtotal)'}</span>{itemsTotal ? <strong>{rupiah(base)}</strong> : <span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span>}</div>
-            : <div className="rs-charge-row is-base"><span>Subtotal</span><span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span></div>}
-          {CHARGE_ORDER.filter(key => draft.ch[key] || shownKeys.includes(key)).map(key => { const status = statusOf(key, intel?.charges[key]?.status); return <div className={`rs-charge-row ${draft.inc[key] ? '' : 'is-off'} ${status === 'check' ? 'is-check' : ''}`} key={key}>
-            <span>{CHARGE_SHORT[key]}<small>{!draft.inc[key] ? 'sudah termasuk harga' : status === 'check' ? 'perlu dicek' : CHARGE_HINT[key] || ''}</small></span>
-            <span className="rs-charge-money">{key === 'discount' ? <b className="rs-sign is-fixed" aria-hidden="true">−</b> : key === 'rounding' ? <button type="button" className="rs-sign" aria-label="Ganti tanda" onClick={() => patch({ ch: { ...draft.ch, rounding: -draft.ch.rounding } })}>{draft.ch.rounding < 0 ? '−' : '+'}</button> : <b className="rs-sign is-fixed" aria-hidden="true">+</b>}<Money value={Math.abs(draft.ch[key])} onChange={value => { patch({ ch: { ...draft.ch, [key]: key === 'rounding' && draft.ch.rounding < 0 ? -value : value } }); settle(key); }}/></span>
-            <button type="button" className={`rs-include ${draft.inc[key] ? 'is-on' : ''}`} aria-pressed={draft.inc[key]} title={draft.inc[key] ? 'Dihitung' : 'Sudah termasuk harga'} onClick={() => patch({ inc: { ...draft.inc, [key]: !draft.inc[key] } })}>{draft.inc[key] ? <Check size={14}/> : null}<span>{draft.inc[key] ? 'Hitung' : 'Termasuk'}</span></button>
-          </div>; })}
-          {CHARGE_ORDER.some(key => !draft.ch[key] && !shownKeys.includes(key)) && <div className="rs-alts">{CHARGE_ORDER.filter(key => !draft.ch[key] && !shownKeys.includes(key)).map(key => <button type="button" key={key} className="sb-chip" onClick={() => setShownKeys(list => [...list, key])}><Plus size={13}/> {CHARGE_SHORT[key]}</button>)}</div>}
-          {draft.type === 'expense' && !split && SEPARABLE.some(key => counted(key) > 0) && <>
-            <div className="ip-seg rs-charge-mode" role="group" aria-label="Cara mencatat biaya"><button type="button" className={draft.chargeMode === 'spread' ? 'active' : ''} onClick={() => patch({ chargeMode: 'spread' })}>Gabungkan</button><button type="button" className={draft.chargeMode === 'separate' ? 'active' : ''} onClick={() => patch({ chargeMode: 'separate' })}>Pisahkan</button></div>
-            <small className="muted">{draft.chargeMode === 'spread' ? 'Pajak, service, ongkir, dan biaya lain ikut masuk ke kategori belanja; rinciannya tetap tersimpan di rincian struk.' : 'Setiap biaya jadi baris sendiri dengan kategorinya, jadi terlihat di laporan dan anggaran.'}</small>
-            {draft.chargeMode === 'separate' && separated.map(key => { const ref = catFor(key); return <div className="rs-charge-cat" key={key}><span>{CHARGE_SHORT[key]} <b>{rupiah(counted(key))}</b></span><CategoryAccordion type="expense" compact label={`Kategori ${CHARGE_SHORT[key]}`} value={{ categoryId: ref.categoryId, subcategoryId: ref.subcategoryId }} onChange={value => patch({ chargeCats: { ...draft.chargeCats, [key]: value } })}/></div>; })}
-            {draft.chargeMode === 'separate' && separated.some(key => !catFor(key).categoryId) && <p className="sb-note is-warn">Pilih kategori untuk setiap biaya yang dicatat terpisah.</p>}
-          </>}
-          <label className="rs-line"><span className="rs-line-label">Cara bayar</span><span className="rs-line-control"><Select value={draft.payment} onChange={e => patch({ payment: e.target.value as PaymentMethod })}><option value="">Tidak tertulis</option>{(Object.keys(PAYMENT_LABELS) as PaymentMethod[]).filter(Boolean).map(m => <option key={m} value={m}>{PAYMENT_LABELS[m]}</option>)}</Select></span></label>
-        </div>}
-      </section>}
+        </div>
+      </section>
 
       {draft.type === 'expense' && !split && categoriesUsed > 1 && <div className="rs-split">
         <label className="rs-toggle"><input type="checkbox" checked={draft.bySplit} onChange={e => patch({ bySplit: e.target.checked })}/> <span><strong>Pisah per kategori</strong><small>Item di struk ini masuk ke {categoriesUsed} kategori.</small></span></label>

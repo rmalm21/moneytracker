@@ -1,11 +1,14 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Camera, X } from 'lucide-react';
+import { Camera, SwitchCamera, X } from 'lucide-react';
 import { findPaper, greyFromRgba, paperCorners, sharpness, type Quad } from '@/lib/receipt-image';
-import { canTapFocus, chooseCamera, focusConstraints } from '@/lib/camera-select';
+import { canTapFocus, chooseByCapabilities, chooseCamera, focusConstraints, nextRearCamera, tiedRearCameras, type CameraInfo, type LensCapabilities } from '@/lib/camera-select';
 
-/** The camera that worked last time (this device only). */
-const CAMERA_KEY = 'dompet-ajaib:receipt-camera';
+/**
+ * The main camera once it is known for sure (chosen by label, by capabilities, or by the person), this device only.
+ * A new key: a browser default remembered by an older version (sometimes the ultra-wide) is not used again.
+ */
+const CAMERA_KEY = 'dompet-ajaib:receipt-camera-v2';
 
 /** Whether this browser can show a live camera. */
 export const liveCameraAvailable = () => typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
@@ -24,35 +27,55 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
   const steady = useRef(0), last = useRef<Quad | null>(null), autoRef = useRef(auto);
   autoRef.current = auto;
   const track = useRef<MediaStreamTrack | null>(null), [tapFocus, setTapFocus] = useState(false), [focusing, setFocusing] = useState<{ x: number; y: number } | null>(null), blurry = useRef(0);
+  const [lenses, setLenses] = useState<CameraInfo[]>([]), [lens, setLens] = useState<string | undefined>(), switchTo = useRef<(id: string) => void>(() => undefined);
   useEffect(() => {
     let stream: MediaStream | null = null, timer: ReturnType<typeof setInterval> | undefined, alive = true, starting = false;
     const size = { width: { ideal: 1920 }, height: { ideal: 1080 } };
     const stop = () => { stream?.getTracks().forEach(t => t.stop()); stream = null; track.current = null; };
     const remembered = () => { try { return localStorage.getItem(CAMERA_KEY); } catch { return null; } };
     const remember = (id: string | undefined) => { try { if (id) localStorage.setItem(CAMERA_KEY, id); else localStorage.removeItem(CAMERA_KEY); } catch { /* optional */ } };
-    /** Open the camera once: the remembered or best-ranked main rear camera, else the browser's environment camera. */
-    async function open() {
+    const byId = (id: string) => navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id }, ...size }, audio: false });
+    const list = async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label }));
+    /** Rear cameras the labels cannot tell apart: opened one by one for a moment to read what each can do. */
+    async function probe(ids: string[]) {
+      const found: { deviceId: string; caps: LensCapabilities | undefined }[] = [];
+      for (const id of ids.slice(0, 4)) {
+        const s = await byId(id).catch(() => null); if (!s) continue;
+        const t = s.getVideoTracks()[0]; found.push({ deviceId: id, caps: t?.getCapabilities?.() as LensCapabilities | undefined }); s.getTracks().forEach(x => x.stop());
+        if (!alive) return undefined;
+      }
+      return chooseByCapabilities(found);
+    }
+    /** Open the camera: the chosen lens, else the known main rear camera, else the browser's environment camera. */
+    async function open(force?: string) {
       if (starting) return; starting = true;
       try {
-        const saved = remembered();
-        try { stream = saved ? await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: saved }, ...size }, audio: false }) : null; }
-        catch { remember(undefined); stream = null; }
+        const saved = force || remembered();
+        try { stream = saved ? await byId(saved) : null; }
+        catch { if (!force) remember(undefined); stream = null; }
         if (!stream) stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, ...size }, audio: false });
         if (!alive) { stop(); return; }
         // With permission given, the cameras have labels: switch once if the main rear camera is a different one.
-        if (!saved) {
+        let cameras: CameraInfo[] = [];
+        try { cameras = await list(); } catch { /* no list: the first camera stays */ }
+        if (!saved && cameras.length) {
           try {
-            const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label }));
-            const best = chooseCamera(cameras), current = stream.getVideoTracks()[0]?.getSettings().deviceId;
-            if (best && best !== current) {
-              const next = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: best }, ...size }, audio: false }).catch(() => null);
+            let best = chooseCamera(cameras);
+            const tied = best ? [] : tiedRearCameras(cameras);
+            if (tied.length) { stop(); best = await probe(tied); }
+            const current = stream?.getVideoTracks()[0]?.getSettings().deviceId;
+            if (best && (best !== current || !stream)) {
+              const next = await byId(best).catch(() => null);
               if (next && alive) { stop(); stream = next; } else next?.getTracks().forEach(t => t.stop());
             }
+            // Only a sure choice is kept for next time; the browser's own pick (maybe the ultra-wide) never is.
+            if (best && stream?.getVideoTracks()[0]?.getSettings().deviceId === best) remember(best);
+            if (!stream && alive) stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, ...size }, audio: false });
           } catch { /* the first camera stays */ }
         }
         if (!alive || !stream) { stop(); return; }
         const t = stream.getVideoTracks()[0]; track.current = t || null;
-        remember(t?.getSettings().deviceId);
+        setLenses(cameras); setLens(t?.getSettings().deviceId);
         // Continuous autofocus and a 1× view, only where the camera says it supports them; never fatal.
         try {
           const caps = (t?.getCapabilities?.() || {}) as MediaTrackCapabilities & { focusMode?: string[]; zoom?: { min: number; max: number }; pointsOfInterest?: unknown };
@@ -64,6 +87,8 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
         el.srcObject = stream; await el.play().catch(() => undefined);
       } finally { starting = false; }
     }
+    // "Ganti lensa": the person's choice is used and remembered.
+    switchTo.current = id => { if (starting) return; stop(); remember(id); void open(id).catch(() => { remember(undefined); void open().catch(() => undefined); }); };
     // Back in the app after switching away: the camera may have been released; open it again (only then).
     const onVisible = () => { if (document.visibilityState === 'visible' && alive && (!track.current || track.current.readyState === 'ended')) { stop(); void open().catch(() => undefined); } };
     (async () => {
@@ -114,6 +139,8 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
       setTimeout(() => { void t.applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as unknown as MediaTrackConstraints).catch(() => undefined); setFocusing(null); }, 1500);
     } catch { setFocusing(null); }
   }
+  // Only offered when the phone lists more than one rear camera.
+  const next = nextRearCamera(lenses, lens);
   async function shoot() {
     const el = video.current; if (!el?.videoWidth || busy) return;
     setBusy(true);
@@ -128,6 +155,7 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
         {focusing && <span className="rs-camera-focus" style={{ left: `${focusing.x * 100}%`, top: `${focusing.y * 100}%` }} aria-hidden="true"/>}
         {quad && <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon className={hint.ok ? 'is-ok' : ''} points={quad.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>}
         <span className={`rs-camera-hint ${hint.ok ? 'is-ok' : ''}`} role="status" aria-live="polite">{hint.text}</span>
+        {next && <button type="button" className="rs-camera-lens" onClick={() => switchTo.current(next)} aria-label="Ganti lensa kamera"><SwitchCamera size={17}/> Ganti lensa</button>}
       </div>
       <div className="rs-camera-bar">
         <label className="rs-camera-auto"><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)}/> Foto otomatis</label>

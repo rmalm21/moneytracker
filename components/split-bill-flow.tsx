@@ -75,14 +75,18 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
   const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
-  const picker = useRef<HTMLDetailsElement>(null);
-  const [openExtra, setOpenExtra] = useState('');
+  const [openExtra, setOpenExtra] = useState(''), [addingExtra, setAddingExtra] = useState(false);
   const editing = start.mode === 'edit' && start.bill?.status === 'active';
   const original = start.bill;
   const progress = useMemo(() => editing && original ? billProgress(original, data.receivables, data.debts) : null, [editing, original, data.receivables, data.debts]);
   const paidPeople = new Set((progress?.people || []).filter(person => person.role !== 'payer' && person.paid > 0).map(person => person.id));
   const hasPayments = paidPeople.size > 0;
   const result = useMemo(() => computeSplit(bill), [bill]);
+  // "Nominal manual" and "Persentase": what is typed against what has to be shared (before charges, as the amounts are).
+  const typed = bill.method === 'amount' || bill.method === 'percent';
+  const typedNeed = useMemo(() => bill.method === 'amount' ? computeSplit({ ...bill, method: 'equal' }).people.reduce((n, p) => n + p.base, 0) : 10000, [bill]);
+  const typedSum = bill.participants.reduce((n, p) => n + (bill.method === 'amount' ? p.amount || 0 : p.percent || 0), 0);
+  const typedLeft = typedNeed - typedSum;
   const patch = (changes: Partial<SplitBillInput>) => { setBill(current => ({ ...current, ...changes })); setError(''); };
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
 
@@ -286,18 +290,17 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
         {/* 4. Shared charges and discounts. */}
         <section className="sb-sec">
           <div className="sb-sec-head"><h4>Tambahan &amp; diskon</h4>
-            <details className="sb-extra-picker is-compact" ref={picker}>
-              <summary><Plus size={14}/> Tambah</summary>
-              <div className="sb-extra-menu" role="menu">{EXTRA_KINDS.map(kind => { const [Icon, hint] = EXTRA_LOOKS[kind]; return <button type="button" role="menuitem" key={kind} className={`is-${kind}`} onClick={() => { addExtra(kind); if (picker.current) picker.current.open = false; }}><span className="sb-extra-menu-icon"><Icon size={17}/></span><span><strong>{EXTRA_LABELS[kind]}</strong><small>{hint}</small></span></button>; })}</div>
-            </details>
+            <button type="button" className="sb-link" aria-expanded={addingExtra} onClick={() => setAddingExtra(v => !v)}>{addingExtra ? 'Tutup' : <><Plus size={14}/> Tambah</>}</button>
           </div>
+          {addingExtra && <div className="xe-kinds" role="group" aria-label="Jenis biaya">{EXTRA_KINDS.map(kind => { const [Icon] = EXTRA_LOOKS[kind]; return <button type="button" key={kind} className={`xe-kind is-${kind}`} onClick={() => { addExtra(kind); setAddingExtra(false); }}><span className="sb-extra-menu-icon"><Icon size={15}/></span>{EXTRA_LABELS[kind]}</button>; })}</div>}
           {!bill.extras.length && <small className="muted">Tidak ada pajak, service, atau diskon.</small>}
           {bill.extras.map(extra => {
             const resolved = result.extras.find(row => row.id === extra.id), chosen = extra.people || [], [Icon] = EXTRA_LOOKS[extra.kind];
             const how = extra.distribution === 'custom' ? 'custom' : extra.distribution === 'equal' ? 'rata' : 'proporsional';
-            return <details className={`sb-extra is-${extra.kind}`} key={extra.id} open={openExtra === extra.id} onToggle={event => { const open = event.currentTarget.open; setOpenExtra(current => open ? extra.id : current === extra.id ? '' : current); }}>
-              <summary><span className="sb-extra-menu-icon"><Icon size={15}/></span><span className="sb-extra-title"><strong>{extra.label.trim() || EXTRA_LABELS[extra.kind]}</strong><small>{how}{chosen.length ? ` · ${chosen.length} orang` : ''}</small></span><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong></summary>
-              <div className="sb-extra-body">
+            const opened = openExtra === extra.id;
+            return <div className={`xe-row is-${extra.kind} ${opened ? 'is-open' : ''}`} key={extra.id}>
+              <button type="button" className="xe-head" aria-expanded={opened} onClick={() => setOpenExtra(opened ? '' : extra.id)}><span className="sb-extra-menu-icon"><Icon size={15}/></span><span className="sb-extra-title"><strong>{extra.label.trim() || EXTRA_LABELS[extra.kind]}</strong><small>{how}{chosen.length ? ` · ${chosen.length} orang` : ''}</small></span><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong><ChevronDown size={15} className="xe-chev"/></button>
+              {opened && <div className="sb-extra-body">
                 <div className="sb-item-head"><Input className="sb-item-name" value={extra.label} maxLength={40} placeholder={extra.kind === 'shared' ? 'Misalnya Sewa lapangan' : EXTRA_LABELS[extra.kind]} onChange={e => changeExtra(extra.id, { label: e.target.value })} aria-label="Nama biaya"/><button type="button" className="icon-btn" aria-label="Hapus biaya" onClick={() => patch({ extras: bill.extras.filter(row => row.id !== extra.id) })}><Trash2 size={16}/></button></div>
                 <div className="sb-extra-amount">
                   {extra.percent && bill.items.length ? <span className="sb-static input">{showPercent(extra.percent * 100)}% dari {extra.kind === 'tax' ? 'item + service' : 'item'}</span> : <Money value={Math.abs(extra.amount)} onChange={value => changeExtra(extra.id, { amount: extra.kind === 'rounding' && extra.amount < 0 ? -value : value, percent: undefined })}/>}
@@ -308,8 +311,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
                 {extra.distribution === 'custom' ? <div className="sb-units">{(chosen.length ? bill.participants.filter(person => chosen.includes(person.id)) : bill.participants).map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={extra.custom?.[person.id] || 0} onChange={value => changeExtra(extra.id, { custom: { ...extra.custom, [person.id]: value } })}/></span>)}</div>
                   : <div className="sb-extra-who"><small>Untuk</small><div className="sb-chips"><button type="button" className={`sb-chip ${!chosen.length ? 'is-on' : ''}`} onClick={() => changeExtra(extra.id, { people: [] })}><span>Semua orang</span></button>{bill.participants.map(person => personChip(person, chosen.includes(person.id), () => changeExtra(extra.id, { people: chosen.includes(person.id) ? chosen.filter(id => id !== person.id) : [...chosen, person.id] })))}</div></div>}
                 {(extra.kind === 'shared' || extra.kind === 'other') && <div className="sb-cat"><small className="muted">Kategori biaya ini (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={extra.categoryId || ''} subcategoryId={extra.subcategoryId || ''} onChange={value => changeExtra(extra.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>}
-              </div>
-            </details>;
+              </div>}
+            </div>;
           })}
         </section>
 
@@ -317,20 +320,26 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
         <section className="sb-sec">
           <div className="sb-sec-head"><h4>Per orang</h4><small>{METHOD_LABELS[bill.method]}</small><button type="button" className="sb-link" aria-expanded={otherMethods} onClick={() => setOtherMethods(v => !v)}>{otherMethods ? 'Tutup' : 'Cara bagi'}</button></div>
           {otherMethods && <div className="sb-methods" role="radiogroup" aria-label="Cara bagi">{(['items', 'equal', 'amount', 'percent'] as SplitMethod[]).map(method => <button type="button" key={method} role="radio" aria-checked={bill.method === method} disabled={method === 'items' && !itemMode} className={bill.method === method ? 'active' : ''} onClick={() => patch({ method })}>{METHOD_LABELS[method]}</button>)}</div>}
-          <ul className="sbx-rows sb-people-totals">{bill.participants.map(person => {
+          <ul className={`sbx-rows sb-people-totals ${typed ? 'is-typed' : ''}`}>{bill.participants.map(person => {
             const share = result.people.find(row => row.id === person.id), open = openPerson === person.id, count = itemsOf(person.id);
             return <li key={person.id} className={`sbx-row ${open ? 'is-open' : ''}`}>
-              <div className="sb-person-line">
+              {typed ? <div className="sb-person-line is-typed">
+                <button type="button" className="sbx-row-main" aria-expanded={open} onClick={() => setOpenPerson(open ? '' : person.id)}>
+                  <PersonAvatar person={person} size="sm"/>
+                  <span className="sbx-row-name">{personName(person)}<small>{[payer?.id === person.id ? 'yang bayar' : '', `total ${rupiah(moneyOf(person.id))}`].filter(Boolean).join(' · ')}</small></span>
+                </button>
+                {bill.method === 'amount' ? <Money value={person.amount || 0} onChange={amount => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, amount } : row) })}/>
+                  : <span className="sb-percent"><Input inputMode="decimal" value={showPercent(person.percent)} onChange={e => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, percent: readPercent(e.target.value) } : row) })} aria-label={`Persentase ${person.name}`} placeholder="0"/><span>%</span></span>}
+              </div> : <div className="sb-person-line">
                 <button type="button" className="sbx-row-main" aria-expanded={open} onClick={() => setOpenPerson(open ? '' : person.id)}>
                   <PersonAvatar person={person} size="sm"/>
                   <span className="sbx-row-name">{personName(person)}<small>{[bill.method === 'items' ? `${count} item` : '', payer?.id === person.id ? 'yang bayar' : ''].filter(Boolean).join(' · ')}</small></span>
                   <b>{rupiah(moneyOf(person.id))}</b>
                 </button>
-                {bill.method === 'amount' && <Money value={person.amount || 0} onChange={amount => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, amount } : row) })}/>}
-                {bill.method === 'percent' && <span className="sb-percent"><Input inputMode="decimal" value={showPercent(person.percent)} onChange={e => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, percent: readPercent(e.target.value) } : row) })} aria-label={`Persentase ${person.name}`} placeholder="0"/><span>%</span></span>}
-              </div>
+              </div>}
               {open && share && <div className="sb-person-lines">{share.lines.filter(line => line.amount).map(line => <div key={line.key}><span>{line.label}</span><span>{line.amount < 0 ? '−' : ''}{rupiah(Math.abs(line.amount))}</span></div>)}{!share.lines.length && <small className="muted">Belum ada bagian.</small>}</div>}
             </li>; })}</ul>
+          {typed && <div className={`sb-typed-sum ${typedLeft === 0 ? 'is-ok' : 'is-warn'}`}><span>{bill.method === 'amount' ? `Terisi ${rupiah(typedSum)} dari ${rupiah(typedNeed)}` : `Terisi ${showPercent(typedSum) || 0}% dari 100%`}</span><small>{typedLeft === 0 ? 'Pas' : typedLeft > 0 ? `Kurang ${bill.method === 'amount' ? rupiah(typedLeft) : `${showPercent(typedLeft)}%`}` : `Lebih ${bill.method === 'amount' ? rupiah(-typedLeft) : `${showPercent(-typedLeft)}%`}`}</small></div>}
           {bill.method === 'amount' && <button type="button" className="sb-link" onClick={() => { const parts = computeSplit({ ...bill, method: 'equal' }).people; patch({ participants: bill.participants.map(row => ({ ...row, amount: parts.find(p => p.id === row.id)?.base || 0 })) }); }}>Isi rata dulu</button>}
           {bill.method === 'percent' && <button type="button" className="sb-link" onClick={() => { const n = bill.participants.length, each = Math.floor(10000 / n); patch({ participants: bill.participants.map((row, i) => ({ ...row, percent: i === 0 ? 10000 - each * (n - 1) : each })) }); }}>Bagi rata persentasenya</button>}
         </section>

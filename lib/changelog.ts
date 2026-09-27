@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '85', date: '27 Sep 2026', title: 'Tentukan area struk dulu, lensa kamera, dan biaya tambahan yang seragam', items: [
+    ['📷', 'Setelah foto diambil atau dipilih, kamu menentukan area struknya dulu: geser titik atau sisi ke tepi struk, putar bila perlu, lalu “Baca struk”. Hanya bagian di dalam garis yang dibaca. Peringatan foto (buram, gelap, pudar) muncul di langkah ini, dengan pilihan “Ambil ulang”.'],
+    ['🔒', 'Kamera tidak lagi mengingat lensa ultra-wide. Nama kamera berbahasa Indonesia (mis. “Kamera Ultra Lebar Belakang”) kini dikenali, lensa yang tidak bisa dibedakan dari namanya dicek dari kemampuannya (fokus otomatis, ukuran sensor), dan ada tombol “Ganti lensa” yang pilihannya diingat.'],
+    ['✅', 'Tambahan & diskon di Split Bill tidak lagi macet saat dibuka-tutup. Pilihan jenis biaya muncul sebagai tombol di tempat, bukan menu melayang.'],
+    ['💸', 'Nominal manual dan Persentase di Split Bill lebih rapi: nama di kiri, isian di kanan, total per orang di bawah nama, dan “Terisi … dari …” untuk melihat sisa yang belum dibagi.'],
+    ['🧾', 'Biaya tambahan di Scan struk (pengeluaran dan pemasukan) kini tampil seperti di Split Bill: satu baris per biaya dengan ikon, ketuk untuk mengubah nominal, pilih 10%/11% cepat, tandai “Sudah termasuk harga”, atau hapus. “+ Tambah” untuk diskon, pajak, service, ongkir, biaya lain, atau pembulatan.'],
+  ] },
   { version: '84', date: '27 Sep 2026', title: 'Split Bill lebih ringkas, scan struknya selengkap Scan struk', items: [
     ['🧾', 'Scan struk dari Split Bill kini memakai pemeriksaan struk yang sama dengan Scan struk: atur sudut, baca ulang, lihat di foto, foto lanjutan, ubah item, diskon, dan biaya. Tombolnya “Gunakan di Split Bill”, dan tidak ada transaksi yang tersimpan dari sana.'],
     ['✅', 'Yang sudah kamu perbaiki ikut masuk ke Split Bill. Diskon item tetap menempel di itemnya, jadi yang dibagi adalah harga bersihnya (Burger Rp50.000 − Rp10.000 → Rp40.000). Voucher, pajak, service, ongkir, dan biaya admin masuk sebagai biaya tambahan.'],

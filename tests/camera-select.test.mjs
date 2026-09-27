@@ -57,3 +57,20 @@ test('Scan struk and Split Bill share one camera, and the phone camera stays ava
   const flow = readFileSync(new URL('../components/split-bill-flow.tsx', import.meta.url), 'utf8');
   assert.ok(!/getUserMedia|capture="environment"/.test(flow), 'Split Bill has no camera of its own');
 });
+
+test('an iPhone set to Indonesian: "Kamera Belakang", not the ultra-wide or the triple camera', async () => {
+  const { chooseCamera: choose } = await import('../lib/camera-select.ts');
+  const list = [cam('tri', 'Kamera Tiga Belakang'), cam('dw', 'Kamera Ganda Lebar Belakang'), cam('uw', 'Kamera Ultra Lebar Belakang'), cam('tele', 'Kamera Telefoto Belakang'), cam('main', 'Kamera Belakang'), cam('f', 'Kamera Depan')];
+  assert.equal(choose(list), 'main');
+});
+
+test('rear cameras the labels cannot tell apart are asked; the one with autofocus and the bigger sensor wins', async () => {
+  const { tiedRearCameras, chooseByCapabilities, nextRearCamera } = await import('../lib/camera-select.ts');
+  const list = [cam('a', 'Rear camera'), cam('b', 'Rear camera'), cam('f', 'Front camera')];
+  assert.deepEqual(tiedRearCameras(list).sort(), ['a', 'b']);
+  assert.deepEqual(tiedRearCameras([cam('main', 'Back Camera'), cam('uw', 'Back Ultra Wide Camera')]), []);
+  assert.equal(chooseByCapabilities([{ deviceId: 'uw', caps: { focusMode: ['manual'], width: { max: 2560 }, height: { max: 1920 } } }, { deviceId: 'main', caps: { focusMode: ['continuous', 'manual'], width: { max: 4000 }, height: { max: 3000 } } }]), 'main');
+  assert.equal(chooseByCapabilities([{ deviceId: 'a', caps: { focusMode: ['continuous'] } }, { deviceId: 'b', caps: { focusMode: ['continuous'] } }]), undefined, 'alike: nothing is guessed');
+  assert.equal(nextRearCamera(list, 'a'), 'b'); assert.equal(nextRearCamera(list, 'b'), 'a');
+  assert.equal(nextRearCamera([cam('m', 'Back Camera'), cam('f', 'Front Camera')], 'm'), undefined, 'one rear camera: no switch');
+});

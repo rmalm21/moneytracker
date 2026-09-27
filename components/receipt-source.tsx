@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Maximize2, Minimize2, RotateCcw, ScanText } from 'lucide-react';
+import { Camera, Maximize2, Minimize2, RotateCcw, RotateCw, ScanText } from 'lucide-react';
 import { Button } from './ui/button';
 import { homography, mapPoint, quadSize, type Matrix, type Point, type Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
@@ -64,7 +64,11 @@ export function ReceiptSource({ upright, mapping, box, label }: { upright: Uprig
  * "Ulangi" returns to the detected outline; "Gunakan" reads the receipt again with these corners.
  */
 const SNAP = .025;
-export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel }: { upright: Upright; corners: Quad; onApply: (corners: Quad) => void; onCancel: () => void }) {
+/**
+ * Marking the receipt on the photo. In the dialog (after a read) it only straightens; as the first step after a photo
+ * (`onRetake`) it decides what is read at all, with a turn and a retake beside it.
+ */
+export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel, applyLabel = 'Gunakan', onRetake, onRotate }: { upright: Upright; corners: Quad; onApply: (corners: Quad, changed: boolean) => void; onCancel: () => void; applyLabel?: string; onRetake?: () => void; onRotate?: () => void }) {
   const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
   const [active, setActive] = useState<{ x: number; y: number } | null>(null), preview = useRef<HTMLCanvasElement>(null), source = useRef<ImageData | null>(null);
   const initial = useRef(corners);
@@ -127,10 +131,22 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel 
       </div>
       <canvas ref={preview} className="rs-corners-preview" aria-label="Pratinjau struk yang diluruskan" role="img"/>
     </div>
-    <small className="muted rs-corners-hint">Geser titik atau sisi ke tepi struk.</small>
-    <div className="rs-corners-actions">
-      <Button type="button" variant="secondary" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</Button>
-      <Button type="button" onClick={() => onApply(points)}><ScanText size={16}/> Gunakan</Button>
-    </div>
+    {onRetake ? <>
+      <div className="rs-area-tools">
+        <small className="muted">Geser titik atau sisi ke tepi struk.</small>
+        {onRotate && <button type="button" className="rs-area-tool" onClick={onRotate}><RotateCw size={15}/> Putar</button>}
+        <button type="button" className="rs-area-tool" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</button>
+      </div>
+      <div className="rs-corners-actions">
+        <Button type="button" variant="secondary" onClick={onRetake}><Camera size={16}/> Ambil ulang</Button>
+        <Button type="button" onClick={() => onApply(points, changed)}><ScanText size={16}/> {applyLabel}</Button>
+      </div>
+    </> : <>
+      <small className="muted rs-corners-hint">Geser titik atau sisi ke tepi struk.</small>
+      <div className="rs-corners-actions">
+        <Button type="button" variant="secondary" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</Button>
+        <Button type="button" onClick={() => onApply(points, changed)}><ScanText size={16}/> {applyLabel}</Button>
+      </div>
+    </>}
   </div>;
 }
