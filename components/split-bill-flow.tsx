@@ -9,7 +9,9 @@ import { Field, Input, Money, Select } from './fields';
 import { CategoryPicker } from './category-picker';
 import { Emoji } from './emoji';
 import { AppIcon } from './visual-identity';
-import { PersonAvatar, canReadPhoto, personName, readPhotoText, shrinkPhoto } from './split-bill-shared';
+import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
+import { ocrAvailable, readReceiptPhoto, type OcrProgress } from '@/lib/receipt-ocr';
+import { checkReceipt } from '@/lib/receipt';
 import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, readReceiptText, type ReceiptRead } from '@/lib/split-bill';
 import { attachSplitReceipt, saveSplitBill, saveSplitPerson, type SplitBillInput } from '@/lib/split-bill-store';
 import { suggestCategory } from '@/lib/categorize';
@@ -22,7 +24,7 @@ import type { LedgerTx, SplitBill, SplitExtra, SplitExtraKind, SplitGroup, Split
  * Making or changing a Split Bill in six short steps: Tagihan → Orang → Item → Biaya tambahan → Pembagian → Review.
  * Nothing touches money until "Simpan Split Bill"; "Simpan draft" keeps the work without any money records.
  */
-export type FlowStart = { mode: 'manual' | 'receipt' | 'transaction' | 'edit' | 'copy'; bill?: SplitBill; tx?: LedgerTx };
+export type FlowStart = { mode: 'manual' | 'receipt' | 'transaction' | 'edit' | 'copy'; bill?: SplitBill; tx?: LedgerTx; /** From Scan struk: the checked reading and the photo. */ receipt?: ReceiptRead; photo?: Blob | null };
 const STEPS = ['Tagihan', 'Orang', 'Item', 'Biaya tambahan', 'Pembagian', 'Review'] as const;
 const newId = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 const EXTRA_KINDS: SplitExtraKind[] = ['tax', 'service', 'discount', 'delivery', 'admin', 'tip', 'rounding', 'shared', 'other'];
@@ -52,7 +54,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const myName = profile?.displayName?.trim() || 'Saya';
   const [bill, setBill] = useState<SplitBillInput>(() => startBill(start, { myName, today, walletId: defaultWallet }));
   const [step, setStep] = useState(0), [error, setError] = useState(''), [saving, setSaving] = useState(false), [understood, setUnderstood] = useState(false);
-  const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [reading, setReading] = useState(false), [readNote, setReadNote] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState(''), [receipt, setReceipt] = useState<ReceiptRead | null>(null);
+  const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [reading, setReading] = useState<OcrProgress | null>(null), [readNote, setReadNote] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState(''), [receipt, setReceipt] = useState<ReceiptRead | null>(start.receipt || null);
+  const fullPhoto = useRef<Blob | null>(null);
   const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
   const body = useRef<HTMLDivElement>(null), picker = useRef<HTMLDetailsElement>(null);
@@ -142,22 +145,22 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const changeExtra = (id: string, changes: Partial<SplitExtra>) => patch({ extras: bill.extras.map(extra => extra.id === id ? { ...extra, ...changes } : extra) });
 
   /* ---------------- receipt */
-  async function pickPhoto(file: File | undefined) {
+  async function pickPhoto(file: Blob | undefined) {
     if (!file) return;
     setReadNote(''); setReceipt(null);
-    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); if (canReadPhoto()) void readPhoto(small); }
+    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); fullPhoto.current = file; setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); if (ocrAvailable()) void readPhoto(file); }
     catch (e) { setReadNote((e as Error).message); }
   }
-  async function readPhoto(source: Blob | null = photo) {
+  useEffect(() => { if (start.photo) void (async () => { try { const small = await shrinkPhoto(start.photo!); fullPhoto.current = start.photo!; setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); } catch { /* the reading is enough */ } })(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  async function readPhoto(source: Blob | null = fullPhoto.current || photo) {
     if (!source) return;
-    setReading(true); setReadNote('');
+    setReading({ stage: 'prepare', progress: 0, label: 'Merapikan foto…' }); setReadNote('');
     try {
-      const text = await readPhotoText(source);
-      const read = text ? readReceiptText(text) : null;
-      if (read && (read.items.length || read.total)) setReceipt(read);
-      else setReadNote('Teks di foto belum terbaca. Isi item sendiri, atau tempel teks struknya.');
-    } catch { setReadNote('Teks di foto belum bisa dibaca di perangkat ini. Isi item sendiri, atau tempel teks struknya.'); }
-    finally { setReading(false); }
+      const result = await readReceiptPhoto(source, setReading);
+      if (result.read.items.length || result.read.total) setReceipt(result.read);
+      else setReadNote('Tulisan di foto belum terbaca jelas. Coba foto lebih dekat dan terang, tempel teks struknya, atau isi item sendiri.');
+    } catch (e) { setReadNote((e as Error).message || 'Foto belum bisa dibaca. Isi item sendiri, atau tempel teks struknya.'); }
+    finally { setReading(null); }
   }
   function readPasted() {
     const read = readReceiptText(pasted);
@@ -218,13 +221,15 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const issuesBox = (index: number) => { const list = stepIssues(index); return list.length ? <div className="sb-issues" role="status">{list.map(issue => <p key={issue.message}>{issue.message}</p>)}</div> : null; };
   const walletName = data.wallets.find(w => w.id === bill.walletId)?.name || 'dompet';
   const photoBlock = <section className="sb-block"><h4>Foto struk <small className="muted">· opsional</small></h4>
-        {photoUrl ? <div className="sb-photo"><img src={photoUrl} alt="Foto struk"/><div className="toolbar-row">{canReadPhoto() && <button type="button" className="link-button" disabled={reading} onClick={() => void readPhoto()}><ScanText size={15}/> {reading ? 'Membaca…' : 'Baca teks'}</button>}<button type="button" className="link-button" onClick={() => setPasteOpen(open => !open)}><ClipboardPaste size={15}/> Tempel teks struk</button><button type="button" className="link-button" onClick={() => { if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(null); setPhotoUrl(''); setReceipt(null); }}><Trash2 size={15}/> Hapus foto</button></div></div>
+        {photoUrl ? <div className="sb-photo"><img src={photoUrl} alt="Foto struk"/><div className="toolbar-row">{ocrAvailable() && <button type="button" className="link-button" disabled={Boolean(reading)} onClick={() => void readPhoto()}><ScanText size={15}/> {reading ? 'Membaca…' : 'Baca struk'}</button>}<button type="button" className="link-button" onClick={() => setPasteOpen(open => !open)}><ClipboardPaste size={15}/> Tempel teks struk</button><button type="button" className="link-button" onClick={() => { if (photoUrl) URL.revokeObjectURL(photoUrl); fullPhoto.current = null; setPhoto(null); setPhotoUrl(''); setReceipt(null); }}><Trash2 size={15}/> Hapus foto</button></div></div>
           : <div className="sb-photo-actions"><label className="link-button"><Camera size={15}/> Ambil foto<input type="file" accept="image/*" capture="environment" hidden onChange={e => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }}/></label><label className="link-button"><ImagePlus size={15}/> Upload struk<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }}/></label><button type="button" className="link-button" onClick={() => setPasteOpen(open => !open)}><ClipboardPaste size={15}/> Tempel teks struk</button></div>}
         {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tetap tersimpan. Unggah foto baru untuk menggantinya.</small>}
-        {!canReadPhoto() && photoUrl && !receipt && <small className="muted">Perangkat ini belum bisa membaca teks dari foto. Salin teksnya dengan fitur salin teks di galeri (Google Lens / Live Text), lalu pilih “Tempel teks struk”, atau isi item sendiri.</small>}
+        {!ocrAvailable() && photoUrl && !receipt && <small className="muted">Perangkat ini belum bisa membaca foto. Pilih “Tempel teks struk”, atau isi item sendiri.</small>}
+        {reading && <div className="rs-inline-progress" role="status" aria-live="polite"><strong>{reading.label}</strong><div className="rs-bar"><i style={{ width: `${Math.round(reading.progress * 100)}%` }}/></div><small className="muted">Dibaca di perangkat ini, foto tidak diunggah untuk dibaca.</small></div>}
         {pasteOpen && <div className="sb-paste"><textarea className="input" rows={6} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={'Nasi Goreng 35.000\nEs Teh 2 x 6.000 12.000\nService 4.700\nPB1 5.170\nTotal 56.870'}/><Button type="button" className="small" disabled={!pasted.trim()} onClick={readPasted}>Baca teks</Button></div>}
         {readNote && <p className="sb-note is-warn" role="status">{readNote}</p>}
         {receipt && <div className="sb-receipt" role="region" aria-label="Hasil baca struk"><h5>HASIL BACA STRUK</h5><small className="muted">Periksa dulu. Semua bisa diubah di langkah Item dan Biaya tambahan.</small>
+          {(() => { const check = checkReceipt(receipt); return <div className={`rs-check is-${check.confidence}`}><div><strong>{check.confidence === 'tinggi' ? 'Hasil baca meyakinkan' : check.confidence === 'sedang' ? 'Periksa lagi sebelum dipakai' : 'Hasil baca belum pasti'}</strong>{check.notes.map(note => <small key={note}>{note}</small>)}</div></div>; })()}
           {receipt.merchant && <div className="budget-line"><span>Tempat</span><strong>{receipt.merchant}</strong></div>}
           {receipt.items.map((line, i) => <div className="budget-line" key={i}><span>{line.name}{line.qty > 1 ? ` · ${line.qty} × ${rupiah(line.price)}` : ''}</span><strong>{rupiah(line.total)}</strong></div>)}
           {([['Service', receipt.service], ['Pajak / PB1', receipt.tax], ['Diskon', -receipt.discount], ['Ongkos kirim', receipt.delivery], ['Pembulatan', receipt.rounding]] as [string, number][]).filter(([, value]) => value).map(([label, value]) => <div className="budget-line" key={label}><span>{label}</span><strong>{value < 0 ? '−' : ''}{rupiah(Math.abs(value))}</strong></div>)}

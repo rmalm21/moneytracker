@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '74', date: '27 Sep 2026', title: 'Scan struk', items: [
+    ['📷', 'Foto struk atau nota, lalu nominal, tanggal, jam, tempat, item, pajak, service, diskon, dan cara bayar dibaca otomatis. Ada di tombol + (Catat cepat) dan di formulir Catat transaksi.'],
+    ['✅', 'Selalu dikonfirmasi dulu: periksa dan ubah semuanya sebelum disimpan. Aplikasi mencocokkan total, item, dan uang bayar dikurangi kembalian, lalu memberi tahu kalau ada yang belum pas.'],
+    ['💡', 'Dompet ditebak dari cara bayar (tunai, QRIS, GoPay, OVO, dan lainnya) dan kategori dari tempat serta item. Belanja campuran bisa dipisah per kategori.'],
+    ['🧾', 'Split Bill kini memakai pembaca yang sama, dan hasil scan bisa langsung dijadikan Split Bill.'],
+    ['🔒', 'Foto dibaca di perangkat ini, tidak diunggah untuk dibaca, dan gratis. Bisa juga tempel teks struk.'],
+  ] },
   { version: '73', date: '27 Sep 2026', title: 'Perbarui saldo utang & piutang, Arsip, dan privasi', items: [
     ['✏️', 'Utang dan piutang kini punya “Perbarui saldo” untuk bunga, denda, potongan, atau salah catat, tanpa mengubah saldo dompet.'],
     ['📝', 'Riwayat lengkap tiap utang dan piutang: pembayaran lewat dompet, pelunasan tanpa dompet, dan setiap perubahan saldo.'],

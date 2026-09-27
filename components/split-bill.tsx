@@ -13,6 +13,7 @@ import { ContextNotes } from './context-notes';
 import { ManualPayments, SettleDialog, type SettleTarget } from './settle-dialog';
 import { closeMenu } from './glass';
 import { SplitFlow, type FlowStart } from './split-bill-flow';
+import { takeReceiptHandoff } from './receipt-scan';
 import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderShareImage, shareImage, shareText, statusTone } from './split-bill-shared';
 import { BILL_STATUS_LABELS, billProgress, billShareText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, personShareText, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
 import { cancelSplitBill, deleteSplitBill, deleteSplitGroup, deleteSplitPerson, readTransaction, recordBetweenPayment, removeSplitReceipt, saveSplitGroup, saveSplitPerson, splitReceiptUrl, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
@@ -47,6 +48,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
     setHandled(focus);
     if (focus === 'new') setChooser(true);
     else if (focus === 'manual' || focus === 'receipt') setFlow({ mode: focus });
+    else if (focus === 'receipt-draft') { const handed = takeReceiptHandoff(); setFlow(handed ? { mode: 'receipt', receipt: handed.read, photo: handed.photo } : { mode: 'receipt' }); }
     else if (focus.startsWith('bill:')) setOpenId(focus.slice(5));
     else if (focus.startsWith('tx:')) void fromTransaction(focus.slice(3));
   }, [focus, handled, user?.uid, bills]);

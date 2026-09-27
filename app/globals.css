@@ -5531,6 +5531,85 @@ details.sb-extra > summary > strong { font: 800 .92rem var(--font-head); font-va
 .sb-extra-body > .sb-item-head { grid-template-columns: minmax(0, 1fr) auto; }
 @media (max-width: 420px) { .sb-extra-menu { grid-template-columns: minmax(0, 1fr); } }
 
+/* 107. Scan struk: reading a receipt photo on the device, then a confirmation form */
+.rs-entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; width: 100%; margin-bottom: 14px; padding: 12px 14px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--accent-soft) 60%, var(--paper)); color: var(--ink); text-align: left; cursor: pointer; }
+.rs-entry > svg { color: var(--accent); }
+.rs-entry span { display: grid; gap: 1px; }
+.rs-entry small { color: var(--muted); font-size: .76rem; }
+.rs-entry:hover { border-style: solid; }
+.mobile-menu-grid.add-menu button.add-scan { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; text-align: left; }
+.add-scan .aeb-text { display: grid; gap: 2px; }
+.add-scan .aeb-text small { font-size: .74rem; font-weight: 500; color: var(--muted); }
+.rs-start { display: grid; gap: 14px; }
+.rs-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 14px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--paper)), var(--paper)); }
+.rs-hero > div { display: grid; gap: 3px; }
+.rs-hero small { color: var(--muted); font-size: .8rem; line-height: 1.45; }
+.rs-hero-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: var(--accent); color: var(--accent-on); }
+.rs-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rs-pick-button { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 88px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); font: 700 .82rem var(--font-body); text-align: center; cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
+.rs-pick-button:hover { border-color: var(--accent); }
+.rs-pick-button:active { transform: scale(.98); }
+.rs-pick-button > svg { color: var(--accent); }
+.rs-pick-button.is-main { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+.rs-pick-button.is-main > svg { color: inherit; }
+.rs-privacy { display: flex; gap: 8px; align-items: flex-start; margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.rs-privacy > svg { flex: none; margin-top: 2px; color: var(--positive); }
+.rs-start > .link-button { justify-self: start; }
+.rs-reading { position: relative; display: grid; justify-items: center; gap: 10px; padding: 8px 0 4px; text-align: center; }
+.rs-reading img { max-width: min(100%, 260px); max-height: 300px; border-radius: 14px; object-fit: contain; box-shadow: var(--elev-1); transition: transform .2s ease; }
+.rs-scanline { position: absolute; top: 8px; left: 50%; width: min(80%, 260px); height: 3px; border-radius: 3px; transform: translateX(-50%); background: var(--accent); box-shadow: 0 0 14px var(--accent); animation: rs-scan 1.8s ease-in-out infinite alternate; }
+@keyframes rs-scan { from { top: 10px; } to { top: 290px; } }
+@media (prefers-reduced-motion: reduce) { .rs-scanline { animation: none; display: none; } }
+.rs-bar { width: 100%; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.rs-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
+.rs-inline-progress { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); }
+.rs-inline-progress strong { font-size: .86rem; }
+.rs-check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--warn-line); border-radius: 14px; background: var(--warn-soft); color: var(--warn-ink); }
+.rs-check > div { display: grid; gap: 3px; }
+.rs-check small { font-size: .78rem; line-height: 1.45; color: inherit; opacity: .92; }
+.rs-check.is-tinggi { border-color: color-mix(in srgb, var(--positive) 40%, var(--line)); background: color-mix(in srgb, var(--positive) 10%, var(--paper)); color: var(--ink); }
+.rs-check.is-tinggi > svg { color: var(--positive); }
+.rs-check.is-rendah { border-color: var(--danger-line); background: var(--danger-soft); color: var(--danger-ink); }
+.sb-receipt .rs-check { grid-template-columns: minmax(0, 1fr); margin: 6px 0; }
+.rs-photo { display: grid; gap: 6px; }
+.rs-photo img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 14px; background: var(--bg); transition: transform .2s ease; }
+.rs-photo-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.rs-type { display: flex; justify-self: stretch; }
+.rs-type button { flex: 1; }
+.rs-alts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: -6px; }
+.rs-alts .sb-chip { min-height: 32px; padding: 3px 11px; font-size: .8rem; }
+.rs-items, .rs-raw { border: 1px solid var(--line); border-radius: 16px; background: var(--paper); padding: 0 12px; }
+.rs-items > summary, .rs-raw > summary { display: flex; align-items: center; gap: 8px; padding: 12px 0; font-weight: 800; cursor: pointer; list-style: none; }
+.rs-items > summary::-webkit-details-marker, .rs-raw > summary::-webkit-details-marker { display: none; }
+.rs-items > summary .muted { margin-left: auto; font-weight: 600; font-size: .8rem; }
+.rs-items[open], .rs-raw[open] { display: grid; gap: 8px; padding-bottom: 12px; }
+.rs-raw textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; }
+.rs-raw .btn { justify-self: start; }
+.rs-item { display: grid; gap: 6px; padding-bottom: 10px; border-bottom: 1px dashed var(--line); }
+.rs-item-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.rs-item-bottom { display: grid; grid-template-columns: 48px auto minmax(96px, 120px) minmax(0, 1fr); gap: 6px; align-items: center; }
+.rs-item-bottom.no-cat { grid-template-columns: 48px auto minmax(96px, 160px); }
+.rs-item .input { min-height: 38px; padding-inline: 10px; }
+.rs-item-qty { text-align: center; padding-inline: 4px !important; }
+.rs-item-x { color: var(--muted); font-size: .85rem; }
+.rs-item-cat { min-width: 0; }
+.rs-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.rs-icon:hover { background: var(--danger-soft); color: var(--danger-ink); }
+.rs-items > .link-button { justify-self: start; display: flex; margin-top: 4px; }
+.rs-diff { margin: 6px 0 0; font-size: .78rem; line-height: 1.45; }
+.rs-split { display: grid; gap: 6px; padding: 12px; border-radius: 16px; background: var(--accent-soft); }
+.rs-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; cursor: pointer; }
+.rs-toggle input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.rs-toggle span { display: grid; gap: 2px; }
+.rs-toggle small { color: var(--muted); font-size: .78rem; line-height: 1.4; }
+.app-dialog.receipt-scan-dialog .modal-body { padding-bottom: 0; }
+.rs-start, .rs-reading { padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+.rs-actions { display: grid; gap: 8px; position: sticky; bottom: 0; z-index: 2; margin-inline: -4px; padding: 10px 4px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); }
+.rs-actions-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+@media (max-width: 420px) {
+  .rs-pick-button { min-height: 80px; font-size: .76rem; }
+}
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

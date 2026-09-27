@@ -27,3 +27,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Tesseract.js, tesseract.js-core and tessdata (public/ocr)
+
+Scan struk reads receipt photos on the device with Tesseract.js (https://github.com/naptha/tesseract.js),
+its WebAssembly core tesseract.js-core, and the Indonesian and English `4.0.0_best_int` trained data from
+tessdata via the `@tesseract.js-data/ind` and `@tesseract.js-data/eng` packages. `scripts/copy-ocr.mjs` copies
+them into `public/ocr` at build time.
+
+Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+Copyright (c) Tesseract.js contributors; Tesseract OCR copyright (c) Google Inc. and the Tesseract contributors.

@@ -89,7 +89,7 @@ export async function shareImage(blob: Blob, name: string): Promise<'shared' | '
 /* ------------------------------------------------------------------ Receipt photo */
 
 /** A smaller JPEG of the photo (long side 1600 px), so it uploads fast and stays well under the size limit. */
-export async function shrinkPhoto(file: File): Promise<Blob> {
+export async function shrinkPhoto(file: Blob): Promise<Blob> {
   if (!file.type.startsWith('image/')) throw Error('Pilih file gambar.');
   const source = await loadImage(file);
   const scale = Math.min(1, 1600 / Math.max(source.width, source.height));
@@ -104,24 +104,4 @@ async function loadImage(file: Blob): Promise<{ image: CanvasImageSource; width:
   const url = URL.createObjectURL(file);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(Error('Foto tidak bisa dibuka.')); img.src = url; });
   return { image, width: image.naturalWidth, height: image.naturalHeight, done: () => URL.revokeObjectURL(url) };
-}
-type DetectedText = { rawValue: string; boundingBox: DOMRectReadOnly };
-type TextDetectorClass = new () => { detect: (image: ImageBitmapSource) => Promise<DetectedText[]> };
-/** The browser's own text recognition (Shape Detection API), when the device has it. Nothing is sent anywhere. */
-export const canReadPhoto = () => typeof window !== 'undefined' && typeof (window as unknown as { TextDetector?: TextDetectorClass }).TextDetector === 'function';
-/** Text lines read from the photo, top to bottom; empty when nothing could be read. */
-export async function readPhotoText(photo: Blob): Promise<string> {
-  const Detector = (window as unknown as { TextDetector?: TextDetectorClass }).TextDetector;
-  if (!Detector) return '';
-  const bitmap = await createImageBitmap(photo);
-  try {
-    const blocks = (await new Detector().detect(bitmap)).filter(block => block.rawValue?.trim());
-    const rows: { y: number; h: number; parts: DetectedText[] }[] = [];
-    for (const block of [...blocks].sort((a, b) => a.boundingBox.top - b.boundingBox.top)) {
-      const middle = block.boundingBox.top + block.boundingBox.height / 2;
-      const row = rows.find(line => Math.abs(line.y - middle) < Math.max(line.h, block.boundingBox.height) * .55);
-      if (row) row.parts.push(block); else rows.push({ y: middle, h: block.boundingBox.height, parts: [block] });
-    }
-    return rows.map(row => row.parts.sort((a, b) => a.boundingBox.left - b.boundingBox.left).map(part => part.rawValue.trim()).join('   ')).join('\n');
-  } finally { bitmap.close(); }
 }
