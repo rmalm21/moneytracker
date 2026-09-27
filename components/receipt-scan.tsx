@@ -49,8 +49,9 @@ const TYPE_LABELS: Record<string, string> = { restaurant: 'Restoran', cafe: 'Kaf
 const DEBUG_KEY = 'dompet-ajaib:ocr-debug';
 
 /** A small mark next to a value the user should look at; nothing for values that are fine. */
-function Status({ status }: { status: FieldStatus }) {
+function Status({ status, compact = false }: { status: FieldStatus; compact?: boolean }) {
   if (status !== 'check' && status !== 'missing') return null;
+  if (compact) return <span className={`rs-status-dot is-${status}`} title={STATUS_LABELS[status]} aria-label={STATUS_LABELS[status]}>{status === 'check' ? <AlertTriangle size={12}/> : <Info size={12}/>}</span>;
   return <span className={`rs-status is-${status}`}>{status === 'check' ? <AlertTriangle size={12}/> : <Info size={12}/>}{STATUS_LABELS[status]}</span>;
 }
 
@@ -267,6 +268,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const quality = result?.quality || gate?.prepared.quality;
   const itemStatus = (item: Item) => item.source !== undefined && !settledFields.includes(`item:${item.source}`) ? intel?.items[item.source]?.amount.status || 'likely' : 'likely';
   const totalStatus = statusOf('total', intel?.grandTotal.status);
+  const dateStatus = read?.items.length || read?.total ? statusOf('date', intel?.date.status) : 'likely';
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent title="Scan struk" className="receipt-scan-dialog">
     {cameraOpen && <ReceiptCamera onCapture={blob => { setCameraOpen(false); void pick(blob); }} onFallback={() => { setCameraOpen(false); captureInput.current?.click(); }} onClose={() => setCameraOpen(false)}/>}
     <input ref={captureInput} type="file" accept="image/*" capture="environment" hidden onChange={e => { void pick(e.target.files?.[0]); e.target.value = ''; }}/>
@@ -340,15 +342,17 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       </div>
       {reread?.field === 'total' && <RereadPanel reread={reread} onUse={value => useValue('total', value)} onClose={() => setReread(null)}/>}
       {alternatives.length > 0 && totalStatus !== 'verified' && <div className="rs-alts"><small className="muted">Nominal lain dari struk:</small>{alternatives.map(([label, value]) => <button type="button" key={`${label}${value}`} className="sb-chip" onClick={() => { patch({ amount: value }); settle('total'); }}>{rupiah(value)} <small>{label}</small></button>)}</div>}
-      <div className="rs-when">
-        <div className={`rs-field ${statusOf('date', intel?.date.status) === 'check' ? 'is-check' : ''}`}><div className="rs-field-label"><span>Tanggal</span><Status status={read?.items.length || read?.total ? statusOf('date', intel?.date.status) : 'likely'}/><FieldTools field="date" label="Tanggal" status={statusOf('date', intel?.date.status)}/></div><Input type="date" required value={draft.date} max={today} onChange={e => { patch({ date: e.target.value }); settle('date'); }}/></div>
-        <div className="rs-field"><div className="rs-field-label"><span>Jam</span></div><Input type="time" value={draft.time} onChange={e => patch({ time: e.target.value })}/></div>
+      <div className="rs-sheet">
+        <div className={`rs-line ${dateStatus === 'check' ? 'is-check' : ''}`}><span className="rs-line-label">Tanggal <Status status={dateStatus} compact/></span><div className="rs-line-control"><Input type="date" required value={draft.date} max={today} onChange={e => { patch({ date: e.target.value }); settle('date'); }}/></div><FieldTools field="date" label="Tanggal" status={dateStatus}/></div>
+        {reread?.field === 'date' && <RereadPanel reread={reread} onUse={value => useValue('date', value)} onClose={() => setReread(null)}/>}
+        {(intel?.date.alternatives.length || 0) > 0 && !settledFields.includes('date') && <div className="rs-alts"><small className="muted">Tanggal lain:</small>{intel!.date.alternatives.filter(d => d <= today).map(d => <button type="button" key={d} className="sb-chip" onClick={() => { patch({ date: d }); settle('date'); }}>{d.split('-').reverse().join('/')}</button>)}</div>}
+        <div className="rs-line"><span className="rs-line-label">Jam</span><div className="rs-line-control"><Input type="time" value={draft.time} onChange={e => patch({ time: e.target.value })}/></div></div>
+        <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Dari' : 'Tempat'}</span><div className="rs-line-control"><Input value={draft.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Nama toko atau tempat"/>{intel?.merchant.raw && intel.merchant.raw !== draft.merchant && <small>Terbaca “{intel.merchant.raw}”</small>}</div><FieldTools field="merchant" label="Tempat" status={statusOf('merchant', intel?.merchant.status)}/></div>
+        <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Masuk ke' : 'Dompet'}</span><div className="rs-line-control"><Select required value={draft.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select>{why.wallet && <small>{why.wallet}</small>}</div></div>
+        {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <div className="rs-line"><span className="rs-line-label">{separated.length ? 'Kategori belanja' : 'Kategori'}</span><div className="rs-line-control"><CategoryAccordion type={draft.type} compact value={{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null }} onChange={value => patch({ categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/>{why.category && <small>Tebakan: {why.category}</small>}</div></div>}
+        <div className="rs-line"><span className="rs-line-label">Keterangan</span><div className="rs-line-control"><Input value={draft.description} maxLength={120} onChange={e => patch({ description: e.target.value })} placeholder="Opsional"/></div></div>
+        <div className="rs-line"><span className="rs-line-label">Catatan</span><div className="rs-line-control"><Input value={draft.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></div></div>
       </div>
-      {reread?.field === 'date' && <RereadPanel reread={reread} onUse={value => useValue('date', value)} onClose={() => setReread(null)}/>}
-      {(intel?.date.alternatives.length || 0) > 0 && !settledFields.includes('date') && <div className="rs-alts"><small className="muted">Tanggal lain terbaca:</small>{intel!.date.alternatives.filter(d => d <= today).map(d => <button type="button" key={d} className="sb-chip" onClick={() => { patch({ date: d }); settle('date'); }}>{d.split('-').reverse().join('/')}</button>)}</div>}
-      <div className="rs-field"><div className="rs-field-label"><span>{draft.type === 'income' ? 'Dari' : 'Tempat'}</span><FieldTools field="merchant" label="Tempat" status={statusOf('merchant', intel?.merchant.status)}/></div><Input value={draft.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Nama toko atau tempat"/>{intel?.merchant.raw && intel.merchant.raw !== draft.merchant && <small className="muted">Terbaca “{intel.merchant.raw}”</small>}</div>
-      <Field label={draft.type === 'income' ? 'Masuk ke dompet' : 'Dibayar dari'} hint={why.wallet || undefined}><Select required value={draft.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></Field>
-      {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <Field label={separated.length ? 'Kategori belanja' : 'Kategori'} hint={why.category ? `Tebakan: ${why.category}` : undefined}><CategoryAccordion type={draft.type} value={{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null }} onChange={value => patch({ categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/></Field>}
 
       <details className="rs-items" open={draft.items.length > 0 && draft.items.length <= 12 || undefined}>
         <summary><ReceiptText size={16}/> Item di struk <span className="muted">{draft.items.length} item · {rupiah(itemsTotal)}</span></summary>
@@ -376,8 +380,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         {itemsTotal > 0 && draft.amount > 0 && itemsTotal !== draft.amount && !shownCharges.length && <p className="muted rs-diff">Jumlah item {rupiah(itemsTotal)}, nominal {rupiah(draft.amount)}. Selisih {rupiah(Math.abs(draft.amount - itemsTotal))}{draft.amount > itemsTotal ? '. Mungkin ada pajak, service, ongkir, atau item yang belum terbaca.' : '. Mungkin ada diskon.'}</p>}
       </details>
 
-      <details className="rs-charges" open={shownCharges.some(k => statusOf(k, intel?.charges[k]?.status) === 'check') || (shownCharges.length > 0 && live?.state === 'UNRECONCILED') || undefined}>
-        <summary><Percent size={16}/> Biaya & diskon <span className="muted">{shownCharges.length ? `${shownCharges.length} biaya · hasil ${rupiah(computedTotal)}` : 'tidak ada'}</span></summary>
+      <details className="rs-charges">
+        <summary><Percent size={16}/> Biaya tambahan <span className="muted">{shownCharges.length ? `${shownCharges.length} · ${rupiah(computedTotal)}` : 'tidak ada'}</span></summary>
         {base > 0 && <div className="rs-charge-row is-base"><span>Belanja{itemsTotal ? ` (${draft.items.length} item)` : ' (subtotal)'}</span>{itemsTotal ? <strong>{rupiah(base)}</strong> : <span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span>}</div>}
         {!base && <div className="rs-charge-row is-base"><span>Subtotal</span><span className="rs-charge-money"><Money value={draft.subtotal} onChange={subtotal => patch({ subtotal })}/></span></div>}
         {CHARGE_ORDER.filter(key => draft.ch[key] || shownKeys.includes(key)).map(key => { const status = statusOf(key, intel?.charges[key]?.status); return <div className={`rs-charge-row ${draft.inc[key] ? '' : 'is-off'} ${status === 'check' ? 'is-check' : ''}`} key={key}>
@@ -410,7 +414,6 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         {draft.bySplit && !separated.length && splits.map(line => <div className="budget-line" key={`${line.categoryId}:${line.subcategoryId}`}><span>{catName(line.categoryId)}{line.subcategoryId ? ` › ${catName(line.subcategoryId)}` : ''}</span><strong>{rupiah(line.amount)}</strong></div>)}
       </div>}
 
-      <details className="rs-more" open={Boolean(draft.notes) || undefined}><summary><FileText size={15}/> Catatan <span className="muted">{draft.description || 'opsional'}</span></summary><Field label="Keterangan"><Input value={draft.description} maxLength={120} onChange={e => patch({ description: e.target.value })}/></Field><Field label="Catatan"><Input value={draft.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })}/></Field></details>
       {(rawText || read?.identifiers) && <details className="rs-raw"><summary><Info size={15}/> Detail & hasil baca</summary>
         {read?.identifiers && Object.keys(read.identifiers).length > 0 && <div className="rs-ids">{Object.entries(read.identifiers).map(([k, v]) => <div className="budget-line" key={k}><span>{({ receiptNo: 'No. struk', orderNo: 'No. pesanan', cashier: 'Kasir', table: 'Meja', terminal: 'Terminal', branch: 'Cabang', station: 'SPBU', pump: 'Pompa', plate: 'Nomor kendaraan' } as Record<string, string>)[k] || k}</span><strong>{v}</strong></div>)}</div>}
         {read?.fuel && <div className="budget-line"><span>BBM</span><strong>{[read.fuel.product, read.fuel.liters ? `${read.fuel.liters.toLocaleString('id-ID')} L` : '', read.fuel.pricePerLiter ? `× ${rupiah(read.fuel.pricePerLiter)}` : ''].filter(Boolean).join(' ')}{read.fuel.matches ? ' ✓' : ''}</strong></div>}

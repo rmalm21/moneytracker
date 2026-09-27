@@ -6000,3 +6000,33 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-review .rs-use-total { justify-self: start; }
 .rs-item-disc { align-items: center; font-size: .76rem; }
 .rs-review details > summary { white-space: nowrap; }
+
+/* 114. Scan struk review: details as a compact card (label beside value), smaller fully rounded boxes. */
+.rs-review .input, .rs-review .ca-trigger, .rs-review .datetime-trigger, .rs-review .app-select-trigger { height: 38px; min-height: 38px; border-radius: 999px; padding: 0 14px; font-size: .9rem; }
+.rs-review textarea.input { height: auto; border-radius: 16px; padding: 10px 14px; }
+.rs-review .rs-field > .input { height: 46px; min-height: 46px; font-size: 1.08rem; font-weight: 700; padding-inline: 18px; }
+.rs-review .ca-trigger.is-compact { height: 38px; min-height: 38px; }
+.rs-review .datetime-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-sheet { display: grid; padding: 2px 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); }
+.rs-line { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent); }
+.rs-sheet > .rs-line:last-child { border-bottom: 0; }
+.rs-line.is-check .input { border-color: var(--warn-line); background: var(--warn-soft); }
+.rs-line-label { display: inline-flex; align-items: center; gap: 4px; font-size: .76rem; font-weight: 700; color: var(--muted); line-height: 1.25; }
+.rs-line-control { display: grid; gap: 3px; min-width: 0; }
+.rs-line-control > small { padding-left: 14px; font-size: .7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-line .rs-field-tools { margin-left: 0; }
+.rs-line .rs-field-tools:empty { display: none; }
+.rs-line .rs-tool { width: 30px; height: 30px; border-radius: 99px; }
+.rs-sheet > .rs-alts, .rs-sheet > .rs-reread { margin: 0 0 6px; }
+.rs-status-dot { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 99px; }
+.rs-status-dot.is-check { background: var(--warn-soft); color: var(--warn-ink); }
+.rs-status-dot.is-missing { background: var(--bg); color: var(--muted); }
+.rs-review .rs-item-edit .input, .rs-review .rs-item-edit .ca-trigger { height: 36px; min-height: 36px; }
+.rs-review .rs-item-qty { text-align: center; padding-inline: 6px; }
+.rs-review .rs-charge-money .input { height: 32px; min-height: 32px; border-radius: 999px; padding-inline: 12px; }
+.rs-review .rs-tool { border-radius: 99px; }
+.rs-review .rs-type { border-radius: 999px; }
+.rs-review .rs-type button { border-radius: 999px; }
+@media (max-width: 360px) { .rs-line { grid-template-columns: 70px minmax(0, 1fr) auto; gap: 6px; } }
+.rs-line-label { font-size: .72rem; }
+@media (max-width: 360px) { .rs-line { grid-template-columns: 72px minmax(0, 1fr) auto; } }

@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '81', date: '27 Sep 2026', title: 'Konfirmasi struk lebih rapi', items: [
+    ['📝', 'Tanggal, jam, tempat, dompet, kategori, keterangan, dan catatan kini dalam satu kartu ringkas: label di kiri, isian di kanan.'],
+    ['🧾', 'Biaya tambahan jadi bagian yang bisa dibuka-tutup (tertutup dulu), dengan jumlah dan hasil hitungnya terlihat di judul.'],
+    ['💡', 'Kotak isian lebih kecil dan membulat penuh, jadi layar tidak cepat penuh.'],
+  ] },
   { version: '80', date: '27 Sep 2026', title: 'Hasil Scan struk lebih ringkas', items: [
     ['🧾', 'Item di struk kini satu baris per item (nama, jumlah, kategori, dan harga); ketuk item untuk mengubahnya.'],
     ['📝', 'Tombol foto (putar, sudut, baca ulang, foto lanjutan, ganti) jadi satu baris kecil, tanggal dan jam berdampingan, dan kolom isian lebih ringkas.'],
