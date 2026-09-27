@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '86', date: '27 Sep 2026', title: 'Mengetik di Catat otomatis lebih ringan', items: [
+    ['✅', 'Huruf yang kamu ketik di Catat otomatis langsung muncul; pembacaan kalimat dan kartunya menyusul sesaat kemudian, jadi tidak lagi terasa tersendat di HP. Kartu yang tidak berubah tidak digambar ulang.'],
+    ['🔒', 'Menekan Enter tepat setelah mengetik tetap menyimpan kalimat yang lengkap, bukan potongan yang belum selesai dibaca.'],
+  ] },
   { version: '85', date: '27 Sep 2026', title: 'Tentukan area struk dulu, lensa kamera, dan biaya tambahan yang seragam', items: [
     ['📷', 'Setelah foto diambil atau dipilih, kamu menentukan area struknya dulu: geser titik atau sisi ke tepi struk, putar bila perlu, lalu “Baca struk”. Hanya bagian di dalam garis yang dibaca. Peringatan foto (buram, gelap, pudar) muncul di langkah ini, dengan pilihan “Ambil ulang”.'],
     ['🔒', 'Kamera tidak lagi mengingat lensa ultra-wide. Nama kamera berbahasa Indonesia (mis. “Kamera Ultra Lebar Belakang”) kini dikenali, lensa yang tidak bisa dibedakan dari namanya dicek dari kemampuannya (fokus otomatis, ukuran sensor), dan ada tombol “Ganti lensa” yang pilihannya diingat.'],

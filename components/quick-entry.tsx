@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
@@ -152,12 +152,17 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const [text, setText] = useState(''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
   const today = todayInTimeZone(profile?.timeZone);
   const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay }), [data, today, profile?.salaryCycleStartDay]);
-  /** The whole message read as a plan: one card per action. */
-  const plan = useMemo(() => text.trim() ? parseQuickPlan(text, ctx, mode) : null, [text, mode, ctx]);
+  /**
+   * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
+   * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
+   * still running when the next letter comes is dropped).
+   */
+  const typed = useDeferredValue(text);
+  const plan = useMemo(() => typed.trim() ? parseQuickPlan(typed, ctx, mode) : null, [typed, mode, ctx]);
   const actions = plan?.actions || [];
   const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
   const [moreGroups, setMoreGroups] = useState(false), [allExamples, setAllExamples] = useState(false);
-  useEffect(() => { setSkipped([]); setOpen([]); setError(''); }, [text, mode]);
+  useEffect(() => { setSkipped(list => list.length ? [] : list); setOpen(list => list.length ? [] : list); setError(''); }, [typed, mode]);
   const registry = useRef(new Map<string, CardEntry>());
   const [, redraw] = useState(0);
   // Cards register their save after every render; the totals are drawn again when an amount or a missing field changes.
@@ -191,8 +196,12 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     reset(); onDone?.();
     if (nav) onNavigate?.(nav.key, nav.target);
   }
+  // Enter pressed before the reading caught up with the last letters: saved once the cards show the full text.
+  const pendingSubmit = useRef(false), formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => { if (pendingSubmit.current && typed === text) { pendingSubmit.current = false; formRef.current?.requestSubmit(); } });
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (typed !== text) { pendingSubmit.current = true; return; }
     if (!actions.length) { if (text.trim()) setError(plan?.references[0] || 'Sebutkan nominalnya, misalnya "beli pocari 8rb di alfa".'); return; }
     if (actions.length === 1) {
       const entry = registry.current.get(actions[0].id);
@@ -211,14 +220,14 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const openForm = (preset: Partial<LedgerTx>) => { setText(''); onOpenForm(preset); };
 
   return <div className="quick-entry-wrap">
-    <form className="quick-entry" onSubmit={submit}>
+    <form className="quick-entry" ref={formRef} onSubmit={submit}>
       <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
       <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form>
     <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>
     {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
-    {text.trim() && !actions.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
+    {text.trim() && typed.trim() && !actions.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
     {actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
     {actions.length > 1 && <div className="quick-preview quick-batch">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{[...new Set(kept.map(a => QUICK_LABELS[a.result.kind]))].slice(0, 3).join(' · ')}{needs ? ` · ${needs} perlu dilengkapi` : ''}</small><strong>{entries.length && entries.every(e => e.kind === 'expense') ? <>{rupiah(out)}<em> keluar</em></> : entries.length && entries.every(e => e.kind === 'income') ? <>{rupiah(income)}<em> masuk</em></> : entries.length && entries.every(e => e.kind === 'budget') ? <>{rupiah(budgets)}<em> anggaran</em></> : <>{kept.length}<em> catatan</em></>}</strong></span></div>
@@ -235,7 +244,8 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
  * One action of the plan: the compact preview ("single") or a row that opens to the same preview ("row").
  * Only what needs attention is highlighted; the reasons stay behind "Kenapa?".
  */
-function QuickCard({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle }: { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void }) {
+const QuickCard = memo(QuickCardView, (a, b) => a.action === b.action && a.layout === b.layout && a.error === b.error && a.skipped === b.skipped && a.expanded === b.expanded && a.register === b.register);
+function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle }: { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void }) {
   const { data, profile, user } = useApp();
   const [choice, setChoice] = useState(0), [why, setWhy] = useState(false);
   const result = choice ? action.alternatives[choice - 1].result : action.result;
