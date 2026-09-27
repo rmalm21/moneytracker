@@ -6547,3 +6547,47 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 :root[data-theme='dark'] .tx-results .tx-day-group > .tx-list { border: 1px solid transparent; background: linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.025)) padding-box, linear-gradient(135deg, rgba(255,255,255,.22), color-mix(in srgb, var(--accent) 40%, transparent) 50%, rgba(139,124,246,.35)) border-box; }
 :root[data-theme='dark'] .tx-results .tx-day-group > .tx-list::after { background: linear-gradient(rgba(255,255,255,.05), transparent); }
 .tx-compact .tx-day-group > .tx-list::after { border-radius: 16px 16px 0 0; }
+
+/* 126. v90: the day's header lives inside its card; bold, with money out in red. Rows with category pills. */
+.tx-results .tx-day-group {
+  position: relative; overflow: clip;
+  border: 1px solid transparent; border-radius: 20px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--paper) 88%, transparent), color-mix(in srgb, var(--paper) 64%, transparent)) padding-box,
+              linear-gradient(135deg, rgba(255,255,255,.95), color-mix(in srgb, var(--accent) 26%, rgba(255,255,255,.3)) 45%, color-mix(in srgb, #8b7cf6 22%, rgba(255,255,255,.5))) border-box;
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--accent) 45%, rgba(0,0,0,.35)), inset 0 1px 0 rgba(255,255,255,.65);
+  animation: tx-card-in .28s var(--ease-out) both;
+}
+.tx-results .tx-day-group::after { content: ''; position: absolute; inset: 0 0 auto; height: 70px; background: linear-gradient(rgba(255,255,255,.3), transparent); pointer-events: none; }
+.tx-results .tx-day-group > .tx-list { overflow: visible; border: 0; border-radius: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; animation: none; }
+.tx-results .tx-day-group > .tx-list::after { content: none; }
+.tx-results .tx-day { position: relative; top: auto; z-index: 1; padding: 0; background: none; }
+.tx-results .tx-day-toggle { padding: 12px var(--row-x); border-radius: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tx-results .tx-day-group:not(.is-folded) .tx-day-toggle { border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+.tx-results .tx-day-title strong { font-size: .95rem; font-weight: 800; }
+.tx-results .tx-day-title small { font-weight: 600; }
+.tx-results .tx-day-title > b { font-weight: 900; }
+.tx-results .tx-day-sum { font-size: .9rem; font-weight: 800; }
+.tx-results .tx-day .amount-negative, .tx-results .tx-day-sum .amount-negative { color: var(--rose); }
+.tx-results .tx-day-sum .amount-positive { color: var(--positive); }
+.tx-results .tx-day-toggle:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+
+/* Rows: the category as a tinted pill, the wallet quietly after it, time under the amount. */
+.tx-results .tx-meta { gap: 6px; align-items: center; margin-top: 4px; }
+.tx-results .tx-meta > span + span::before { content: none; }
+.tx-results .tx-meta > span + span.tx-cat { margin-left: 0; }
+.tx-results .tx-meta .tx-cat, .tx-results .tx-meta > .tx-cat:first-child { flex: none; display: inline-flex; align-items: center; gap: 0; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--identity-color, var(--accent)) 14%, transparent); color: color-mix(in srgb, var(--identity-color, var(--accent)) 72%, var(--ink)); font-size: .72rem; font-weight: 700; }
+.tx-results .tx-meta > .tx-cat:first-child::before, .tx-results .tx-meta > span.tx-cat::before { content: none; }
+.tx-results .tx-meta > span:not(.tx-cat) { color: var(--muted); font-size: .76rem; }
+.tx-results .data-row-main strong { font-size: .95rem; font-weight: 700; letter-spacing: -.01em; }
+.tx-results .data-row-side { gap: 3px; }
+.tx-results .data-row-side > small { padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 5%, transparent); font-variant-numeric: tabular-nums; }
+.tx-results .tx-list > .transaction-row + .transaction-row::before { left: calc(var(--row-x) + 54px); right: var(--row-x); border-top-color: color-mix(in srgb, var(--line) 70%, transparent); }
+:root[data-theme='dark'] .tx-results .tx-day-group { border: 1px solid transparent; background: linear-gradient(150deg, rgba(255,255,255,.08), rgba(255,255,255,.025)) padding-box, linear-gradient(135deg, rgba(255,255,255,.22), color-mix(in srgb, var(--accent) 40%, transparent) 50%, rgba(139,124,246,.35)) border-box; box-shadow: 0 14px 34px -20px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08); }
+:root[data-theme='dark'] .tx-results .tx-day-group::after { background: linear-gradient(rgba(255,255,255,.05), transparent); }
+:root[data-theme='dark'] .tx-results .tx-meta .tx-cat { color: color-mix(in srgb, var(--identity-color, var(--accent)) 55%, #fff); background: color-mix(in srgb, var(--identity-color, var(--accent)) 22%, transparent); }
+:root[data-theme='dark'] .tx-results .data-row-side > small { background: rgba(255,255,255,.07); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .tx-results .tx-day-group { background: var(--paper); } }
+.tx-compact .tx-day-group { border-radius: 16px; }
+.tx-compact .tx-day-toggle { padding: 10px 12px; }
+.tx-results .data-row-main .tx-meta > span.tx-cat + span:not(.tx-cat), .tx-results .data-row-main .tx-meta > span:not(.tx-cat) + span:not(.tx-cat) { margin-left: 6px; }

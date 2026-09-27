@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '90', date: '27 Sep 2026', title: 'Satu kartu per hari', items: [
+    ['✅', 'Judul hari kini menyatu di kartu hari itu, ditulis tebal, dan total pengeluaran hari itu berwarna merah. Ketuk judulnya untuk melipat.'],
+    ['💡', 'Isi kartu lebih modern: kategori tampil sebagai pil berwarna, dompet di sebelahnya, dan jam dalam pil kecil di bawah nominal.'],
+    ['📝', 'Ringkasan di atas daftar cukup “Selisih · 134 transaksi”.'],
+  ] },
   { version: '89', date: '27 Sep 2026', title: 'Kartu transaksi bergaya kaca, hari bisa dilipat', items: [
     ['💡', 'Setiap hari di daftar transaksi bisa dilipat: ketuk judul harinya. Hari yang dilipat menampilkan jumlah transaksi dan totalnya, dan tetap terlipat saat aplikasi dibuka lagi di perangkat ini.'],
     ['✅', 'Kartu transaksi bergaya kaca: tepi bergradien, kilau lembut, ikon kategori kaca berwarna, dan cahaya latar yang halus. Judul hari menempel sebagai pil kaca saat digulir.'],
