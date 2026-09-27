@@ -191,19 +191,19 @@ export async function editOpeningRecord(uid:string,kind:'claims'|'receivables'|'
   if(!validAmount(newAmount))throw Error('Nominal harus lebih dari nol.');
   const relationKey=kind==='claims'?'claimId':kind==='receivables'?'receivableId':'debtId';
   const openingType=kind==='claims'?'claim_advance':kind==='receivables'?'receivable_issue':'borrowing';
-  const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));const first=found.docs.find(s=>s.data().type===openingType);
+  const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));const first=found.docs.filter(s=>s.data().type===openingType&&!/\(tambahan\)$/.test(String(s.data().description||''))).sort((a,b)=>String(a.data().date).localeCompare(String(b.data().date)))[0]||found.docs.find(s=>s.data().type===openingType);
   await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snapshot=await trx.get(rr);if(!snapshot.exists())throw Error('Catatan tidak ditemukan.');const old=snapshot.data();if(old.sourceType==='split_bill')throw Error(splitRecord(kind));const txSnap=first?await trx.get(first.ref):null;
     const key=kind==='claims'?'amount':'originalAmount',oldAmount=Number(old[key]),delta=newAmount-oldAmount,remainingKey=kind==='debts'?'outstandingAmount':'remainingAmount';
     const nextRemaining=Number(old[remainingKey])+delta;if(nextRemaining<0)throw Error('Nominal baru lebih kecil daripada pembayaran yang sudah diterima.');
     if(first&&!txSnap?.exists())throw Error('Transaksi pembuka tidak ditemukan. Coba lagi.');
-    if(first&&txSnap){const t=txSnap.data() as LedgerTx;const walletDelta=kind==='debts'?delta:-delta;trx.update(ref(uid,'wallets',t.walletId),{cachedBalance:increment(walletDelta),updatedAt:serverTimestamp()});trx.update(first.ref,{amount:newAmount,updatedAt:serverTimestamp()});}
+    if(first&&txSnap){const t=txSnap.data() as LedgerTx;const walletDelta=kind==='debts'?delta:-delta;trx.update(ref(uid,'wallets',t.walletId),{cachedBalance:increment(walletDelta),updatedAt:serverTimestamp()});const txAmount=Number(t.amount)+delta;if(txAmount<=0)throw Error('Nominal awal tidak bisa sekecil itu karena ada tambahan. Batalkan tambahannya dulu di Riwayat.');trx.update(first.ref,{amount:txAmount,updatedAt:serverTimestamp()});}
     trx.update(rr,{...changes,[key]:newAmount,[remainingKey]:nextRemaining,updatedAt:serverTimestamp()});
   });await syncSnapshot(uid,first?.data().date||'0000-01-01');
 }
 export async function deleteOpeningRecord(uid:string,kind:'claims'|'receivables'|'debts',id:string){
   const relationKey=kind==='claims'?'claimId':kind==='receivables'?'receivableId':'debtId',openingType=kind==='claims'?'claim_advance':kind==='receivables'?'receivable_issue':'borrowing';
-  const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));const opening=found.docs.find(s=>s.data().type===openingType);
-  await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())return;if(snap.data().sourceType==='split_bill')throw Error(splitRecord(kind));const row=snap.data(),initial=Number(kind==='claims'?row.amount:row.originalAmount),remaining=Number(kind==='debts'?row.outstandingAmount:row.remainingAmount);if(remaining!==initial)throw Error('Catatan yang sudah memiliki pembayaran tidak dapat dihapus. Koreksi transaksi pembayarannya terlebih dahulu.');const t=opening?await trx.get(opening.ref):null;if(opening&&!t?.exists())throw Error('Transaksi pembuka tidak tersedia.');if(t?.exists()){const tx=hydrate<LedgerTx>(t);for(const [wallet,delta] of Object.entries(effects(tx)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});trx.delete(t.ref);}trx.delete(rr);});await noteDeleted(uid,{[kind]:[id],...(opening?{transactions:[opening.id]}:{})});await syncSnapshot(uid,opening?.data().date||'0000-01-01');
+  const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));const openings=found.docs.filter(s=>s.data().type===openingType),opening=openings[0];
+  await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())return;if(snap.data().sourceType==='split_bill')throw Error(splitRecord(kind));const row=snap.data(),initial=Number(kind==='claims'?row.amount:row.originalAmount),remaining=Number(kind==='debts'?row.outstandingAmount:row.remainingAmount);if(remaining!==initial)throw Error('Catatan yang sudah memiliki pembayaran tidak dapat dihapus. Koreksi transaksi pembayarannya terlebih dahulu.');const snaps=[];for(const o of openings){const t=await trx.get(o.ref);if(!t.exists())throw Error('Transaksi pembuka tidak tersedia.');snaps.push(t);}for(const t of snaps){const tx=hydrate<LedgerTx>(t);for(const [wallet,delta] of Object.entries(effects(tx)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});trx.delete(t.ref);}trx.delete(rr);});await noteDeleted(uid,{[kind]:[id],...(openings.length?{transactions:openings.map(o=>o.id)}:{})});await syncSnapshot(uid,opening?.data().date||'0000-01-01');
 }
 export async function attachClaimReceipt(uid:string,id:string,file:File){
   if(file.size>10*1024*1024)throw Error('Ukuran file maksimal 10 MB.');
@@ -268,14 +268,42 @@ export async function settleWithoutWallet(uid:string,kind:'receivables'|'debts',
  * a discount given, a mistake corrected). The total owed moves by the same difference, so what was already paid stays
  * the same; no wallet changes. Every update is kept in `balanceUpdates` as history.
  */
-export async function updateOwedBalance(uid:string,kind:'receivables'|'debts',id:string,amount:number,date:string,note=''){
-  if(!Number.isSafeInteger(amount)||amount<0)throw Error('Isi sisa yang benar (Rp0 atau lebih).');
+export async function updateOwedBalance(uid:string,kind:'receivables'|'debts',id:string,amount:number,date:string,note='',options:{mode?:'add'|'reduce'|'set';walletId?:string}={}){
+  const mode=options.mode||'set';
+  if(!Number.isSafeInteger(amount)||amount<0||(mode!=='set'&&amount===0))throw Error(mode==='set'?'Isi sisa yang benar (Rp0 atau lebih).':'Isi nominal lebih dari nol.');
+  const walletId=mode==='add'?options.walletId||'':'';
   await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();
     if(row.sourceType==='split_bill')throw Error(splitRecord(kind));
-    const key=kind==='debts'?'outstandingAmount':'remainingAmount',current=Number(row[key]),delta=amount-current;if(!delta)throw Error('Sisanya sudah sama.');
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',current=Number(row[key]);
+    const target=mode==='add'?current+amount:mode==='reduce'?current-amount:amount;
+    if(target<0)throw Error(`Pengurangan melebihi sisa ${kind==='debts'?'utang':'piutang'} (${'Rp'+current.toLocaleString('id-ID')}).`);
+    const delta=target-current;if(!delta)throw Error('Sisanya sudah sama.');
     const original=Number(row.originalAmount)+delta;if(original<=0)throw Error('Total setelah diperbarui harus lebih dari nol.');
-    const history=[...((row.balanceUpdates||[]) as BalanceUpdate[]),{id:crypto.randomUUID(),date,from:current,to:amount,...(note?{note}:{}),at:new Date().toISOString()}];
-    trx.update(rr,{[key]:amount,originalAmount:original,status:kind==='debts'?(amount===0?'paid':'open'):(amount===0?'paid':amount<original?'partial':'open'),balanceUpdates:history,updatedAt:serverTimestamp()});});
+    let transactionId='';
+    if(walletId){
+      // More money lent (piutang: out of the wallet) or borrowed (utang: into the wallet), recorded like the first loan.
+      const walletSnap=await trx.get(ref(uid,'wallets',walletId));if(!walletSnap.exists())throw Error('Dompet tidak ditemukan.');
+      const type:TxType=kind==='debts'?'borrowing':'receivable_issue';const t=doc(coll(uid,'transactions'));transactionId=t.id;
+      const tx=newTx({type,amount,walletId,date,...(kind==='debts'?{debtId:id}:{receivableId:id}),description:`${String(kind==='debts'?row.name:row.person)} (tambahan)`,notes:note});
+      validateWalletUse(hydrate<Wallet>(walletSnap),walletActions(tx).source);
+      const {id:_t,...payload}=tx;trx.set(t,{...payload,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      trx.update(ref(uid,'wallets',walletId),{cachedBalance:increment(kind==='debts'?amount:-amount),updatedAt:serverTimestamp()});
+    }
+    const history=[...((row.balanceUpdates||[]) as BalanceUpdate[]),{id:crypto.randomUUID(),date,from:current,to:target,mode,...(note?{note}:{}),...(walletId?{walletId,transactionId}:{}),at:new Date().toISOString()}];
+    trx.update(rr,{[key]:target,originalAmount:original,status:kind==='debts'?(target===0?'paid':'open'):(target===0?'paid':target<original?'partial':'open'),balanceUpdates:history,updatedAt:serverTimestamp()});});
+  await syncSnapshot(uid,date);
+}
+/** Undo the most recent "tambah / kurangi / atur sisa", including the wallet movement of an addition. */
+export async function undoBalanceUpdate(uid:string,kind:'receivables'|'debts',id:string,updateId:string){
+  let date='0000-01-01',removedTx='';
+  await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();
+    const list=(row.balanceUpdates||[]) as BalanceUpdate[];const last=list[list.length-1];if(!last||last.id!==updateId)throw Error('Hanya perubahan terakhir yang bisa dibatalkan.');date=last.date;
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',delta=last.to-last.from,next=Number(row[key])-delta,original=Number(row.originalAmount)-delta;
+    if(next<0||original<=0)throw Error('Sudah ada pembayaran setelah perubahan ini. Batalkan pembayarannya dulu.');
+    const txSnap=last.transactionId?await trx.get(ref(uid,'transactions',last.transactionId)):null;
+    if(txSnap?.exists()){const tx=hydrate<LedgerTx>(txSnap);for(const [wallet,change] of Object.entries(effects(tx)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-change),updatedAt:serverTimestamp()});trx.delete(txSnap.ref);removedTx=txSnap.id;}
+    trx.update(rr,{[key]:next,originalAmount:original,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),balanceUpdates:list.slice(0,-1),updatedAt:serverTimestamp()});});
+  if(removedTx)await noteDeleted(uid,{transactions:[removedTx]});
   await syncSnapshot(uid,date);
 }
 /** Undo a settlement made without a wallet. */

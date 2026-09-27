@@ -5610,6 +5610,13 @@ details.sb-extra > summary > strong { font: 800 .92rem var(--font-head); font-va
   .rs-pick-button { min-height: 80px; font-size: .76rem; }
 }
 
+/* 108. Utang & Piutang: tambah / kurangi */
+.owed-mode { display: flex; justify-self: stretch; }
+.owed-mode button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.owed-adjust { display: inline-flex; align-items: center; gap: 2px; }
+.owed-adjust svg + svg { margin-left: -5px; }
+.owed-delta strong { font-weight: 800; }
+
 /* ==========================================================================
    44. Emoji artwork: Microsoft Fluent Emoji 3D (MIT), bundled in /public/emoji so it looks the same on every device
    ========================================================================== */

@@ -98,3 +98,92 @@ test('OCR quantity typos and untrustworthy totals', () => {
 test('OCR noise above the header is not taken as the place', () => {
   assert.equal(readReceiptText('0 ERA\nWARUNG KOPI NUSANTARA\nJl. Melati No. 12\nKopi 18.000').merchant, 'WARUNG KOPI NUSANTARA');
 });
+
+test('a mangled grand total is still the total, never an item', () => {
+  for (const label of ['GRAND T0TAI', 'GRAMD TOTAL', 'GRANDTOTAL', 'Grand Tota1', 'T O T A L', 'TOTAL BAYAR']) {
+    const read = readReceiptText(`RM PADANG\nRendang 25.000\nEs Jeruk 8.000\n${label} 33.000\nTunai 50.000\nKembali 17.000`);
+    assert.deepEqual(read.items.map(i => i.name), ['Rendang', 'Es Jeruk'], label);
+    assert.equal(checkReceipt(read).total, 33000, label);
+  }
+  // Card slip after the total: approval codes and card numbers are not items.
+  const card = readReceiptText('KOPI\nLatte 30.000\nTOTAL 30.000\nDEBIT BCA 30.000\nNO KARTU 4567\nAPPR CODE 123456\nREF 000123456789');
+  assert.deepEqual(card.items.map(i => i.total), [30000]);
+  assert.equal(card.payment, 'debit');
+});
+
+test('names and prices copied as two columns are paired back', () => {
+  const read = readReceiptText('WARUNG BAKSO\nBakso Urat\nEs Teh\nSubtotal\nTotal\n30.000\n6.000\n36.000\n36.000');
+  assert.deepEqual(read.items.map(i => [i.name, i.total]), [['Bakso Urat', 30000], ['Es Teh', 6000]]);
+  assert.equal(read.total, 36000); assert.ok(checkReceipt(read).matches);
+});
+
+test('a minimarket receipt: PPN already inside the prices, DPP ignored', () => {
+  const read = readReceiptText(`lNDOMARET
+JL. RAYA BOGOR KM 30
+21.09.26 18:05 2.3.42
+INDOMIE GRG SPC 2 3.100 6.200
+AQUA 600ML 1 3.500 3.500
+SUSU UHT 25.000 x 2 50.000
+TOTAL ITEM 4
+HARGA JUAL : 59.700
+TOTAL : 59.700
+TUNAI : 100.000
+KEMBALIAN : 40.300
+PPN : 5.916
+DPP : 53.784`);
+  assert.equal(read.merchant, 'Indomaret');
+  assert.equal(read.date, '2026-09-21');
+  assert.deepEqual(read.items.map(i => [i.qty, i.price]), [[2, 3100], [1, 3500], [2, 25000]]);
+  const check = checkReceipt(read);
+  assert.equal(check.total, 59700); assert.ok(check.matches); assert.equal(check.confidence, 'tinggi');
+  assert.match(check.notes[0], /pajak sudah termasuk/);
+});
+
+test('more date shapes and noisy amounts', () => {
+  assert.equal(readReceiptText('Sep 21, 2026').date, '2026-09-21');
+  assert.equal(readReceiptText('21-Sep-26 10:00').date, '2026-09-21');
+  const read = readReceiptText('Nasi Uduk 12. 000\nTeh (2.000)\nKerupuk 3.000 T\nTOTAL 13.000');
+  assert.deepEqual(read.items.map(i => i.total), [12000, 3000]);
+  assert.equal(read.discount, 2000); assert.ok(checkReceipt(read).matches);
+});
+
+import { rowsFromWords, slopeOf } from '../lib/receipt-rows.ts';
+test('rows are rebuilt from word positions, even on a tilted photo', () => {
+  // A 3° tilt: the price column sits lower than its name; the OCR's own lines would split them.
+  const tilt = Math.tan(3 * Math.PI / 180);
+  const word = (text, x, y) => ({ text, x0: x, x1: x + text.length * 14, y0: y + x * tilt, y1: y + x * tilt + 26, confidence: 90 });
+  const words = [word('NASI', 40, 100), word('GORENG', 110, 100), word('50.000', 700, 100), word('ES', 40, 150), word('TEH', 80, 150), word('12.000', 700, 150), word('TOTAL', 40, 200), word('62.000', 700, 200)];
+  const slope = slopeOf([{ x0: 0, y0: 0, x1: 800, y1: 800 * tilt }]);
+  assert.equal(rowsFromWords(words, slope), 'NASI GORENG   50.000\nES TEH   12.000\nTOTAL   62.000');
+  const read = readReceiptText(rowsFromWords(words, slope));
+  assert.equal(read.total, 62000); assert.equal(read.items.length, 2);
+});
+
+test('a misread service or tax is repaired from its printed percentage, only when everything then adds up', () => {
+  const read = readReceiptText('RM SEDERHANA\nRendang 28.000\nAyam Pop 24.000\nNasi 2 x 6.000 12.000\nGulai 10.000\nEs Jeruk 3 x 9.000 27.000\nTeh 4.000\nSUBTOTAL 105.000\nSERVICE 5% 259\nPB1 10% 11.025\nGRAND TOTAL 121.275');
+  assert.equal(read.service, 5250);
+  const check = checkReceipt(read);
+  assert.ok(check.matches); assert.match(check.notes.join(' '), /Service terbaca Rp259, dibetulkan jadi Rp5\.250/);
+  // A percentage that does not explain the difference changes nothing.
+  const other = readReceiptText('Kopi 20.000\nSERVICE 5% 259\nTOTAL 30.000');
+  assert.equal(other.service, 259); assert.equal(other.fixes, undefined);
+});
+
+test('one or two misread prices are corrected only when that makes the items add up exactly', () => {
+  const read = readReceiptText('INDOMARET\nINDOMIE GRG SPC 2 3.100 5.200\nAQUA MNRL 600ML 1 3.500 3.500\nSUSU UHT COKLAT 3 6.920 20.760\nROTI TAWAR 1 16.500 16.500\nSABUN 2 4.250 8.500\nHARGA JUAL : 55.400\nTOTAL : 55.400');
+  assert.deepEqual(read.items.map(i => i.total), [6200, 3500, 20700, 16500, 8500]);
+  assert.equal(read.items[0].price, 3100);
+  assert.equal(read.fixes.length, 2);
+  assert.ok(checkReceipt(read).matches);
+  // Nothing is guessed when several corrections would fit.
+  const unsure = readReceiptText('Kopi 10.000\nTeh 10.000\nTOTAL 26.000');
+  assert.deepEqual(unsure.items.map(i => i.total), [10000, 10000]);
+});
+
+test('three misread line totals are corrected from their own quantity × unit price', () => {
+  const read = readReceiptText('TT aan\nINDOMARET\nINDOMIE GRG SPC 2 3.100 6.200\nAQUA 1 3.500 3.500\nSUSU UHT COKLAT 3 6.900 20.760\nROTI TAWAR SARI 1 16.500 16.5600\nSABUN LIFEBUOY 2 4.250 8.560\nHARGA JUAL : 55.400\nTOTAL : 55.400');
+  assert.equal(read.merchant, 'Indomaret');
+  assert.deepEqual(read.items.map(i => i.total), [6200, 3500, 20700, 16500, 8500]);
+  assert.ok(checkReceipt(read).matches);
+  assert.equal(readReceiptText('TT aan\nWARUNG BAROKAH\nKopi 5.000').merchant, 'WARUNG BAROKAH');
+});

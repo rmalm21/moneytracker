@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '75', date: '27 Sep 2026', title: 'Tambah/kurangi utang & piutang, Scan struk lebih pintar', items: [
+    ['💸', 'Utang dan piutang kini bisa ditambah atau dikurangi. Pinjam atau meminjamkan lagi bisa langsung lewat dompet; potongan dan diskon cukup dikurangi. Ada juga Atur sisa, dan perubahan terakhir bisa dibatalkan dari Riwayat.'],
+    ['📷', 'Scan struk mencari struk di foto, meluruskan foto miring, meratakan bayangan, dan membaca ulang dengan cara lain bila belum cocok. Foto yang diambil menyamping diputar otomatis.'],
+    ['✅', 'Grand total tidak lagi masuk ke daftar item. Angka di bawah total (nomor kartu, kode approval, kembalian) tidak dianggap belanjaan.'],
+    ['💡', 'Lebih pintar membaca struk minimarket (PPN sudah termasuk, DPP), kata yang salah baca (T0TAL, GRAND TOTAI), dan teks yang tersalin per kolom. Nama toko besar dikenali.'],
+    ['📝', 'Angka yang salah baca dibetulkan hanya bila hasilnya pas dengan subtotal atau total (misalnya 6.920 jadi 6.900), dan setiap koreksi ditampilkan untuk kamu periksa.'],
+  ] },
   { version: '74', date: '27 Sep 2026', title: 'Scan struk', items: [
     ['📷', 'Foto struk atau nota, lalu nominal, tanggal, jam, tempat, item, pajak, service, diskon, dan cara bayar dibaca otomatis. Ada di tombol + (Catat cepat) dan di formulir Catat transaksi.'],
     ['✅', 'Selalu dikonfirmasi dulu: periksa dan ubah semuanya sebelum disimpan. Aplikasi mencocokkan total, item, dan uang bayar dikurangi kembalian, lalu memberi tahu kalau ada yang belum pas.'],

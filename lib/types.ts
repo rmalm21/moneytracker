@@ -11,7 +11,7 @@ export type Claim = WithId & { name: string; amount: number; remainingAmount: nu
 export type ContextNote = { id:string; text:string; createdAt:string; updatedAt?:string; pinned?:boolean };
 export type ManualPayment = { id: string; amount: number; date: string; note?: string };
 /** "Perbarui saldo" on a debt or receivable: the amount still owed was changed to match reality (interest, a discount, a correction). No wallet moves. */
-export type BalanceUpdate = { id: string; date: string; from: number; to: number; note?: string; at: string };
+export type BalanceUpdate = { id: string; date: string; from: number; to: number; note?: string; at: string; /** How it was entered: added, reduced, or set to an amount. */ mode?: 'add'|'reduce'|'set'; /** Added with money moving: the wallet and the transaction that moved it. */ walletId?: string; transactionId?: string };
 /** Piutang/Utang created by a Split Bill carry `sourceType: 'split_bill'` and the bill, person and payment they come from. */
 export type SplitLink = { sourceType?: 'split_bill'; splitBillId?: string; participantId?: string; transactionId?: string };
 export type Receivable = WithId & SplitLink & { manualPayments?: ManualPayment[]; balanceUpdates?: BalanceUpdate[]; person: string; description: string; originalAmount: number; remainingAmount: number; sourceWalletId: string; date: string; dueDate: string; status: 'open'|'partial'|'paid'; contextNotes?:ContextNote[]; createdAt?: unknown; updatedAt?: unknown };
