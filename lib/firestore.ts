@@ -5,7 +5,7 @@ import { walletGroup } from './wallet-groups';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle, newestFirst } from './accounting';
-import type { WishItem, Budget, Category, Claim, Data, Debt, Fund, LedgerTx, ManualPayment, Profile, Receivable, Recurring, Wallet, Draft, TxType } from './types';
+import type { BalanceUpdate, WishItem, Budget, Category, Claim, Data, Debt, Fund, LedgerTx, ManualPayment, Profile, Receivable, Recurring, Wallet, Draft, TxType } from './types';
 import { validateWalletUse, walletActions } from './wallet-capabilities';
 import { advanceSchedule, scheduleDay } from './recurring';
 
@@ -261,6 +261,21 @@ export async function settleWithoutWallet(uid:string,kind:'receivables'|'debts',
     const key=kind==='debts'?'outstandingAmount':'remainingAmount',remaining=Number(row[key]);if(amount>remaining)throw Error(`Nominal melebihi sisa ${kind==='debts'?'utang':'piutang'} (Rp${remaining.toLocaleString('id-ID')}).`);
     const next=remaining-amount,original=Number(row.originalAmount);const payments=[...((row.manualPayments||[]) as ManualPayment[]),{id:crypto.randomUUID(),amount,date,...(note?{note}:{})}];
     trx.update(rr,{[key]:next,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),manualPayments:payments,updatedAt:serverTimestamp()});});
+  await syncSnapshot(uid,date);
+}
+/**
+ * "Perbarui saldo": set what is still owed on a debt or receivable to its real amount (interest or a fine added,
+ * a discount given, a mistake corrected). The total owed moves by the same difference, so what was already paid stays
+ * the same; no wallet changes. Every update is kept in `balanceUpdates` as history.
+ */
+export async function updateOwedBalance(uid:string,kind:'receivables'|'debts',id:string,amount:number,date:string,note=''){
+  if(!Number.isSafeInteger(amount)||amount<0)throw Error('Isi sisa yang benar (Rp0 atau lebih).');
+  await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();
+    if(row.sourceType==='split_bill')throw Error(splitRecord(kind));
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',current=Number(row[key]),delta=amount-current;if(!delta)throw Error('Sisanya sudah sama.');
+    const original=Number(row.originalAmount)+delta;if(original<=0)throw Error('Total setelah diperbarui harus lebih dari nol.');
+    const history=[...((row.balanceUpdates||[]) as BalanceUpdate[]),{id:crypto.randomUUID(),date,from:current,to:amount,...(note?{note}:{}),at:new Date().toISOString()}];
+    trx.update(rr,{[key]:amount,originalAmount:original,status:kind==='debts'?(amount===0?'paid':'open'):(amount===0?'paid':amount<original?'partial':'open'),balanceUpdates:history,updatedAt:serverTimestamp()});});
   await syncSnapshot(uid,date);
 }
 /** Undo a settlement made without a wallet. */

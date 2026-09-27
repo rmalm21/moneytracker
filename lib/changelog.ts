@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '73', date: '27 Sep 2026', title: 'Perbarui saldo utang & piutang, Arsip, dan privasi', items: [
+    ['✏️', 'Utang dan piutang kini punya “Perbarui saldo” untuk bunga, denda, potongan, atau salah catat, tanpa mengubah saldo dompet.'],
+    ['📝', 'Riwayat lengkap tiap utang dan piutang: pembayaran lewat dompet, pelunasan tanpa dompet, dan setiap perubahan saldo.'],
+    ['🗂️', 'Mode Ringkas satu baris per catatan, dan yang sudah lunas pindah ke tab Arsip, dikelompokkan per bulan dan hari yang bisa dilipat.'],
+    ['🔒', 'Pengaturan → Tampilan: “Selalu sembunyikan nominal” setiap aplikasi dibuka.'],
+    ['🧾', 'Biaya tambahan Split Bill kini dipilih dari menu yang rapi, dan tiap biaya bisa dilipat.'],
+  ] },
   { version: '72', date: '27 Sep 2026', title: 'Split Bill', items: [
     ['🧾', 'Menu baru Split Bill: bagi rata, sesuai pesanan (item berbagi dan per porsi), nominal manual, atau persentase, lengkap dengan pajak, service, diskon, ongkir, pembulatan, dan biaya bersama. Pembagian selalu pas sampai Rupiah terakhir.'],
     ['💳', 'Uang keluar dan pengeluaranmu dibedakan: bayar Rp600rb untuk berempat, saldo dompet berkurang Rp600rb tapi anggaran dan analisis hanya menghitung bagianmu. Bagian teman jadi piutang yang tertaut.'],

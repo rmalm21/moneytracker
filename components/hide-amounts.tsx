@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { hasAmount, maskAmounts } from '@/lib/privacy';
 
@@ -52,10 +52,20 @@ function stopMasking() {
   masked.clear();
 }
 
-function readSaved() { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } }
+/** "Selalu sembunyikan nominal": every time the app opens, amounts start hidden (the eye can still show them for a while). */
+const ALWAYS_KEY = 'dompet-ajaib:hide-amounts-always';
+const CHANGED = 'dompet-ajaib:hide-amounts-changed';
+export function readAlwaysHide() { try { return localStorage.getItem(ALWAYS_KEY) === '1'; } catch { return false; } }
+export function setAlwaysHide(on: boolean) {
+  try { localStorage.setItem(ALWAYS_KEY, on ? '1' : '0'); if (on) localStorage.setItem(KEY, '1'); } catch { /* this visit only */ }
+  window.dispatchEvent(new CustomEvent(CHANGED, { detail: on ? true : undefined }));
+}
+function readSaved() { try { return readAlwaysHide() || localStorage.getItem(KEY) === '1'; } catch { return false; } }
 
 export function useHideAmounts() {
   const [hidden, setHidden] = useState(readSaved);
+  // Turning "Selalu sembunyikan" on hides amounts at once, on every eye button.
+  useEffect(() => { const sync = (event: Event) => { if ((event as CustomEvent).detail === true) setHidden(true); }; window.addEventListener(CHANGED, sync); return () => window.removeEventListener(CHANGED, sync); }, []);
   useLayoutEffect(() => {
     document.documentElement.toggleAttribute('data-hide-amounts', hidden);
     if (!hidden) return;

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Check, ClipboardPaste, ImagePlus, Minus, Plus, ScanText, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, CirclePlus, ConciergeBell, HeartHandshake, Percent, Receipt, Scale, Tag, Truck, Users, ClipboardPaste, ImagePlus, Minus, Plus, ScanText, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -26,6 +26,8 @@ export type FlowStart = { mode: 'manual' | 'receipt' | 'transaction' | 'edit' | 
 const STEPS = ['Tagihan', 'Orang', 'Item', 'Biaya tambahan', 'Pembagian', 'Review'] as const;
 const newId = (prefix: string) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 const EXTRA_KINDS: SplitExtraKind[] = ['tax', 'service', 'discount', 'delivery', 'admin', 'tip', 'rounding', 'shared', 'other'];
+/** Icon and a short example for each kind of extra cost, in the "Tambah biaya tambahan" menu. */
+const EXTRA_LOOKS: Record<SplitExtraKind, [typeof Percent, string]> = { tax: [Percent, 'PB1 atau PPN, biasanya 10–11%'], service: [ConciergeBell, 'Biaya layanan restoran'], discount: [Tag, 'Promo, voucher, potongan'], delivery: [Truck, 'Ongkir pesan antar'], admin: [Receipt, 'Biaya aplikasi atau transaksi'], tip: [HeartHandshake, 'Tambahan untuk pelayan'], rounding: [Scale, 'Selisih pembulatan kasir'], shared: [Users, 'Sewa lapangan, parkir, bensin'], other: [CirclePlus, 'Biaya lain apa pun'] };
 const readPercent = (text: string) => { const value = Number(text.replace(',', '.').replace(/[^\d.]/g, '')); return Number.isFinite(value) ? Math.round(Math.min(100, Math.max(0, value)) * 100) : 0; };
 const showPercent = (points?: number) => points ? String(points / 100).replace('.', ',') : '';
 
@@ -53,7 +55,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [reading, setReading] = useState(false), [readNote, setReadNote] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState(''), [receipt, setReceipt] = useState<ReceiptRead | null>(null);
   const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
-  const body = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null), picker = useRef<HTMLDetailsElement>(null);
+  const [openExtra, setOpenExtra] = useState('');
   const editing = start.mode === 'edit' && start.bill?.status === 'active';
   const original = start.bill;
   const progress = useMemo(() => editing && original ? billProgress(original, data.receivables, data.debts) : null, [editing, original, data.receivables, data.debts]);
@@ -135,7 +138,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     if (!has) setLastPicked(id);
   }
   const assignedIds = new Set(bill.items.flatMap(item => [...item.people, ...Object.keys(item.units || {}).filter(id => (item.units?.[id] || 0) > 0), ...Object.keys(item.custom || {}).filter(id => (item.custom?.[id] || 0) > 0)]));
-  const addExtra = (kind: SplitExtraKind) => patch({ extras: [...bill.extras, { id: newId('x'), kind, label: kind === 'tax' ? 'PB1' : kind === 'service' ? 'Service' : kind === 'shared' ? '' : EXTRA_LABELS[kind], amount: 0, distribution: defaultDistribution(kind) }] });
+  const addExtra = (kind: SplitExtraKind) => { const id = newId('x'); setOpenExtra(id); patch({ extras: [...bill.extras, { id, kind, label: kind === 'tax' ? 'PB1' : kind === 'service' ? 'Service' : kind === 'shared' ? '' : EXTRA_LABELS[kind], amount: 0, distribution: defaultDistribution(kind) }] }); };
   const changeExtra = (id: string, changes: Partial<SplitExtra>) => patch({ extras: bill.extras.map(extra => extra.id === id ? { ...extra, ...changes } : extra) });
 
   /* ---------------- receipt */
@@ -321,12 +324,19 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     // 4. Biaya tambahan
     <div className="sb-step" key="extras">
       <p className="muted sb-lead">Pajak, service, diskon, ongkir, atau biaya bersama seperti sewa lapangan dan parkir.</p>
-      <div className="sb-chips sb-add-extra">{EXTRA_KINDS.map(kind => <button type="button" key={kind} className="sb-chip" onClick={() => addExtra(kind)}><Plus size={14}/><span>{EXTRA_LABELS[kind]}</span></button>)}</div>
+      <details className="sb-extra-picker" ref={picker}>
+        <summary><span className="sb-extra-picker-icon"><Plus size={17}/></span><span><strong>Tambah biaya tambahan</strong><small>Pajak, service, diskon, ongkir, biaya bersama…</small></span><ChevronDown size={18} className="sb-extra-picker-chev" aria-hidden="true"/></summary>
+        <div className="sb-extra-menu" role="menu">{EXTRA_KINDS.map(kind => { const [Icon, hint] = EXTRA_LOOKS[kind]; const count = bill.extras.filter(extra => extra.kind === kind).length; return <button type="button" role="menuitem" key={kind} className={`is-${kind}`} onClick={() => { addExtra(kind); if (picker.current) picker.current.open = false; }}><span className="sb-extra-menu-icon"><Icon size={17}/></span><span><strong>{EXTRA_LABELS[kind]}</strong><small>{hint}</small></span>{count > 0 && <em>{count}</em>}</button>; })}</div>
+      </details>
       {bill.extras.map(extra => {
         const resolved = result.extras.find(row => row.id === extra.id);
         const chosen = extra.people || [];
-        return <article className="sb-extra" key={extra.id}>
-          <div className="sb-item-head"><Input className="sb-item-name" value={extra.label} maxLength={40} placeholder={extra.kind === 'shared' ? 'Misalnya Sewa lapangan' : EXTRA_LABELS[extra.kind]} onChange={e => changeExtra(extra.id, { label: e.target.value })} aria-label="Nama biaya"/><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong><button type="button" className="icon-btn" aria-label="Hapus biaya" onClick={() => patch({ extras: bill.extras.filter(row => row.id !== extra.id) })}><Trash2 size={16}/></button></div>
+        const [Icon] = EXTRA_LOOKS[extra.kind];
+        const how = extra.distribution === 'custom' ? 'custom' : extra.distribution === 'equal' ? 'rata' : 'proporsional';
+        return <details className={`sb-extra is-${extra.kind}`} key={extra.id} open={openExtra === extra.id} onToggle={event => { const open = event.currentTarget.open; setOpenExtra(current => open ? extra.id : current === extra.id ? '' : current); }}>
+          <summary><span className="sb-extra-menu-icon"><Icon size={16}/></span><span className="sb-extra-title"><strong>{extra.label.trim() || EXTRA_LABELS[extra.kind]}</strong><small>Dibagi {how}{chosen.length ? ` · ${chosen.length} orang` : ' · semua orang'}</small></span><strong className={isDeduction(extra.kind) || (resolved?.amount || 0) < 0 ? 'amount-positive' : ''}>{resolved ? `${resolved.amount < 0 ? '−' : ''}${rupiah(Math.abs(resolved.amount))}` : rupiah(0)}</strong><ChevronDown size={16} className="sb-extra-chev" aria-hidden="true"/></summary>
+          <div className="sb-extra-body">
+          <div className="sb-item-head"><Input className="sb-item-name" value={extra.label} maxLength={40} placeholder={extra.kind === 'shared' ? 'Misalnya Sewa lapangan' : EXTRA_LABELS[extra.kind]} onChange={e => changeExtra(extra.id, { label: e.target.value })} aria-label="Nama biaya"/><button type="button" className="icon-btn" aria-label="Hapus biaya" onClick={() => patch({ extras: bill.extras.filter(row => row.id !== extra.id) })}><Trash2 size={16}/></button></div>
           <div className="sb-extra-amount">
             {extra.percent && bill.items.length ? <span className="sb-static input">{showPercent(extra.percent * 100)}% dari {extra.kind === 'tax' ? 'item + service' : 'item'}</span> : <Money value={Math.abs(extra.amount)} onChange={value => changeExtra(extra.id, { amount: extra.kind === 'rounding' && extra.amount < 0 ? -value : value, percent: undefined })}/>}
             {extra.kind === 'rounding' && <div className="ip-seg sb-seg"><button type="button" className={extra.amount >= 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: Math.abs(extra.amount) })}>Tambah</button><button type="button" className={extra.amount < 0 ? 'active' : ''} onClick={() => changeExtra(extra.id, { amount: -Math.abs(extra.amount) })}>Kurang</button></div>}
@@ -336,7 +346,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
           {extra.distribution === 'custom' ? <div className="sb-units">{(chosen.length ? bill.participants.filter(person => chosen.includes(person.id)) : bill.participants).map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={extra.custom?.[person.id] || 0} onChange={value => changeExtra(extra.id, { custom: { ...extra.custom, [person.id]: value } })}/></span>)}</div>
             : <div className="sb-extra-who"><small>Untuk</small><div className="sb-chips"><button type="button" className={`sb-chip ${!chosen.length ? 'is-on' : ''}`} onClick={() => changeExtra(extra.id, { people: [] })}><span>Semua orang</span></button>{bill.participants.map(person => personChip(person, chosen.includes(person.id), () => changeExtra(extra.id, { people: chosen.includes(person.id) ? chosen.filter(id => id !== person.id) : [...chosen, person.id] })))}</div></div>}
           {(extra.kind === 'shared' || extra.kind === 'other') && <details className="sb-more"><summary>Detail tambahan</summary><div className="sb-cat"><small className="muted">Kategori biaya ini (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={extra.categoryId || ''} subcategoryId={extra.subcategoryId || ''} onChange={value => changeExtra(extra.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div></details>}
-        </article>;
+          </div>
+        </details>;
       })}
       <div className="sb-sum">
         <div className="budget-line"><span>{bill.items.length ? 'Subtotal item' : 'Tagihan sebelum biaya tambahan'}</span><strong>{rupiah(result.subtotal)}</strong></div>

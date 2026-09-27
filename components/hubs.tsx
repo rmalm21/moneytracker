@@ -5,7 +5,7 @@ import { BookOpenText, CalendarClock, HandCoins, type LucideIcon } from 'lucide-
 /** Related pages grouped under one menu entry and switched with tabs. Page keys stay the same for links. */
 export type Hub = { key: string; label: string; icon: LucideIcon; tabs: [string, string][] };
 export const hubs: Hub[] = [
-  { key: 'owed', label: 'Utang & Piutang', icon: HandCoins, tabs: [['debts', 'Utang'], ['receivables', 'Piutang'], ['claims', 'Klaim kantor']] },
+  { key: 'owed', label: 'Utang & Piutang', icon: HandCoins, tabs: [['debts', 'Utang'], ['receivables', 'Piutang'], ['claims', 'Klaim kantor'], ['owedArchive', 'Arsip']] },
   { key: 'schedule', label: 'Jadwal', icon: CalendarClock, tabs: [['upcoming', 'Arus kas'], ['calendar', 'Kalender'], ['recurring', 'Rutin'], ['inbox', 'Konfirmasi']] },
   { key: 'reports', label: 'Laporan', icon: BookOpenText, tabs: [['report', 'Laporan'], ['analytics', 'Analisis'], ['forecast', 'Proyeksi'], ['cycles', 'Riwayat siklus']] },
 ];
