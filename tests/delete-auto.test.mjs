@@ -18,7 +18,7 @@ test('a deleted document is dropped from the device copy, and a deleted row is o
   assert.match(store, /export async function noteDeleted\(uid:string,items[^)]*\)\{markTxDeleted\(items\.transactions\|\|\[\]\);await dropFromDevice\(uid,items\)/);
   const undo = readFileSync(new URL('../components/undo-delete.tsx', import.meta.url), 'utf8');
   // A delete whose follow-up (the cycle report) failed is still a delete: the row stays hidden.
-  assert.match(undo, /if \(!\(error as \{ committed\?: boolean \}\)\.committed\) show\(id, false\)/);
+  assert.match(undo, /if \(!\(error as \{ committed\?: boolean \}\)\.committed\) show\(item\.id, false\)/);
   assert.ok(!/after: \(\) => show\(id, false\)/.test(undo));
 });
 
@@ -39,8 +39,9 @@ test('transactions this device deleted never come back from a stale device copy'
   const t2 = readFileSync(new URL('../lib/tombstones.ts', import.meta.url), 'utf8');
   assert.match(t2, /const left = readPending\(\);/, 'a delete cut short by closing the app is finished next time');
   const page = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
-  assert.match(page, /markDeletePending\(tx\.id\);undo\.remove/);
-  assert.match(page, /\(\)=>clearDeletePending\(tx\.id\)\)\}/, 'Batalkan clears it');
+  // Recorded only once confirmed (the delete has started), cleared when it is done either way.
+  assert.match(page, /undo\.remove\(tx\.id,'Transaksi',\(\)=>\{markDeletePending\(tx\.id\)/);
+  assert.match(page, /\.finally\(\(\)=>clearDeletePending\(tx\.id\)\)/);
   assert.match(store, /importData[^{]*\{const \{data\}=validateBackup\(backup\);forgetTxDeleted\(\);/);
   assert.match(store, /noteDeleted\(uid:string,items[^)]*\)\{markTxDeleted\(items\.transactions\|\|\[\]\)/);
 });
@@ -52,4 +53,12 @@ test('a plain transaction is deleted with a queued batch (works offline and surv
   assert.match(del, /increment\(-delta\)/);
   assert.match(del, /catch\(error\)\{forgetTxDeleted\(\[id\]\);throw error;\}/, 'a refused delete shows the transaction again');
   assert.match(del, /!relation\(plain,-1\)&&!plain\.draftId&&!plain\.plannedId/, 'linked ones keep the checked server transaction');
+});
+
+test('deleting asks for confirmation, then deletes at once with a progress card (no undo window)', () => {
+  const undo = readFileSync(new URL('../components/undo-delete.tsx', import.meta.url), 'utf8');
+  assert.match(undo, /<Alert\.Root open=\{Boolean\(ask\)\}/);
+  assert.match(undo, /Hapus \{ask\?\.label\.toLowerCase\(\)\}\?/);
+  assert.ok(!/Batalkan|setTimeout/.test(undo), 'no floating undo toast or timer');
+  assert.match(undo, /immediate: true/);
 });

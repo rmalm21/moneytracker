@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '94', date: '27 Sep 2026', title: 'Hapus dengan konfirmasi, langsung diproses', items: [
+    ['✅', 'Menghapus kini meminta konfirmasi sekali (“Hapus transaksi?”), lalu langsung dihapus dengan kartu progres sampai “terhapus dari cloud”. Pemberitahuan “Batalkan” yang mengambang dihilangkan. Berlaku juga untuk geser-untuk-hapus, anggaran, jadwal rutin, dan wish list.'],
+  ] },
   { version: '93', date: '27 Sep 2026', title: 'Hapus yang pasti sampai ke cloud, nominal terlihat saat mengisi', items: [
     ['🔒', 'Saat nominal disembunyikan, angka di formulir, Scan struk, dan jendela ubah lainnya tetap terlihat supaya mudah dicek. Saldo dompet di dalamnya tetap disamarkan, begitu juga seluruh halaman lain.'],
     ['✅', 'Setelah menghapus, kamu diberi tahu statusnya: “terhapus dari cloud”, atau saat offline “terhapus di perangkat” lalu “terhapus dari cloud” begitu online.'],

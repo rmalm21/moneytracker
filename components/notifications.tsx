@@ -19,7 +19,7 @@ type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; a
  * `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail.
  * `detail`: a second line such as the category and wallet. `log`: keep it in Riwayat (every save that shows a card does).
  */
-type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string };
+type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string; /** Show the progress card at once instead of only when slow. */ immediate?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -61,7 +61,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     busy.current++;
     // The "saving…" card only appears if the save is actually slow, so quick saves don't flash two cards.
     let id: string | undefined, settled = false;
-    const slow = setTimeout(() => { if (!settled && !labels.quiet) id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false }); }, 900);
+    const slow = setTimeout(() => { if (!settled && !labels.quiet) id = push({ title: labels.pending, body: navigator.onLine ? 'Menyinkronkan ke cloud…' : 'Offline · tersimpan di perangkat, dikirim saat online', kind: 'progress', history: false }); }, labels.immediate ? 0 : 900);
     const done = () => { settled = true; clearTimeout(slow); };
     task.finally(() => { setTimeout(() => { busy.current = Math.max(0, busy.current - 1); }, 1500); }).catch(() => {});
     task.then(() => {
