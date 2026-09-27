@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '78', date: '27 Sep 2026', title: 'Hasil Scan struk lebih rapi', items: [
+    ['🧾', 'Layar hasil scan dirapikan untuk HP: foto jadi kecil (ketuk untuk memperbesar), tombolnya di samping foto, rincian biaya tidak berdempetan, dan tombol Simpan lebih ramping sambil menampilkan nominalnya.'],
+    ['💡', 'Kategori kini dipilih dari daftar per kategori utama yang bisa dibuka-tutup, lengkap dengan pencarian, untuk kategori transaksi, tiap item, dan biaya yang dicatat terpisah.'],
+    ['📝', 'Tiap item menampilkan total barisnya (jumlah × harga), dan kategori item tidak lagi terpotong.'],
+  ] },
   { version: '77', date: '27 Sep 2026', title: 'Catat otomatis paling bisa diandalkan', items: [
     ['📝', 'Beberapa catatan sekaligus: “kemarin makan 25rb, parkir goceng, bensin 30rb pakai gopay” atau satu baris per catatan. Tanggal atau dompet yang disebut sekali berlaku untuk semuanya; baris bisa dilewati sebelum “Simpan semua”.'],
     ['💡', 'Anggaran bisa memilih subkategori: “budget makan 2jt untuk sarapan, makan siang dan kopi”, “kecuali delivery”, “selain bioskop”, “khusus sarapan”, “makan siang dan malam”. Pratinjau menampilkan chip subkategori yang bisa diketuk.'],
