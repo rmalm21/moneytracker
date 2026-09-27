@@ -6391,3 +6391,85 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 @media (max-width: 360px) { .wallet-heading-actions .btn svg { display: none; } .page-heading .wallet-heading-actions .btn.btn { padding-inline: 8px; font-size: .8rem; } }
 .bgt-card-title strong { overflow-wrap: anywhere; }
 @media (max-width: 360px) { .bgt-card-title strong { font-size: .9rem; } }
+
+/* 123. v88: charts show no focus box when tapped (the tooltip already shows what was picked). */
+.recharts-wrapper, .recharts-wrapper *, .recharts-surface { outline: none !important; -webkit-tap-highlight-color: transparent; }
+
+/* 124. v88 Transaksi: one summary card, quick type chips, days as dated headers over clean cards. */
+.tx-types { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: -4px 0 14px; padding: 2px 0; }
+.tx-types::-webkit-scrollbar { display: none; }
+.tx-types button { flex: none; min-height: 36px; padding: 0 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font: inherit; font-size: .84rem; font-weight: 650; cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.tx-types button:hover { color: var(--ink); border-color: var(--line-strong); }
+.tx-types button.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.tx-hero { position: relative; display: grid; gap: 12px; margin: 0 0 18px; padding: 18px 20px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-radius: 22px; background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%), var(--paper); box-shadow: var(--elev-1); }
+.tx-hero-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 2px 12px; }
+.tx-hero-main small { grid-column: 1 / -1; color: var(--muted); font-size: .78rem; font-weight: 650; }
+.tx-hero-main strong { font: 800 clamp(1.5rem, 6vw, 1.9rem)/1.1 var(--font-head); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--positive); overflow-wrap: anywhere; }
+.tx-hero-main strong.is-neg { color: var(--rose); }
+.tx-hero-count { align-self: center; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--muted); font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.tx-hero-bar { display: flex; gap: 3px; height: 8px; }
+.tx-hero-bar i { display: block; min-width: 4px; border-radius: 99px; }
+.tx-hero-bar i.in { background: var(--positive); }
+.tx-hero-bar i.out { background: var(--rose); opacity: .85; }
+.tx-hero-bar i[style="width: 0%;"] { display: none; }
+.tx-hero-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tx-hero-split > div { display: grid; gap: 2px; min-width: 0; }
+.tx-hero-split span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 600; }
+.tx-hero-split b { font: 750 1rem/1.25 var(--font-head); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tx-hero .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--rose); }
+.tx-hero .dot.in { background: var(--positive); }
+
+/* Days: a dated header, then the day's transactions in one clean card. */
+.tx-results .tx-days { display: grid; gap: 18px; }
+.tx-results .tx-day-group { overflow: visible; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.tx-results .tx-day { position: sticky; top: 64px; z-index: 3; padding: 6px 4px 8px; border: 0; background: linear-gradient(var(--bg) 70%, transparent); color: var(--ink); text-transform: none; font-size: .8rem; }
+.tx-day-title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.tx-day-title > b { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font: 800 1rem/1 var(--font-head); color: var(--ink); font-variant-numeric: tabular-nums; }
+.tx-day-title > span { display: grid; gap: 1px; min-width: 0; }
+.tx-day-title strong { font-size: .88rem; font-weight: 750; text-transform: capitalize; }
+.tx-day-title small { color: var(--muted); font-size: .74rem; font-weight: 500; text-transform: capitalize; }
+.tx-results .tx-day > span:last-child { gap: 8px; font-size: .8rem; font-weight: 700; }
+.tx-results .tx-day .amount-negative { color: var(--muted); }
+.tx-results .tx-day-group > .tx-list { overflow: clip; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: var(--elev-1); }
+
+/* Rows: calm meta line, ink for money going out, green for money coming in. */
+.tx-results .data-row { padding-block: 13px; }
+.tx-results .row-icon { width: 42px; height: 42px; border-radius: 14px; }
+.tx-results .transaction-row .row-left { gap: 12px; }
+.tx-results .data-row-main strong { font-size: .94rem; font-weight: 650; }
+.tx-results .tx-meta .tx-cat { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-weight: 600; }
+.tx-results .tx-meta .tx-cat::after { content: none; }
+.tx-results .tx-meta .tx-cat::first-letter { text-transform: uppercase; }
+.tx-results .tx-meta > .tx-cat:first-child::before, .tx-results .tx-meta > span.tx-cat::before { content: ''; width: 7px; height: 7px; margin: 0; border-radius: 99px; background: var(--identity-color, var(--accent)); opacity: 1; }
+.tx-results .data-row-side > strong.amount-negative { color: var(--ink); }
+.tx-results .data-row-side > small { color: var(--muted); font-size: .74rem; }
+.tx-results .tx-list > .transaction-row + .transaction-row::before { left: calc(var(--row-x) + 54px); }
+:root[data-theme='dark'] .tx-results .tx-meta .tx-cat { color: var(--muted); }
+:root[data-theme='dark'] .tx-types button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+
+@media (max-width: 640px) {
+  .view-enter:has(> .tx-toolbar) > .page-heading p, .view-enter:has(.tx-toolbar) .page-heading p { display: none; }
+  .tx-hero { padding: 16px; border-radius: 20px; }
+  .tx-results .tx-day { top: 56px; }
+}
+@media (min-width: 900px) {
+  .tx-hero { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; column-gap: 28px; }
+  .tx-hero-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+.tx-results .tx-meta > span + span.tx-cat { margin-left: 8px; }
+.tx-types { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 2px 0; }
+.tx-day .tx-day-title > span { display: grid; gap: 1px; }
+.tx-results .tx-day { padding: 6px var(--row-x) 8px 4px; }
+.tx-hero-main { grid-template-columns: minmax(0, 1fr); }
+.tx-hero-count { position: absolute; top: 14px; right: 14px; }
+@media (max-width: 640px) {
+  .tx-types button { min-height: 34px; padding: 0 12px; font-size: .8rem; }
+}
+.tx-hero .tx-hero-count { position: static; padding: 0; background: none; font-size: inherit; font-weight: inherit; }
+.tx-results .tx-meta { flex-wrap: nowrap; overflow: hidden; }
+.tx-results .tx-meta > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 380px) { .tx-types { gap: 5px; } .tx-types button { padding: 0 10px; font-size: .78rem; } }
+.tx-types .short { display: none; }
+@media (max-width: 480px) { .tx-types .long { display: none; } .tx-types .short { display: inline; } .tx-types button { flex: 1 1 0; padding: 0 8px; } }
+.tx-results .data-row-main .tx-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }

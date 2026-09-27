@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '88', date: '27 Sep 2026', title: 'Halaman Transaksi baru, grafik tanpa kotak', items: [
+    ['💸', 'Halaman Transaksi dirombak: satu kartu ringkasan (selisih besar, bar masuk dan keluar, jumlah transaksi), pilihan cepat Semua · Keluar · Masuk · Transfer, dan setiap hari punya judul bertanggal (24 · Kamis, “Hari ini”, “Kemarin”) di atas kartunya sendiri.'],
+    ['✅', 'Baris transaksi lebih tenang: titik warna kategori, dompet, dan jam; pengeluaran ditulis dengan warna teks biasa, pemasukan hijau.'],
+    ['📝', 'Mengetuk grafik tidak lagi memunculkan kotak di sekeliling grafik, dan titik warna di keterangan grafik kini sesuai warna datanya.'],
+  ] },
   { version: '87', date: '27 Sep 2026', title: 'Hapus transaksi otomatis tidak muncul lagi, tampilan lebih rapi', items: [
     ['✅', 'Menghapus transaksi dari jadwal rutin “Catat otomatis” kini benar-benar menghapusnya: jadwal hari itu ditandai dilewati, jadi tidak dicatat ulang. Sebelumnya transaksinya langsung muncul kembali.'],
     ['🔒', 'Transaksi yang sudah terhapus juga langsung hilang dari salinan data di perangkat, dan baris yang dihapus hanya muncul lagi bila penghapusannya gagal.'],
