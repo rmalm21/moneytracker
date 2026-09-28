@@ -6850,11 +6850,25 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .splash-choice-sample .emoji { width: 1.25em; height: 1.25em; }
 .splash-choice-logo { color: var(--accent); }
 
-/* 136. 2.6: wallet account number: small, quiet, one copy icon. */
-.acct-no { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin-top: 4px; padding: 2px 3px 2px 9px; border-radius: 99px; background: color-mix(in srgb, currentColor 7%, transparent); color: inherit; font-size: .76rem; line-height: 1.2; }
-.acct-no-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace; font-weight: 600; letter-spacing: .04em; opacity: .85; font-variant-numeric: tabular-nums; }
-.acct-no-copy { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 99px; background: transparent; color: inherit; opacity: .7; cursor: pointer; transition: background .15s, opacity .15s; }
-.acct-no-copy:hover, .acct-no-copy:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
-.wallet-row-text .acct-no { margin-top: 3px; font-size: .72rem; justify-self: start; }
-.wallet-card h3 + .acct-no, .wallet-card small + .acct-no { display: flex; width: fit-content; }
-.wallet-detail-hero .acct-no { justify-self: start; width: fit-content; margin: 6px 0 0; font-size: .8rem; }
+/* 136. 2.7: wallet account number, a small glass chip: bank badge, masked digits, peek and copy. */
+.acct-no { display: inline-flex; align-items: center; gap: 2px; width: fit-content; max-width: 100%; margin-top: 6px; padding: 3px 3px 3px 3px; border-radius: 99px; color: inherit; font-size: .76rem; line-height: 1.2;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent); background: linear-gradient(135deg, color-mix(in srgb, currentColor 9%, transparent), color-mix(in srgb, currentColor 3%, transparent));
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+.acct-no-badge { display: grid; place-items: center; flex: none; width: 22px; height: 22px; margin-right: 4px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.wallet-solid .acct-no-badge, .wallet-row.is-solid .acct-no-badge, .wallet-detail-hero .acct-no-badge { background: rgba(255, 255, 255, .22); color: currentColor; }
+.acct-no-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 4px; font-family: ui-monospace, "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace; font-weight: 650; letter-spacing: .08em; font-variant-numeric: tabular-nums; opacity: .9; transition: opacity .2s; }
+.acct-no.is-shown .acct-no-value { opacity: 1; letter-spacing: .06em; }
+.acct-no-btn { display: grid; place-items: center; flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 99px; background: transparent; color: inherit; opacity: .6; cursor: pointer; transition: background .15s, opacity .15s; }
+.acct-no-btn:hover, .acct-no-btn:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.wallet-row-text .acct-no { margin-top: 4px; font-size: .72rem; justify-self: start; }
+.wallet-row-text .acct-no-badge { width: 20px; height: 20px; }
+.wallet-row-text .acct-no-btn { width: 24px; height: 24px; }
+.wallet-card h3 + .acct-no, .wallet-card small + .acct-no { display: flex; }
+.wallet-detail-hero .acct-no { justify-self: start; margin: 8px 0 0; font-size: .8rem; }
+/* Ringkas rows: the account number on a line of its own under the name, never squeezed. */
+.wallet-row.has-acct { flex-wrap: wrap; row-gap: 0; }
+.wallet-row-acct { flex: 0 0 100%; display: flex; padding-left: 86px; margin-top: 2px; }
+.wallet-row-acct .acct-no { margin-top: 0; font-size: .72rem; }
+.wallet-row-acct .acct-no-badge { width: 20px; height: 20px; margin-right: 3px; }
+.wallet-row-acct .acct-no-btn { width: 24px; height: 24px; }
+@media (max-width: 420px) { .wallet-row-acct { padding-left: 84px; } }
