@@ -6860,15 +6860,4 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .acct-no.is-shown .acct-no-value { opacity: 1; letter-spacing: .06em; }
 .acct-no-btn { display: grid; place-items: center; flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 99px; background: transparent; color: inherit; opacity: .6; cursor: pointer; transition: background .15s, opacity .15s; }
 .acct-no-btn:hover, .acct-no-btn:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
-.wallet-row-text .acct-no { margin-top: 4px; font-size: .72rem; justify-self: start; }
-.wallet-row-text .acct-no-badge { width: 20px; height: 20px; }
-.wallet-row-text .acct-no-btn { width: 24px; height: 24px; }
-.wallet-card h3 + .acct-no, .wallet-card small + .acct-no { display: flex; }
 .wallet-detail-hero .acct-no { justify-self: start; margin: 8px 0 0; font-size: .8rem; }
-/* Ringkas rows: the account number on a line of its own under the name, never squeezed. */
-.wallet-row.has-acct { flex-wrap: wrap; row-gap: 0; }
-.wallet-row-acct { flex: 0 0 100%; display: flex; padding-left: 86px; margin-top: 2px; }
-.wallet-row-acct .acct-no { margin-top: 0; font-size: .72rem; }
-.wallet-row-acct .acct-no-badge { width: 20px; height: 20px; margin-right: 3px; }
-.wallet-row-acct .acct-no-btn { width: 24px; height: 24px; }
-@media (max-width: 420px) { .wallet-row-acct { padding-left: 84px; } }

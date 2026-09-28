@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.8', date: '28 Sep 2026', title: 'Nomor rekening hanya di detail dompet', items: [
+    ['🔒', 'Nomor rekening tidak lagi tampil di daftar dompet (kartu maupun Ringkas). Nomornya ada di dalam, saat dompet diketuk, tetap tersamar dengan ikon mata dan salin.'],
+  ] },
   { version: '2.7', date: '28 Sep 2026', title: 'Nomor rekening disamarkan', items: [
     ['🔒', 'Nomor rekening kini tampil disamarkan (•••• 7890). Ketuk ikon mata untuk melihat nomor lengkap; setelah 5 detik otomatis disamarkan lagi. Ikon salin tetap menyalin nomor lengkap.'],
     ['💰', 'Tampilan nomor rekening diperbarui: chip kaca kecil dengan lencana bank. Di tampilan Ringkas, nomornya tampil di baris sendiri di bawah nama dompet supaya tidak terpotong.'],
