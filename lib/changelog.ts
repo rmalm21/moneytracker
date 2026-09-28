@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.1', date: '28 Sep 2026', title: 'Magnet saat menentukan area struk', items: [
+    ['📷', 'Saat menentukan area struk, titik sudut yang diseret kini menempel ke sudut kertas terdekat, dan sisi yang diseret menempel ke tepi kertas (termasuk yang miring). Garis berubah hijau dan muncul “Menempel ke tepi struk”. Magnet bisa dimatikan.'],
+    ['📷', 'Tombol “Rapikan” meluruskan keempat sisi ke tepi struk sekaligus.'],
+    ['📝', 'Tombol di layar area struk dirombak: Magnet, Rapikan, Putar, dan Ulangi dalam satu baris ringkas, tombol kamera bulat untuk ambil ulang, dan satu tombol besar “Baca struk”.'],
+  ] },
   { version: '2.0', date: '28 Sep 2026', title: 'Versi 2.0: tanpa unggahan sama sekali, item bisa diubah saat membagi', items: [
     ['🔒', 'Aplikasi tidak lagi mengunggah file apa pun. Foto struk hanya dibaca di HP ini lalu dibuang. Data disimpan di Firestore seperti biasa, dan Firebase Storage tidak dipakai lagi (termasuk lampiran klaim).'],
     ['🧾', 'Split Bill: saat membagi item, nama, jumlah, dan harganya bisa langsung diubah di kartu yang sama. Tidak perlu membuka “Atur item” lagi.'],

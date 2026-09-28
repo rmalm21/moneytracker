@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Maximize2, Minimize2, RotateCcw, RotateCw, ScanText } from 'lucide-react';
-import { Button } from './ui/button';
+import { Camera, Magnet, Maximize2, Minimize2, RotateCcw, RotateCw, ScanText, WandSparkles } from 'lucide-react';
 import { homography, mapPoint, quadSize, type Matrix, type Point, type Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
+import { cornerCandidates, edgeField, snapCorner, snapEdge, snapQuad, type EdgeField } from '@/lib/crop-magnet';
 
 /** A small upright copy of the original photo (the photo itself is never changed). */
 export type Upright = { url: string; width: number; height: number };
@@ -72,22 +72,33 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
   const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
   const [active, setActive] = useState<{ x: number; y: number } | null>(null), preview = useRef<HTMLCanvasElement>(null), source = useRef<ImageData | null>(null);
   const initial = useRef(corners);
+  // Magnet: corners stick to real corners of the paper, sides to its border (lib/crop-magnet.ts). On by default.
+  const [magnet, setMagnet] = useState(true), [snapped, setSnapped] = useState(false), field = useRef<EdgeField | null>(null), targets = useRef<Point[]>([]);
+  const stick = (on: boolean) => { setSnapped(current => { if (on && !current) try { navigator.vibrate?.(8); } catch { /* optional */ } return on; }); };
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
   const at = (event: React.PointerEvent) => { const rect = frame.current!.getBoundingClientRect(); return { x: clamp((event.clientX - rect.left) / rect.width), y: clamp((event.clientY - rect.top) / rect.height) }; };
   function move(event: React.PointerEvent) {
     const d = drag.current; if (!d || !frame.current) return;
     const p = at(event);
     if (d.kind === 'corner') {
-      // Close to where the outline was found: snap back onto it.
-      const found = initial.current[d.index], snapped = Math.hypot(p.x - found.x, p.y - found.y) < SNAP ? found : p;
-      setPoints(current => current.map((q, i) => i === d.index ? snapped : q) as Quad); setActive(snapped);
+      // Magnet on: the nearest real corner (the detected outline's first). Off: only back onto the detected corner.
+      const found = initial.current[d.index];
+      const target = magnet ? snapCorner(p, upright.width / upright.height, [initial.current[d.index], ...targets.current]) : Math.hypot(p.x - found.x, p.y - found.y) < SNAP ? found : null;
+      const next = target || p;
+      stick(Boolean(target));
+      setPoints(current => current.map((q, i) => i === d.index ? next : q) as Quad); setActive(next);
     } else {
       const dx = p.x - d.from.x, dy = p.y - d.from.y, a = d.index, b = (d.index + 1) % 4;
-      setPoints(d.start.map((q, i) => i === a || i === b ? { x: clamp(q.x + dx), y: clamp(q.y + dy) } : q) as Quad);
+      let pa = { x: clamp(d.start[a].x + dx), y: clamp(d.start[a].y + dy) }, pb = { x: clamp(d.start[b].x + dx), y: clamp(d.start[b].y + dy) };
+      const pulled = magnet && field.current ? snapEdge(pa, pb, field.current, .03) : null;
+      if (pulled) [pa, pb] = pulled;
+      stick(Boolean(pulled));
+      setPoints(d.start.map((q, i) => i === a ? pa : i === b ? pb : q) as Quad);
       setActive(p);
     }
   }
-  function end() { drag.current = null; setActive(null); }
+  function end() { drag.current = null; setActive(null); setSnapped(false); }
+  function tidy() { if (field.current) setPoints(current => snapQuad(current, field.current!)); }
   const names = ['kiri atas', 'kanan atas', 'kanan bawah', 'kiri bawah'], edges = ['atas', 'kanan', 'bawah', 'kiri'];
   function nudge(index: number, dx: number, dy: number) { setPoints(current => current.map((p, i) => i === index ? { x: clamp(p.x + dx), y: clamp(p.y + dy) } : p) as Quad); }
   const mid = (i: number) => ({ x: (points[i].x + points[(i + 1) % 4].x) / 2, y: (points[i].y + points[(i + 1) % 4].y) / 2 });
@@ -95,7 +106,9 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
   // The photo's pixels once, for the loupe and the straightened preview.
   useEffect(() => {
     const image = new Image(); let alive = true;
-    image.onload = () => { if (!alive) return; const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight)); const c = document.createElement('canvas'); c.width = Math.round(image.naturalWidth * scale); c.height = Math.round(image.naturalHeight * scale); const ctx = c.getContext('2d'); if (!ctx) return; ctx.drawImage(image, 0, 0, c.width, c.height); source.current = ctx.getImageData(0, 0, c.width, c.height); drawPreview(); };
+    image.onload = () => { if (!alive) return; const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight)); const c = document.createElement('canvas'); c.width = Math.round(image.naturalWidth * scale); c.height = Math.round(image.naturalHeight * scale); const ctx = c.getContext('2d'); if (!ctx) return; ctx.drawImage(image, 0, 0, c.width, c.height); source.current = ctx.getImageData(0, 0, c.width, c.height); drawPreview();
+      // The photo's edges and strong corners once, for the magnet.
+      try { const f = edgeField(source.current.data, c.width, c.height); field.current = f; targets.current = cornerCandidates(f); } catch { field.current = null; } };
     image.src = upright.url; return () => { alive = false; };
   }, [upright.url]); // eslint-disable-line react-hooks/exhaustive-deps
   // The straightened result, redrawn when a drag ends (cheap: a small image).
@@ -117,7 +130,7 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
   const ratio = upright.width / upright.height;
   const path = `M0 0H100V100H0Z M${points.map(p => `${p.x * 100} ${p.y * 100}`).join(' L')}Z`;
   const changed = points.some((p, i) => Math.abs(p.x - initial.current[i].x) > .001 || Math.abs(p.y - initial.current[i].y) > .001);
-  return <div className="rs-corners">
+  return <div className={`rs-corners ${snapped ? 'is-snapped' : ''}`}>
     <div className="rs-corners-stage">
       <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}`, width: `min(100%, calc(${fitVh}vh * ${ratio.toFixed(4)}))` }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
         <img src={upright.url} alt="Foto struk asli" draggable={false}/>
@@ -131,22 +144,16 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
       </div>
       <canvas ref={preview} className="rs-corners-preview" aria-label="Pratinjau struk yang diluruskan" role="img"/>
     </div>
-    {onRetake ? <>
-      <div className="rs-area-tools">
-        <small className="muted">Geser titik atau sisi ke tepi struk.</small>
-        {onRotate && <button type="button" className="rs-area-tool" onClick={onRotate}><RotateCw size={15}/> Putar</button>}
-        <button type="button" className="rs-area-tool" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</button>
-      </div>
-      <div className="rs-corners-actions">
-        <Button type="button" variant="secondary" onClick={onRetake}><Camera size={16}/> Ambil ulang</Button>
-        <Button type="button" onClick={() => onApply(points, changed)}><ScanText size={16}/> {applyLabel}</Button>
-      </div>
-    </> : <>
-      <small className="muted rs-corners-hint">Geser titik atau sisi ke tepi struk.</small>
-      <div className="rs-corners-actions">
-        <Button type="button" variant="secondary" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={15}/> Ulangi</Button>
-        <Button type="button" onClick={() => onApply(points, changed)}><ScanText size={16}/> {applyLabel}</Button>
-      </div>
-    </>}
+    <div className="rs-crop-bar" role="toolbar" aria-label="Alat area struk">
+      <button type="button" className={`rs-crop-tool ${magnet ? 'is-on' : ''}`} aria-pressed={magnet} onClick={() => setMagnet(v => !v)} title="Titik dan sisi menempel ke tepi struk"><Magnet size={17}/><span>Magnet</span></button>
+      <button type="button" className="rs-crop-tool" onClick={tidy} title="Rapikan garis ke tepi struk"><WandSparkles size={17}/><span>Rapikan</span></button>
+      {onRotate && <button type="button" className="rs-crop-tool" onClick={onRotate}><RotateCw size={17}/><span>Putar</span></button>}
+      <button type="button" className="rs-crop-tool" disabled={!changed} onClick={() => setPoints(initial.current)}><RotateCcw size={17}/><span>Ulangi</span></button>
+    </div>
+    <small className="rs-crop-hint">{snapped ? 'Menempel ke tepi struk' : magnet ? 'Geser titik atau sisi, akan menempel ke tepi struk.' : 'Geser titik atau sisi ke tepi struk.'}</small>
+    <div className={`rs-crop-actions ${onRetake ? '' : 'is-single'}`}>
+      {onRetake && <button type="button" className="rs-crop-retake" onClick={onRetake} aria-label="Ambil ulang foto" title="Ambil ulang"><Camera size={19}/></button>}
+      <button type="button" className="rs-crop-go" onClick={() => onApply(points, changed)}><ScanText size={18}/> {applyLabel}</button>
+    </div>
   </div>;
 }
