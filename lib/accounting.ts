@@ -61,6 +61,17 @@ export const transactionExpense=(tx:LedgerTx)=>expenseAllocations(tx).reduce((to
  * A friend paying back their Split Bill share is not income: it is the user's own money coming back. */
 export const transactionIncome=(tx:LedgerTx)=>tx.type==='income'||tx.type==='receivable_payment'&&!tx.splitBillId?tx.amount:0;
 /**
+ * Money in and out of the person's pocket, as the Transaksi list shows it (not the accounting view used by reports and
+ * budgets): money in = income, a receivable paid back, money borrowed, an office claim paid out; money out = spending,
+ * paying a debt, lending money (talangan), paying for the office, and transfer fees. Moves between own wallets and
+ * balance corrections are neither.
+ */
+const MONEY_IN=new Set(['income','receivable_payment','borrowing','claim_payment']);
+const MONEY_OUT=new Set(['expense','debt_payment','receivable_issue','claim_advance']);
+export const moneyIn=(tx:LedgerTx)=>MONEY_IN.has(tx.type)?tx.amount:0;
+export const moneyOut=(tx:LedgerTx)=>tx.type==='expense'?(tx.walletId?tx.amount:transactionExpense(tx)):MONEY_OUT.has(tx.type)?tx.amount:tx.type==='transfer'?tx.transferFee||0:0;
+export const moneyGroup=(type:string):'in'|'out'|'move'|'other'=>MONEY_IN.has(type)?'in':MONEY_OUT.has(type)?'out':type==='transfer'||type==='fund_contribution'?'move':'other';
+/**
  * Split Bill money in a set of transactions, kept apart from spending and income:
  * cash that left wallets for bills, the user's own share (spending), what was paid for others (advanced),
  * what came back from others (repaid), and what the user paid back to someone who paid for them (settled).

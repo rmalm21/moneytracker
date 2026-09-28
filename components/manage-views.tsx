@@ -20,9 +20,9 @@ import { ManualPayments, SettleDialog, type SettleTarget } from './settle-dialog
 import { BalanceDialog, CompactRow, CompactSwitch, OwedHistory, useCompactOwed, type BalanceTarget } from './owed-tools';
 import { walletAllows } from '@/lib/wallet-capabilities';
 import { PeriodSelector, usePeriodTransactions } from './period-selector';
-import { dateInTimeZone, formatDate, periodLabel, resolvePeriodRange, summarizeTransactions, todayInTimeZone, type DateRange, type PeriodPreset } from '@/lib/period';
+import { dateInTimeZone, formatDate, periodLabel, resolvePeriodRange, todayInTimeZone, type DateRange, type PeriodPreset } from '@/lib/period';
 import { archiveOrDelete, createClaim, createDebt, saveRecord, editOpeningRecord, deleteOpeningRecord, attachClaimReceipt, claimReceiptUrl, rejectClaim, updateLinked, loadAllTransactions } from '@/lib/firestore';
-import { newestFirst, rupiah, transactionExpense } from '@/lib/accounting';
+import { moneyGroup, moneyIn, moneyOut, newestFirst, rupiah, transactionExpense } from '@/lib/accounting';
 import { savingsPlan, savingsStatusText } from '@/lib/savings';
 import type { Claim, Debt, Fund, LedgerTx } from '@/lib/types';
 type Props={notify:(text:string)=>void;openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;revision?:number};
@@ -54,7 +54,8 @@ export function TransactionsView({notify,openTx,revision,focus:rawFocus}:Props&{
  useEffect(()=>{if(all&&user&&all.uid===user.uid){const uid=user.uid;void loadAllTransactions(uid).then(items=>setAll({uid,items})).catch(e=>setError(e.message));}},[revision]);
  const source=allHistory?(complete||[]):history.items;
  const filtered=useMemo(()=>source.filter(t=>{
-  if(type!=='all'&&t.type!==type)return false;
+  // Keluar / Masuk / Transfer follow the money (bayar utang is money out, piutang kembali and uang pinjaman are money in); other kinds match exactly.
+  if(type!=='all'&&(type==='expense'?moneyGroup(t.type)!=='out':type==='income'?moneyGroup(t.type)!=='in':type==='transfer'?moneyGroup(t.type)!=='move':t.type!==type))return false;
   if(walletFilter&&t.walletId!==walletFilter&&t.destinationWalletId!==walletFilter)return false;
   if(categoryFilter==='uncategorized'?(transactionExpense(t)<=0||Boolean(t.categoryId)||(t.splits||[]).some(line=>line.categoryId)):categoryFilter&&!([t.categoryId,t.subcategoryId,t.transferFeeCategoryId,...(t.splits||[]).flatMap(line=>[line.categoryId,line.subcategoryId])].some(id=>id===categoryFilter||data.categories.find(c=>c.id===id)?.parentId===categoryFilter)))return false;
   const categoryNames=[t.categoryId,t.subcategoryId,t.transferFeeCategoryId,...(t.splits||[]).flatMap(line=>[line.categoryId,line.subcategoryId])].map(id=>data.categories.find(c=>c.id===id)?.name||'');
@@ -76,7 +77,7 @@ export function TransactionsView({notify,openTx,revision,focus:rawFocus}:Props&{
   </div>})()}
   {/* Quick type filter, the most used one, always in reach. */}
   <div className="tx-kinds" role="radiogroup" aria-label="Jenis transaksi">{([['all','Semua','Semua'],['expense','Pengeluaran','Keluar'],['income','Pemasukan','Masuk'],['transfer','Transfer','Transfer']] as [string,string,string][]).map(([key,label,short])=><button type="button" role="radio" key={key} aria-checked={type===key} aria-label={label} className={type===key?'active':''} onClick={()=>{setType(key);const allowed=categoryTypesFor(key==='all'?'':key);if(categoryFilter&&allowed&&!categoryTree(data.categories,allowed).some(row=>row.category.id===categoryFilter))setCategoryFilter('')}}><span className="long">{label}</span><span className="short">{short}</span></button>)}{!['all','expense','income','transfer'].includes(type)&&<button type="button" role="radio" aria-checked className="active">{typeLabels[type]||type}</button>}</div>
-  {!(!allHistory&&history.loading)&&filtered.length>0&&(()=>{const total=summarizeTransactions(filtered),flow=total.income+total.expense,inShare=flow?Math.round(total.income/flow*100):0;return <section className="tx-hero" aria-label="Ringkasan transaksi">
+  {!(!allHistory&&history.loading)&&filtered.length>0&&(()=>{const moneyInTotal=filtered.reduce((n,t)=>n+moneyIn(t),0),moneyOutTotal=filtered.reduce((n,t)=>n+moneyOut(t),0),total={income:moneyInTotal,expense:moneyOutTotal,cashFlow:moneyInTotal-moneyOutTotal},flow=total.income+total.expense,inShare=flow?Math.round(total.income/flow*100):0;return <section className="tx-hero" aria-label="Ringkasan transaksi">
    <div className="tx-hero-main"><small>Selisih · <span className="tx-hero-count">{filtered.length} transaksi</span></small><strong className={total.cashFlow<0?'is-neg':''}>{total.cashFlow<0?'−':total.cashFlow>0?'+':''}{rupiah(Math.abs(total.cashFlow))}</strong></div>
    {flow>0&&<div className="tx-hero-bar" aria-hidden="true"><i className="in" style={{width:`${inShare}%`}}/><i className="out" style={{width:`${100-inShare}%`}}/></div>}
    <div className="tx-hero-split"><div><span><i className="dot in"/>Masuk</span><b className="amount-positive">{rupiah(total.income)}</b></div><div><span><i className="dot out"/>Keluar</span><b>{rupiah(total.expense)}</b></div></div>

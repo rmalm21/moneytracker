@@ -8,7 +8,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown } from 'lucide
 import { useApp } from './app-provider';
 import { IdentityBadge, categoryColor, emojiOrFallback, identityStyle } from './visual-identity';
 import { Empty } from './fields';
-import { rupiah, transactionExpense } from '@/lib/accounting';
+import { moneyIn, moneyOut, rupiah, transactionExpense } from '@/lib/accounting';
 import type { LedgerTx } from '@/lib/types';
 
 export const typeLabels:Record<string,string>={expense:'Pengeluaran',income:'Pemasukan',transfer:'Transfer',adjustment:'Koreksi',borrowing:'Pinjaman',debt_payment:'Bayar utang',claim_advance:'Talangan kantor',claim_payment:'Klaim cair',claim_writeoff:'Klaim ditolak',receivable_issue:'Talangan personal',receivable_payment:'Piutang dibayar',fund_contribution:'Isi tujuan dana'};
@@ -38,5 +38,5 @@ export function TxList({items,onEdit,groupByDate=false}:{items:LedgerTx[];onEdit
  const row=(t:LedgerTx)=><TxRow key={t.id} t={t} onEdit={onEdit} groupByDate={groupByDate} expanded={expanded} setExpanded={setExpanded}/>;
  if(!groupByDate)return <div className="tx-list">{visible.map(row)}</div>;
  const days:{date:string;items:LedgerTx[]}[]=[];for(const t of visible){const last=days[days.length-1];if(last&&last.date===t.date)last.items.push(t);else days.push({date:t.date,items:[t]})}
- return <div className="tx-days">{days.map(day=>{const out=day.items.reduce((n,x)=>n+transactionExpense(x),0),income=day.items.filter(x=>x.type==='income').reduce((n,x)=>n+x.amount,0),closed=folded.includes(day.date);return <section key={day.date} className={`tx-day-group ${closed?'is-folded':''}`}><header className="tx-day"><button type="button" className="tx-day-toggle" aria-expanded={!closed} onClick={()=>fold(day.date)}><DayTitle date={day.date}/><span className="tx-day-sum">{closed&&<small>{day.items.length} transaksi</small>}{income>0&&<b className="amount-positive">+{rupiah(income)}</b>}{out>0&&<b className="amount-negative">−{rupiah(out)}</b>}<ChevronDown size={16} className="tx-day-chev" aria-hidden="true"/></span></button></header>{!closed&&<div className="tx-list">{day.items.map(row)}</div>}</section>})}</div>;
+ return <div className="tx-days">{days.map(day=>{const out=day.items.reduce((n,x)=>n+moneyOut(x),0),income=day.items.reduce((n,x)=>n+moneyIn(x),0),closed=folded.includes(day.date);return <section key={day.date} className={`tx-day-group ${closed?'is-folded':''}`}><header className="tx-day"><button type="button" className="tx-day-toggle" aria-expanded={!closed} onClick={()=>fold(day.date)}><DayTitle date={day.date}/><span className="tx-day-sum">{closed&&<small>{day.items.length} transaksi</small>}{income>0&&<b className="amount-positive">+{rupiah(income)}</b>}{out>0&&<b className="amount-negative">−{rupiah(out)}</b>}<ChevronDown size={16} className="tx-day-chev" aria-hidden="true"/></span></button></header>{!closed&&<div className="tx-list">{day.items.map(row)}</div>}</section>})}</div>;
 }

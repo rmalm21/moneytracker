@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '95', date: '28 Sep 2026', title: 'Laporan utang & piutang, Keluar/Masuk ikut arus uang', items: [
+    ['💸', 'Di menu Transaksi, Keluar kini termasuk bayar utang, talangan ke teman, dan talangan kantor; Masuk termasuk piutang yang dibayar, uang pinjaman (ngutang), dan klaim yang cair. Ringkasan dan total per hari mengikuti arus uang yang sama.'],
+    ['📝', 'Laporan utang & piutang baru (menu Utang & Piutang → Laporan): posisi bersih sekarang, pergerakan per periode, tren 6 bulan, jatuh tempo 30 hari, piutang per orang, utang aktif dengan perkiraan lunas, klaim kantor yang menunggu, dan riwayat pergerakannya.'],
+  ] },
   { version: '94', date: '27 Sep 2026', title: 'Hapus dengan konfirmasi, langsung diproses', items: [
     ['✅', 'Menghapus kini meminta konfirmasi sekali (“Hapus transaksi?”), lalu langsung dihapus dengan kartu progres sampai “terhapus dari cloud”. Pemberitahuan “Batalkan” yang mengambang dihilangkan. Berlaku juga untuk geser-untuk-hapus, anggaran, jadwal rutin, dan wish list.'],
   ] },
