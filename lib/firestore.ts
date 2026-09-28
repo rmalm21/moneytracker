@@ -1,5 +1,5 @@
 import { collection, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
-import { isCurrent, watchSync, whenCurrent, type SyncedName } from './sync';
+import { isCurrent, syncedCollections, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
 import { walletGroup } from './wallet-groups';
@@ -41,6 +41,45 @@ export const whenSent=()=>waitForPendingWrites(database());
  * or deleted in the "Batalkan" window just before the app was closed, that the server still holds is deleted again.
  * Only a delete the server refuses (not a missing connection) lets the transaction show again.
  */
+/**
+ * Keeps the cloud free of what the app no longer shows (at most twice a day, on app open):
+ *  - delete notes older than a week (other devices have long picked them up; a device away longer re-reads in full
+ *    after its daily count check, lib/sync.ts);
+ *  - drafts skipped under older versions (kept as "dismissed");
+ *  - archived wallets, categories and pockets that nothing refers to any more (not a transaction, budget, schedule,
+ *    plan, note, history or Split Bill), e.g. after their last transaction was deleted.
+ * Returns how many documents were deleted.
+ */
+export async function tidyCloud(uid:string){
+  if(isOffline())return 0;
+  const key=`dompet-ajaib:tidy:${uid}`;try{const last=Number(localStorage.getItem(key)||0);if(Date.now()-last<12*36e5)return 0;}catch{/* runs anyway */}
+  let removed=0;const {deleteDoc,Timestamp}=await import('firebase/firestore');
+  try{
+    const old=await getDocs(query(collection(database(),'users',uid,'deletions'),where('updatedAt','<',Timestamp.fromMillis(Date.now()-7*864e5)),limit(300)));
+    for(let i=0;i<old.docs.length;i+=300){const b=writeBatch(database());old.docs.slice(i,i+300).forEach(row=>b.delete(row.ref));await b.commit();}removed+=old.size;
+  }catch{/* next time */}
+  try{
+    const skipped=await getDocs(query(coll(uid,'drafts'),where('status','==','dismissed'),limit(300)));
+    if(!skipped.empty){const b=writeBatch(database());skipped.docs.forEach(row=>b.delete(row.ref));await b.commit();await noteDeleted(uid,{drafts:skipped.docs.map(row=>row.id)});removed+=skipped.size;}
+  }catch{/* next time */}
+  try{
+    // Only with a complete device copy: a reference the device does not have yet must never let a record go.
+    const synced=syncedCollections.filter(name=>name!=='deletions') as SyncedName[];
+    if(await whenCurrent(uid,synced,8000)){
+      const texts:string[]=[];const archived:{name:'wallets'|'categories'|'funds';id:string}[]=[];
+      // The profile refers to wallets and categories too (defaults, salary category, dashboard cards).
+      const profile=await getDoc(userRef(uid));texts.push(JSON.stringify(profile.data()||{}));
+      for(const name of names){let snap;try{snap=(synced as string[]).includes(name)?await getDocsFromCache(coll(uid,name)):await getDocs(coll(uid,name));}catch{return removed;}
+        for(const row of snap.docs){const data=row.data();if((name==='wallets'||name==='categories'||name==='funds')&&data.isArchived===true)archived.push({name,id:row.id});texts.push(JSON.stringify(data));}}
+      const all=texts.join('\n');
+      const unused=archived.filter(item=>!all.includes(`"${item.id}"`));
+      for(const item of unused){await deleteDoc(ref(uid,item.name,item.id));removed++;}
+      const byName:Partial<Record<Name,string[]>>={};unused.forEach(item=>(byName[item.name]||=[]).push(item.id));if(unused.length)await noteDeleted(uid,byName);
+    }
+  }catch{/* next time */}
+  try{localStorage.setItem(key,String(Date.now()));}catch{/* optional */}
+  return removed;
+}
 export async function checkDeletedTransactions(uid:string){if(isOffline())return;
   try{await Promise.race([waitForPendingWrites(database()),new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),15000))]);}catch{return;/* the queue is still busy: next time */}
   for(const id of deletedTxIds().slice(0,100)){
@@ -179,7 +218,7 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
   });await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
 }
 export async function deleteTransaction(uid:string,id:string) {
-  const r=ref(uid,'transactions',id);let removedDate='';
+  const r=ref(uid,'transactions',id);let removedDate='',droppedDraft='';
   // A plain transaction (not linked to a debt, claim, receivable, fund, schedule or plan) is deleted with a batch: it is
   // applied to the device copy at once, kept in the device's send queue and delivered even if the app is closed or
   // offline. Balances move with atomic increments, so nothing needs reading from the server first.
@@ -201,9 +240,9 @@ export async function deleteTransaction(uid:string,id:string) {
     const draftRef=old.draftId?ref(uid,'drafts',old.draftId):null,draftSnap=draftRef?await trx.get(draftRef):null;
     for(const [wallet,delta] of Object.entries(effects(old)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});
     if(side&&rr&&sideSnap?.exists()){const obj=sideSnap.data();const key=side.kind==='claims'||side.kind==='receivables'?'remainingAmount':side.kind==='debts'?'outstandingAmount':'currentAmount';const next=Number(obj[key])+side.delta;trx.update(rr,{[key]:next,...(side.kind==='claims'?{status:next===0?'paid':['paid','rejected'].includes(obj.status)?'waiting':obj.status}:{}),...(side.kind==='debts'?{status:next===0?'paid':'open'}:{}),...(side.kind==='receivables'?{status:next===0?'paid':next<Number(obj.originalAmount)?'partial':'open'}:{}),updatedAt:serverTimestamp()});}
-    // A deleted automatic entry stays skipped (back to "pending" it would be recorded again at once); one to confirm goes back to Perlu dikonfirmasi.
-    if(draftRef&&draftSnap?.exists())trx.update(draftRef,{status:draftSnap.data().mode==='auto'?'dismissed':'pending',updatedAt:serverTimestamp()});if(old.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});trx.delete(r);
-  });if(removedDate){await noteDeleted(uid,{transactions:[id]});await syncSnapshot(uid,removedDate);}
+    // A deleted automatic entry is gone for good (its draft too: back to "pending" it would be recorded again at once); one to confirm goes back to Perlu dikonfirmasi.
+    if(draftRef&&draftSnap?.exists()){if(draftSnap.data().mode==='auto'){trx.delete(draftRef);droppedDraft=draftRef.id;}else trx.update(draftRef,{status:'pending',updatedAt:serverTimestamp()});}if(old.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});trx.delete(r);
+  });if(removedDate){await noteDeleted(uid,{transactions:[id],...(droppedDraft?{drafts:[droppedDraft]}:{})});await syncSnapshot(uid,removedDate);}
 }
 export async function createClaim(uid:string,claim:Omit<Claim,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(claim.amount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'claims'));const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...claim,remainingAmount:claim.amount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_c,...claimTx}=newTx({type:'claim_advance',amount:claim.amount,walletId:claim.sourceWalletId,claimId:r.id,date:claim.submissionDate,description:claim.name});batch.set(t,{...claimTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',claim.sourceWalletId),{cachedBalance:increment(-claim.amount),updatedAt:serverTimestamp()});await settle(batch.commit());await syncSnapshot(uid,claim.submissionDate);return r.id;}
 export async function createReceivable(uid:string,item:Omit<Receivable,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(item.originalAmount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'receivables'));if(!item.sourceWalletId){await settle(setDoc(r,{...item,sourceWalletId:'',remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));return r.id;}const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...item,remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_r,...receivableTx}=newTx({type:'receivable_issue',amount:item.originalAmount,walletId:item.sourceWalletId,receivableId:r.id,date:item.date,description:item.person});batch.set(t,{...receivableTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',item.sourceWalletId),{cachedBalance:increment(-item.originalAmount),updatedAt:serverTimestamp()});await settle(batch.commit());await syncSnapshot(uid,item.date);return r.id;}
@@ -259,12 +298,14 @@ export async function mergeCategory(uid:string,from:Category,to:Category){if(fro
   for(let i=0;i<nested.length;i+=300){const batch=writeBatch(database());for(const tx of nested.slice(i,i+300))batch.update(ref(uid,'transactions',tx.id),{transferFeeCategoryId:tx.transferFeeCategoryId===from.id?to.id:tx.transferFeeCategoryId||null,splits:(tx.splits||[]).map(line=>({...line,categoryId:line.categoryId===from.id?to.id:line.categoryId,subcategoryId:line.subcategoryId===from.id?to.id:line.subcategoryId})),updatedAt:serverTimestamp()});await settle(batch.commit());}
   for(const name of ['plannedTransactions','recurring','drafts','financialNotes'] as const)for(const field of name==='plannedTransactions'?['categoryId','subcategoryId']:['categoryId']){const snaps=await getDocs(query(coll(uid,name),where(field,'==',from.id)));for(let i=0;i<snaps.docs.length;i+=300){const batch=writeBatch(database());for(const row of snaps.docs.slice(i,i+300))batch.update(row.ref,{[field]:to.id,updatedAt:serverTimestamp()});await settle(batch.commit());}}
   const history=await getDocs(coll(uid,'cycleSnapshots'));for(const snap of history.docs){const budgets=snap.data().budgetDefinitions as Budget[]|undefined;if(budgets?.some(b=>b.categoryId===from.id||b.subcategoryId===from.id||b.subcategoryIds?.includes(from.id)))await settle(updateDoc(snap.ref,{budgetDefinitions:budgets.map(b=>({...b,categoryId:b.categoryId===from.id?to.id:b.categoryId,subcategoryId:b.subcategoryId===from.id?to.id:b.subcategoryId,...(b.subcategoryIds?{subcategoryIds:swap(b.subcategoryIds)}:{})})),updatedAt:serverTimestamp()}));}
-  await settle(updateDoc(ref(uid,'categories',from.id),{isArchived:true,updatedAt:serverTimestamp()}));await syncSnapshot(uid,'0000-01-01');return affected.length+nested.length;
+  // Everything now points at the target, so the merged category is deleted, not kept archived.
+  const gone=writeBatch(database());gone.delete(ref(uid,'categories',from.id));await settle(gone.commit());await noteDeleted(uid,{categories:[from.id]});await syncSnapshot(uid,'0000-01-01');return affected.length+nested.length;
 }
 
 export async function createDueDrafts(uid:string,recurring:Recurring[],today=new Date().toLocaleDateString('en-CA')){for(const schedule of recurring.filter(r=>r.active&&r.nextDate&&r.nextDate<=today)){let count=0;while(count++<12){const sr=ref(uid,'recurring',schedule.id);const current=await getDoc(sr);if(!current.exists())break;const due=current.data().nextDate as string;if(due>today)break;const next=advanceSchedule(due,schedule.frequency,scheduleDay({nextDate:due,anchorDay:current.data().anchorDay}));const mode=(current.data().mode||'reminder') as Recurring['mode'];const draftId=`${schedule.id}_${due}`;const dr=ref(uid,'drafts',draftId);await runTx(database(),async trx=>{const [actual,existing]=await Promise.all([trx.get(sr),trx.get(dr)]);if(!actual.exists()||actual.data().nextDate!==due)return;if(mode!=='reminder'&&!existing.exists())trx.set(dr,{recurringId:schedule.id,plannedDate:due,type:schedule.type,amount:schedule.amount,walletId:schedule.walletId,destinationWalletId:schedule.destinationWalletId||null,categoryId:schedule.categoryId||null,name:schedule.name,status:'pending',mode,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(sr,{nextDate:next,updatedAt:serverTimestamp()});});}}}
 export async function postAutoDrafts(uid:string,drafts:Draft[]){for(const draft of drafts.filter(d=>d.status==='pending'&&d.mode==='auto')){try{await upsertTransaction(uid,newTx({type:draft.type,amount:draft.amount,date:draft.plannedDate,walletId:draft.walletId,destinationWalletId:draft.destinationWalletId,categoryId:draft.categoryId,description:draft.name,draftId:draft.id,recurringTransactionId:draft.recurringId}));}catch(error){console.error('Transaksi otomatis perlu ditinjau:',error);}}}
-export async function dismissDraft(uid:string,id:string){await runTx(database(),async trx=>{const r=ref(uid,'drafts',id),draft=await trx.get(r);if(!draft.exists()||draft.data().status!=='pending')throw Error('Transaksi ini sudah diproses.');trx.update(r,{status:'dismissed',updatedAt:serverTimestamp()})});}
+/** A skipped draft is deleted for good: its schedule has already moved on, so nothing brings it back. */
+export async function dismissDraft(uid:string,id:string){await runTx(database(),async trx=>{const r=ref(uid,'drafts',id),draft=await trx.get(r);if(!draft.exists()||draft.data().status!=='pending')throw Error('Transaksi ini sudah diproses.');trx.delete(r)});await noteDeleted(uid,{drafts:[id]});}
 
 export async function rejectClaim(uid:string,id:string){const r=ref(uid,'claims',id),t=doc(coll(uid,'transactions'));await runTx(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())throw Error('Klaim tidak ditemukan.');const c=snap.data() as Claim;if(c.remainingAmount<=0)throw Error('Klaim sudah selesai.');const {id:_ignored,...event}=newTx({type:'claim_writeoff',amount:c.remainingAmount,walletId:c.sourceWalletId,claimId:id,description:`Klaim ditolak: ${c.name}`});trx.set(t,{...event,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(r,{remainingAmount:0,status:'rejected',updatedAt:serverTimestamp()});});await syncSnapshot(uid,new Date().toLocaleDateString('en-CA'));}
 

@@ -1,4 +1,4 @@
-import { deleteDoc, deleteField, getDocs, limit, query, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, getDocs, limit, query, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, signOut, type User } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { coll, exportData, names, userRef } from './firestore';
@@ -28,6 +28,13 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
       const batch = writeBatch(db); snap.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
       if (snap.size < 400) break;
     }
+  }
+  // Delete notes live in their own collection; a subcollection stays in Firestore unless its documents are deleted.
+  for (let page = 0; page < 2000; page++) {
+    const snap = await getDocs(query(collection(db, 'users', uid, 'deletions'), limit(400)));
+    if (snap.empty) break;
+    const batch = writeBatch(db); snap.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
+    if (snap.size < 400) break;
   }
 }
 

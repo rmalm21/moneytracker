@@ -132,6 +132,41 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
 }
 
 /** A small upright copy of the photo (for the corner editor and "where was this read"), as an object URL. */
+/**
+ * The receipt as it was read: the upright photo cut to the chosen area and straightened (what the reading used), as a
+ * small JPEG. `target` maps the straightened image (width × height) onto the photo (photoWidth × photoHeight), like
+ * a prepared photo does; `quadTarget` builds one from four corners (0..1 of the photo) before anything is read.
+ */
+export type Straightened = { url: string; blob: Blob; width: number; height: number };
+export function quadTarget(corners: Quad, photoWidth: number, photoHeight: number) {
+  const q = corners.map(p => ({ x: p.x * photoWidth, y: p.y * photoHeight })) as Quad, size = quadSize(q);
+  const width = Math.max(1, Math.round(size.width)), height = Math.max(1, Math.round(size.height));
+  const toPhoto = homography(rectQuad(width, height), q);
+  return toPhoto ? { toPhoto, photoWidth, photoHeight, width, height } : null;
+}
+export async function straightenedPreview(uprightUrl: string, target: { toPhoto: Matrix; photoWidth: number; photoHeight: number; width: number; height: number }, longSide = 1000): Promise<Straightened> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(Error('Foto belum bisa ditampilkan.')); img.src = uprightUrl; });
+  const iw = image.naturalWidth, ih = image.naturalHeight;
+  const src = document.createElement('canvas'); src.width = iw; src.height = ih;
+  const sctx = src.getContext('2d', { willReadFrequently: true }); if (!sctx) throw Error('Foto belum bisa ditampilkan.');
+  sctx.drawImage(image, 0, 0); const pixels = sctx.getImageData(0, 0, iw, ih).data; src.width = 1; src.height = 1;
+  // As large as the photo holds (no blow-up), long side at most `longSide`.
+  const detail = Math.min(iw / target.photoWidth, ih / target.photoHeight);
+  const scale = Math.min(longSide / Math.max(target.width, target.height), detail);
+  const w = Math.max(1, Math.round(target.width * scale)), h = Math.max(1, Math.round(target.height * scale));
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const ctx = out.getContext('2d'); if (!ctx) throw Error('Foto belum bisa ditampilkan.');
+  const data = ctx.createImageData(w, h), sx = iw / target.photoWidth, sy = ih / target.photoHeight;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = mapPoint(target.toPhoto, (x + .5) / scale, (y + .5) / scale), px = Math.min(iw - 1, Math.max(0, Math.round(p.x * sx))), py = Math.min(ih - 1, Math.max(0, Math.round(p.y * sy)));
+    const from = (py * iw + px) * 4, to = (y * w + x) * 4;
+    data.data[to] = pixels[from]; data.data[to + 1] = pixels[from + 1]; data.data[to + 2] = pixels[from + 2]; data.data[to + 3] = 255;
+  }
+  ctx.putImageData(data, 0, 0);
+  const blob = await new Promise<Blob>((resolve, reject) => out.toBlob(b => b ? resolve(b) : reject(Error('Foto belum bisa ditampilkan.')), 'image/jpeg', .88));
+  out.width = 1; out.height = 1;
+  return { url: URL.createObjectURL(blob), blob, width: w, height: h };
+}
 export async function uprightPreview(photo: Blob, turn = 0, longSide = 1100): Promise<{ url: string; width: number; height: number }> {
   const bitmap = await loadBitmap(photo);
   try {

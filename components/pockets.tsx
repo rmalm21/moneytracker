@@ -58,7 +58,7 @@ export function KantongStrip({ onOpen, compact = false }: { onOpen: (start: Pock
 /** Sheet to create and edit kantong: pick a name, an icon and the wallets it groups. */
 export function PocketSheet({ open, onOpenChange, start = { mode: 'list' } }: { open: boolean; onOpenChange: (open: boolean) => void; start?: PocketStart }) {
   const { data, user } = useApp();
-  const { track } = useNotify();
+  const { track, notify } = useNotify();
   const kantong = useKantong();
   const wallets = data.wallets.filter(w => !w.isArchived);
   const [mode, setMode] = useState<'list' | 'form'>('list');
@@ -99,7 +99,7 @@ export function PocketSheet({ open, onOpenChange, start = { mode: 'list' } }: { 
     if (!user || !editing) return;
     const fund = editing;
     setMode('list');
-    track(archiveOrDelete(user.uid, 'funds', fund.id, data), { pending: 'Menghapus kantong…', success: `Kantong ${fund.name} dihapus. Dompetnya tetap ada.`, failure: 'Kantong belum terhapus' });
+    track(archiveOrDelete(user.uid, 'funds', fund.id, data).then(done => { if (done === 'archived') notify(`Kantong ${fund.name} disembunyikan karena masih ada di riwayat transaksi. Terhapus dari cloud otomatis begitu transaksinya dihapus.`); }), { pending: 'Menghapus kantong…', success: `Kantong ${fund.name} dihapus. Dompetnya tetap ada.`, failure: 'Kantong belum terhapus' });
   }
 
   const grand = kantong.reduce((n, k) => n + k.currentAmount, 0);

@@ -16,8 +16,8 @@ import { buildReceiptSnapshot, receiptMoneyRows } from '@/lib/receipt-snapshot';
 import type { ReceiptSnapshot } from '@/lib/types';
 import { buildIntelligence, findDuplicate, mergeReceiptReads, reconcileAmounts, regionFor, STATUS_LABELS, type Duplicate, type FieldStatus } from '@/lib/receipt-intel';
 import { analyzeReceiptPhoto, cancelReceiptRead, ocrAvailable, readReceiptPhoto, rereadField, type OcrProgress, type OcrResult } from '@/lib/receipt-ocr';
-import { uprightPreview, type Prepared } from '@/lib/receipt-prep';
-import type { Quad } from '@/lib/receipt-image';
+import { quadTarget, straightenedPreview, uprightPreview, type Prepared, type Straightened } from '@/lib/receipt-prep';
+import type { Matrix, Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
 import { walletAllows } from '@/lib/wallet-capabilities';
 import type { LedgerTx, SplitLine } from '@/lib/types';
@@ -70,6 +70,10 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const { data, user, profile } = useApp();
   const today = todayInTimeZone(profile?.timeZone);
   const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState(''), [turn, setTurn] = useState(0), [upright, setUpright] = useState<Upright | null>(null);
+  // The receipt as read: cut to the chosen area and straightened. Shown everywhere after the area is set; the whole
+  // photo only comes back when the area is changed (Atur sudut).
+  const [cropped, setCropped] = useState<Straightened | null>(null), cropJob = useRef(0);
+  const showCrop = (make: Promise<Straightened> | null) => { const id = ++cropJob.current; if (!make) { setCropped(current => { if (current) URL.revokeObjectURL(current.url); return null; }); return; } void make.then(next => { if (cropJob.current !== id) { URL.revokeObjectURL(next.url); return; } setCropped(current => { if (current) URL.revokeObjectURL(current.url); return next; }); }).catch(() => undefined); };
   const [progress, setProgress] = useState<OcrProgress | null>(null), [problem, setProblem] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState('');
   const [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
   const [result, setResult] = useState<OcrResult | null>(null), [area, setArea] = useState<{ prepared: Prepared; quarter: number } | null>(null), [cameraOpen, setCameraOpen] = useState(false);
@@ -85,7 +89,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
 
   function reset() {
     job.current++; if (photoUrl) URL.revokeObjectURL(photoUrl); if (upright) URL.revokeObjectURL(upright.url);
-    setPhoto(null); setPhotoUrl(''); setUpright(null); setTurn(0); setProgress(null); setProblem(''); setPasteOpen(false); setPasted(''); setRead(null); setRawText(''); setOcrMeta(''); setDraft(null); setWhy({}); setError(''); setShownKeys([]);
+    showCrop(null); setPhoto(null); setPhotoUrl(''); setUpright(null); setTurn(0); setProgress(null); setProblem(''); setPasteOpen(false); setPasted(''); setRead(null); setRawText(''); setOcrMeta(''); setDraft(null); setWhy({}); setError(''); setShownKeys([]);
     // The working images are released with the result (memory on phones).
     setResult(null); setArea(null); setCameraOpen(false); setSource(null); setCornersOpen(false); setReread(null); setSettledFields([]); setDuplicate(null); setDupOk(false); setParts(1);
     setEditMoney(false); setAllItems(false); setRawOpen(false); setOpenCharge(''); setAddingCharge(false);
@@ -113,6 +117,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     const id = ++job.current;
     setProblem(''); setDraft(null); setRead(null); setResult(null); setArea(null); setSource(null); setReread(null); setParts(1);
     setProgress({ stage: 'prepare', progress: 0, label: 'Menyiapkan foto…' });
+    // While reading, the chosen area already shows cut and straightened.
+    { const target = upright && quarter === turn ? prepared || (corners ? quadTarget(corners, upright.width, upright.height) : null) : null; showCrop(target && upright ? straightenedPreview(upright.url, target) : null); }
     try {
       const next = await readReceiptPhoto(source, value => { if (job.current === id) setProgress(value); }, { turn: quarter, corners, prepared });
       // A newer scan started (or this one was cancelled): this result is thrown away.
@@ -214,6 +220,10 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
 
   /* ---------------- where a value was read, and reading it again */
   const mapping = result && upright ? { toPhoto: result.prepared.toPhoto, photoWidth: result.prepared.photoWidth, photoHeight: result.prepared.photoHeight } : null;
+  // Once read (and again when the photo is turned): the cut exactly as it was read.
+  useEffect(() => { if (result && upright) showCrop(straightenedPreview(upright.url, result.prepared)); }, [result, upright?.url]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The cut image is the read image itself, only smaller: a plain scale maps what was read onto it.
+  const flatMapping = result && cropped ? { toPhoto: [cropped.width / result.prepared.width, 0, 0, 0, cropped.height / result.prepared.height, 0, 0, 0, 1] as Matrix, photoWidth: cropped.width, photoHeight: cropped.height } : null;
   const boxFor = (field: string): Box | null => {
     if (!intel) return null;
     if (field.startsWith('item:')) { const item = draft?.items.find(i => i.key === field.slice(5)); return item?.source !== undefined ? intel.items[item.source]?.amount.evidence.box || null : null; }
@@ -285,7 +295,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   /** The corrected receipt, as structure, to Split Bill (from Scan struk's ⋯ menu). */
   function toSplitBill() {
     const receipt = snapshot(true); if (!receipt) return;
-    handoff = { receipt, photo };
+    handoff = { receipt, photo: cropped?.blob || photo };
     onOpenChange(false); navigate?.('splitbill', 'receipt-draft');
   }
   /** Split Bill: hand the checked receipt over; doubts still open are shown once more before it is used. */
@@ -294,7 +304,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     const receipt = snapshot(true); if (!receipt || !onUse) return;
     if (!receipt.items.length && !receipt.total) { setError('Belum ada item atau total. Tambahkan item atau isi nominalnya.'); return; }
     if (issues.length && !useAnyway) { setUseAnyway(true); setError(`${issues.length} bagian masih perlu dicek. Periksa dulu, atau tekan sekali lagi untuk tetap memakai.`); return; }
-    onUse(receipt, photo); onOpenChange(false);
+    onUse(receipt, cropped?.blob || photo); onOpenChange(false);
   }
 
   const busy = Boolean(progress);
@@ -333,7 +343,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     </section>}
 
     {busy && progress && <div className="rs-reading" role="status" aria-live="polite">
-      {photoUrl && <img src={upright?.url || photoUrl} alt="Foto struk" style={upright ? undefined : { transform: `rotate(${turn * 90}deg)` }}/>}
+      {photoUrl && <img src={cropped?.url || upright?.url || photoUrl} alt="Foto struk" style={upright || cropped ? undefined : { transform: `rotate(${turn * 90}deg)` }}/>}
       <div className="rs-scanline" aria-hidden="true"/>
       <strong>{progress.label}</strong>
       <ol className="rs-steps">{STAGES.map(([, label], i) => <li key={label} className={i < stageIndex ? 'is-done' : i === stageIndex ? 'is-now' : ''}>{i < stageIndex ? <Check size={13}/> : <span/>}{label}</li>)}</ol>
@@ -350,7 +360,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
             <strong className="rs-merchant">{draft.merchant || (draft.type === 'income' ? 'Pemasukan dari struk' : 'Tempat belum terbaca')}</strong>
             <small>{[draft.date && new Date(`${draft.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }), draft.time, draft.payment ? PAYMENT_LABELS[draft.payment] : ''].filter(Boolean).join(' · ')}</small>
           </div>
-          {photoUrl && <button type="button" className="rs-top-thumb" onClick={() => mapping ? setSource({ label: 'Seluruh struk', box: null }) : setBigPhoto(v => !v)} aria-label="Lihat foto struk"><img src={upright?.url || photoUrl} alt=""/></button>}
+          {photoUrl && <button type="button" className="rs-top-thumb" onClick={() => mapping ? setSource({ label: 'Seluruh struk', box: null }) : setBigPhoto(v => !v)} aria-label="Lihat foto struk"><img src={cropped?.url || upright?.url || photoUrl} alt=""/></button>}
           <details className="rs-kebab" ref={moreMenu}>
             <summary aria-label="Lainnya"><MoreHorizontal size={18}/></summary>
             <div className="rs-kebab-menu" role="menu" onClick={() => moreMenu.current?.removeAttribute('open')}>
@@ -371,7 +381,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         {intel && (read?.items.length || read?.total) ? (issues.length ? <p className="rs-state is-warn"><AlertTriangle size={14}/> {issues.length} bagian perlu dicek</p>
           : live && <p className={`rs-state is-${live.state === 'RECONCILED' ? 'ok' : live.state === 'INSUFFICIENT_DATA' ? 'info' : 'warn'}`}>{live.state === 'RECONCILED' ? <Check size={14}/> : live.state === 'INSUFFICIENT_DATA' ? <Info size={14}/> : <AlertTriangle size={14}/>} {live.state === 'RECONCILED' ? 'Total cocok dengan rincian' : live.message}</p>) : null}
       </section>
-      {photoUrl && bigPhoto && <div className="rs-photo is-big"><button type="button" className="rs-thumb" aria-label="Perkecil foto" onClick={() => setBigPhoto(false)}><img src={upright?.url || photoUrl} alt="Foto struk" style={upright ? undefined : { transform: `rotate(${turn * 90}deg)` }}/></button></div>}
+      {photoUrl && bigPhoto && <div className="rs-photo is-big"><button type="button" className="rs-thumb" aria-label="Perkecil foto" onClick={() => setBigPhoto(false)}><img src={cropped?.url || upright?.url || photoUrl} alt="Foto struk" style={upright || cropped ? undefined : { transform: `rotate(${turn * 90}deg)` }}/></button></div>}
 
       {/* 2. Only what needs a look, right after the summary. */}
       {issues.length > 0 && <section className="rs-todo" aria-label="Perlu dicek">
@@ -497,8 +507,9 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     </form>}
 
     <Dialog open={Boolean(source)} onOpenChange={value => { if (!value) setSource(null); }}><DialogContent title={source ? `Di struk: ${source.label}` : 'Di struk'} className="mobile-sheet rs-source-dialog">
-      {source && upright && mapping && <ReceiptSource upright={upright} mapping={mapping} box={source.box} label={source.label}/>}
-      {source && (!upright || !mapping) && photoUrl && <img className="rs-source-plain" src={photoUrl} alt="Foto struk"/>}
+      {source && cropped && flatMapping && <ReceiptSource upright={cropped} mapping={flatMapping} box={source.box} label={source.label}/>}
+      {source && !(cropped && flatMapping) && upright && mapping && <ReceiptSource upright={upright} mapping={mapping} box={source.box} label={source.label}/>}
+      {source && !(cropped && flatMapping) && (!upright || !mapping) && photoUrl && <img className="rs-source-plain" src={photoUrl} alt="Foto struk"/>}
     </DialogContent></Dialog>
     <Dialog open={cornersOpen} onOpenChange={setCornersOpen}><DialogContent title="Atur sudut struk" className="mobile-sheet rs-corners-dialog">
       {cornersOpen && upright && result && <ReceiptCorners upright={upright} corners={result.prepared.corners} onCancel={() => setCornersOpen(false)} onApply={corners => { setCornersOpen(false); if (photo) void scan(photo, turn, corners); }}/>}

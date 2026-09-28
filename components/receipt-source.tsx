@@ -52,7 +52,7 @@ export function ReceiptSource({ upright, mapping, box, label }: { upright: Uprig
   if (failed) return <p className="muted">Foto belum bisa ditampilkan.</p>;
   return <div className="rs-source">
     <div className="rs-source-canvas"><canvas ref={canvas} role="img" aria-label={`Bagian struk: ${label}`}/></div>
-    {!box && <small className="muted">Letak bagian ini di foto belum diketahui.</small>}
+    {!box && label !== 'Seluruh struk' && <small className="muted">Letak bagian ini di foto belum diketahui.</small>}
     {box && <button type="button" className="link-button" onClick={() => setWhole(v => !v)}>{whole ? <><Minimize2 size={15}/> Perbesar bagian ini</> : <><Maximize2 size={15}/> Seluruh struk</>}</button>}
   </div>;
 }

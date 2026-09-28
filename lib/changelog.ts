@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.3', date: '28 Sep 2026', title: 'Yang dihapus benar-benar hilang dari cloud, foto struk tampil terpotong', items: [
+    ['🔒', 'Yang dihapus di aplikasi kini juga terhapus di Firestore. Draf rutin yang dilewati dan kategori yang digabung langsung dihapus (dulu hanya ditandai). Dompet, kategori, atau kantong yang tersembunyi karena masih punya riwayat ikut terhapus otomatis begitu transaksinya dihapus.'],
+    ['🔒', 'Catatan penghapusan untuk sinkron antar-HP dibersihkan sendiri setelah seminggu, dan ikut terhapus saat Reset semua data atau Hapus akun.'],
+    ['📷', 'Setelah area struk ditentukan, foto yang tampil (saat membaca, gambar kecil di atas, Seluruh struk, penanda letak angka, dan yang dibawa ke Split Bill) kini potongan struk yang sudah diluruskan. Foto utuh hanya muncul saat mengubah area lewat Atur sudut.'],
+  ] },
   { version: '2.2', date: '28 Sep 2026', title: 'Split Bill dibagikan sebagai nota', items: [
     ['🧾', 'Bagikan Split Bill kini berupa nota seperti struk: nama tagihan, tempat, tanggal, lalu per orang semua item beserta pajak/service, diskon, dan totalnya, ditutup total tagihan dan “Bayar ke”. Tanda lunas atau sisa ikut tampil.'],
     ['🧾', 'Nota bisa dibagikan sebagai gambar struk atau sebagai teks rapi berkolom untuk grup WhatsApp. Bisa juga dibuat untuk satu orang saja.'],

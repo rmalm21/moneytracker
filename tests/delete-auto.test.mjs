@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 const store = readFileSync(new URL('../lib/firestore.ts', import.meta.url), 'utf8');
 const remove = store.slice(store.indexOf('export async function deleteTransaction'), store.indexOf('export async function createClaim'));
 
-test('deleting an automatic recurring entry skips it instead of recording it again', () => {
-  // "pending" + mode auto is posted again at once by postAutoDrafts; a deleted automatic entry must become "dismissed".
-  assert.match(remove, /mode==='auto'\?'dismissed':'pending'/);
+test('deleting an automatic recurring entry deletes its draft instead of recording it again', () => {
+  // "pending" + mode auto is posted again at once by postAutoDrafts; a deleted automatic entry's draft is deleted too.
+  assert.match(remove, /mode==='auto'\)\{trx\.delete\(draftRef\)/);
   assert.ok(!/drafts',old\.draftId\),\{status:'pending'/.test(remove), 'never unconditionally back to pending');
   const auto = store.slice(store.indexOf('export async function postAutoDrafts'));
   assert.match(auto, /d\.status==='pending'&&d\.mode==='auto'/, 'only pending automatic entries are posted');
@@ -61,4 +61,21 @@ test('deleting asks for confirmation, then deletes at once with a progress card 
   assert.match(undo, /Hapus \{ask\?\.label\.toLowerCase\(\)\}\?/);
   assert.ok(!/Batalkan|setTimeout/.test(undo), 'no floating undo toast or timer');
   assert.match(undo, /immediate: true/);
+});
+
+test('what the app deletes is deleted in Firestore too', () => {
+  // A skipped draft is deleted (not kept as "dismissed"); its schedule has already moved on.
+  assert.match(store, /export async function dismissDraft[^\n]*trx\.delete\(r\)/);
+  // A merged category is deleted, not archived.
+  const merge = store.slice(store.indexOf('export async function mergeCategory'), store.indexOf('export async function dismissDraft'));
+  assert.doesNotMatch(merge, /isArchived:true/);
+  assert.match(merge, /gone\.delete\(ref\(uid,'categories',from\.id\)\)/);
+  // Cleanup on open: old delete notes, old skipped drafts, archived records nothing refers to.
+  const tidy = store.slice(store.indexOf('export async function tidyCloud'), store.indexOf('export async function checkDeletedTransactions'));
+  assert.match(tidy, /'deletions'[\s\S]*where\('updatedAt','<'/);
+  assert.match(tidy, /where\('status','==','dismissed'\)/);
+  assert.match(tidy, /whenCurrent\(uid,synced/, 'archived records only go with a complete device copy');
+  // Reset and account deletion also empty the delete notes (a subcollection outlives its parent otherwise).
+  const account = readFileSync(new URL('../lib/account.ts', import.meta.url), 'utf8');
+  assert.match(account, /collection\(db, 'users', uid, 'deletions'\)/);
 });
