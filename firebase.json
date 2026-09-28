@@ -9,6 +9,5 @@
       {"source": "/ocr/**", "headers": [{"key":"Cache-Control","value":"public,max-age=2592000"}]}
     ]
   },
-  "firestore": {"rules":"firestore.rules", "indexes":"firestore.indexes.json"},
-  "storage": {"rules":"storage.rules"}
+  "firestore": {"rules":"firestore.rules", "indexes":"firestore.indexes.json"}
 }

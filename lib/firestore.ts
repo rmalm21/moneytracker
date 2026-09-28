@@ -247,17 +247,6 @@ export async function deleteOpeningRecord(uid:string,kind:'claims'|'receivables'
   const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));const openings=found.docs.filter(s=>s.data().type===openingType),opening=openings[0];
   await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())return;if(snap.data().sourceType==='split_bill')throw Error(splitRecord(kind));const row=snap.data(),initial=Number(kind==='claims'?row.amount:row.originalAmount),remaining=Number(kind==='debts'?row.outstandingAmount:row.remainingAmount);if(remaining!==initial)throw Error('Catatan yang sudah memiliki pembayaran tidak dapat dihapus. Koreksi transaksi pembayarannya terlebih dahulu.');const snaps=[];for(const o of openings){const t=await trx.get(o.ref);if(!t.exists())throw Error('Transaksi pembuka tidak tersedia.');snaps.push(t);}for(const t of snaps){const tx=hydrate<LedgerTx>(t);for(const [wallet,delta] of Object.entries(effects(tx)))trx.update(ref(uid,'wallets',wallet),{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});trx.delete(t.ref);}trx.delete(rr);});await noteDeleted(uid,{[kind]:[id],...(openings.length?{transactions:openings.map(o=>o.id)}:{})});await syncSnapshot(uid,opening?.data().date||'0000-01-01');
 }
-export async function attachClaimReceipt(uid:string,id:string,file:File){
-  if(file.size>10*1024*1024)throw Error('Ukuran file maksimal 10 MB.');
-  if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(file.type))throw Error('Gunakan PDF, PNG, JPG, atau WebP.');
-  const {storage}=await import('./firebase');if(!storage)throw Error('Firebase Storage belum tersedia.');
-  const {ref:storageRef,uploadBytes}=await import('firebase/storage');
-  const path=`users/${uid}/claims/${id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-  await uploadBytes(storageRef(storage,path),file,{contentType:file.type});
-  await settle(updateDoc(ref(uid,'claims',id),{attachmentPath:path,updatedAt:serverTimestamp()}));
-}
-/** Opens the attachment through the owner's sign-in as a local blob: address; no shareable download link is created. */
-export async function claimReceiptUrl(path:string){const {storage}=await import('./firebase');if(!storage)throw Error('Firebase Storage belum tersedia.');const {ref:storageRef,getBlob}=await import('firebase/storage');return URL.createObjectURL(await getBlob(storageRef(storage,path)));}
 export async function loadAllTransactions(uid:string){if(await whenCurrent(uid,['transactions'])){try{return withoutDeleted((await getDocsFromCache(query(coll(uid,'transactions'),orderBy('date','desc')))).docs.map(d=>hydrate<LedgerTx>(d)))}catch{/* read from the server below */}}const result:LedgerTx[]=[];let cursor:QueryDocumentSnapshot|undefined;while(true){const q=query(coll(uid,'transactions'),orderBy('date','desc'),...(cursor?[startAfter(cursor)]:[]),limit(300));const snap=await getDocs(q);result.push(...snap.docs.map(d=>hydrate<LedgerTx>(d)));if(snap.size<300)break;cursor=snap.docs[snap.docs.length-1];}return withoutDeleted(result);}
 export async function mergeCategory(uid:string,from:Category,to:Category){if(from.id===to.id||from.type!==to.type||Boolean(from.parentId)!==Boolean(to.parentId))throw Error('Pilih kategori tujuan dengan jenis dan tingkat yang sama.');
   const affected:{r:DocumentReference;field:'categoryId'|'subcategoryId'|'parentId'}[]=[];

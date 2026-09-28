@@ -13,7 +13,7 @@
 import { deleteField, doc, getDoc, getDocFromCache, increment, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch, type DocumentData, type DocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { coll, newTx, noteDeleted, ref, syncSnapshot } from './firestore';
 import { db } from './firebase';
-import { isOffline, runTx, settle } from './offline';
+import { runTx, settle } from './offline';
 import { effects, rupiah } from './accounting';
 import { computeSplit, ownCategoryLines, payerOf } from './split-bill';
 import { validateWalletUse } from './wallet-capabilities';
@@ -283,7 +283,6 @@ export async function deleteSplitBill(uid: string, bill: Pick<SplitBill, 'id' | 
   if (bill.status === 'active') throw Error('Batalkan Split Bill ini dulu sebelum menghapusnya.');
   const batch = writeBatch(database()); batch.delete(ref(uid, 'splitBills', bill.id)); await settle(batch.commit());
   await noteDeleted(uid, { splitBills: [bill.id] });
-  if (bill.receiptPath) await removeReceiptFile(uid, bill.receiptPath);
 }
 
 /* ------------------------------------------------------------------ Saved people and groups */
@@ -313,54 +312,3 @@ export async function deleteSplitGroup(uid: string, id: string) {
   await noteDeleted(uid, { splitGroups: [id] });
 }
 
-/* ------------------------------------------------------------------ Receipt photo (optional, needs Firebase Storage) */
-
-/** Keeps the receipt photo under the user's own folder (users/{uid}/…); only the owner can read it (storage.rules). */
-export async function attachSplitReceipt(uid: string, billId: string, file: Blob, previous?: string) {
-  if (file.size > 10 * 1024 * 1024) throw Error('Ukuran foto maksimal 10 MB.');
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw Error('Gunakan foto JPG, PNG, atau WebP.');
-  const { storage } = await import('./firebase');
-  if (!storage) throw Error('Penyimpanan foto belum tersedia.');
-  const { ref: storageRef, uploadBytes } = await import('firebase/storage');
-  const path = `users/${uid}/split-bills/${billId}/${crypto.randomUUID()}.${file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'}`;
-  await uploadBytes(storageRef(storage, path), file, { contentType: file.type });
-  await settle(updateDoc(ref(uid, 'splitBills', billId), { receiptPath: path, updatedAt: now() }));
-  if (previous && previous !== path) await removeReceiptFile(uid, previous);
-  return path;
-}
-export async function removeSplitReceipt(uid: string, billId: string, path: string) {
-  await settle(updateDoc(ref(uid, 'splitBills', billId), { receiptPath: '', updatedAt: now() }));
-  await removeReceiptFile(uid, path);
-}
-async function removeReceiptFile(uid: string, path: string) {
-  if (!path.startsWith(`users/${uid}/`)) return;
-  try { const { storage } = await import('./firebase'); if (!storage) return; const { ref: storageRef, deleteObject } = await import('firebase/storage'); await deleteObject(storageRef(storage, path)); } catch { /* already gone or Storage unavailable */ }
-}
-/**
- * Shows the photo inside the app only: the file is fetched with the owner's sign-in and turned into a local
- * blob: address (revoke it when done). No shareable download link is ever created.
- */
-export async function splitReceiptUrl(path: string) {
-  const { storage } = await import('./firebase');
-  if (!storage) throw Error('Penyimpanan foto belum tersedia.');
-  const { ref: storageRef, getBlob } = await import('firebase/storage');
-  return URL.createObjectURL(await getBlob(storageRef(storage, path)));
-}
-/** Removes every Split Bill receipt photo of this account from the cloud (and the links to them). Returns how many. */
-export async function removeAllSplitReceipts(uid: string, bills: Pick<SplitBill, 'id' | 'receiptPath'>[]) {
-  if (isOffline()) throw Error('Butuh koneksi internet. Sambungkan dulu, lalu coba lagi.');
-  const linked = bills.filter(bill => bill.receiptPath);
-  for (const bill of linked) await settle(updateDoc(ref(uid, 'splitBills', bill.id), { receiptPath: '', updatedAt: now() }));
-  const paths = new Set(linked.map(bill => bill.receiptPath!));
-  // Also files no bill points to any more (an earlier photo that was replaced, a failed save).
-  try {
-    const { storage } = await import('./firebase');
-    if (storage) {
-      const { ref: storageRef, listAll } = await import('firebase/storage');
-      const walk = async (path: string) => { const found = await listAll(storageRef(storage, path)); found.items.forEach(item => paths.add(item.fullPath)); for (const folder of found.prefixes) await walk(folder.fullPath); };
-      await walk(`users/${uid}/split-bills`);
-    }
-  } catch { /* listing is best effort; the linked photos are still removed */ }
-  for (const path of paths) await removeReceiptFile(uid, path);
-  return paths.size;
-}

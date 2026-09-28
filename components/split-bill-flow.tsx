@@ -13,7 +13,7 @@ import { PeopleManager } from './split-people';
 import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
 import { ReceiptScan } from './receipt-scan';
 import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, splitFromReceipt } from '@/lib/split-bill';
-import { attachSplitReceipt, saveSplitBill, saveSplitPerson, type SplitBillInput } from '@/lib/split-bill-store';
+import { saveSplitBill, saveSplitPerson, type SplitBillInput } from '@/lib/split-bill-store';
 import { suggestCategory } from '@/lib/categorize';
 import { rupiah } from '@/lib/accounting';
 import { walletAllows } from '@/lib/wallet-capabilities';
@@ -70,9 +70,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const myName = profile?.displayName?.trim() || 'Saya';
   const [bill, setBill] = useState<SplitBillInput>(() => { const base = startBill(start, { myName, today, walletId: defaultWallet }); return start.receipt ? withReceipt(base, start.receipt) : base; });
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [understood, setUnderstood] = useState(false);
-  const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState('');
-  // The photo is only read on this phone. It goes to the cloud only when the person ticks the box (off by default).
-  const [cloudPhoto, setCloudPhoto] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
   // Opening from "Scan struk" goes straight to the camera and the shared receipt review.
   const [scanOpen, setScanOpen] = useState(start.mode === 'receipt' && !start.receipt);
   const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
@@ -170,7 +168,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   /* ---------------- receipt: read and checked in the shared Scan struk review */
   async function keepPhoto(file: Blob | null | undefined) {
     if (!file) return;
-    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); setPhoto(small); setPhotoUrl(URL.createObjectURL(small)); } catch { /* the receipt data is enough */ }
+    try { const small = await shrinkPhoto(file); if (photoUrl) URL.revokeObjectURL(photoUrl); setPhotoUrl(URL.createObjectURL(small)); } catch { /* the receipt data is enough */ }
   }
   useEffect(() => { if (start.photo) void keepPhoto(start.photo); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   function useReceipt(receipt: ReceiptSnapshot, file: Blob | null) {
@@ -195,7 +193,6 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     setSaving(true); setError('');
     try {
       const id = await saveSplitBill(user.uid, { ...input, total: bill.items.length && !bill.fromTransaction ? result.total : bill.total }, { draft });
-      if (photo && cloudPhoto) { const uid = user.uid, previous = bill.receiptPath; track(attachSplitReceipt(uid, id, photo, previous), { pending: 'Mengunggah foto struk…', success: 'Foto struk tersimpan.', failure: 'Foto struk belum tersimpan. Split Bill-nya tetap aman.' }); }
       onSaved(id, draft ? 'Draft Split Bill disimpan.' : editing ? 'Split Bill diperbarui.' : 'Split Bill disimpan.');
     } catch (e) { setError((e as Error).message || 'Split Bill belum tersimpan.'); }
     finally { setSaving(false); }
@@ -231,8 +228,6 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             <button type="button" className="rs-pill" onClick={() => { setAddingItem(true); setOpenItem(''); }}><Plus size={14}/> Tambah item</button>
             {photoUrl && <img className="sb-top-thumb" src={photoUrl} alt="Foto struk"/>}
           </div>
-          {photoUrl && <label className="sb-cloud-photo"><input type="checkbox" checked={cloudPhoto} onChange={e => setCloudPhoto(e.target.checked)}/><span><b>Simpan foto struk ke cloud</b><small>{cloudPhoto ? 'Foto disimpan di akunmu dan hanya bisa dibuka olehmu.' : 'Mati: foto hanya dibaca di HP ini, tidak diunggah.'}</small></span></label>}
-          {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tersimpan di cloud. Bisa dihapus lewat menu tagihan.</small>}
         </header>
 
         {/* 2. Who is splitting. */}
@@ -275,20 +270,25 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
               {item.discount ? <div className="sbx-row-sub"><span>Diskon item</span><span>−{rupiah(item.discount)}</span></div> : null}
               {item.discount ? <div className="sbx-row-sub is-net"><span>Dibagi</span><span>{rupiah(net)}</span></div> : null}
               <div className={`sbx-row-who ${left ? 'is-left' : ''}`}>{left ? <><AlertTriangle size={12}/> {who ? `${who} · ` : ''}belum dibagi {rupiah(left.amount)}</> : who}</div>
-              {open && <div className="sbx-row-edit">
+              {open && <div className="sbx-row-edit sbi">
+                {/* The item itself stays editable while it is being split: name, amount and price right here. */}
+                <div className="sbi-fields">
+                  <input className="input sbi-name" value={item.name} maxLength={60} onChange={e => changeItem(item.id, { name: e.target.value })} aria-label="Nama item" placeholder="Nama item"/>
+                  <div className="sbi-nums"><span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { qty: Math.max(1, item.qty - 1) })}><Minus size={14}/></button><b>{item.qty}</b><button type="button" aria-label="Tambah" onClick={() => changeItem(item.id, { qty: Math.min(999, item.qty + 1) })}><Plus size={14}/></button></span><span className="sbi-x" aria-hidden="true">×</span><Money value={item.price} onChange={price => changeItem(item.id, { price })} placeholder="Harga satuan"/></div>
+                </div>
+                <div className="sbi-split">
+                  <div className="sbi-split-head"><small className="sb-ask">Dibagi</small><div className="ip-seg sbi-seg" role="radiogroup" aria-label="Cara bagi item">{([['shared', 'Rata'], ['units', 'Per porsi'], ['custom', 'Nominal']] as [SplitItem['assign'], string][]).filter(([key]) => key !== 'units' || item.qty > 1 || item.assign === 'units').map(([key, label]) => <button type="button" role="radio" aria-checked={item.assign === key} key={key} className={item.assign === key ? 'active' : ''} onClick={() => changeItem(item.id, { assign: key })}>{label}</button>)}</div></div>
                 {item.assign === 'units' && item.qty > 1 ? <div className="sb-units">{bill.participants.map(person => { const count = item.units?.[person.id] || 0; return <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><span className="sb-stepper"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { units: { ...item.units, [person.id]: Math.max(0, count - 1) } })}><Minus size={14}/></button><b>{count}</b><button type="button" aria-label="Tambah" disabled={unitsUsed >= item.qty} onClick={() => { changeItem(item.id, { units: { ...item.units, [person.id]: count + 1 } }); setLastPicked(person.id); }}><Plus size={14}/></button></span></span>; })}<small className={unitsUsed === item.qty ? 'muted' : 'sb-warn'}>{unitsUsed} dari {item.qty} porsi</small></div>
                   : item.assign === 'custom' ? <div className="sb-units">{bill.participants.map(person => <span className="sb-unit" key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span><Money value={item.custom?.[person.id] || 0} onChange={value => changeItem(item.id, { custom: { ...item.custom, [person.id]: value } })}/></span>)}</div>
-                  : <><small className="sb-ask">Siapa yang pesan?</small><div className="sb-chips">{bill.participants.map(person => personChip(person, item.people.includes(person.id), () => toggleTaker(item, person.id)))}<button type="button" className="sb-chip is-all" onClick={() => changeItem(item.id, { people: item.people.length === bill.participants.length ? [] : bill.participants.map(person => person.id) })}>{item.people.length === bill.participants.length ? 'Kosongkan' : 'Semua'}</button></div>
+                  : <><div className="sb-chips">{bill.participants.map(person => personChip(person, item.people.includes(person.id), () => toggleTaker(item, person.id)))}<button type="button" className="sb-chip is-all" onClick={() => changeItem(item.id, { people: item.people.length === bill.participants.length ? [] : bill.participants.map(person => person.id) })}>{item.people.length === bill.participants.length ? 'Kosongkan' : 'Semua'}</button></div>
                     {item.people.length > 1 && <small className="muted">{rupiah(net)} ÷ {item.people.length} = ±{rupiah(Math.round(net / item.people.length))} per orang</small>}
                     {lastPicked && !item.people.includes(lastPicked) && bill.participants.some(person => person.id === lastPicked) && <button type="button" className="sb-link" onClick={() => changeItem(item.id, { people: [...item.people, lastPicked] })}>+ {personName(bill.participants.find(person => person.id === lastPicked))} lagi</button>}</>}
-                <details className="sb-more"><summary>Atur item</summary>
-                  <Field label="Nama"><Input value={item.name} maxLength={60} onChange={e => changeItem(item.id, { name: e.target.value })}/></Field>
-                  <div className="sb-item-nums"><span className="sb-stepper" aria-label="Jumlah"><button type="button" aria-label="Kurangi" onClick={() => changeItem(item.id, { qty: Math.max(1, item.qty - 1) })}><Minus size={14}/></button><b>{item.qty}</b><button type="button" aria-label="Tambah" onClick={() => changeItem(item.id, { qty: Math.min(999, item.qty + 1) })}><Plus size={14}/></button></span><span>×</span><Money value={item.price} onChange={price => changeItem(item.id, { price })}/></div>
-                  <Field label="Diskon item ini"><Money value={item.discount || 0} onChange={discount => changeItem(item.id, { discount })}/></Field>
-                  <div className="ip-seg sb-seg" role="radiogroup" aria-label="Cara bagi item">{([['shared', 'Dibagi rata'], ['units', 'Per porsi'], ['custom', 'Nominal']] as [SplitItem['assign'], string][]).map(([key, label]) => <button type="button" key={key} disabled={key === 'units' && item.qty < 2} className={item.assign === key ? 'active' : ''} onClick={() => changeItem(item.id, { assign: key })}>{label}</button>)}</div>
-                  <div className="sb-cat"><small className="muted">Kategori item (opsional, untuk bagianmu)</small><CategoryPicker type="expense" categoryId={item.categoryId || ''} subcategoryId={item.subcategoryId || ''} onChange={value => changeItem(item.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>
-                  <button type="button" className="sb-link is-danger" onClick={() => { setItems(bill.items.filter(row => row.id !== item.id)); setOpenItem(''); }}><Trash2 size={14}/> Hapus item</button>
+                </div>
+                <details className="sbi-more" open={Boolean(item.discount || item.categoryId) || undefined}><summary><span>Diskon & kategori</span><small>{[item.discount ? `diskon ${rupiah(item.discount)}` : '', item.categoryId ? 'kategori dipilih' : ''].filter(Boolean).join(' · ') || 'opsional'}</small><ChevronDown size={15} aria-hidden="true"/></summary>
+                  <label className="sbi-line"><span>Diskon item</span><Money value={item.discount || 0} onChange={discount => changeItem(item.id, { discount })}/></label>
+                  <div className="sb-cat"><small className="muted">Kategori untuk bagianmu</small><CategoryPicker type="expense" categoryId={item.categoryId || ''} subcategoryId={item.subcategoryId || ''} onChange={value => changeItem(item.id, { categoryId: value.categoryId || null, subcategoryId: value.subcategoryId || null })}/></div>
                 </details>
+                <div className="sbi-foot"><button type="button" className="sb-link is-danger" onClick={() => { setItems(bill.items.filter(row => row.id !== item.id)); setOpenItem(''); }}><Trash2 size={14}/> Hapus</button><button type="button" className="sbi-done" onClick={() => setOpenItem('')}><Check size={14}/> Selesai</button></div>
               </div>}
             </li>; })}</ul>}
           {(addingItem || !itemMode) && <form className="sb-item-add" onSubmit={e => { e.preventDefault(); addItem(); }}>

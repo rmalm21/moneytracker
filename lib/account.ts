@@ -17,17 +17,6 @@ export type WipeProgress = { step: number; total: number; label: string };
 
 function requireOnline() { if (isOffline()) throw Error('Butuh koneksi internet. Sambungkan dulu, lalu coba lagi.'); }
 
-/** Receipt files of office claims and Split Bills. Removed when the storage rules allow it; the records are deleted either way. */
-async function removeReceipts(uid: string, paths: unknown[]) {
-  const own = paths.filter((path): path is string => typeof path === 'string' && path.startsWith(`users/${uid}/`));
-  if (!own.length) return;
-  try {
-    const { storage } = await import('./firebase'); if (!storage) return;
-    const { ref, deleteObject } = await import('firebase/storage');
-    await Promise.allSettled(own.map(path => deleteObject(ref(storage, path))));
-  } catch { /* Storage is optional. */ }
-}
-
 export async function wipeUserData(uid: string, onProgress?: (progress: WipeProgress) => void) {
   if (!db) throw Error('Konfigurasi Firebase belum tersedia.');
   requireOnline();
@@ -36,8 +25,6 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
     for (let page = 0; page < 2000; page++) {
       const snap = await getDocs(query(coll(uid, name), limit(400)));
       if (snap.empty) break;
-      if (name === 'claims') await removeReceipts(uid, snap.docs.map(row => row.get('attachmentPath')));
-      if (name === 'splitBills') await removeReceipts(uid, snap.docs.map(row => row.get('receiptPath')));
       const batch = writeBatch(db); snap.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
       if (snap.size < 400) break;
     }

@@ -1,7 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, connectAuthEmulator, setPersistence } from 'firebase/auth';
 import { CACHE_SIZE_UNLIMITED, connectFirestoreEmulator, initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-import { connectStorageEmulator, getStorage } from 'firebase/storage';
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -18,11 +17,9 @@ export const auth = app ? getAuth(app) : null;
 // Optional fields (e.g. an empty note amount) are skipped instead of rejecting the whole write.
 // The device keeps a full copy of the user's data (lib/sync.ts), so the cache must never evict documents.
 export const db = app ? (() => { try { return initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager(), cacheSizeBytes: CACHE_SIZE_UNLIMITED }) }); } catch { return getFirestore(app); } })() : null;
-export const storage = app ? getStorage(app) : null;
-if (emulatorHost && typeof window !== 'undefined' && auth && db && storage && !(globalThis as { __dompetEmulator?: boolean }).__dompetEmulator) {
+if (emulatorHost && typeof window !== 'undefined' && auth && db && !(globalThis as { __dompetEmulator?: boolean }).__dompetEmulator) {
   (globalThis as { __dompetEmulator?: boolean }).__dompetEmulator = true;
   connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
   connectFirestoreEmulator(db, emulatorHost, 8080);
-  connectStorageEmulator(storage, emulatorHost, 9199);
 }
 export async function rememberSession() { if (auth) await setPersistence(auth, browserLocalPersistence); }

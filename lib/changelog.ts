@@ -2,10 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '100', date: '28 Sep 2026', title: 'Foto struk tetap di HP', items: [
-    ['🔒', 'Foto struk di Split Bill tidak lagi diunggah otomatis. Foto hanya dibaca di HP ini. Kalau memang ingin disimpan, centang “Simpan foto struk ke cloud” (awalnya mati).'],
-    ['🔒', 'Foto struk yang sudah terlanjur tersimpan bisa dihapus sekaligus dari halaman Split Bill (“Hapus semua”). Tagihan, item, dan pembayarannya tetap aman.'],
-    ['🔒', 'Foto struk dan lampiran klaim kini dibuka langsung lewat akunmu, tanpa membuat link unduhan yang bisa dibagikan.'],
+  { version: '2.0', date: '28 Sep 2026', title: 'Versi 2.0: tanpa unggahan sama sekali, item bisa diubah saat membagi', items: [
+    ['🔒', 'Aplikasi tidak lagi mengunggah file apa pun. Foto struk hanya dibaca di HP ini lalu dibuang. Data disimpan di Firestore seperti biasa, dan Firebase Storage tidak dipakai lagi (termasuk lampiran klaim).'],
+    ['🧾', 'Split Bill: saat membagi item, nama, jumlah, dan harganya bisa langsung diubah di kartu yang sama. Tidak perlu membuka “Atur item” lagi.'],
+    ['📝', 'Kartu item Split Bill dirapikan: pilihan Rata / Per porsi / Nominal di satu baris, diskon dan kategori dilipat dalam “Diskon & kategori”, lalu tombol Hapus dan Selesai di bawah.'],
+    ['💡', 'Penomoran versi baru: 2.0, 2.1, sampai 2.10, lalu 3.0, dan seterusnya.'],
   ] },
   { version: '99', date: '28 Sep 2026', title: 'Kartu hari yang dilipat lebih rapi', items: [
     ['📝', 'Di Transaksi dan Beranda, hari yang dilipat kini menumpuk nominal masuk dan keluar di kanan, dengan jumlah transaksi di bawahnya. Nama hari tetap satu baris dan kotak tanggal tidak lagi menyempit.'],

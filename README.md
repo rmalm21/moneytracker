@@ -1,6 +1,6 @@
 # Dompet Ajaib
 
-Aplikasi keuangan pribadi multiakun berbasis Next.js, TypeScript, Tailwind CSS, komponen UI berbasis Radix, Recharts, Firebase Authentication, Firestore, Storage, dan PWA. Bahasa tampilan Indonesia, mata uang Rupiah.
+Aplikasi keuangan pribadi multiakun berbasis Next.js, TypeScript, Tailwind CSS, komponen UI berbasis Radix, Recharts, Firebase Authentication, Firestore, dan PWA (tanpa Firebase Storage: foto struk tidak pernah diunggah). Bahasa tampilan Indonesia, mata uang Rupiah.
 
 ## Kategori default & dompet awal
 
@@ -70,7 +70,7 @@ Untuk pembaruan link percobaan melalui browser tanpa memasang program di laptop,
 ## Aktifkan Firebase
 
 1. Di Firebase Console untuk project `money-manage-32467`, aktifkan **Authentication → Sign-in method → Email/Password**. Buat akun pengguna secara manual di **Authentication → Users** (misalnya `rama@gmail.com`). Tidak ada pendaftaran publik.
-2. Aktifkan **Cloud Firestore** dan **Cloud Storage**. Pastikan site Firebase Hosting dengan ID `dompetajaib` tersedia.
+2. Aktifkan **Cloud Firestore** (Cloud Storage tidak dipakai). Pastikan site Firebase Hosting dengan ID `dompetajaib` tersedia.
 3. Di **Authentication → Settings → Authorized domains**, pastikan `dompetajaib.web.app` dan domain pengembangan yang dipakai tersedia.
 4. Salin `.env.example` menjadi `.env.local`, lalu isi keenam nilai `NEXT_PUBLIC_FIREBASE_*` dari **Project settings → Your apps → Web app**. Domain login pendek dapat diubah lewat `NEXT_PUBLIC_AUTH_EMAIL_DOMAIN`. Nilai Firebase web config boleh ada dalam bundel frontend; perlindungan data bertumpu pada autentikasi dan security rules.
 5. Jalankan:
@@ -84,7 +84,7 @@ Buka `http://localhost:3000`. Login dapat memakai `rama` untuk akun `rama@gmail.
 
 ## Uji lokal tanpa project Firebase
 
-Aplikasi dapat dijalankan dengan [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite) (butuh Java). Isi `.env.local` dengan nilai contoh apa pun (misalnya `NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-dompet`) dan tambahkan `NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1`, lalu jalankan `firebase emulators:start --only auth,firestore,storage --project demo-dompet` bersama `npm run dev`. Jangan isi variabel emulator saat build untuk Firebase Hosting.
+Aplikasi dapat dijalankan dengan [Firebase Emulator Suite](https://firebase.google.com/docs/emulator-suite) (butuh Java). Isi `.env.local` dengan nilai contoh apa pun (misalnya `NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-dompet`) dan tambahkan `NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1`, lalu jalankan `firebase emulators:start --only auth,firestore --project demo-dompet` bersama `npm run dev`. Jangan isi variabel emulator saat build untuk Firebase Hosting.
 
 ## Uji dan deploy
 
@@ -95,10 +95,10 @@ npm run build
 npm install -g firebase-tools
 firebase login
 firebase use money-manage-32467
-firebase deploy --only firestore,storage,hosting
+firebase deploy --only firestore,hosting
 ```
 
-`next build` menghasilkan direktori `out/` untuk Firebase Hosting. `firebase.json` mengarah ke site `dompetajaib`. **Periksa isi `.env.local` sebelum build**, sebab variabel `NEXT_PUBLIC_*` disisipkan saat build. Deploy aturan Firestore dan Storage bersama situs.
+`next build` menghasilkan direktori `out/` untuk Firebase Hosting. `firebase.json` mengarah ke site `dompetajaib`. **Periksa isi `.env.local` sebelum build**, sebab variabel `NEXT_PUBLIC_*` disisipkan saat build. Deploy aturan Firestore bersama situs.
 
 ## Alur penting
 
@@ -115,7 +115,7 @@ firebase deploy --only firestore,storage,hosting
 
 ## Batas pengujian saat ini
 
-Build statis dan pengujian hitung lokal sudah dijalankan. Uji login sungguhan, pergantian akun, aturan akses lintas UID, upload lampiran, serta deploy memerlukan konfigurasi dan akses Firebase project. Jangan langsung memakai data keuangan nyata sebelum alur itu diuji di project Firebase.
+Build statis dan pengujian hitung lokal sudah dijalankan. Uji login sungguhan, pergantian akun, aturan akses lintas UID, serta deploy memerlukan konfigurasi dan akses Firebase project. Jangan langsung memakai data keuangan nyata sebelum alur itu diuji di project Firebase.
 
 Grafik riwayat panjang memakai transaksi yang termuat pada layar; halaman Transaksi menyediakan tombol untuk memuat seluruh riwayat saat diperlukan. Proyeksi adalah simulasi berbasis pola dan asumsi pengguna. Riwayat aset bersih historis dan impor berukuran besar yang sepenuhnya atomik belum tersedia.
 
@@ -125,7 +125,7 @@ Grafik riwayat panjang memakai transaksi yang termuat pada layar; halaman Transa
 - `components/` — dashboard, formulir, layar keuangan, analisis, pengaturan.
 - `lib/accounting.ts` — aturan saldo, siklus, budget dan metrik.
 - `lib/firestore.ts` — operasi keuangan atomik, listener, backup.
-- `firestore.rules`, `storage.rules` — isolasi akses menurut UID.
+- `firestore.rules` — isolasi akses menurut UID.
 - `public/` — manifest, icon, service worker.
 - `tests/` — skenario konsistensi finansial.
 
