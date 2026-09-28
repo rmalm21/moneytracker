@@ -65,6 +65,22 @@ export function focusConstraints(capabilities: { focusMode?: string[]; zoom?: { 
 }
 /** Whether a tap can ask the camera to focus on a point (real support only; nothing is faked). */
 export const canTapFocus = (capabilities: { focusMode?: string[]; pointsOfInterest?: unknown } | undefined) => Boolean(capabilities?.focusMode?.includes('single-shot') || capabilities?.focusMode?.includes('manual') && capabilities?.pointsOfInterest);
+/**
+ * What a tap on the preview can ask of this camera: 'point' focuses on the tapped spot (single-shot autofocus),
+ * 'refocus' restarts continuous autofocus (aimed at the spot where the browser accepts it), 'none' when the camera
+ * reports no focus control at all (the phone keeps focusing by itself).
+ */
+export function tapFocusPlan(capabilities: { focusMode?: string[]; pointsOfInterest?: unknown } | undefined): 'point' | 'refocus' | 'none' {
+  if (canTapFocus(capabilities)) return 'point';
+  return capabilities?.focusMode?.includes('continuous') ? 'refocus' : 'none';
+}
+/** A tap on a video shown with object-fit: cover, as a point (0–1) of the camera frame itself (the preview crops it). */
+export function coverPoint(tapX: number, tapY: number, boxW: number, boxH: number, frameW: number, frameH: number) {
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  if (!frameW || !frameH || !boxW || !boxH) return { x: clamp(tapX / (boxW || 1)), y: clamp(tapY / (boxH || 1)) };
+  const scale = Math.max(boxW / frameW, boxH / frameH), shownW = frameW * scale, shownH = frameH * scale;
+  return { x: clamp((tapX + (shownW - boxW) / 2) / shownW), y: clamp((tapY + (shownH - boxH) / 2) / shownH) };
+}
 
 /** Rear cameras the labels rank equally at the top: the ones worth asking for their capabilities. */
 export function tiedRearCameras(cameras: CameraInfo[]) {

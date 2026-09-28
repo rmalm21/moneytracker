@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, SwitchCamera, X } from 'lucide-react';
 import { findPaper, greyFromRgba, paperCorners, sharpness, type Quad } from '@/lib/receipt-image';
-import { canTapFocus, chooseByCapabilities, chooseCamera, focusConstraints, nextRearCamera, tiedRearCameras, type CameraInfo, type LensCapabilities } from '@/lib/camera-select';
+import { chooseByCapabilities, coverPoint, tapFocusPlan, chooseCamera, focusConstraints, nextRearCamera, tiedRearCameras, type CameraInfo, type LensCapabilities } from '@/lib/camera-select';
 
 /**
  * The main camera once it is known for sure (chosen by label, by capabilities, or by the person), this device only.
@@ -26,7 +26,7 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
   const [error, setError] = useState(''), [auto, setAuto] = useState(false), [busy, setBusy] = useState(false);
   const steady = useRef(0), last = useRef<Quad | null>(null), autoRef = useRef(auto);
   autoRef.current = auto;
-  const track = useRef<MediaStreamTrack | null>(null), [tapFocus, setTapFocus] = useState(false), [focusing, setFocusing] = useState<{ x: number; y: number } | null>(null), blurry = useRef(0);
+  const track = useRef<MediaStreamTrack | null>(null), [tapFocus, setTapFocus] = useState<'point' | 'refocus' | 'none'>('none'), [focusing, setFocusing] = useState<{ x: number; y: number; note?: string } | null>(null), focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), blurry = useRef(0);
   const [lenses, setLenses] = useState<CameraInfo[]>([]), [lens, setLens] = useState<string | undefined>(), switchTo = useRef<(id: string) => void>(() => undefined);
   useEffect(() => {
     let stream: MediaStream | null = null, timer: ReturnType<typeof setInterval> | undefined, alive = true, starting = false;
@@ -81,8 +81,8 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
           const caps = (t?.getCapabilities?.() || {}) as MediaTrackCapabilities & { focusMode?: string[]; zoom?: { min: number; max: number }; pointsOfInterest?: unknown };
           const advanced = focusConstraints(caps, t?.getSettings() as { zoom?: number });
           if (advanced.length) await t.applyConstraints({ advanced } as MediaTrackConstraints).catch(() => undefined);
-          setTapFocus(canTapFocus(caps));
-        } catch { setTapFocus(false); }
+          setTapFocus(tapFocusPlan(caps));
+        } catch { setTapFocus('none'); }
         const el = video.current; if (!el) return;
         el.srcObject = stream; await el.play().catch(() => undefined);
       } finally { starting = false; }
@@ -117,7 +117,7 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
             : coverage < .15 ? { text: 'Dekatkan kamera', ok: false }
             : corners?.confidence === 'low' ? { text: 'Luruskan sedikit', ok: false }
             : moved > .03 ? { text: 'Jaga kamera tetap stabil', ok: false }
-            : blurry.current >= 3 ? { text: tapFocusRef.current ? 'Belum fokus. Ketuk struk untuk fokus' : 'Sedang mencari fokus…', ok: false }
+            : blurry.current >= 3 ? { text: tapFocusRef.current !== 'none' ? 'Belum fokus. Ketuk struk untuk fokus' : 'Sedang mencari fokus…', ok: false }
             : { text: 'Struk ditemukan', ok: true };
           setHint(h);
           steady.current = h.ok && sharp > .3 ? steady.current + 1 : 0;
@@ -126,18 +126,35 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
       } catch (e) { setError((e as Error).name === 'NotAllowedError' ? 'Izin kamera ditolak. Pakai kamera bawaan atau pilih dari galeri.' : 'Kamera belum bisa dibuka di perangkat ini.'); }
     })();
     document.addEventListener('visibilitychange', onVisible);
-    return () => { alive = false; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); stop(); };
+    return () => { alive = false; clearInterval(timer); clearTimeout(focusTimer.current); document.removeEventListener('visibilitychange', onVisible); stop(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const tapFocusRef = useRef(false); tapFocusRef.current = tapFocus;
-  /** A tap asks the camera to focus there (single-shot), then goes back to continuous focus. Only offered when supported. */
-  async function focusAt(event: React.PointerEvent<HTMLDivElement>) {
-    const t = track.current; if (!t || !tapFocus || focusing) return;
-    const rect = event.currentTarget.getBoundingClientRect(), x = (event.clientX - rect.left) / rect.width, y = (event.clientY - rect.top) / rect.height;
-    setFocusing({ x, y });
-    try {
-      await t.applyConstraints({ advanced: [{ focusMode: 'single-shot', pointsOfInterest: [{ x, y }] }] } as unknown as MediaTrackConstraints).catch(() => t.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] } as unknown as MediaTrackConstraints));
-      setTimeout(() => { void t.applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as unknown as MediaTrackConstraints).catch(() => undefined); setFocusing(null); }, 1500);
-    } catch { setFocusing(null); }
+  const tapFocusRef = useRef<'point' | 'refocus' | 'none'>('none'); tapFocusRef.current = tapFocus;
+  /**
+   * A tap focuses on that spot: single-shot autofocus aimed at the point where the camera supports it, else a restart
+   * of continuous autofocus. Afterwards focus stays continuous on that same spot (not back to the center).
+   * Every tap shows the ring; a new tap replaces the previous one.
+   */
+  async function focusAt(event: React.PointerEvent<HTMLVideoElement>) {
+    const el = event.currentTarget, rect = el.getBoundingClientRect();
+    const shown = { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height };
+    const point = coverPoint(event.clientX - rect.left, event.clientY - rect.top, rect.width, rect.height, el.videoWidth, el.videoHeight);
+    const t = track.current, plan = tapFocus;
+    clearTimeout(focusTimer.current);
+    setFocusing({ ...shown, note: !t || plan === 'none' ? 'Fokus diatur otomatis oleh HP ini' : undefined });
+    const done = (ms: number) => { focusTimer.current = setTimeout(() => setFocusing(null), ms); };
+    if (!t || plan === 'none') { done(1800); return; }
+    const apply = (c: Record<string, unknown>) => t.applyConstraints({ advanced: [c] } as unknown as MediaTrackConstraints).then(() => true, () => false);
+    const at = { pointsOfInterest: [point] };
+    if (plan === 'point') {
+      if (!await apply({ focusMode: 'single-shot', ...at })) { await apply(at); await apply({ focusMode: 'single-shot' }); }
+    } else {
+      // Continuous only: aim it at the spot, then restart it so the lens searches again now.
+      await apply(at);
+      if (await apply({ focusMode: 'manual' })) await apply({ focusMode: 'continuous', ...at });
+      else await apply({ focusMode: 'continuous', ...at }) || await apply({ focusMode: 'continuous' });
+    }
+    if (plan === 'point') setTimeout(() => { void apply({ focusMode: 'continuous', ...at }).then(ok => ok || apply({ focusMode: 'continuous' })); }, 1600);
+    done(1200);
   }
   // Only offered when the phone lists more than one rear camera.
   const next = nextRearCamera(lenses, lens);
@@ -151,8 +168,9 @@ export function ReceiptCamera({ onCapture, onFallback, onClose }: { onCapture: (
   return <div className="rs-camera">
     {error ? <div className="rs-camera-error"><p>{error}</p><button type="button" className="rs-pick-button is-main" onClick={onFallback}><Camera size={20}/> Kamera bawaan</button></div> : <>
       <div className="rs-camera-view">
-        <video ref={video} playsInline muted onPointerUp={event => void focusAt(event as unknown as React.PointerEvent<HTMLDivElement>)}/>
-        {focusing && <span className="rs-camera-focus" style={{ left: `${focusing.x * 100}%`, top: `${focusing.y * 100}%` }} aria-hidden="true"/>}
+        <video ref={video} playsInline muted onPointerUp={event => void focusAt(event)}/>
+        {focusing && <span key={`${focusing.x},${focusing.y}`} className="rs-camera-focus" style={{ left: `${focusing.x * 100}%`, top: `${focusing.y * 100}%` }} aria-hidden="true"/>}
+        {focusing?.note && <span className="rs-camera-note" role="status">{focusing.note}</span>}
         {quad && <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon className={hint.ok ? 'is-ok' : ''} points={quad.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>}
         <span className={`rs-camera-hint ${hint.ok ? 'is-ok' : ''}`} role="status" aria-live="polite">{hint.text}</span>
         {next && <button type="button" className="rs-camera-lens" onClick={() => switchTo.current(next)} aria-label="Ganti lensa kamera"><SwitchCamera size={17}/> Ganti lensa</button>}

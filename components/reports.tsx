@@ -176,7 +176,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         <Section icon={<Scale size={18}/>} title="Anggaran" hint="Kondisi anggaran berjalan saat ini">
           {budgets.length ? <div className="report-table">{budgets.map(({ b, row }) => { const used = pct(row.spent, row.available); return <button type="button" key={b.id} className="report-row report-budget" onClick={() => go('budgets')}>
             <span><strong>{b.name}</strong><small className="muted">{rupiah(row.spent)} dari {rupiah(row.available)}</small></span>
-            <span className="report-row-bar"><i className={used >= 100 ? 'over' : used >= (profile?.budgetWarningPercent || 80) ? 'warn' : ''} style={{ width: `${Math.min(100, Math.max(2, used))}%` }}/></span>
+            <span className="report-row-bar"><i className={row.spent > row.available ? 'over' : used >= (profile?.budgetWarningPercent || 80) ? 'warn' : ''} style={{ width: `${Math.min(100, Math.max(2, used))}%` }}/></span>
             <span className="report-row-value"><strong className={row.remaining < 0 ? 'amount-negative' : ''}>{rupiah(row.remaining)}</strong><small>{used}% terpakai</small></span>
           </button>; })}</div> : <Empty message="Belum ada anggaran aktif."/>}
         </Section>

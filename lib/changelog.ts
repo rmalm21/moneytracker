@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '98', date: '28 Sep 2026', title: 'Kamera scan rapi, ketuk untuk fokus, notifikasi “Sudah habis”', items: [
+    ['📷', 'Tombol “Ganti lensa” tidak lagi bertumpuk dengan ikonnya. Di layar kecil, petunjuk kamera tidak menutupi tombol tutup dan “Kamera bawaan” tetap di dalam layar.'],
+    ['📷', 'Ketuk struk di layar kamera untuk fokus: titik yang diketuk kini tepat (walau gambar terpotong di layar) dan fokus tetap di titik itu, tidak kembali ke tengah. Kalau HP tidak mengizinkan, muncul keterangan “Fokus diatur otomatis oleh HP ini”.'],
+    ['💰', 'Notifikasi anggaran yang terpakai pas di batas kini “Anggaran … sudah habis”, bukan “terlewati”. Laporan juga tidak lagi menandainya merah.'],
+  ] },
   { version: '97', date: '28 Sep 2026', title: 'Laporan utang lebih terbaca, anggaran “Sudah habis”, bulatkan ringkas', items: [
     ['📝', 'Laporan utang & piutang: teks di kartu atas kini jelas terbaca (juga di mode gelap), rincian tersusun rapi per baris, dan kartu ringkasan sama tinggi dengan label yang lebih singkat.'],
     ['💰', 'Anggaran yang terpakai pas sama dengan batasnya kini ditulis “Sudah habis”, bukan “terlewati”. “Terlewati” hanya muncul kalau benar-benar lebih dari batas.'],

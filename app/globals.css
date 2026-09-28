@@ -5885,7 +5885,7 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-camera { position: fixed; inset: 0; z-index: 90; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: #000; color: #fff; }
 .rs-camera-view { position: relative; overflow: hidden; }
 .rs-camera-view video { width: 100%; height: 100%; object-fit: cover; }
-.rs-camera-view svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rs-camera-view > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .rs-camera-view polygon { fill: rgba(255,255,255,.08); stroke: #f5a524; stroke-width: .5; vector-effect: non-scaling-stroke; }
 .rs-camera-view polygon.is-ok { stroke: #34d399; fill: rgba(52,211,153,.12); }
 .rs-camera-hint { position: absolute; left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%); padding: 7px 14px; border-radius: 99px; background: rgba(0,0,0,.6); font-size: .86rem; font-weight: 600; white-space: nowrap; }
@@ -6709,3 +6709,17 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .sb-adjust-chip.is-reset { border-style: dashed; color: var(--muted); font-weight: 600; }
 .sb-person-lines > .sb-adjust .sb-adjust-exact { display: block; flex: 1 0 100%; max-width: 180px; }
 .sb-person-lines > .sb-adjust .sb-adjust-exact .input { min-height: 34px; height: 34px; font-size: .86rem; }
+
+/* 130. v98: camera lens button icon sits inline (the overlay rule no longer stretches it); tap-to-focus note. */
+.rs-camera-lens svg { position: static; flex: none; width: 17px; height: 17px; pointer-events: none; }
+.rs-camera-note { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); padding: 6px 12px; border-radius: 99px; background: rgba(0, 0, 0, .6); color: #fff; font-size: .8rem; font-weight: 600; white-space: nowrap; pointer-events: none; animation: select-appear .16s var(--ease-out); }
+.rs-camera-focus { pointer-events: none; }
+/* Narrow phones: the hint never runs under the close button; the bottom bar stays inside the screen. */
+.rs-camera-hint { max-width: calc(100% - 128px); white-space: normal; text-align: center; line-height: 1.25; }
+.rs-camera-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.rs-camera-bar .link-button { max-width: 100%; white-space: normal; text-align: center; line-height: 1.2; }
+@media (max-width: 380px) {
+  .rs-camera-bar { gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .rs-camera-bar .link-button { padding: 6px 10px; font-size: .8rem; }
+  .rs-camera-auto { font-size: .78rem; }
+}

@@ -68,13 +68,14 @@ export function useReminderEngine(navigate: (view: string) => void) {
             const status = budgetCurrent(budget, data.transactions, data.categories, new Date(), profile.salaryCycleStartDay || 24);
             if (!status.available) continue;
             const used = status.spent / status.available, warnAt = (budget.warningPercent || profile.budgetWarningPercent || 80) / 100;
-            const level = used > 1 ? 'over' : used >= warnAt ? 'warn' : '';
+            const level = used > 1 ? 'over' : status.spent === status.available ? 'done' : used >= warnAt ? 'warn' : '';
             const key = `${budget.id}@${status.start}`;
-            if (!level || alerts[key] === level || alerts[key] === 'over') continue;
+            const rank = { '': 0, warn: 1, done: 2, over: 3 } as Record<string, number>;
+            if (!level || rank[alerts[key] || ''] >= rank[level]) continue;
             alerts[key] = level; changed = true;
             const name = budget.name || data.categories.find(c => c.id === budgetIconCategoryId(budget))?.name || 'Anggaran';
-            const title = level === 'over' ? `Anggaran ${name} terlampaui` : `Anggaran ${name} hampir habis`;
-            const body = level === 'over' ? `Terpakai ${rupiah(status.spent)} dari ${rupiah(status.available)} (lebih ${rupiah(status.spent - status.available)}).` : `Sudah ${Math.round(used * 100)}% terpakai · sisa ${rupiah(status.remaining)} sampai ${formatDate(status.end, false)}.`;
+            const title = level === 'over' ? `Anggaran ${name} terlampaui` : level === 'done' ? `Anggaran ${name} sudah habis` : `Anggaran ${name} hampir habis`;
+            const body = level === 'done' ? `Terpakai pas ${rupiah(status.spent)}, sisa Rp0 sampai ${formatDate(status.end, false)}.` : level === 'over' ? `Terpakai ${rupiah(status.spent)} dari ${rupiah(status.available)} (lebih ${rupiah(status.spent - status.available)}).` : `Sudah ${Math.round(used * 100)}% terpakai · sisa ${rupiah(status.remaining)} sampai ${formatDate(status.end, false)}.`;
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=budgets', `budget-${budget.id}`);
             push({ title, body, kind: level === 'over' ? 'error' : 'warning', app: true, action: { label: 'Lihat anggaran', run: () => navigate('budgets') }, history: !shown });
           }

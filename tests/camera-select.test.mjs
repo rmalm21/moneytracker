@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canTapFocus, chooseCamera, focusConstraints, rankCameras } from '../lib/camera-select.ts';
+import { canTapFocus, coverPoint, tapFocusPlan, chooseCamera, focusConstraints, rankCameras } from '../lib/camera-select.ts';
 
 const cam = (deviceId, label) => ({ deviceId, label });
 
@@ -73,4 +73,20 @@ test('rear cameras the labels cannot tell apart are asked; the one with autofocu
   assert.equal(chooseByCapabilities([{ deviceId: 'a', caps: { focusMode: ['continuous'] } }, { deviceId: 'b', caps: { focusMode: ['continuous'] } }]), undefined, 'alike: nothing is guessed');
   assert.equal(nextRearCamera(list, 'a'), 'b'); assert.equal(nextRearCamera(list, 'b'), 'a');
   assert.equal(nextRearCamera([cam('m', 'Back Camera'), cam('f', 'Front Camera')], 'm'), undefined, 'one rear camera: no switch');
+});
+
+test('tap focus plan: point, refocus or none', () => {
+  assert.equal(tapFocusPlan({ focusMode: ['manual', 'single-shot', 'continuous'] }), 'point');
+  assert.equal(tapFocusPlan({ focusMode: ['continuous'] }), 'refocus');
+  assert.equal(tapFocusPlan({}), 'none');
+  assert.equal(tapFocusPlan(undefined), 'none');
+});
+
+test('cover point maps a tap to the cropped camera frame', () => {
+  // 1920x1080 landscape frame in a 390x700 portrait box: sides are cropped, the center stays the center.
+  const c = coverPoint(195, 350, 390, 700, 1920, 1080);
+  assert.ok(Math.abs(c.x - .5) < 1e-9 && Math.abs(c.y - .5) < 1e-9);
+  const left = coverPoint(0, 350, 390, 700, 1920, 1080);
+  assert.ok(left.x > .3 && left.x < .4, String(left.x));
+  assert.deepEqual(coverPoint(-10, 800, 390, 700, 0, 0), { x: 0, y: 1 });
 });

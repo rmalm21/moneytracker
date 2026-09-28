@@ -177,7 +177,9 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
       const row = budgetCurrent(budget, data.transactions, data.categories, day, profile.salaryCycleStartDay || 24);
       if (row.available <= 0 || row.spent / row.available < warn) continue;
       const pct = Math.round(row.spent / row.available * 100);
-      list.push({ id: `budget-${budget.id}-${row.start}-${pct >= 100 ? 'over' : 'warn'}`, title: pct >= 100 ? `Anggaran ${budget.name} terlewati` : `Anggaran ${budget.name} terpakai ${pct}%`, body: pct >= 100 ? `Lebih ${rupiah(row.spent - row.available)}` : `Sisa ${rupiah(row.remaining)}`, kind: pct >= 100 ? 'error' : 'warning', action: go('budgets') });
+      // Spent exactly the limit is "habis" (used up), only more than the limit is "terlewati".
+      const state = row.spent > row.available ? 'over' : row.spent === row.available ? 'done' : 'warn';
+      list.push({ id: `budget-${budget.id}-${row.start}-${state}`, title: state === 'over' ? `Anggaran ${budget.name} terlewati` : state === 'done' ? `Anggaran ${budget.name} sudah habis` : `Anggaran ${budget.name} terpakai ${pct}%`, body: state === 'over' ? `Lebih ${rupiah(row.spent - row.available)}` : state === 'done' ? 'Terpakai pas di batas, sisa Rp0' : `Sisa ${rupiah(row.remaining)}`, kind: state === 'over' ? 'error' : 'warning', action: go('budgets') });
     }
     const today = todayInTimeZone(profile.timeZone); let end = today; for (let i = 0; i < 3; i++) end = nextDate(end);
     for (const event of upcomingEvents(data, profile, { start: today, end }).filter(e => e.kind !== 'note' && e.amount < 0).slice(0, 5)) list.push({ id: `due-${event.id}-${event.date}`, title: `${event.title} · ${rupiah(Math.abs(event.amount))}`, body: event.date === today ? 'Jatuh tempo hari ini' : `Jatuh tempo ${formatDate(event.date, false)}`, kind: 'info', action: go('upcoming') });
