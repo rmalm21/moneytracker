@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '97', date: '28 Sep 2026', title: 'Laporan utang lebih terbaca, anggaran “Sudah habis”, bulatkan ringkas', items: [
+    ['📝', 'Laporan utang & piutang: teks di kartu atas kini jelas terbaca (juga di mode gelap), rincian tersusun rapi per baris, dan kartu ringkasan sama tinggi dengan label yang lebih singkat.'],
+    ['💰', 'Anggaran yang terpakai pas sama dengan batasnya kini ditulis “Sudah habis”, bukan “terlewati”. “Terlewati” hanya muncul kalau benar-benar lebih dari batas.'],
+    ['🧾', 'Menu bulatkan di Split Bill kini satu baris ringkas: pilih 34rb / 35rb / 40rb, ikon pensil untuk isi sendiri, dan ikon kembalikan ke angka asli.'],
+  ] },
   { version: '96', date: '28 Sep 2026', title: 'Split Bill: pilih yang bayar, bulatkan per orang, kelola teman', items: [
     ['💰', 'Siapa yang bayar kini langsung dipilih di bagian Orang: ketuk nama orangnya (termasuk “Saya” walau tidak ikut patungan).'],
     ['🧾', 'Di rincian per orang, total seseorang bisa dibulatkan (↑ Rp35.000, ↑ Rp40.000, ↓ Rp34.000) atau diisi sendiri. Selisihnya ditanggung yang bayar, jadi total tetap sama dengan struk. Bisa dikembalikan ke angka asli.'],

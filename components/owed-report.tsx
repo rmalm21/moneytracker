@@ -45,12 +45,12 @@ export function OwedReport({ navigate }: { navigate: (key: string, target?: stri
   const moves = useMemo(() => history.items.filter(t => OWED_TYPES.has(t.type)), [history.items]);
   const sum = (type: string, list: LedgerTx[] = moves) => list.filter(t => t.type === type).reduce((n, t) => n + t.amount, 0);
   const kpis: [string, number, string, 'in' | 'out'][] = [
-    ['Uang pinjaman masuk', sum('borrowing'), 'Utang baru yang uangnya masuk dompet', 'in'],
-    ['Bayar utang', sum('debt_payment'), 'Cicilan dan pelunasan', 'out'],
-    ['Talangan ke teman', sum('receivable_issue'), 'Piutang baru dari dompetmu', 'out'],
-    ['Piutang kembali', sum('receivable_payment'), 'Uang teman yang sudah dibayar', 'in'],
-    ['Talangan kantor', sum('claim_advance'), 'Dibayar dulu untuk kantor', 'out'],
-    ['Klaim cair', sum('claim_payment'), 'Penggantian dari kantor', 'in'],
+    ['Pinjaman masuk', sum('borrowing'), 'Utang baru ke dompet', 'in'],
+    ['Bayar utang', sum('debt_payment'), 'Cicilan & pelunasan', 'out'],
+    ['Talangan teman', sum('receivable_issue'), 'Piutang baru', 'out'],
+    ['Piutang kembali', sum('receivable_payment'), 'Dibayar teman', 'in'],
+    ['Talangan kantor', sum('claim_advance'), 'Dibayar dulu', 'out'],
+    ['Klaim cair', sum('claim_payment'), 'Diganti kantor', 'in'],
   ];
   const netFlow = kpis.reduce((n, [, v, , dir]) => n + (dir === 'in' ? v : -v), 0);
 

@@ -53,7 +53,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
   const usedPct = Math.min(100, status.spent / limit * 100), commitPct = Math.min(100 - usedPct, committed / limit * 100);
   const warnAt = (budget.warningPercent || profile?.budgetWarningPercent || 80) / 100;
   const tone = available < 0 || status.spent > status.available ? 'over' : (status.spent + committed) / limit >= warnAt ? 'warn' : 'ok';
-  const statusText = tone === 'over' ? 'Terlampaui' : tone === 'warn' ? 'Hampir habis' : 'Aman';
+  const statusText = tone === 'over' ? 'Terlampaui' : available === 0 && status.spent > 0 ? 'Sudah habis' : tone === 'warn' ? 'Hampir habis' : 'Aman';
   const historyRows = history.map(w => ({ ...w, spent: budgetSpent(budget, past.items.filter(t => t.date >= w.start && t.date < w.end), data.categories) }));
   const pastWithData = historyRows.filter(w => w.spent > 0), pastAverage = pastWithData.length ? Math.round(pastWithData.reduce((n, w) => n + w.spent, 0) / pastWithData.length) : 0;
   // A few days in, the pace says little; lean on the average of earlier periods instead.
@@ -67,7 +67,7 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
     <div className={`bd-hero is-${tone}`}>
       <div className="bd-hero-top"><IdentityBadge icon={cat?.icon} color={categoryColor(data.categories, cat)} label={budget.name}/><span className={`tag ${tone === 'over' ? 'danger' : tone === 'warn' ? 'warn' : ''}`}>{budget.active ? statusText : 'Jeda'}</span></div>
       {scope && <small className="bd-scope">Mencakup {scope}</small>}
-      <small>{available < 0 ? 'Melebihi anggaran' : 'Masih bisa dipakai'}</small>
+      <small>{available < 0 ? 'Melebihi anggaran' : available === 0 && status.spent > 0 ? 'Sudah habis, pas di batas' : 'Masih bisa dipakai'}</small>
       <strong className={available < 0 ? 'amount-negative' : ''}>{rupiah(available)}</strong>
       <div className="bd-stack" aria-label={`Terpakai ${Math.round(usedPct)}%, direncanakan ${Math.round(commitPct)}%`}><i className="used" style={{ width: `${usedPct}%` }}/><i className="planned" style={{ width: `${commitPct}%` }}/></div>
       <div className="bd-legend"><span><i className="used"/>Terpakai {rupiah(status.spent)} ({pct(status.spent, limit)}%)</span><span><i className="planned"/>Direncanakan {rupiah(committed)}</span><span><i/>Batas {rupiah(status.available)}</span></div>

@@ -6678,3 +6678,34 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .sb-person-lines > .sb-adjust .sb-adjust-exact { justify-self: start; }
 .sb-person-lines > .sb-adjust .sb-link { justify-self: start; }
 .sb-adjust-quick .sb-chip { flex-direction: row; white-space: nowrap; }
+
+/* 129. v97 Laporan utang & piutang: readable in both themes, even cards. */
+.or-hero.or-hero small, .or-hero.or-hero p, .or-hero.or-hero span, .or-hero.or-hero b, .or-hero.or-hero strong { color: #fff !important; }
+.or-hero.or-hero > small, .or-hero.or-hero .or-hero-split small { color: rgba(255,255,255,.86) !important; }
+.or-hero > strong.is-neg, .or-hero > strong.is-pos { text-shadow: 0 1px 12px rgba(0,0,0,.18); }
+/* The three positions as tidy rows: what, how many, how much. */
+.or-hero-split { grid-template-columns: 1fr !important; gap: 6px; }
+.or-hero-split button, .or-hero-split button:last-child { grid-column: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label amount" "note amount"; align-items: center; column-gap: 10px; row-gap: 1px; padding: 9px 12px; border-radius: 14px; }
+.or-hero-split button > span { grid-area: label; font-size: .8rem; }
+.or-hero-split button > b { grid-area: amount; font-size: 1rem; text-align: right; }
+.or-hero-split button > small { grid-area: note; }
+@media (min-width: 700px) { .or-hero-split { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+/* Movements: equal cards, one-line labels. */
+.or-kpis { grid-auto-rows: 1fr; }
+.or-kpi { align-content: start; }
+.or-kpi small, .or-kpi span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.or-kpi span { font-size: .72rem; }
+:root[data-theme='dark'] .or-kpi { background: rgba(255,255,255,.04); }
+:root[data-theme='dark'] .or-kpi small, :root[data-theme='dark'] .or-kpi span { color: color-mix(in srgb, var(--ink) 70%, transparent); }
+.bgt-card.is-done { --tone: #9a7a2e; }
+/* Rounding, minimal: one quiet row of small chips. */
+.sb-person-lines > .sb-adjust { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 0 0; border: 0; border-top: 1px dashed color-mix(in srgb, var(--line) 90%, transparent); border-radius: 0; background: none; }
+.sb-person-lines > .sb-adjust > * { justify-self: auto; }
+.sb-adjust-label { margin-right: 2px; color: var(--muted); font-size: .72rem; font-weight: 700; }
+.sb-adjust-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: .76rem; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.sb-adjust-chip:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.sb-adjust-chip.is-on { background: color-mix(in srgb, var(--accent) 14%, var(--paper)); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: color-mix(in srgb, var(--accent) 85%, var(--ink)); }
+.sb-adjust-chip.is-icon { width: 28px; padding: 0; justify-content: center; color: var(--muted); }
+.sb-adjust-chip.is-reset { border-style: dashed; color: var(--muted); font-weight: 600; }
+.sb-person-lines > .sb-adjust .sb-adjust-exact { display: block; flex: 1 0 100%; max-width: 180px; }
+.sb-person-lines > .sb-adjust .sb-adjust-exact .input { min-height: 34px; height: 34px; font-size: .86rem; }

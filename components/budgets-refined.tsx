@@ -18,10 +18,10 @@ import { BudgetDetail } from './budget-detail';
 
 const weekdays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 type SortMode = 'manual' | 'remaining' | 'used' | 'amount' | 'name';
-type Tone = 'ok' | 'warn' | 'over' | 'saving' | 'paused';
+type Tone = 'ok' | 'warn' | 'done' | 'over' | 'saving' | 'paused';
 const sortModes: [SortMode, string][] = [['manual', 'Urutan saya'], ['remaining', 'Sisa paling sedikit'], ['used', 'Paling banyak terpakai'], ['amount', 'Nominal terbesar'], ['name', 'Nama A–Z']];
 const sortKey = 'dompet-ajaib:budget-sort';
-const toneText: Record<Tone, string> = { ok: 'Aman', warn: 'Hampir habis', over: 'Terlampaui', saving: 'Berjalan', paused: 'Jeda' };
+const toneText: Record<Tone, string> = { ok: 'Aman', warn: 'Hampir habis', done: 'Sudah habis', over: 'Terlampaui', saving: 'Berjalan', paused: 'Jeda' };
 export function periodText(b: Pick<Budget, 'cycleType' | 'cycleStartDay'>, salaryDay: number) { return b.cycleType === 'weekly' ? `Mingguan · mulai ${weekdays[((b.cycleStartDay || 1) - 1) % 7]}` : b.cycleType === 'salary' ? 'Siklus gaji' : b.cycleType === 'calendar' ? 'Bulan ini' : `Mulai tanggal ${b.cycleStartDay || salaryDay}`; }
 const short = (value: number) => { const n = Math.abs(value), sign = value < 0 ? '-' : ''; return n >= 1e6 ? `${sign}Rp${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} jt` : n >= 1e3 ? `${sign}Rp${Math.round(n / 1e3)} rb` : rupiah(value); };
 
@@ -47,7 +47,7 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
     const status = budgetCurrent(b, data.transactions, data.categories, today, salaryDay), committed = budgetCommitted(b, data, today, salaryDay);
     const limit = Math.max(1, status.available), left = status.remaining - committed, saving = b.classification === 'savings' || b.classification === 'sinking';
     const used = status.spent / limit, planned = committed / limit, warnAt = (b.warningPercent || profile?.budgetWarningPercent || 80) / 100;
-    const tone: Tone = !b.active ? 'paused' : saving ? 'saving' : status.spent > status.available || left < 0 ? 'over' : used + planned >= warnAt ? 'warn' : 'ok';
+    const tone: Tone = !b.active ? 'paused' : saving ? 'saving' : status.spent > status.available || left < 0 ? 'over' : left === 0 && status.spent > 0 ? 'done' : used + planned >= warnAt ? 'warn' : 'ok';
     return [b.id, { status, committed, left, used, planned, saving, tone, perDay: left > 0 && !saving ? left / Math.max(1, status.daysRemaining) : 0 }];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   })), [data.budgets, data.transactions, data.categories, data.plannedTransactions, data.recurring, data.drafts, today.toDateString(), salaryDay, profile?.budgetWarningPercent]);
@@ -133,7 +133,7 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
           <span className={`bgt-status is-${s.tone}`}>{s.saving && s.used >= 1 ? 'Tercapai' : toneText[s.tone]}</span>
         </div>
         <div className="bgt-card-amount">
-          <span><small>{s.saving ? 'Sisa target periode ini' : s.left < 0 ? 'Lewat dari batas' : 'Masih bisa dipakai'}</small><strong className={s.left < 0 && !s.saving ? 'amount-negative' : ''}>{rupiah(s.left)}</strong></span>
+          <span><small>{s.saving ? 'Sisa target periode ini' : s.left < 0 ? 'Lewat dari batas' : s.left === 0 && s.status.spent > 0 ? 'Sudah habis, pas di batas' : 'Masih bisa dipakai'}</small><strong className={s.left < 0 && !s.saving ? 'amount-negative' : ''}>{rupiah(s.left)}</strong></span>
           <span className="bgt-card-limit"><small>Batas</small><b>{rupiah(s.status.available)}</b></span>
         </div>
         <div className="bgt-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(100, (s.used + s.planned) * 100))} aria-label={`${b.name} terpakai`}>
