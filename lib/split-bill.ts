@@ -295,6 +295,70 @@ export function billShareText(bill: SplitBill, result: SplitResult, options: { m
   return text.join('\n');
 }
 
+/* ------------------------------------------------------------------ Nota: the bill as a receipt to share */
+
+export type NotaPerson = { name: string; note: string; lines: [label: string, amount: number][]; total: number };
+export type Nota = { title: string; place: string; when: string; people: NotaPerson[]; total: number; payTo: string; single: boolean };
+
+/**
+ * The bill as a receipt for the group: per person what they had and their total, then the bill total and whom to pay.
+ * With `only`, just that person's part. Only this bill; no balances or other private details.
+ */
+export function billNota(bill: SplitBill, result: SplitResult, options: { myName?: string; progress?: BillProgress; only?: string } = {}): Nota {
+  const payer = payerOf(bill), myName = options.myName || '';
+  const people = result.people.filter(person => !options.only || person.id === options.only).map(person => {
+    const participant = bill.participants.find(row => row.id === person.id);
+    const state = options.progress?.people.find(row => row.id === person.id);
+    const items = person.lines.filter(line => line.kind === 'item' || line.kind === 'base');
+    const charges = person.lines.filter(line => line.kind === 'tax' || line.kind === 'service');
+    const other = person.lines.filter(line => line.kind !== 'item' && line.kind !== 'base' && !charges.includes(line));
+    // "Kentang (dibagi 3)" reads as "Kentang ÷3" on a narrow nota.
+    const lines: [string, number][] = items.map(line => [line.label.replace(/ \(dibagi (\d+)\)$/, ' ÷$1'), line.amount]);
+    if (charges.length) lines.push([charges.map(line => line.label).join(' + '), charges.reduce((sum, line) => sum + line.amount, 0)]);
+    for (const line of other) lines.push([line.label, line.amount]);
+    const isPayer = Boolean(participant && payer?.id === participant.id);
+    const note = isPayer ? 'yang bayar' : !state || state.role === 'payer' ? '' : state.status === 'paid' ? 'lunas' : state.status === 'partial' ? `sisa ${rupiah(state.remaining)}` : '';
+    return { name: nameFor(participant, myName) || person.name, note, lines, total: person.total };
+  });
+  return { title: bill.title.trim() || 'Split Bill', place: bill.merchant.trim() !== bill.title.trim() ? bill.merchant.trim() : '', when: `${formatDate(bill.date)}${bill.time ? ` · ${bill.time}` : ''}`, people, total: options.only ? people[0]?.total || 0 : result.total, payTo: payer && !(options.only && payer.id === options.only) ? nameFor(payer, myName) : '', single: Boolean(options.only) };
+}
+
+const plain = (value: number) => `${value < 0 ? '-' : ''}${Math.abs(value).toLocaleString('id-ID')}`;
+/** Splits text into lines of at most `width` characters, at spaces where possible. */
+function wrap(text: string, width: number) {
+  const out: string[] = []; let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (!line) line = word; else if (line.length + 1 + word.length <= width) line += ` ${word}`; else { out.push(line); line = word; }
+    while (line.length > width) { out.push(line.slice(0, width)); line = line.slice(width); }
+  }
+  if (line) out.push(line);
+  return out.length ? out : [''];
+}
+/** A label and an amount on one line of `width` characters (the label wraps above when it is long). */
+function row(label: string, amount: string, width: number) {
+  const room = width - amount.length - 1, parts = wrap(label, Math.max(8, room)), last = parts.pop()!;
+  return [...parts, last.length <= room ? `${last}${' '.repeat(width - last.length - amount.length)}${amount}` : `${last}\n${' '.repeat(width - amount.length)}${amount}`].join('\n');
+}
+const center = (text: string, width: number) => wrap(text, width).map(line => `${' '.repeat(Math.max(0, Math.floor((width - line.length) / 2)))}${line}`).join('\n');
+
+/** The nota as text in a fixed-width block (WhatsApp shows ```…``` in a monospace font), so the columns line up. */
+export function notaText(nota: Nota, width = 30) {
+  const rule = '-'.repeat(width), double = '='.repeat(width), out: string[] = [];
+  out.push(center(nota.single ? 'TAGIHAN SPLIT BILL' : 'NOTA SPLIT BILL', width), center(nota.title, width));
+  if (nota.place) out.push(center(nota.place, width));
+  out.push(center(nota.when, width), double);
+  nota.people.forEach((person, index) => {
+    if (index) out.push(rule);
+    out.push(wrap(`${person.name.toUpperCase()}${person.note ? ` (${person.note})` : ''}`, width).join('\n'));
+    for (const [label, amount] of person.lines) out.push(row(label, plain(amount), width - 1).split('\n').map(line => ` ${line}`).join('\n'));
+    if (!nota.single) { const total = rupiah(person.total); out.push(`${' '.repeat(width - total.length)}${'-'.repeat(total.length)}`, row(' Total', total, width)); }
+  });
+  out.push(double, row(nota.single ? 'TOTAL KAMU' : 'TOTAL TAGIHAN', rupiah(nota.total), width));
+  if (nota.payTo) out.push(`Bayar ke: ${nota.payTo}`);
+  out.push(rule, center('Terima kasih!', width));
+  return `\`\`\`\n${out.join('\n')}\n\`\`\``;
+}
+
 /** A friendly, neutral reminder; the user edits it before sending it themselves. */
 export function reminderText(bill: SplitBill, participant: Pick<SplitParticipant, 'name' | 'isMe'>, remaining: number) {
   const payer = payerOf(bill);

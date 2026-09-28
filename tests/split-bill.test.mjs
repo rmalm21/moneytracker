@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allocate, billProgress, billShareText, computeSplit, ownCategoryLines, personShareText, readReceiptText, reminderText } from '../lib/split-bill.ts';
+import { allocate, billNota, billProgress, billShareText, notaText, computeSplit, ownCategoryLines, personShareText, readReceiptText, reminderText } from '../lib/split-bill.ts';
 
 const people = (...names) => names.map((name, i) => ({ id: name.toLowerCase(), name, ...(i === 0 ? { isMe: true } : {}) }));
 const bill = (fields) => ({ total: 0, method: 'equal', participants: people('Rama', 'Ivan', 'Aldi', 'Atuy'), items: [], extras: [], categoryId: 'makan', subcategoryId: null, ...fields });
@@ -288,4 +288,27 @@ test('Insight: money still out in Split Bills, payback time, and own unpaid shar
   assert.equal(payable.title, 'Bagianmu Rp100.000 di Split Bill belum dibayar');
   assert.equal(payable.tone, 'warn');
   assert.deepEqual(splitBillFindings({ receivables: [receivables[4]], debts: [] }, [], '2026-09-27'), []);
+});
+
+test('the nota lists each person, their items and total, and keeps its columns', () => {
+  const participants = [{ id: 'ivan', name: 'Ivan' }, { id: 'rama', name: 'Rama' }, { id: 'me', name: 'Saya', isMe: true }];
+  const bill = { id: 'n', title: 'Makan malam tim', merchant: 'Kopi Senja Kita', date: '2026-09-27', time: '19:30', status: 'active', payer: 'me', payerId: 'me', walletId: '', transactionId: '', categoryId: 'makan', subcategoryId: null, total: 0, method: 'items', participants,
+    items: [item('a', 'Nasi Goreng Spesial Kampung Pedas', 1, 45000, { people: ['ivan'] }), item('c', 'Kentang Goreng', 1, 30000, { people: ['ivan', 'rama', 'me'] })],
+    extras: [{ id: 't', kind: 'tax', label: 'PB1', amount: 7500, distribution: 'proportional' }], payments: [], notes: '' };
+  const result = computeSplit(bill);
+  const nota = billNota(bill, result, { myName: 'Dewi' });
+  assert.deepEqual(nota.people.map(p => [p.name, p.total]), [['Ivan', result.people[0].total], ['Rama', result.people[1].total], ['Dewi', result.people[2].total]]);
+  assert.equal(nota.people[2].note, 'yang bayar');
+  assert.deepEqual(nota.people[1].lines[0], ['Kentang Goreng ÷3', 10000]);
+  const text = notaText(nota);
+  assert.ok(text.startsWith('```\n') && text.endsWith('\n```'));
+  const body = text.split('\n').slice(1, -1);
+  assert.ok(body.every(line => line.length <= 30), body.find(line => line.length > 30));
+  assert.match(text, /TOTAL TAGIHAN +Rp82\.500/);
+  assert.match(text, /Bayar ke: Dewi/);
+  assert.doesNotMatch(text, /saldo|dompet/i);
+  // One person's part: only them, "TOTAL KAMU", whom to pay.
+  const one = notaText(billNota(bill, result, { myName: 'Dewi', only: 'rama' }));
+  assert.doesNotMatch(one, /IVAN|Nasi Goreng/);
+  assert.match(one, /TOTAL KAMU +Rp11\.000/);
 });

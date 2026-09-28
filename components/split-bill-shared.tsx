@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { Emoji } from './emoji';
 import type { BillStatus, PersonStatus } from '@/lib/split-bill';
 import type { SplitParticipant } from '@/lib/types';
+import { rupiah } from '@/lib/accounting';
 
 /** Pieces shared by the Split Bill page and its creation flow. */
 
@@ -40,40 +41,72 @@ export async function shareText(text: string, title = 'Split Bill'): Promise<'sh
 /** Opens WhatsApp with the text ready; the user picks the chat and sends it. */
 export function openWhatsApp(text: string) { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer'); }
 
-export type ShareImage = { title: string; subtitle: string; heading: string; lines: [string, string][]; total: [string, string]; footer: string[] };
-/** A clean image of a share (bill name, the person, the breakdown, what to pay and to whom). Nothing else is drawn. */
-export async function renderShareImage(card: ShareImage): Promise<Blob> {
-  const scale = 2, width = 540, pad = 32, lineHeight = 30;
-  const height = pad * 2 + 124 + card.lines.length * lineHeight + 84 + card.footer.length * 24;
+function fit(ctx: CanvasRenderingContext2D, text: string, max: number) { if (ctx.measureText(text).width <= max) return text; let cut = text; while (cut.length > 1 && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1); return `${cut}…`; }
+/**
+ * The nota as a receipt picture: white paper with torn (zigzag) edges, a monospace print, dashed rules, per person
+ * what they had and their total, then the bill total and whom to pay.
+ */
+export async function renderNota(nota: import('@/lib/split-bill').Nota): Promise<Blob> {
+  const scale = 2, width = 440, pad = 30, inner = width - pad * 2;
+  const mono = (weight: number, size: number) => `${weight} ${size}px ui-monospace, "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace`;
+  const sans = (weight: number, size: number) => `${weight} ${size}px "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  const ink = '#1d2a31', soft = '#5f6d75', paper = '#fffdf8';
+  const money = (value: number) => `${value < 0 ? '-' : ''}${Math.abs(value).toLocaleString('id-ID')}`;
+  // First the rows (to know the height), then the drawing.
+  type Row = { kind: 'center' | 'title' | 'rule' | 'double' | 'name' | 'line' | 'sum' | 'total' | 'note' | 'gap'; text?: string; amount?: string; h: number };
+  const rows: Row[] = [];
+  const probe = document.createElement('canvas').getContext('2d');
+  const wrapTo = (text: string, font: string, max: number) => { if (!probe) return [text]; probe.font = font; const out: string[] = []; let line = ''; for (const word of text.split(/\s+/)) { const next = line ? `${line} ${word}` : word; if (probe.measureText(next).width <= max || !line) line = next; else { out.push(line); line = word; } } if (line) out.push(line); return out; };
+  rows.push({ kind: 'center', text: nota.single ? 'TAGIHAN SPLIT BILL' : 'NOTA SPLIT BILL', h: 22 });
+  for (const line of wrapTo(nota.title, sans(800, 21), inner)) rows.push({ kind: 'title', text: line, h: 28 });
+  if (nota.place) rows.push({ kind: 'center', text: nota.place, h: 20 });
+  rows.push({ kind: 'center', text: nota.when, h: 20 }, { kind: 'double', h: 22 });
+  nota.people.forEach((person, index) => {
+    if (index) rows.push({ kind: 'rule', h: 20 });
+    rows.push({ kind: 'name', text: person.name.toUpperCase(), amount: person.note, h: 24 });
+    for (const [label, amount] of person.lines) {
+      const parts = wrapTo(label, mono(500, 13.5), inner - 110);
+      parts.forEach((part, i) => rows.push({ kind: 'line', text: part, amount: i === parts.length - 1 ? money(amount) : '', h: 20 }));
+    }
+    if (!nota.single) rows.push({ kind: 'sum', text: 'Total', amount: rupiah(person.total), h: 26 });
+  });
+  rows.push({ kind: 'double', h: 24 }, { kind: 'total', text: nota.single ? 'TOTAL KAMU' : 'TOTAL TAGIHAN', amount: rupiah(nota.total), h: 34 });
+  if (nota.payTo) rows.push({ kind: 'note', text: `Bayar ke: ${nota.payTo}`, h: 24 });
+  rows.push({ kind: 'rule', h: 22 }, { kind: 'center', text: 'Terima kasih!', h: 22 });
+  const tooth = 9, height = Math.ceil(tooth * 2 + 28 + rows.reduce((sum, row) => sum + row.h, 0) + 26 + 30);
   const canvas = document.createElement('canvas'); canvas.width = width * scale; canvas.height = height * scale;
   const ctx = canvas.getContext('2d'); if (!ctx) throw Error('Gambar belum bisa dibuat di perangkat ini.');
   ctx.scale(scale, scale);
-  const styles = getComputedStyle(document.documentElement);
-  const accent = styles.getPropertyValue('--accent').trim() || '#267e73';
-  const font = (weight: number, size: number) => `${weight} ${size}px "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   try { await document.fonts?.ready; } catch { /* system font is fine */ }
-  ctx.fillStyle = '#f3f6f7'; ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = '#ffffff'; roundRect(ctx, 12, 12, width - 24, height - 24, 22); ctx.fill();
-  ctx.fillStyle = accent; roundRect(ctx, 12, 12, width - 24, 96, 22); ctx.fill(); ctx.fillRect(12, 80, width - 24, 28);
-  ctx.fillStyle = '#ffffff'; ctx.font = font(800, 22); ctx.fillText(fit(ctx, card.title, width - pad * 2), pad, 54);
-  ctx.font = font(500, 14); ctx.globalAlpha = .9; ctx.fillText(fit(ctx, card.subtitle, width - pad * 2), pad, 80); ctx.globalAlpha = 1;
-  let y = 108 + 38;
-  ctx.fillStyle = '#172f3c'; ctx.font = font(800, 18); ctx.fillText(fit(ctx, card.heading, width - pad * 2), pad, y); y += 14;
-  ctx.font = font(500, 15);
-  for (const [label, amount] of card.lines) {
-    y += lineHeight;
-    ctx.fillStyle = '#62737e'; ctx.textAlign = 'left'; ctx.fillText(fit(ctx, label, width - pad * 2 - 140), pad, y);
-    ctx.fillStyle = '#172f3c'; ctx.textAlign = 'right'; ctx.fillText(amount, width - pad, y); ctx.textAlign = 'left';
+  ctx.fillStyle = '#e9eef0'; ctx.fillRect(0, 0, width, height);
+  // Paper with zigzag top and bottom edges and a soft shadow.
+  const left = 14, right = width - 14, top = 14, bottom = height - 14 - 26;
+  ctx.save(); ctx.shadowColor = 'rgba(20, 40, 50, .18)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4; ctx.fillStyle = paper; ctx.beginPath();
+  ctx.moveTo(left, top + tooth);
+  for (let x = left, up = true; x < right; x += tooth, up = !up) ctx.lineTo(Math.min(right, x + tooth), up ? top : top + tooth);
+  ctx.lineTo(right, bottom - tooth);
+  for (let x = right, down = true; x > left; x -= tooth, down = !down) ctx.lineTo(Math.max(left, x - tooth), down ? bottom : bottom - tooth);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+  const dashed = (y: number, pattern: number[], color = '#9aa7ad') => { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.setLineDash(pattern); ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(width - pad, y); ctx.stroke(); ctx.restore(); };
+  const fitText = (text: string, max: number) => fit(ctx, text, max);
+  let y = top + tooth + 22;
+  for (const row of rows) {
+    const mid = y + row.h / 2 + 4;
+    ctx.textAlign = 'left'; ctx.fillStyle = ink;
+    if (row.kind === 'center') { ctx.font = mono(600, 12.5); ctx.fillStyle = soft; ctx.textAlign = 'center'; ctx.fillText(fitText(row.text!, inner), width / 2, mid); }
+    else if (row.kind === 'title') { ctx.font = sans(800, 21); ctx.textAlign = 'center'; ctx.fillText(row.text!, width / 2, mid + 2); }
+    else if (row.kind === 'rule') dashed(y + row.h / 2, [4, 4]);
+    else if (row.kind === 'double') { dashed(y + row.h / 2 - 2, [], '#c3ccd0'); dashed(y + row.h / 2 + 2, [], '#c3ccd0'); }
+    else if (row.kind === 'name') { ctx.font = mono(800, 14.5); ctx.fillText(fitText(row.text!, inner - 120), pad, mid); if (row.amount) { ctx.font = mono(600, 11.5); ctx.fillStyle = row.amount === 'lunas' ? '#15803d' : soft; ctx.textAlign = 'right'; ctx.fillText(row.amount === 'lunas' ? '✓ LUNAS' : row.amount.toUpperCase(), width - pad, mid); } }
+    else if (row.kind === 'line') { ctx.font = mono(500, 13.5); ctx.fillStyle = soft; ctx.fillText(row.text!, pad + 10, mid); if (row.amount) { ctx.fillStyle = ink; ctx.textAlign = 'right'; ctx.fillText(row.amount, width - pad, mid); } }
+    else if (row.kind === 'sum') { dashed(y + 3, [2, 3], '#b5c0c4'); ctx.font = mono(800, 14); ctx.fillText('Total', pad + 10, mid + 2); ctx.textAlign = 'right'; ctx.fillText(row.amount!, width - pad, mid + 2); }
+    else if (row.kind === 'total') { ctx.font = mono(800, 15); ctx.fillText(row.text!, pad, mid + 2); ctx.font = mono(800, 19); ctx.textAlign = 'right'; ctx.fillText(row.amount!, width - pad, mid + 3); }
+    else if (row.kind === 'note') { ctx.font = mono(600, 13); ctx.fillStyle = soft; ctx.fillText(fitText(row.text!, inner), pad, mid); }
+    y += row.h;
   }
-  y += 22; ctx.strokeStyle = '#e2e9eb'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(width - pad, y); ctx.stroke();
-  y += 36; ctx.fillStyle = '#172f3c'; ctx.font = font(800, 18); ctx.fillText(card.total[0], pad, y);
-  ctx.fillStyle = accent; ctx.font = font(800, 24); ctx.textAlign = 'right'; ctx.fillText(card.total[1], width - pad, y); ctx.textAlign = 'left';
-  ctx.fillStyle = '#62737e'; ctx.font = font(600, 14);
-  for (const line of card.footer) { y += 24; ctx.fillText(fit(ctx, line, width - pad * 2), pad, y); }
+  ctx.font = sans(600, 11); ctx.fillStyle = '#8795a0'; ctx.textAlign = 'center'; ctx.fillText('Dibuat dengan Dompet Ajaib', width / 2, height - 18);
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('Gambar belum bisa dibuat.')), 'image/png'));
 }
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-function fit(ctx: CanvasRenderingContext2D, text: string, max: number) { if (ctx.measureText(text).width <= max) return text; let cut = text; while (cut.length > 1 && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1); return `${cut}…`; }
 /** Shares the image with the phone's share sheet, or saves it as a file. */
 export async function shareImage(blob: Blob, name: string): Promise<'shared' | 'saved' | 'cancelled'> {
   const file = new File([blob], `${name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'split-bill'}.png`, { type: 'image/png' });

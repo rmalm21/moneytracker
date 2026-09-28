@@ -13,8 +13,8 @@ import { closeMenu } from './glass';
 import { SplitFlow, type FlowStart } from './split-bill-flow';
 import { PeopleManager } from './split-people';
 import { takeReceiptHandoff } from './receipt-scan';
-import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderShareImage, shareImage, shareText, statusTone } from './split-bill-shared';
-import { BILL_STATUS_LABELS, billProgress, billShareText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, personShareText, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
+import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderNota, shareImage, shareText, statusTone } from './split-bill-shared';
+import { BILL_STATUS_LABELS, billNota, billProgress, notaText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
 import { cancelSplitBill, deleteSplitBill, readTransaction, recordBetweenPayment, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
 import { deleteTransaction, subscribeRelatedTransactions } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
@@ -277,34 +277,28 @@ function ReminderSheet({ text: initial, notify, onClose }: { text: string; notif
 }
 
 function ShareSheet({ bill, result, state, personId, myName, notify, onClose }: { bill: SplitBill; result: SplitResult; state: BillProgress; personId?: string; myName: string; notify: (message: string) => void; onClose: () => void }) {
-  const [who, setWho] = useState(personId || ''), [edited, setEdited] = useState<string | null>(null), [imageUrl, setImageUrl] = useState(''), [busy, setBusy] = useState(false);
-  const person = state.people.find(row => row.id === who);
-  const text = edited ?? (who ? personShareText(bill, result, who, { myName, remaining: person?.role !== 'payer' ? person?.remaining : undefined }) : billShareText(bill, result, { myName, progress: bill.status === 'active' ? state : undefined }));
-  useEffect(() => { setEdited(null); setImageUrl(''); }, [who]);
-  useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
-  const payer = state.payerName && bill.payer === 'other' ? state.payerName : myName || 'saya';
-  async function makeImage() {
-    setBusy(true);
-    try {
-      const share = result.people.find(row => row.id === who);
-      const participant = bill.participants.find(row => row.id === who);
-      const card = share && participant
-        ? { title: bill.title, subtitle: `${formatDate(bill.date, false)}${bill.merchant ? ` · ${bill.merchant}` : ''}`, heading: participant.isMe ? (myName || 'Saya') : participant.name, lines: share.lines.map(line => [line.label, `${line.amount < 0 ? '−' : ''}${rupiah(Math.abs(line.amount))}`] as [string, string]), total: ['Total', rupiah(share.total)] as [string, string], footer: [`Bayar ke: ${bill.payer === 'me' ? (myName || 'saya') : state.payerName}`, ...(person && person.role !== 'payer' && person.remaining !== share.total ? [person.remaining > 0 ? `Sisa: ${rupiah(person.remaining)}` : 'Sudah lunas'] : [])] }
-        : { title: `Split Bill — ${bill.title}`, subtitle: `${formatDate(bill.date, false)}${bill.merchant ? ` · ${bill.merchant}` : ''}`, heading: 'Pembagian', lines: result.people.map(row => [personName(bill.participants.find(p => p.id === row.id)).replace(/^Kamu$/, myName || 'Saya'), rupiah(row.total)] as [string, string]), total: ['Total', rupiah(result.total)] as [string, string], footer: [`Bayar ke: ${payer}`] };
-      const blob = await renderShareImage(card);
-      if (imageUrl) URL.revokeObjectURL(imageUrl);
-      setImageUrl(URL.createObjectURL(blob));
-      const outcome = await shareImage(blob, `split-bill-${bill.title}${participantName(bill, who)}`);
-      if (outcome === 'saved') notify('Gambar disimpan.');
-    } catch (e) { notify((e as Error).message || 'Gambar belum bisa dibuat.'); }
+  const [who, setWho] = useState(personId || ''), [edited, setEdited] = useState<string | null>(null), [image, setImage] = useState<{ url: string; blob: Blob } | null>(null), [busy, setBusy] = useState(false);
+  // The bill as a nota (receipt): everyone's items and totals, or one person's part.
+  const nota = useMemo(() => billNota(bill, result, { myName, progress: bill.status === 'active' ? state : undefined, only: who || undefined }), [bill, result, state, myName, who]);
+  const text = edited ?? notaText(nota);
+  useEffect(() => { setEdited(null); }, [who]);
+  useEffect(() => {
+    let alive = true, url = '';
+    void renderNota(nota).then(blob => { if (!alive) return; url = URL.createObjectURL(blob); setImage({ url, blob }); }).catch(() => { if (alive) setImage(null); });
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [nota]);
+  async function sendImage() {
+    if (!image) return; setBusy(true);
+    try { const outcome = await shareImage(image.blob, `nota-${bill.title}${participantName(bill, who)}`); if (outcome === 'saved') notify('Gambar nota disimpan.'); }
+    catch (e) { notify((e as Error).message || 'Gambar belum bisa dibagikan.'); }
     finally { setBusy(false); }
   }
-  return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title="Bagikan" className="sb-share-dialog"><div className="form-stack">
-    <Field label="Untuk"><Select value={who} onChange={e => setWho(e.target.value)}><option value="">Semua orang (ringkasan)</option>{bill.participants.map(row => <option key={row.id} value={row.id}>{row.isMe ? `${myName || 'Saya'} (kamu)` : row.name}</option>)}</Select></Field>
-    <textarea className="input sb-textarea" rows={10} value={text} onChange={e => setEdited(e.target.value)} aria-label="Teks yang dibagikan"/>
-    <small className="muted">Hanya berisi tagihan ini. Saldo dompet dan data keuangan lain tidak ikut. Tidak ada tautan publik yang dibuat.</small>
-    {imageUrl && <img className="sb-share-preview" src={imageUrl} alt="Pratinjau gambar"/>}
-    <div className="sb-share-actions"><Button variant="secondary" onClick={() => void copyText(text).then(done => notify(done ? 'Teks disalin.' : 'Teks belum bisa disalin.'))}><Copy size={16}/> Salin</Button><Button variant="secondary" onClick={() => openWhatsApp(text)}><MessageCircle size={16}/> WhatsApp</Button><Button variant="secondary" disabled={busy} onClick={() => void makeImage()}><ImageIcon size={16}/> {busy ? 'Membuat…' : 'Gambar'}</Button><Button onClick={() => void shareText(text).then(outcome => { if (outcome === 'copied') notify('Teks disalin.'); })}><Share2 size={16}/> Bagikan</Button></div>
+  return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title="Bagikan nota" className="sb-share-dialog"><div className="form-stack">
+    <Field label="Untuk"><Select value={who} onChange={e => setWho(e.target.value)}><option value="">Semua orang (nota lengkap)</option>{bill.participants.map(row => <option key={row.id} value={row.id}>{row.isMe ? `${myName || 'Saya'} (kamu)` : row.name}</option>)}</Select></Field>
+    <div className="sb-nota-preview">{image ? <img src={image.url} alt="Nota Split Bill"/> : <span className="muted">Menyiapkan nota…</span>}</div>
+    <div className="sb-share-actions is-nota"><Button disabled={!image || busy} onClick={() => void sendImage()}><ImageIcon size={16}/> {busy ? 'Menyiapkan…' : 'Bagikan gambar'}</Button><Button variant="secondary" onClick={() => openWhatsApp(text)}><MessageCircle size={16}/> WhatsApp</Button><Button variant="secondary" onClick={() => void copyText(text).then(done => notify(done ? 'Teks nota disalin.' : 'Teks belum bisa disalin.'))}><Copy size={16}/> Salin teks</Button></div>
+    <details className="sb-nota-text"><summary>Ubah teks nota</summary><textarea className="input sb-textarea is-mono" rows={12} value={text} onChange={e => setEdited(e.target.value)} aria-label="Teks nota"/></details>
+    <small className="muted">Hanya berisi tagihan ini. Saldo dompet dan data keuangan lain tidak ikut. Tidak ada tautan publik yang dibuat, dan tidak ada yang terkirim otomatis.</small>
   </div></DialogContent></Dialog>;
 }
 const participantName = (bill: SplitBill, id: string) => { const person = bill.participants.find(row => row.id === id); return person && !person.isMe ? `-${person.name}` : ''; };

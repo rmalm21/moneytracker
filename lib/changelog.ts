@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.2', date: '28 Sep 2026', title: 'Split Bill dibagikan sebagai nota', items: [
+    ['🧾', 'Bagikan Split Bill kini berupa nota seperti struk: nama tagihan, tempat, tanggal, lalu per orang semua item beserta pajak/service, diskon, dan totalnya, ditutup total tagihan dan “Bayar ke”. Tanda lunas atau sisa ikut tampil.'],
+    ['🧾', 'Nota bisa dibagikan sebagai gambar struk atau sebagai teks rapi berkolom untuk grup WhatsApp. Bisa juga dibuat untuk satu orang saja.'],
+    ['📝', 'Kotak dan tulisan saat mengubah item Split Bill dibuat lebih kecil supaya proporsional.'],
+  ] },
   { version: '2.1', date: '28 Sep 2026', title: 'Magnet saat menentukan area struk', items: [
     ['📷', 'Saat menentukan area struk, titik sudut yang diseret kini menempel ke sudut kertas terdekat, dan sisi yang diseret menempel ke tepi kertas (termasuk yang miring). Garis berubah hijau dan muncul “Menempel ke tepi struk”. Magnet bisa dimatikan.'],
     ['📷', 'Tombol “Rapikan” meluruskan keempat sisi ke tepi struk sekaligus.'],
