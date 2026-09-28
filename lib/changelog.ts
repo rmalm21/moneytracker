@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.4', date: '28 Sep 2026', title: 'Sapaan baru saat membuka aplikasi', items: [
+    ['💡', 'Saat aplikasi dibuka kini muncul sapaan “Halo, (namamu)! Selamat datang kembali” dengan tangan melambai, di kartu kaca buram di tengah layar dengan latar warna yang bergerak lembut. Tampil rapi di mode terang dan gelap.'],
+  ] },
   { version: '2.3', date: '28 Sep 2026', title: 'Yang dihapus benar-benar hilang dari cloud, foto struk tampil terpotong', items: [
     ['🔒', 'Yang dihapus di aplikasi kini juga terhapus di Firestore. Draf rutin yang dilewati dan kategori yang digabung langsung dihapus (dulu hanya ditandai). Dompet, kategori, atau kantong yang tersembunyi karena masih punya riwayat ikut terhapus otomatis begitu transaksinya dihapus.'],
     ['🔒', 'Catatan penghapusan untuk sinkron antar-HP dibersihkan sendiri setelah seminggu, dan ikut terhapus saat Reset semua data atau Hapus akun.'],
