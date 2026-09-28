@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.6', date: '28 Sep 2026', title: 'Nomor rekening di dompet', items: [
+    ['💰', 'Dompet kini bisa diberi nomor rekening (atau nomor e-wallet) lewat Ubah dompet. Nomornya tampil kecil di kartu, di tampilan Ringkas, dan di detail dompet, dengan ikon salin. Yang disalin hanya angkanya, tanpa spasi.'],
+  ] },
   { version: '2.5', date: '28 Sep 2026', title: 'Pilih layar pembuka', items: [
     ['💡', 'Di Pengaturan → Tampilan → Layar pembuka, pilih “Sapaan nama” (Halo, namamu! dengan kartu kaca) atau “Standar” (logo aplikasi seperti sebelumnya). Pilihan tersimpan di akun dan diingat di HP, jadi langsung dipakai saat aplikasi dibuka.'],
   ] },
