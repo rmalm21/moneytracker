@@ -6861,3 +6861,11 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .acct-no-btn { display: grid; place-items: center; flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 99px; background: transparent; color: inherit; opacity: .6; cursor: pointer; transition: background .15s, opacity .15s; }
 .acct-no-btn:hover, .acct-no-btn:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
 .wallet-detail-hero .acct-no { justify-self: start; margin: 8px 0 0; font-size: .8rem; }
+
+/* 137. 2.9: wallet detail hero stays readable in dark mode and on bright wallet colours. */
+.wallet-detail-hero, .wallet-detail-hero strong { color: #fff; }
+.wallet-detail-hero small, :root[data-theme='dark'] .wallet-detail-hero small { color: rgba(255, 255, 255, .9); }
+.wallet-detail-hero small, .wallet-detail-hero strong, .wallet-detail-hero .acct-no-value { text-shadow: 0 1px 2px rgba(0, 0, 0, .22); }
+.wallet-detail-hero .acct-no, :root[data-theme='dark'] .wallet-detail-hero .acct-no { color: #fff; border-color: rgba(255, 255, 255, .28); background: rgba(0, 0, 0, .16); }
+.wallet-detail-hero .acct-no-btn { opacity: .85; }
+:root[data-theme='dark'] .wallet-detail-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--identity-color) 78%, #0b1a24), color-mix(in srgb, var(--identity-color) 45%, #0b1a24)); }

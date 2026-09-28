@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.9', date: '28 Sep 2026', title: 'Detail dompet lebih terbaca di mode gelap', items: [
+    ['📝', 'Di detail dompet, teks kecil (jenis dompet, saldo awal) dan nomor rekening kini jelas terbaca di mode gelap maupun di warna dompet yang terang seperti biru Jenius.'],
+  ] },
   { version: '2.8', date: '28 Sep 2026', title: 'Nomor rekening hanya di detail dompet', items: [
     ['🔒', 'Nomor rekening tidak lagi tampil di daftar dompet (kartu maupun Ringkas). Nomornya ada di dalam, saat dompet diketuk, tetap tersamar dengan ikon mata dan salin.'],
   ] },
