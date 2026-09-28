@@ -6845,3 +6845,7 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .splash-card { background: var(--paper); } }
 @media (prefers-reduced-motion: reduce) { .splash-glow i, .splash-wave .emoji { animation: none !important; } }
 :root[data-theme='dark'] .splash-card .splash-track { background: rgba(255, 255, 255, .12); }
+/* Pengaturan → Tampilan: opening screen choice. */
+.splash-choice-sample { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.splash-choice-sample .emoji { width: 1.25em; height: 1.25em; }
+.splash-choice-logo { color: var(--accent); }

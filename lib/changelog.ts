@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.5', date: '28 Sep 2026', title: 'Pilih layar pembuka', items: [
+    ['💡', 'Di Pengaturan → Tampilan → Layar pembuka, pilih “Sapaan nama” (Halo, namamu! dengan kartu kaca) atau “Standar” (logo aplikasi seperti sebelumnya). Pilihan tersimpan di akun dan diingat di HP, jadi langsung dipakai saat aplikasi dibuka.'],
+  ] },
   { version: '2.4', date: '28 Sep 2026', title: 'Sapaan baru saat membuka aplikasi', items: [
     ['💡', 'Saat aplikasi dibuka kini muncul sapaan “Halo, (namamu)! Selamat datang kembali” dengan tangan melambai, di kartu kaca buram di tengah layar dengan latar warna yang bergerak lembut. Tampil rapi di mode terang dan gelap.'],
   ] },

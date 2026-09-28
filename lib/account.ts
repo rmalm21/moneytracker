@@ -41,7 +41,7 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
 /** Profile fields that point at deleted records; they are always cleared. */
 const recordLinks = ['defaultExpenseWalletId', 'defaultIncomeWalletId', 'salaryIncomeCategoryId', 'dashboardWidgetConfig', 'quickActions', 'defaultCategoryTemplateVersion'];
 /** Preferences cleared only when the user also resets the settings (account, name, salary day and PIN stay). */
-const preferences = ['themePreset', 'colorMode', 'accentColor', 'density', 'fontSize', 'fontFamily', 'reminders', 'dashboardWidgetsVersion', 'primaryMetric', 'dashboardPeriod', 'dashboardCustom', 'analyticsPeriod', 'analyticsCustom', 'analyticsGranularity', 'realisticMode', 'largeTransactionThreshold', 'excludeCommittedFromAvailable', 'netWorthIncludesReceivables', 'freeMoneyBuffer', 'commitmentHorizon', 'budgetWarningPercent', 'insightProfile', 'insightLayout'];
+const preferences = ['themePreset', 'colorMode', 'accentColor', 'density', 'fontSize', 'fontFamily', 'splashStyle', 'reminders', 'dashboardWidgetsVersion', 'primaryMetric', 'dashboardPeriod', 'dashboardCustom', 'analyticsPeriod', 'analyticsCustom', 'analyticsGranularity', 'realisticMode', 'largeTransactionThreshold', 'excludeCommittedFromAvailable', 'netWorthIncludesReceivables', 'freeMoneyBuffer', 'commitmentHorizon', 'budgetWarningPercent', 'insightProfile', 'insightLayout'];
 
 /** Local copies on this device that belong to the account (notification history, appearance, fingerprint unlock…). */
 function forgetOnDevice(uid: string, only?: string[]) {
