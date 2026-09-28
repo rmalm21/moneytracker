@@ -9,6 +9,7 @@ import { Field, Input, Money, Select } from './fields';
 import { CategoryPicker } from './category-picker';
 import { Emoji } from './emoji';
 import { AppIcon } from './visual-identity';
+import { PeopleManager } from './split-people';
 import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
 import { ReceiptScan } from './receipt-scan';
 import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, splitFromReceipt } from '@/lib/split-bill';
@@ -75,7 +76,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
   const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
-  const [openExtra, setOpenExtra] = useState(''), [addingExtra, setAddingExtra] = useState(false);
+  const [openExtra, setOpenExtra] = useState(''), [addingExtra, setAddingExtra] = useState(false), [peopleOpen, setPeopleOpen] = useState(false);
   const editing = start.mode === 'edit' && start.bill?.status === 'active';
   const original = start.bill;
   const progress = useMemo(() => editing && original ? billProgress(original, data.receivables, data.debts) : null, [editing, original, data.receivables, data.debts]);
@@ -238,6 +239,12 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             {bill.participants.map(person => <span className={`sb-person-chip ${bill.payer === 'other' && person.id === bill.payerId || bill.payer === 'me' && person.isMe ? 'is-payer' : ''}`} key={person.id}><PersonAvatar person={person} size="sm"/><span>{personName(person)}</span>{!person.isMe && !paidPeople.has(person.id) && <button type="button" aria-label={`Hapus ${person.name}`} onClick={() => removePerson(person.id)}><X size={13}/></button>}</span>)}
             <button type="button" className="sb-person-add" aria-expanded={addingPerson} onClick={() => setAddingPerson(v => !v)}><UserPlus size={14}/> Tambah</button>
           </div>
+          {/* Who paid, in reach instead of folded under Pembayaran. */}
+          <div className="sb-payer-row" role="radiogroup" aria-label="Yang bayar">
+            <small>Yang bayar</small>
+            <div className="sb-chips">{!me && <button type="button" role="radio" aria-checked={bill.payer === 'me'} className={`sb-chip ${bill.payer === 'me' ? 'is-on' : ''}`} disabled={bill.payer !== 'me' && hasPayments} onClick={() => patch({ payer: 'me', payerId: '' })}>{bill.payer === 'me' ? <Check size={13}/> : null}<span>Saya (tidak ikut patungan)</span></button>}{bill.participants.map(person => { const on = bill.payer === 'me' ? Boolean(person.isMe) : person.id === bill.payerId; const locked = !on && (hasPayments || (bill.fromTransaction && !person.isMe)); return <button type="button" role="radio" aria-checked={on} key={person.id} className={`sb-chip ${on ? 'is-on' : ''}`} disabled={locked} title={locked ? (hasPayments ? 'Sudah ada pembayaran, pembayar tidak bisa diganti.' : 'Split Bill dari transaksi selalu dibayar olehmu.') : undefined} onClick={() => patch(person.isMe ? { payer: 'me', payerId: person.id } : { payer: 'other', payerId: person.id })}>{on ? <Check size={13}/> : <PersonAvatar person={person} size="sm"/>}<span>{personName(person)}</span></button>; })}</div>
+            <small className="muted">{bill.payer === 'me' ? `Kamu yang bayar${bill.fromTransaction ? '' : ` dari ${walletName}`}; teman membayar balik ke kamu.` : `${payer ? personName(payer) : 'Orang lain'} yang bayar; bagianmu jadi utang ke dia.`}</small>
+          </div>
           {addingPerson && <div className="sb-add-panel">
             <form className="sb-add" onSubmit={e => { e.preventDefault(); void addTyped(); }}>
               <Input value={newName} maxLength={60} onChange={e => setNewName(e.target.value)} placeholder="Nama orang" aria-label="Nama orang" autoComplete="off" autoFocus/>
@@ -247,6 +254,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             {suggestions.length > 0 && <div className="sb-chips">{suggestions.map(person => <button type="button" key={person.id} className="sb-chip" onClick={() => { addPerson(person.name, { personId: person.id, emoji: person.emoji || undefined }); setNewName(''); }}>{person.emoji ? <Emoji e={person.emoji}/> : <Plus size={14}/>}<span>{person.name}</span></button>)}</div>}
             {groups.length > 0 && <div className="sb-chips">{groups.map(group => <button type="button" key={group.id} className={`sb-chip ${bill.groupId === group.id ? 'is-on' : ''}`} onClick={() => addGroup(group)}><Emoji e={group.emoji || '👥'}/><span>{group.name}</span><small>{group.memberIds.length}</small></button>)}</div>}
             <label className="check-row"><input type="checkbox" checked={Boolean(me)} onChange={e => toggleMe(e.target.checked)}/> Saya ikut patungan</label>
+            <button type="button" className="sb-link" onClick={() => setPeopleOpen(true)}><Users size={14}/> Kelola orang tersimpan{people.length ? ` (${people.length})` : ''}</button>
           </div>}
         </section>
 
@@ -337,7 +345,19 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
                   <b>{rupiah(moneyOf(person.id))}</b>
                 </button>
               </div>}
-              {open && share && <div className="sb-person-lines">{share.lines.filter(line => line.amount).map(line => <div key={line.key}><span>{line.label}</span><span>{line.amount < 0 ? '−' : ''}{rupiah(Math.abs(line.amount))}</span></div>)}{!share.lines.length && <small className="muted">Belum ada bagian.</small>}</div>}
+              {open && share && <div className="sb-person-lines">{share.lines.filter(line => line.amount).map(line => <div key={line.key}><span>{line.label}</span><span>{line.amount < 0 ? '−' : ''}{rupiah(Math.abs(line.amount))}</span></div>)}{!share.lines.length && <small className="muted">Belum ada bagian.</small>}
+                {payer?.id === person.id ? <small className="muted sb-adjust-note">Yang bayar menanggung selisih bila bagian teman dibulatkan atau dikoreksi.</small> : share.total > 0 && (() => {
+                  const raw = share.total - Math.round(person.adjust || 0), up = (step: number) => Math.ceil(raw / step) * step, down = Math.floor(raw / 1000) * 1000;
+                  const options = [...new Set([up(1000), up(5000), up(10000), down].filter(v => v > 0 && v !== raw))].sort((a, b) => a - b);
+                  const setAdjust = (target: number) => patch({ participants: bill.participants.map(row => row.id === person.id ? { ...row, adjust: target && target !== raw ? target - raw : undefined } : row) });
+                  return <div className="sb-adjust">
+                    <span className="sb-adjust-label">Bulatkan atau koreksi totalnya</span>
+                    <div className="sb-adjust-quick">{options.map(v => <button type="button" key={v} className={`sb-chip ${share.total === v ? 'is-on' : ''}`} onClick={() => setAdjust(v)}>{v > raw ? '↑' : '↓'} {rupiah(v)}</button>)}</div>
+                    <label className="sb-adjust-exact"><span>Jadi</span><Money value={share.total} onChange={value => setAdjust(value)}/></label>
+                    {person.adjust ? <button type="button" className="sb-link" onClick={() => setAdjust(raw)}>Kembalikan ke {rupiah(raw)}</button> : null}
+                  </div>;
+                })()}
+              </div>}
             </li>; })}</ul>
           {typed && <div className={`sb-typed-sum ${typedLeft === 0 ? 'is-ok' : 'is-warn'}`}><span>{bill.method === 'amount' ? `Terisi ${rupiah(typedSum)} dari ${rupiah(typedNeed)}` : `Terisi ${showPercent(typedSum) || 0}% dari 100%`}</span><small>{typedLeft === 0 ? 'Pas' : typedLeft > 0 ? `Kurang ${bill.method === 'amount' ? rupiah(typedLeft) : `${showPercent(typedLeft)}%`}` : `Lebih ${bill.method === 'amount' ? rupiah(-typedLeft) : `${showPercent(-typedLeft)}%`}`}</small></div>}
           {bill.method === 'amount' && <button type="button" className="sb-link" onClick={() => { const parts = computeSplit({ ...bill, method: 'equal' }).people; patch({ participants: bill.participants.map(row => ({ ...row, amount: parts.find(p => p.id === row.id)?.base || 0 })) }); }}>Isi rata dulu</button>}
@@ -396,6 +416,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
         </div>
       </div>
       <ReceiptScan open={scanOpen} onOpenChange={setScanOpen} context="split_bill" onUse={useReceipt}/>
+      {peopleOpen && <PeopleManager people={people} groups={groups} onClose={() => setPeopleOpen(false)}/>}
     </DialogContent>
   </Dialog>;
 }

@@ -22,7 +22,7 @@ export const EXTRA_LABELS: Record<SplitExtraKind, string> = { tax: 'Pajak / PB1'
 export const defaultDistribution = (kind: SplitExtraKind) => kind === 'tax' || kind === 'service' || kind === 'discount' || kind === 'tip' || kind === 'rounding' ? 'proportional' as const : 'equal' as const;
 export const isDeduction = (kind: SplitExtraKind) => kind === 'discount';
 
-export type SplitDraft = Pick<SplitBill, 'total' | 'method' | 'participants' | 'items' | 'extras'> & Partial<Pick<SplitBill, 'categoryId' | 'subcategoryId'>>;
+export type SplitDraft = Pick<SplitBill, 'total' | 'method' | 'participants' | 'items' | 'extras'> & Partial<Pick<SplitBill, 'categoryId' | 'subcategoryId' | 'payer' | 'payerId'>>;
 export type ShareLine = { key: string; label: string; amount: number; kind: 'item' | 'base' | SplitExtraKind; categoryId: string | null; subcategoryId: string | null };
 export type PersonShare = { id: string; name: string; isMe: boolean; base: number; lines: ShareLine[]; total: number };
 export type SplitIssue = { step: 'bill' | 'people' | 'items' | 'extras' | 'split'; message: string };
@@ -166,6 +166,17 @@ export function computeSplit(bill: SplitDraft): SplitResult {
     takers.forEach((id, i) => { const amount = parts[i] || 0; if (!amount) return; const at = index.get(id)!; lines[at].push({ key: `extra:${extra.id}`, label: extra.label, amount, kind: extra.kind, categoryId: source?.categoryId || category.categoryId, subcategoryId: source?.categoryId ? source.subcategoryId || null : category.subcategoryId }); });
   }
 
+  // Rounding or a correction on someone's total ("dibulatkan jadi Rp40.000"): the payer takes the opposite amount,
+  // so what everyone owes still adds up to the bill.
+  const payerAt = bill.payer === 'other' ? people.findIndex(person => person.id === bill.payerId) : people.findIndex(person => person.isMe);
+  let shifted = 0;
+  people.forEach((person, i) => {
+    const adjust = Math.round(person.adjust || 0);
+    if (!adjust || i === payerAt) return;
+    lines[i].push({ key: 'adjust', label: adjust > 0 ? 'Pembulatan' : 'Koreksi', amount: adjust, kind: 'rounding', ...category });
+    shifted += adjust;
+  });
+  if (shifted && payerAt >= 0) lines[payerAt].push({ key: 'adjust', label: 'Selisih pembulatan teman', amount: -shifted, kind: 'rounding', ...category });
   const result = people.map((person, i) => ({ id: person.id, name: person.name.trim(), isMe: Boolean(person.isMe), base: base[i], lines: lines[i], total: lines[i].reduce((sum, line) => sum + line.amount, 0) }));
   for (const person of result) if (person.total < 0) add('split', `Bagian ${person.name || 'seseorang'} jadi minus. Ubah cara bagi diskonnya.`);
   const allocated = result.reduce((sum, person) => sum + person.total, 0);

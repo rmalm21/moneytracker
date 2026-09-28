@@ -7,16 +7,15 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Empty, Field, Input, Money, Select } from './fields';
-import { Emoji } from './emoji';
-import { EmojiSearchButton } from './visual-identity';
 import { ContextNotes } from './context-notes';
 import { ManualPayments, SettleDialog, type SettleTarget } from './settle-dialog';
 import { closeMenu } from './glass';
 import { SplitFlow, type FlowStart } from './split-bill-flow';
+import { PeopleManager } from './split-people';
 import { takeReceiptHandoff } from './receipt-scan';
 import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderShareImage, shareImage, shareText, statusTone } from './split-bill-shared';
 import { BILL_STATUS_LABELS, billProgress, billShareText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, personShareText, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
-import { cancelSplitBill, deleteSplitBill, deleteSplitGroup, deleteSplitPerson, readTransaction, recordBetweenPayment, removeSplitReceipt, saveSplitGroup, saveSplitPerson, splitReceiptUrl, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
+import { cancelSplitBill, deleteSplitBill, readTransaction, recordBetweenPayment, removeSplitReceipt, splitReceiptUrl, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
 import { deleteTransaction, subscribeRelatedTransactions } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
 import { formatDate, todayInTimeZone } from '@/lib/period';
@@ -123,7 +122,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
     {flow && <SplitFlow start={flow} people={contacts.people} groups={contacts.groups} onClose={() => setFlow(null)} onSaved={(id, message) => { setFlow(null); notify(message); setOpenId(id); }}/>}
     {opened && <BillDetail bill={opened} state={progress.get(opened.id)!} notify={notify} onClose={() => setOpenId('')} onEdit={mode => { setOpenId(''); setFlow({ mode, bill: opened }); }} groups={contacts.groups}/>}
     <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} value={filter} onChange={setFilter} people={personNames} groups={contacts.groups}/>
-    {peopleOpen && <PeopleManager people={contacts.people} groups={contacts.groups} onClose={() => setPeopleOpen(false)} notify={notify}/>}
+    {peopleOpen && <PeopleManager people={contacts.people} groups={contacts.groups} bills={bills || []} onClose={() => setPeopleOpen(false)}/>}
   </>;
 }
 
@@ -341,47 +340,3 @@ function TransactionPicker({ bills, onPick, onClose, onManual }: { bills: SplitB
   </div></DialogContent></Dialog>;
 }
 
-function PeopleManager({ people, groups, onClose, notify }: { people: SplitPerson[]; groups: SplitGroup[]; onClose: () => void; notify: (message: string) => void }) {
-  const { user } = useApp();
-  const { track } = useNotify();
-  const [tab, setTab] = useState<'people' | 'groups'>('people');
-  const [person, setPerson] = useState<Partial<SplitPerson> | null>(null), [group, setGroup] = useState<Partial<SplitGroup> | null>(null), [error, setError] = useState('');
-  function savePerson(event: FormEvent) {
-    event.preventDefault(); if (!user || !person) return;
-    if (!person.name?.trim()) { setError('Isi nama orangnya.'); return; }
-    const uid = user.uid, record = person;
-    setPerson(null); setError('');
-    track(saveSplitPerson(uid, { name: record.name!, nickname: record.nickname, emoji: record.emoji, notes: record.notes }, record.id), { pending: 'Menyimpan…', success: record.id ? 'Orang diperbarui.' : 'Orang disimpan.', failure: 'Belum tersimpan' });
-  }
-  function saveGroup(event: FormEvent) {
-    event.preventDefault(); if (!user || !group) return;
-    if (!group.name?.trim()) { setError('Isi nama grupnya.'); return; }
-    const uid = user.uid, record = group;
-    setGroup(null); setError('');
-    track(saveSplitGroup(uid, { name: record.name!, emoji: record.emoji, memberIds: record.memberIds || [] }, record.id), { pending: 'Menyimpan…', success: record.id ? 'Grup diperbarui.' : 'Grup disimpan.', failure: 'Belum tersimpan' });
-  }
-  return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title="Orang & grup" className="sb-people-dialog"><div className="form-stack">
-    <div className="ip-seg sb-seg" role="tablist"><button type="button" role="tab" aria-selected={tab === 'people'} className={tab === 'people' ? 'active' : ''} onClick={() => setTab('people')}>Orang tersimpan</button><button type="button" role="tab" aria-selected={tab === 'groups'} className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>Grup</button></div>
-    {tab === 'people' ? <>
-      <p className="muted">Teman yang sering ikut patungan. Mereka tidak perlu punya akun Dompet Ajaib.</p>
-      {person ? <form className="form-stack sb-edit" onSubmit={savePerson}>
-        <div className="form-grid"><Field label="Nama"><Input autoFocus value={person.name || ''} maxLength={60} onChange={e => setPerson({ ...person, name: e.target.value })}/></Field><Field label="Panggilan (opsional)"><Input value={person.nickname || ''} maxLength={40} onChange={e => setPerson({ ...person, nickname: e.target.value })}/></Field></div>
-        <div className="sb-emoji-row"><span className="sb-emoji-now">{person.emoji ? <Emoji e={person.emoji}/> : '—'}</span><EmojiSearchButton value={person.emoji} onPick={emoji => setPerson({ ...person, emoji })} label="Pilih emoji"/>{person.emoji && <button type="button" className="link-button" onClick={() => setPerson({ ...person, emoji: '' })}>Tanpa emoji</button>}</div>
-        <Field label="Catatan (opsional)"><Input value={person.notes || ''} maxLength={300} onChange={e => setPerson({ ...person, notes: e.target.value })}/></Field>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => setPerson(null)}>Batal</Button><Button type="submit">Simpan</Button></div>
-      </form> : <Button variant="secondary" onClick={() => setPerson({ name: '' })}><Plus size={16}/> Tambah orang</Button>}
-      {people.length ? <div className="sb-people-list">{people.map(row => <div className="sb-person-row is-static" key={row.id}><PersonAvatar person={row}/><span className="sb-person-main"><strong>{row.name}</strong>{(row.nickname || row.notes) && <small>{[row.nickname, row.notes].filter(Boolean).join(' · ')}</small>}</span><span className="toolbar-row"><button type="button" className="icon-btn" aria-label={`Ubah ${row.name}`} onClick={() => setPerson(row)}><Edit3 size={15}/></button>{user && <Confirm title={`Hapus ${row.name}?`} description="Tagihan lama tetap memakai namanya. Hanya daftar Orang tersimpan yang berubah." confirmLabel="Hapus" onConfirm={() => track(deleteSplitPerson(user.uid, row.id), { pending: 'Menghapus…', success: 'Orang dihapus.', failure: 'Belum terhapus' })}><button type="button" className="icon-btn" aria-label={`Hapus ${row.name}`}><Trash2 size={15}/></button></Confirm>}</span></div>)}</div> : !person && <Empty message="Belum ada orang tersimpan. Orang yang kamu tambahkan saat membuat Split Bill bisa disimpan di sini."/>}
-    </> : <>
-      <p className="muted">Pilih grup saat membuat Split Bill, semua anggotanya langsung ikut.</p>
-      {group ? <form className="form-stack sb-edit" onSubmit={saveGroup}>
-        <Field label="Nama grup"><Input autoFocus value={group.name || ''} maxLength={60} onChange={e => setGroup({ ...group, name: e.target.value })} placeholder="Misalnya Bultang, Kantor, Trip"/></Field>
-        <div className="sb-emoji-row"><span className="sb-emoji-now"><Emoji e={group.emoji || '👥'}/></span><div className="sb-chips">{['🏸', '💼', '🏖️', '👥', '🍜', '⚽', '🎮', '🏠'].map(emoji => <button type="button" key={emoji} className={`sb-chip ${group.emoji === emoji ? 'is-on' : ''}`} onClick={() => setGroup({ ...group, emoji })}><Emoji e={emoji}/></button>)}</div><EmojiSearchButton value={group.emoji} onPick={emoji => setGroup({ ...group, emoji })} label="Lainnya"/></div>
-        <Field label="Anggota">{people.length ? <div className="sb-chips">{people.map(row => { const on = (group.memberIds || []).includes(row.id); return <button type="button" key={row.id} className={`sb-chip ${on ? 'is-on' : ''}`} aria-pressed={on} onClick={() => setGroup({ ...group, memberIds: on ? (group.memberIds || []).filter(id => id !== row.id) : [...(group.memberIds || []), row.id] })}><PersonAvatar person={row} size="sm"/><span>{row.name}</span></button>; })}</div> : <p className="muted">Tambahkan orang di tab Orang tersimpan dulu.</p>}</Field>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => setGroup(null)}>Batal</Button><Button type="submit">Simpan</Button></div>
-      </form> : <Button variant="secondary" onClick={() => setGroup({ name: '', emoji: '👥', memberIds: [] })}><Plus size={16}/> Buat grup</Button>}
-      {groups.length ? <div className="sb-people-list">{groups.map(row => <div className="sb-person-row is-static" key={row.id}><span className="sb-avatar is-md"><Emoji e={row.emoji || '👥'}/></span><span className="sb-person-main"><strong>{row.name}</strong><small>{row.memberIds.map(id => people.find(p => p.id === id)?.name).filter(Boolean).join(', ') || 'Belum ada anggota'}</small></span><span className="toolbar-row"><button type="button" className="icon-btn" aria-label={`Ubah ${row.name}`} onClick={() => setGroup(row)}><Edit3 size={15}/></button>{user && <Confirm title={`Hapus grup ${row.name}?`} description="Orang di dalamnya tetap tersimpan." confirmLabel="Hapus" onConfirm={() => track(deleteSplitGroup(user.uid, row.id), { pending: 'Menghapus…', success: 'Grup dihapus.', failure: 'Belum terhapus' })}><button type="button" className="icon-btn" aria-label={`Hapus ${row.name}`}><Trash2 size={15}/></button></Confirm>}</span></div>)}</div> : !group && <Empty message="Belum ada grup."/>}
-    </>}
-  </div></DialogContent></Dialog>;
-}

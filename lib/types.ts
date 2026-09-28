@@ -42,7 +42,7 @@ export const emptyData: Data = { wishlist: [], wallets: [], categories: [], budg
 export type SplitMethod = 'equal'|'items'|'amount'|'percent';
 export type SplitDistribution = 'proportional'|'equal'|'custom';
 /** `amount`: the person's part of the subtotal (Nominal manual). `percent`: basis points, 10000 = 100% (Persentase). */
-export type SplitParticipant = { id: string; name: string; personId?: string|null; isMe?: boolean; emoji?: string; amount?: number; percent?: number; receivableId?: string|null; debtId?: string|null };
+export type SplitParticipant = { id: string; name: string; personId?: string|null; isMe?: boolean; emoji?: string; amount?: number; percent?: number; /** Rounding or correction on this person's total (+/−); the payer takes the opposite, so the bill total stays. */ adjust?: number; receivableId?: string|null; debtId?: string|null };
 /** Who had an item: shared equally by `people`, `units` of `qty` per person, or `custom` Rupiah amounts. */
 export type SplitItem = { id: string; name: string; qty: number; price: number; discount?: number; categoryId?: string|null; subcategoryId?: string|null; assign: 'shared'|'units'|'custom'; people: string[]; units?: Record<string, number>; custom?: Record<string, number> };
 export type SplitExtraKind = 'tax'|'service'|'discount'|'delivery'|'admin'|'tip'|'rounding'|'other'|'shared';

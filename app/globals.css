@@ -6648,3 +6648,33 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .or-hero small, .or-hero p, .or-hero span, .or-hero b { color: #fff; }
 .or-hero-split small { color: rgba(255,255,255,.82); opacity: 1; }
 .or-hero > small { opacity: .9; }
+
+/* 128. v96 Split Bill: payer in reach, per-person rounding, tidy saved people. */
+.sb-payer-row { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--accent) 5%, var(--paper)); }
+.sb-payer-row > small:first-child { color: var(--muted); font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.sb-payer-row .sb-chip:disabled { opacity: .45; cursor: not-allowed; }
+.sb-payer-row > small.muted { font-size: .76rem; }
+.sb-adjust { display: grid; gap: 8px; margin-top: 8px; padding: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 12px; color: var(--ink); }
+.sb-adjust-label { font-size: .76rem; font-weight: 700; color: var(--muted); }
+.sb-adjust-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-adjust-quick .sb-chip { min-height: 32px; font-size: .78rem; font-variant-numeric: tabular-nums; }
+.sb-adjust-exact { display: grid; grid-template-columns: auto minmax(0, 150px); align-items: center; gap: 8px; font-size: .8rem; font-weight: 700; }
+.sb-adjust-exact .input { min-height: 38px; height: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.sb-adjust .sb-link { justify-self: start; font-size: .78rem; }
+.sb-adjust-note { display: block; margin-top: 6px; font-size: .74rem; }
+.sb-people-search { margin: 2px 0; min-height: 42px; box-shadow: none; }
+.sb-people-tidy { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--paper); }
+.sb-people-tidy li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 10px 12px; }
+.sb-people-tidy li + li { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.sb-people-tidy .sb-person-main { display: grid; gap: 1px; min-width: 0; }
+.sb-people-tidy .sb-person-main strong { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-people-tidy .sb-person-main strong small { color: var(--muted); font-weight: 500; }
+.sb-people-tidy .sb-person-main > small { color: var(--muted); font-size: .74rem; overflow-wrap: anywhere; }
+.sb-people-tidy .icon-btn.is-danger { color: var(--rose); }
+.sb-people-none { padding: 14px; text-align: center; grid-template-columns: 1fr !important; }
+.sb-person-lines > .sb-adjust { display: grid; justify-content: stretch; }
+.sb-person-lines > .sb-adjust > * { justify-self: stretch; }
+.sb-person-lines > .sb-adjust .sb-adjust-quick { display: flex; }
+.sb-person-lines > .sb-adjust .sb-adjust-exact { justify-self: start; }
+.sb-person-lines > .sb-adjust .sb-link { justify-self: start; }
+.sb-adjust-quick .sb-chip { flex-direction: row; white-space: nowrap; }
