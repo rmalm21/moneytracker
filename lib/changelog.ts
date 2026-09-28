@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '100', date: '28 Sep 2026', title: 'Foto struk tetap di HP', items: [
+    ['🔒', 'Foto struk di Split Bill tidak lagi diunggah otomatis. Foto hanya dibaca di HP ini. Kalau memang ingin disimpan, centang “Simpan foto struk ke cloud” (awalnya mati).'],
+    ['🔒', 'Foto struk yang sudah terlanjur tersimpan bisa dihapus sekaligus dari halaman Split Bill (“Hapus semua”). Tagihan, item, dan pembayarannya tetap aman.'],
+    ['🔒', 'Foto struk dan lampiran klaim kini dibuka langsung lewat akunmu, tanpa membuat link unduhan yang bisa dibagikan.'],
+  ] },
   { version: '99', date: '28 Sep 2026', title: 'Kartu hari yang dilipat lebih rapi', items: [
     ['📝', 'Di Transaksi dan Beranda, hari yang dilipat kini menumpuk nominal masuk dan keluar di kanan, dengan jumlah transaksi di bawahnya. Nama hari tetap satu baris dan kotak tanggal tidak lagi menyempit.'],
   ] },

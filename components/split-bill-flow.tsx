@@ -71,6 +71,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   const [bill, setBill] = useState<SplitBillInput>(() => { const base = startBill(start, { myName, today, walletId: defaultWallet }); return start.receipt ? withReceipt(base, start.receipt) : base; });
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [understood, setUnderstood] = useState(false);
   const [photo, setPhoto] = useState<Blob | null>(null), [photoUrl, setPhotoUrl] = useState('');
+  // The photo is only read on this phone. It goes to the cloud only when the person ticks the box (off by default).
+  const [cloudPhoto, setCloudPhoto] = useState(false);
   // Opening from "Scan struk" goes straight to the camera and the shared receipt review.
   const [scanOpen, setScanOpen] = useState(start.mode === 'receipt' && !start.receipt);
   const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
@@ -193,7 +195,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     setSaving(true); setError('');
     try {
       const id = await saveSplitBill(user.uid, { ...input, total: bill.items.length && !bill.fromTransaction ? result.total : bill.total }, { draft });
-      if (photo) { const uid = user.uid, previous = bill.receiptPath; track(attachSplitReceipt(uid, id, photo, previous), { pending: 'Mengunggah foto struk…', success: 'Foto struk tersimpan.', failure: 'Foto struk belum tersimpan. Split Bill-nya tetap aman.' }); }
+      if (photo && cloudPhoto) { const uid = user.uid, previous = bill.receiptPath; track(attachSplitReceipt(uid, id, photo, previous), { pending: 'Mengunggah foto struk…', success: 'Foto struk tersimpan.', failure: 'Foto struk belum tersimpan. Split Bill-nya tetap aman.' }); }
       onSaved(id, draft ? 'Draft Split Bill disimpan.' : editing ? 'Split Bill diperbarui.' : 'Split Bill disimpan.');
     } catch (e) { setError((e as Error).message || 'Split Bill belum tersimpan.'); }
     finally { setSaving(false); }
@@ -229,7 +231,8 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             <button type="button" className="rs-pill" onClick={() => { setAddingItem(true); setOpenItem(''); }}><Plus size={14}/> Tambah item</button>
             {photoUrl && <img className="sb-top-thumb" src={photoUrl} alt="Foto struk"/>}
           </div>
-          {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tetap tersimpan.</small>}
+          {photoUrl && <label className="sb-cloud-photo"><input type="checkbox" checked={cloudPhoto} onChange={e => setCloudPhoto(e.target.checked)}/><span><b>Simpan foto struk ke cloud</b><small>{cloudPhoto ? 'Foto disimpan di akunmu dan hanya bisa dibuka olehmu.' : 'Mati: foto hanya dibaca di HP ini, tidak diunggah.'}</small></span></label>}
+          {bill.receiptPath && !photoUrl && <small className="muted">Foto struk sebelumnya tersimpan di cloud. Bisa dihapus lewat menu tagihan.</small>}
         </header>
 
         {/* 2. Who is splitting. */}

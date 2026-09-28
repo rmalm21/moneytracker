@@ -15,7 +15,7 @@ import { PeopleManager } from './split-people';
 import { takeReceiptHandoff } from './receipt-scan';
 import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderShareImage, shareImage, shareText, statusTone } from './split-bill-shared';
 import { BILL_STATUS_LABELS, billProgress, billShareText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, personShareText, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
-import { cancelSplitBill, deleteSplitBill, readTransaction, recordBetweenPayment, removeSplitReceipt, splitReceiptUrl, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
+import { cancelSplitBill, deleteSplitBill, readTransaction, recordBetweenPayment, removeAllSplitReceipts, removeSplitReceipt, splitReceiptUrl, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
 import { deleteTransaction, subscribeRelatedTransactions } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
 import { formatDate, todayInTimeZone } from '@/lib/period';
@@ -38,6 +38,8 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
   const [tab, setTab] = useState<Tab>('open'), [search, setSearch] = useState(''), [filter, setFilter] = useState<Filter>(noFilter), [filterOpen, setFilterOpen] = useState(false), [limit, setLimit] = useState(PAGE);
   const [flow, setFlow] = useState<FlowStart | null>(null), [openId, setOpenId] = useState(''), [chooser, setChooser] = useState(false), [picker, setPicker] = useState(false), [peopleOpen, setPeopleOpen] = useState(false);
   const today = todayInTimeZone(profile?.timeZone);
+  const { track } = useNotify();
+  const photos = useMemo(() => (bills || []).filter(bill => bill.receiptPath), [bills]);
   useEffect(() => { if (!user) return; return subscribeSplitBills(user.uid, setBills, e => setError(e.message)); }, [user?.uid]);
   useEffect(() => { if (!user) return; return subscribeSplitContacts(user.uid, setContacts, e => setError(e.message)); }, [user?.uid]);
   // Links from other pages: "new", "manual", "receipt", "tx:<id>" (a transaction to split), "bill:<id>".
@@ -95,6 +97,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
   return <>
     <div className="page-heading"><div><h1>Split Bill</h1><p>Patungan dan tagihan bersama: siapa bayar berapa, dan siapa yang belum.</p></div><div className="heading-actions"><Button variant="secondary" onClick={() => setPeopleOpen(true)}><Users size={16}/> Orang & grup</Button><Button onClick={() => setChooser(true)}><Plus size={16}/> Buat Split Bill</Button></div></div>
     {error && <p className="form-error" role="alert">{error}</p>}
+    {user && photos.length > 0 && <div className="notice sb-cloud-photos" role="status"><ImageIcon size={16} aria-hidden="true"/><span>{photos.length} foto struk Split Bill tersimpan di cloud akunmu.</span><Confirm title="Hapus semua foto struk dari cloud?" description="Hanya fotonya yang dihapus dari cloud. Semua Split Bill, item, dan pembayarannya tetap tersimpan." onConfirm={() => track(removeAllSplitReceipts(user.uid, photos), { pending: 'Menghapus foto struk dari cloud…', success: 'Semua foto struk sudah dihapus dari cloud.', failure: 'Foto struk belum terhapus semua' })}><button type="button" className="link-button">Hapus semua</button></Confirm></div>}
     {bills === null ? <div className="view-skeleton" aria-busy="true" aria-label="Memuat Split Bill"><span/><span/><span/></div>
       : !bills.length ? <div className="panel sb-empty"><span className="sb-empty-icon" aria-hidden="true"><ReceiptText size={26}/></span><h2>Belum ada Split Bill.</h2><p>Patungan makanan, nongkrong, perjalanan, atau kegiatan lainnya bisa dicatat di sini.</p><Button onClick={() => setChooser(true)}><Plus size={16}/> Buat Split Bill</Button></div>
       : <>
@@ -147,6 +150,7 @@ function BillDetail({ bill, state, notify, onClose, onEdit, groups }: { bill: Sp
   const person = state.people.find(row => row.id === personId);
   const active = bill.status === 'active';
   const myName = profile?.displayName?.trim() || '';
+  useEffect(() => () => { if (photo.startsWith('blob:')) URL.revokeObjectURL(photo); }, [photo]);
   async function showPhoto() { if (!bill.receiptPath) return; setBusy(true); try { setPhoto(await splitReceiptUrl(bill.receiptPath)); } catch (e) { notify((e as Error).message || 'Foto struk belum bisa dibuka.'); } finally { setBusy(false); } }
   const counts = [state.counts.paid && `${state.counts.paid} lunas`, state.counts.partial && `${state.counts.partial} sebagian`, state.counts.unpaid && `${state.counts.unpaid} belum bayar`].filter(Boolean).join(' · ');
   return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title="Split Bill" className="sb-detail-dialog"><div className="sb-detail">

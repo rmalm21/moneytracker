@@ -256,7 +256,8 @@ export async function attachClaimReceipt(uid:string,id:string,file:File){
   await uploadBytes(storageRef(storage,path),file,{contentType:file.type});
   await settle(updateDoc(ref(uid,'claims',id),{attachmentPath:path,updatedAt:serverTimestamp()}));
 }
-export async function claimReceiptUrl(path:string){const {storage}=await import('./firebase');if(!storage)throw Error('Firebase Storage belum tersedia.');const {ref:storageRef,getDownloadURL}=await import('firebase/storage');return getDownloadURL(storageRef(storage,path));}
+/** Opens the attachment through the owner's sign-in as a local blob: address; no shareable download link is created. */
+export async function claimReceiptUrl(path:string){const {storage}=await import('./firebase');if(!storage)throw Error('Firebase Storage belum tersedia.');const {ref:storageRef,getBlob}=await import('firebase/storage');return URL.createObjectURL(await getBlob(storageRef(storage,path)));}
 export async function loadAllTransactions(uid:string){if(await whenCurrent(uid,['transactions'])){try{return withoutDeleted((await getDocsFromCache(query(coll(uid,'transactions'),orderBy('date','desc')))).docs.map(d=>hydrate<LedgerTx>(d)))}catch{/* read from the server below */}}const result:LedgerTx[]=[];let cursor:QueryDocumentSnapshot|undefined;while(true){const q=query(coll(uid,'transactions'),orderBy('date','desc'),...(cursor?[startAfter(cursor)]:[]),limit(300));const snap=await getDocs(q);result.push(...snap.docs.map(d=>hydrate<LedgerTx>(d)));if(snap.size<300)break;cursor=snap.docs[snap.docs.length-1];}return withoutDeleted(result);}
 export async function mergeCategory(uid:string,from:Category,to:Category){if(from.id===to.id||from.type!==to.type||Boolean(from.parentId)!==Boolean(to.parentId))throw Error('Pilih kategori tujuan dengan jenis dan tingkat yang sama.');
   const affected:{r:DocumentReference;field:'categoryId'|'subcategoryId'|'parentId'}[]=[];
