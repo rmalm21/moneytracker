@@ -6723,3 +6723,13 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
   .rs-camera-bar .link-button { padding: 6px 10px; font-size: .8rem; }
   .rs-camera-auto { font-size: .78rem; }
 }
+
+/* 131. v99: day header (Transaksi & Beranda): the title keeps one line; amounts stack on the right, count underneath. */
+.tx-day-toggle { align-items: center; }
+.tx-day-title { flex: 1 1 auto; }
+.tx-day-title > b { flex: none; }
+.tx-day-title > span > strong, .tx-day-title > span > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-day-side { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.tx-day-sum { display: grid; justify-items: end; gap: 1px; line-height: 1.2; }
+.tx-day-sum small { font-size: .72rem; font-weight: 600; }
+.tx-results .tx-day-sum small { font-size: .74rem; }

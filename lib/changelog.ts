@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '99', date: '28 Sep 2026', title: 'Kartu hari yang dilipat lebih rapi', items: [
+    ['📝', 'Di Transaksi dan Beranda, hari yang dilipat kini menumpuk nominal masuk dan keluar di kanan, dengan jumlah transaksi di bawahnya. Nama hari tetap satu baris dan kotak tanggal tidak lagi menyempit.'],
+  ] },
   { version: '98', date: '28 Sep 2026', title: 'Kamera scan rapi, ketuk untuk fokus, notifikasi “Sudah habis”', items: [
     ['📷', 'Tombol “Ganti lensa” tidak lagi bertumpuk dengan ikonnya. Di layar kecil, petunjuk kamera tidak menutupi tombol tutup dan “Kamera bawaan” tetap di dalam layar.'],
     ['📷', 'Ketuk struk di layar kamera untuk fokus: titik yang diketuk kini tepat (walau gambar terpotong di layar) dan fokus tetap di titik itu, tidak kembali ke tengah. Kalau HP tidak mengizinkan, muncul keterangan “Fokus diatur otomatis oleh HP ini”.'],
