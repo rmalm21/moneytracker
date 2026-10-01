@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '2.10', date: '1 Okt 2026', title: 'Scan struk dibantu Gemini', items: [
+    ['🧾', 'Scan struk kini bisa dibantu Gemini (3.5 Flash Lite) untuk membaca tempat, tanggal, item, pajak, diskon, total, dan cara bayar. Hasilnya tetap dicek dulu sebelum disimpan.'],
+    ['🔒', 'Hanya potongan struk yang dikirim ke Gemini, bukan foto utuh, dan tidak disimpan di akunmu. Bisa dimatikan di layar Scan struk (“Bantu baca dengan Gemini”). Saat mati, offline, atau Gemini sedang penuh, struk dibaca di perangkat seperti biasa.'],
+  ] },
   { version: '2.9', date: '28 Sep 2026', title: 'Detail dompet lebih terbaca di mode gelap', items: [
     ['📝', 'Di detail dompet, teks kecil (jenis dompet, saldo awal) dan nomor rekening kini jelas terbaca di mode gelap maupun di warna dompet yang terang seperti biru Jenius.'],
   ] },

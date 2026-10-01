@@ -6869,3 +6869,9 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .wallet-detail-hero .acct-no, :root[data-theme='dark'] .wallet-detail-hero .acct-no { color: #fff; border-color: rgba(255, 255, 255, .28); background: rgba(0, 0, 0, .16); }
 .wallet-detail-hero .acct-no-btn { opacity: .85; }
 :root[data-theme='dark'] .wallet-detail-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--identity-color) 78%, #0b1a24), color-mix(in srgb, var(--identity-color) 45%, #0b1a24)); }
+
+/* 138. 2.10: Gemini switch on the Scan struk start screen. */
+.rs-gemini { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--accent) 5%, var(--paper)); cursor: pointer; font-size: .84rem; }
+.rs-gemini input { flex: none; margin-top: 3px; accent-color: var(--accent); }
+.rs-gemini span { display: grid; gap: 2px; min-width: 0; }
+.rs-gemini small { color: var(--muted); font-size: .76rem; line-height: 1.35; }

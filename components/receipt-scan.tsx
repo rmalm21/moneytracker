@@ -17,6 +17,7 @@ import type { ReceiptSnapshot } from '@/lib/types';
 import { buildIntelligence, findDuplicate, mergeReceiptReads, reconcileAmounts, regionFor, STATUS_LABELS, type Duplicate, type FieldStatus } from '@/lib/receipt-intel';
 import { analyzeReceiptPhoto, cancelReceiptRead, ocrAvailable, readReceiptPhoto, rereadField, type OcrProgress, type OcrResult } from '@/lib/receipt-ocr';
 import { quadTarget, straightenedPreview, uprightPreview, type Prepared, type Straightened } from '@/lib/receipt-prep';
+import { geminiConfigured, geminiReady, geminiWanted, mergeGemini, readWithGemini, setGeminiWanted, type GeminiReceipt } from '@/lib/gemini-receipt';
 import type { Matrix, Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
 import { walletAllows } from '@/lib/wallet-capabilities';
@@ -75,7 +76,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const [cropped, setCropped] = useState<Straightened | null>(null), cropJob = useRef(0);
   const showCrop = (make: Promise<Straightened> | null) => { const id = ++cropJob.current; if (!make) { setCropped(current => { if (current) URL.revokeObjectURL(current.url); return null; }); return; } void make.then(next => { if (cropJob.current !== id) { URL.revokeObjectURL(next.url); return; } setCropped(current => { if (current) URL.revokeObjectURL(current.url); return next; }); }).catch(() => undefined); };
   const [progress, setProgress] = useState<OcrProgress | null>(null), [problem, setProblem] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState('');
-  const [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
+  const [useGemini, setUseGemini] = useState(() => geminiWanted()), [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
   const [result, setResult] = useState<OcrResult | null>(null), [area, setArea] = useState<{ prepared: Prepared; quarter: number } | null>(null), [cameraOpen, setCameraOpen] = useState(false);
   const [source, setSource] = useState<{ label: string; box: Box | null } | null>(null), [cornersOpen, setCornersOpen] = useState(false), [reread, setReread] = useState<Reread | null>(null);
   const [settledFields, setSettledFields] = useState<string[]>([]), [duplicate, setDuplicate] = useState<Duplicate | null>(null), [dupOk, setDupOk] = useState(false), [parts, setParts] = useState(1), [debug, setDebug] = useState(false);
@@ -118,14 +119,31 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     setProblem(''); setDraft(null); setRead(null); setResult(null); setArea(null); setSource(null); setReread(null); setParts(1);
     setProgress({ stage: 'prepare', progress: 0, label: 'Menyiapkan foto…' });
     // While reading, the chosen area already shows cut and straightened.
-    { const target = upright && quarter === turn ? prepared || (corners ? quadTarget(corners, upright.width, upright.height) : null) : null; showCrop(target && upright ? straightenedPreview(upright.url, target) : null); }
+    const target = upright && quarter === turn ? prepared || (corners ? quadTarget(corners, upright.width, upright.height) : null) : null;
+    const cut = target && upright ? straightenedPreview(upright.url, target) : null;
+    showCrop(cut);
+    // Gemini (when on) reads the same cut at the same time as the on-device reader; only the cut is sent.
+    let gemini: Promise<GeminiReceipt | null> | null = geminiReady() && cut ? cut.then(image => readWithGemini(image.blob)).catch(() => null) : null;
     try {
-      const next = await readReceiptPhoto(source, value => { if (job.current === id) setProgress(value); }, { turn: quarter, corners, prepared });
+      let next;
+      try { next = await readReceiptPhoto(source, value => { if (job.current === id) setProgress(value); }, { turn: quarter, corners, prepared }); }
+      catch (error) {
+        // The on-device reader failed: Gemini's reading alone is still used when it has something.
+        const alone = gemini ? await gemini : null;
+        if (job.current !== id) return;
+        if (alone && (alone.items?.length || alone.total)) { setResult(null); setRawText(''); setOcrMeta('Dibaca oleh Gemini'); build(mergeGemini(readReceiptText(''), alone)); return; }
+        throw error;
+      }
       // A newer scan started (or this one was cancelled): this result is thrown away.
+      if (job.current !== id) return;
+      if (!gemini && geminiReady() && upright && quarter === turn) gemini = straightenedPreview(upright.url, next.prepared).then(image => readWithGemini(image.blob)).catch(() => null);
+      if (gemini) setProgress({ stage: 'check', progress: .9, label: 'Dibantu Gemini…' });
+      const helped = gemini ? await gemini : null;
       if (job.current !== id) return;
       setResult(next);
       setRawText(next.text.trim());
-      setOcrMeta(`Dibaca ${next.passes}× dalam ${(next.ms / 1000).toFixed(1)} detik${next.method === 'perspective' ? ' · diluruskan' : ''}`);
+      setOcrMeta(`Dibaca ${next.passes}× dalam ${(next.ms / 1000).toFixed(1)} detik${next.method === 'perspective' ? ' · diluruskan' : ''}${helped ? ' · dibantu Gemini' : gemini ? ' · Gemini tidak tersedia, dibaca di perangkat' : ''}`);
+      if (helped) next = { ...next, read: mergeGemini(next.read, helped) };
       if (!next.read.items.length && !next.check.total) setProblem(next.quality.blur === 'poor' ? 'Foto terlalu buram untuk dibaca. Ambil ulang dengan kamera diam, atau isi sendiri di bawah.' : next.method === 'none' ? 'Struk tidak ditemukan di foto. Coba foto lebih dekat, atau isi sendiri di bawah.' : 'Tulisan di foto belum terbaca jelas. Coba foto lebih dekat dan terang, atau isi sendiri di bawah.');
       build(next.read);
     } catch (e) { if (job.current === id) setProblem((e as Error).message || 'Foto belum bisa dibaca.'); }
@@ -331,7 +349,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       {pasteOpen && <div className="sb-paste"><textarea className="input" rows={6} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={'Nasi Goreng 35.000\nEs Teh 2 x 6.000 12.000\nPB1 4.700\nTotal 51.700'}/><Button type="button" className="small" disabled={!pasted.trim()} onClick={() => readText(pasted)}>Baca teks</Button></div>}
       {!ocrAvailable() && <p className="sb-note is-warn">Perangkat ini belum bisa membaca foto. Tempel teks struknya, atau isi sendiri.</p>}
       {problem && <p className="sb-note is-warn" role="status">{problem}</p>}
-      <p className="rs-privacy"><ShieldCheck size={15}/> Foto dibaca di perangkat ini dan tidak diunggah ke mana pun. Pemakaian pertama mengunduh pembaca struk (±5 MB) sekali saja.</p>
+      {geminiConfigured() && <label className="rs-gemini"><input type="checkbox" checked={useGemini} onChange={e => { setUseGemini(e.target.checked); setGeminiWanted(e.target.checked); }}/><span><b>Bantu baca dengan Gemini</b><small>{useGemini ? 'Potongan struk dikirim ke Google Gemini hanya untuk dibaca, tidak disimpan di akunmu. Tanpa internet, dibaca di perangkat.' : 'Mati: struk hanya dibaca di perangkat ini.'}</small></span></label>}
+      <p className="rs-privacy"><ShieldCheck size={15}/> {geminiConfigured() && useGemini ? 'Foto utuh tetap di perangkat; hanya potongan struk yang dikirim ke Gemini. Pemakaian pertama mengunduh pembaca struk (±5 MB) sekali saja.' : 'Foto dibaca di perangkat ini dan tidak diunggah ke mana pun. Pemakaian pertama mengunduh pembaca struk (±5 MB) sekali saja.'}</p>
       <button type="button" className="link-button" onClick={manual}>Isi sendiri tanpa foto →</button>
     </div>}
 

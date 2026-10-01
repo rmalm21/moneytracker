@@ -130,3 +130,9 @@ Grafik riwayat panjang memakai transaksi yang termuat pada layar; halaman Transa
 - `tests/` — skenario konsistensi finansial.
 
 Dokumentasi rujukan: [Next.js static export](https://nextjs.org/docs/app/guides/static-exports), [Firebase Hosting](https://firebase.google.com/docs/hosting/quickstart), [Firestore offline](https://firebase.google.com/docs/firestore/manage-data/enable-offline).
+
+## Bantuan Gemini untuk Scan struk (opsional)
+
+Isi `NEXT_PUBLIC_GEMINI_API_KEY` di `.env.local` sebelum `npm run build`. Saat aktif, hanya potongan struk (bukan foto utuh) dikirim ke Gemini (`gemini-3.5-flash-lite`, cadangan `gemini-3.1-flash-lite`) untuk dibaca; pembaca di perangkat tetap berjalan dan dipakai saat Gemini mati, offline, atau penuh. Pengguna bisa mematikannya di layar Scan struk.
+
+Kunci ini ikut terbawa ke kode di browser, jadi **batasi kuncinya** di Google Cloud Console → APIs & Services → Credentials: *Application restrictions* = Websites (domain Hosting aplikasi), *API restrictions* = Generative Language API. Jangan pernah commit kunci ke git.
