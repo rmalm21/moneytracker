@@ -15,6 +15,8 @@ export function ReceiptDetail({ receipt, amount }: { receipt: ReceiptSnapshot; a
   const summary = [receipt.items.length ? `${receipt.items.length} item` : '', receipt.payment, receipt.merchant].filter(Boolean).join(' · ');
   const differs = amount !== undefined && amount > 0 && receipt.total > 0 && amount !== receipt.total;
   const facts: [string, string][] = [
+    ...(receipt.legalEntity ? [['Perusahaan', receipt.legalEntity] as [string, string]] : []),
+    ...(receipt.branch ? [['Cabang', receipt.branch] as [string, string]] : []),
     ...(receipt.receiptNo ? [['No. struk', receipt.receiptNo] as [string, string]] : []),
     ...(receipt.orderNo ? [['No. pesanan', receipt.orderNo] as [string, string]] : []),
     ...(receipt.paid ? [['Dibayar', rupiah(receipt.paid)] as [string, string]] : []),
@@ -30,7 +32,7 @@ export function ReceiptDetail({ receipt, amount }: { receipt: ReceiptSnapshot; a
     </button>
     {open && <div className="rd-body">
       {receipt.items.length > 0 && <ul className="rd-items">{receipt.items.map((item, i) => <li key={i}>
-        <span className="rd-name">{item.name}{item.qty > 1 && <small>{item.qty} × {rupiah(item.price)}</small>}</span>
+        <span className="rd-name">{item.name}{(item.qty > 1 || item.variant || item.modifiers?.length) ? <small>{[item.qty > 1 ? `${item.qty} × ${rupiah(item.price)}` : '', item.variant || '', ...(item.modifiers || [])].filter(Boolean).join(' · ')}</small> : null}</span>
         <b>{rupiah(item.qty * item.price)}</b>
         {item.discount ? <span className="rd-sub"><span>Diskon item</span><span>−{rupiah(item.discount)}</span></span> : null}
       </li>)}</ul>}

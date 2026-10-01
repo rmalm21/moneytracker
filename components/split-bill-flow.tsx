@@ -264,7 +264,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             const unitsUsed = Object.values(item.units || {}).reduce((a, b) => a + b, 0), who = whoText(item);
             return <li key={item.id} className={`sbx-row ${open ? 'is-open' : ''} ${left ? 'is-left' : ''}`}>
               <button type="button" className="sbx-row-main" aria-expanded={open} onClick={() => setOpenItem(open ? '' : item.id)}>
-                <span className="sbx-row-name">{item.name}{item.qty > 1 && <small>{item.qty} × {rupiah(item.price)}</small>}</span>
+                <span className="sbx-row-name">{item.name}{item.qty > 1 && <small>{item.qty} × {rupiah(item.price)}</small>}{item.note && <small className="rs-mods">{item.note}</small>}</span>
                 <b>{rupiah(gross)}</b>
               </button>
               {item.discount ? <div className="sbx-row-sub"><span>Diskon item</span><span>−{rupiah(item.discount)}</span></div> : null}

@@ -22,7 +22,7 @@ export type SnapshotInput = {
   read: ReceiptRead | null;
   merchant: string; date: string; time: string; payment: PaymentMethod; total: number;
   /** The items as confirmed (qty × price, with their own discount). */
-  items: { name: string; qty: number; price: number; discount?: number }[];
+  items: { name: string; qty: number; price: number; discount?: number; modifiers?: string[]; variant?: string; sku?: string }[];
   subtotal: number;
   /** Charges as confirmed per group (discount positive), and whether each one is counted on top of the prices. */
   charges: Record<ChargeKey, number>; counted: Record<ChargeKey, boolean>;
@@ -52,7 +52,9 @@ export function buildReceiptSnapshot(input: SnapshotInput): ReceiptSnapshot {
   const ids = input.read?.identifiers || {};
   const items = input.items.filter(i => i.name.trim() || i.price).slice(0, MAX_ITEMS).map(i => {
     const gross = i.qty * i.price, discount = i.discount || 0;
-    return { name: i.name.trim().slice(0, 80) || 'Item', qty: i.qty, price: i.price, ...(discount ? { discount } : {}), total: gross - discount };
+    const modifiers = (i.modifiers || []).map(m => m.trim().slice(0, 60)).filter(Boolean).slice(0, 8);
+    return { name: i.name.trim().slice(0, 80) || 'Item', qty: i.qty, price: i.price, ...(discount ? { discount } : {}), total: gross - discount,
+      ...(modifiers.length ? { modifiers } : {}), ...(i.variant ? { variant: i.variant.slice(0, 40) } : {}), ...(i.sku ? { sku: i.sku } : {}) };
   });
   const charges = (['discount', 'tax', 'service', 'delivery', 'fee', 'rounding'] as ChargeKey[]).flatMap(key => chargeLines(key, input.charges[key], input.counted[key], input.read));
   const read = input.read;
@@ -60,6 +62,7 @@ export function buildReceiptSnapshot(input: SnapshotInput): ReceiptSnapshot {
     ...(input.merchant.trim() ? { merchant: input.merchant.trim().slice(0, 80) } : {}),
     ...(input.date ? { date: input.date } : {}), ...(input.time ? { time: input.time } : {}),
     ...(input.payment ? { payment: PAYMENT_LABELS[input.payment] } : {}),
+    ...(read?.legalEntity ? { legalEntity: read.legalEntity.slice(0, 80) } : {}), ...(read?.branch ? { branch: read.branch.slice(0, 80) } : {}),
     ...(ids.receiptNo ? { receiptNo: ids.receiptNo } : {}), ...(ids.orderNo ? { orderNo: ids.orderNo } : {}),
     items, charges,
     ...(input.subtotal > 0 ? { subtotal: input.subtotal } : {}),

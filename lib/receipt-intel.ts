@@ -102,6 +102,15 @@ const lineBox = (pass: OcrPass, lines: number[] | undefined) => unionBox((lines 
 const overlapY = (a: Box | null, b: Box | null) => { if (!a || !b) return 0; const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.height, b.y + b.height); return Math.max(0, bottom - top) / Math.max(1, Math.min(a.height, b.height)); };
 /** How much a pass counts: its OCR confidence and whether its receipt adds up. */
 const passWeight = (pass: OcrPass) => (.5 + pass.confidence / 200) * (checkReceipt(pass.read).matches ? 1.5 : 1) * (pass.region ? .9 : 1);
+/**
+ * How much one value of a pass counts: the pass's weight times how clearly the engine saw the line(s) the value came
+ * from. Evidence, not a head count: two blurry readings of "8" do not outvote one sharp "3".
+ */
+export function evidenceWeight(pass: OcrPass, lines: number[] | undefined) {
+  const seen = (lines || []).map(i => pass.lines[i]?.confidence).filter((c): c is number => typeof c === 'number' && c > 0);
+  const clarity = seen.length ? seen.reduce((n, c) => n + c, 0) / seen.length : pass.confidence;
+  return passWeight(pass) * (.4 + Math.min(100, clarity) / 100 * .6);
+}
 
 /**
  * Several readings of the same receipt → one reading. The best whole-receipt pass is the base; every value is then
@@ -116,7 +125,7 @@ export function fuseReadings(passes: OcrPass[]): Fused {
   const others = passes.filter(p => p !== base);
   // Numbers.
   for (const field of NUMBER_FIELDS) {
-    const list: Vote<number>[] = passes.filter(p => p.read[field]).map(p => ({ value: p.read[field] as number, weight: passWeight(p), passId: p.id }));
+    const list: Vote<number>[] = passes.filter(p => p.read[field]).map(p => ({ value: p.read[field] as number, weight: evidenceWeight(p, p.read.sources?.[field]), passId: p.id }));
     if (!list.length) continue;
     const consensus = fuseValues(list);
     votes.numbers[field] = consensus;
@@ -137,7 +146,7 @@ export function fuseReadings(passes: OcrPass[]): Fused {
   // Items: each base item against the same row (or name) in the other passes.
   const baseBoxes = read.items.map(item => lineBox(base, item.lines));
   const extra: { item: ReceiptLine; pass: OcrPass; box: Box | null }[] = [];
-  const itemVotes: Vote<number>[][] = read.items.map(item => [{ value: item.total, weight: passWeight(base), passId: base.id }]);
+  const itemVotes: Vote<number>[][] = read.items.map(item => [{ value: item.total, weight: evidenceWeight(base, item.lines), passId: base.id }]);
   for (const pass of others) {
     const used = new Set<number>();
     pass.read.items.forEach(item => {
@@ -149,7 +158,7 @@ export function fuseReadings(passes: OcrPass[]): Fused {
         const score = place >= .5 ? 1 + place + name : !box || !baseBoxes[i] ? (name >= .55 ? name : 0) : name >= .8 ? name : 0;
         if (score > bestScore) { bestScore = score; best = i; }
       });
-      if (best >= 0) { used.add(best); itemVotes[best].push({ value: item.total, weight: passWeight(pass), passId: pass.id }); }
+      if (best >= 0) { used.add(best); itemVotes[best].push({ value: item.total, weight: evidenceWeight(pass, item.lines), passId: pass.id }); }
       else extra.push({ item, pass, box });
     });
   }

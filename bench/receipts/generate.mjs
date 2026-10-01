@@ -6,7 +6,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { receipts, conditions, plan } from './fixtures.mjs';
+// SET=v25 renders fixtures-v25.mjs as v25-*.jpg with truth-v25.json; without it, the original set.
+const SET = process.env.SET || '';
+const { receipts, conditions, plan } = await import(SET ? `./fixtures-${SET}.mjs` : './fixtures.mjs');
 
 const here = path.dirname(new URL(import.meta.url).pathname), out = path.join(here, 'out');
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -16,7 +18,7 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 1600 } });
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const truth = {};
 for (const receipt of receipts) for (const name of plan[receipt.id]) {
-  const c = conditions[name], id = `${receipt.id}-${name}`;
+  const c = conditions[name], id = `${SET ? `${SET}-` : ''}${receipt.id}-${name}`;
   const rows = receipt.rows.map(([kind, a = '', b = '']) => kind === '-' ? '<div class="c">- - - - - - - - - - - - - - - - - -</div>' : kind === 'c' || kind === 'l' ? `<div class="${kind}">${esc(a).replace(/ {2,}/g, m => '&nbsp;'.repeat(m.length))}</div>` : `<div class="row ${kind === 'b' ? 'bold' : ''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
   const long = receipt.rows.length > 30;
   const transform = c.transform || `rotate(${c.rotate || 0}deg) scale(${(c.scale || 1) * (long ? .78 : 1)})`;
@@ -30,6 +32,6 @@ for (const receipt of receipts) for (const name of plan[receipt.id]) {
   await page.screenshot({ path: path.join(out, `${id}.jpg`), type: 'jpeg', quality: c.quality || 78 });
   truth[id] = { ...receipt.truth, type: receipt.type, receipt: receipt.id, condition: name };
 }
-fs.writeFileSync(path.join(out, 'truth.json'), JSON.stringify(truth, null, 1));
+fs.writeFileSync(path.join(out, SET ? `truth-${SET}.json` : 'truth.json'), JSON.stringify(truth, null, 1));
 console.log(`${Object.keys(truth).length} photos in ${out}`);
 await browser.close();

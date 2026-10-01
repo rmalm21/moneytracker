@@ -6875,3 +6875,24 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-gemini input { flex: none; margin-top: 3px; accent-color: var(--accent); }
 .rs-gemini span { display: grid; gap: 2px; min-width: 0; }
 .rs-gemini small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+
+/* 139. 3.0: receipt notes under an item ("1 hangat · 2 ice"), variant/SKU chips and the one-tap relation question. */
+.rs-row-name small.rs-mods, .sbx-row-name small.rs-mods, .budget-line small.rs-mods, small.rs-mods { display: block; color: var(--accent); font-size: .72rem; font-style: italic; font-weight: 500; overflow-wrap: anywhere; }
+.rs-item-notes { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-note { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 4px 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); color: var(--ink); font-size: .74rem; overflow-wrap: anywhere; }
+.rs-note.is-code { padding-right: 9px; font-family: ui-monospace, 'DejaVu Sans Mono', monospace; font-size: .7rem; background: var(--soft, color-mix(in srgb, var(--ink) 6%, var(--paper))); color: var(--muted); }
+.rs-note button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.rs-relation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 11%, var(--paper)); font-size: .8rem; }
+.rs-relation > span { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+/* Where a value came from, above the receipt picture: read directly, worked out, or edited. */
+.rs-origin { margin: 0 0 8px; padding: 6px 10px; border-radius: 10px; font-size: .78rem; line-height: 1.35; overflow-wrap: anywhere; background: color-mix(in srgb, var(--ink) 5%, var(--paper)); color: var(--muted); }
+.rs-origin.is-direct { background: color-mix(in srgb, #10b981 11%, var(--paper)); color: var(--ink); }
+.rs-origin.is-derived { background: color-mix(in srgb, #3b82f6 11%, var(--paper)); color: var(--ink); }
+.rs-origin.is-manual { background: color-mix(in srgb, #f59e0b 13%, var(--paper)); color: var(--ink); }
+/* Developer trace of the reading ladder (Debug OCR only). */
+.rs-trace { margin: 6px 0 0; padding-left: 18px; font-size: .74rem; display: grid; gap: 2px; }
+.rs-trace small { display: block; color: var(--muted); }
+.rs-trace .is-skipped { opacity: .55; }
+.rs-trace .is-settled b { color: #10b981; }
+.rs-trace .is-worse b { color: #ef4444; }
+.rs-trace-fail { display: block; margin-top: 4px; color: var(--warn-ink); font-size: .74rem; }

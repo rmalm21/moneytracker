@@ -38,6 +38,14 @@ export type ReceiptLine = {
   discount?: number;
   /** Notes printed under the item ("NO ICE", "LESS SUGAR"). */
   modifiers?: string[];
+  /** Modifiers whose owner is not certain (shown as "Perlu dicek"); always also in `modifiers`. */
+  modifiersUnsure?: string[];
+  /** A variant or product code printed under the name ("DB024 - 12/60"). */
+  variant?: string;
+  /** The variant has letters and digits OCR often swaps (O/0, I/1, S/5) side by side: shown as "Perlu dicek". */
+  variantUnsure?: boolean;
+  /** A barcode / SKU printed on the item's row; never an item by itself. */
+  sku?: string;
   /** A paid add-on ("+ EXTRA SHOT") and the item it belongs to. */
   addOnOf?: string;
   /** False when the unit price was not printed (only derived from the line total ÷ quantity). */
@@ -70,6 +78,9 @@ export type ReceiptRead = {
   fixes?: string[];
   /** Receipt Intelligence 2.0 (all optional; older readings do not have them). */
   merchantRaw?: string;
+  /** The company behind the shop ("PT Daya Indah Anugerah") and the outlet ("Depok Town Square"), when printed. */
+  legalEntity?: string;
+  branch?: string;
   charges?: ReceiptCharge[];
   /** Cashback or points received: information only, never taken off what was paid. */
   cashback?: number;
@@ -116,18 +127,19 @@ function cleanLine(raw: string) {
     // One digit too many in the last group ("16.5600" → "16.560"); the item check below may correct it further.
     line = line.replace(/(\d{1,3}(?:[.,]\d{3})*[.,]\d{3})\d(?=\s*$)/, '$1');
     // "2 Xx 6.000", "2X6.000", "2 * 6.000" → "2 x 6.000".
-    line = line.replace(/(^|\s)(\d{1,3})\s*(?:[xX×]{1,2}|\*)\s*(?=(?:rp\.?\s*)?\d)/gi, '$1$2 x ');
+    line = line.replace(/(^|\s)(\d{1,3})\s*(?:[xX×]{1,3}|\*)\s*(?=(?:rp\.?\s*)?\d)/gi, '$1$2 x ');
     return line.replace(/\s+/g, ' ').trim();
   }
 }
-type SourceLine = { text: string; origin: number[] };
+/** `raw`: the line as read, before amount clean-up (codes and names are kept as printed). */
+type SourceLine = { text: string; origin: number[]; raw?: string };
 /**
  * Cleaned lines with the input lines they came from. An amount the reader broke over two lines ("450" / "000", the
  * dot lost) is joined back.
  */
 function cleanLines(text: string): SourceLine[] {
   const out: SourceLine[] = [];
-  text.split(/\r?\n/).forEach((raw, i) => { const line = cleanLine(raw); if (line) out.push({ text: line, origin: [i] }); });
+  text.split(/\r?\n/).forEach((raw, i) => { const line = cleanLine(raw); if (line) out.push({ text: line, origin: [i], raw: raw.replace(/\s+/g, ' ').trim() }); });
   for (let i = 0; i < out.length - 1; i++) {
     const a = out[i].text.match(/^(-?\d{1,3})$/), b = out[i + 1].text.match(/^[.,]?(\d{2}0)$/);
     if (a && b) { out[i] = { text: `${a[1]}.${b[1]}`, origin: [...out[i].origin, ...out[i + 1].origin] }; out.splice(i + 1, 1); }
@@ -397,7 +409,26 @@ const HEADERISH = /^(jl|jln|jalan|alamat|ruko|komplek|blok|kel|kec|kota|kab|caba
 /** A note printed under an item: "NO ICE", "+ EXTRA SHOT", "LESS SUGAR", "LARGE". */
 const MODIFIER = /^(?:[+>~]\s*\S|(?:no|non|less|extra|add|tambah|tanpa|without|large|regular|reg|medium|small|hot|iced?|lvl|level|topping|size|sugar|normal|sedang|jumbo|mild|pedas|dingin|panas|take\s*away|dine\s*in)\b)/i;
 const ADD_ON = /^(?:\+\s*|(?:extra|add|tambah|topping)\b)/i;
+/** Words that make a priceless line under an item a note about it ("1 hangat 2 ice", "springkle", "tanpa bawang"). */
+const MODIFIER_WORDS = /\b(no|non|less|kurang|lebih|sedikit|extra|add|tambah|tanpa|without|hangat|panas|hot|dingin|ice|iced|gula|sugar|tawar|sprinkle|springkle|sprinkel|topping|saus|sauce|sambal|pedas|level|lvl|large|regular|medium|small|half|double|bawang|seledri|matang|well\s*done|take\s*away|dine\s*in|bungkus|pisah|note|catatan)\b/i;
+/** How much a priceless line under an item reads like a note about it rather than the start of the next name. */
+function modifierScore(line: string) {
+  let score = 0;
+  if (MODIFIER.test(line) || MODIFIER_WORDS.test(line)) score += 3;
+  if (/^\d{1,2}\s+[a-z]/i.test(line)) score += 2;                 // "1 hangat 2 ice"
+  if (/^[a-z]/.test(line)) score += 1;                           // lower case, unlike printed names
+  if (line.length <= 18) score += 1;
+  if (/^[A-Z0-9 &'.-]{8,}$/.test(line)) score -= 1;              // an upper-case name like the items
+  return score;
+}
+/** Legal entity, address and payment-brand lines in a receipt header, which are not the shop's own name. */
+const LEGAL = /^(pt|cv|ud|pd|koperasi)\b\.?|\b(tbk|persero)\b/i;
+const ADDRESSISH = /^(jl|jln|jalan|alamat|ruko|komplek|kompleks|blok|kel|kec|kota|kab|rt|rw|telp|tel|hp|wa|npwp|lt|lantai|gedung|unit)\b\.?|\b(rt|rw)\s*\d|\b\d{5}\b|\bno\.?\s*\d/i;
+const PAYMENT_BRANDS = /^(qris|visa|mastercard|gopay|ovo|dana|shopeepay|linkaja|bca|mandiri|bni|bri|debit|kredit|credit)\b/i;
+const BRANCHISH = /\b(mall|plaza|square|town|city|center|centre|store|outlet|cabang|branch|station|stasiun|terminal|bandara|airport|tower|park|residence|junction|walk|point)\b/i;
 const DISCOUNT_WORDS = /^(item|d[i1l]sk[o0]n|disc|discount|dsc|potongan|promo|hemat|rabat|off)$/i;
+/** Discount words that say nothing about which item ("Member Discount"): the place decides (see below). */
+const GENERIC_DISCOUNT_WORDS = /^(member|members|anggota|special|spesial|produk|harga|price|markdown)$/i;
 type LineKind = 'item' | 'modifier' | 'charge' | 'subtotal' | 'total' | 'paid' | 'change' | 'meta' | 'other';
 
 /** Items, charges, totals and payment from receipt text, for the user to check. */
@@ -412,6 +443,11 @@ export function readReceiptText(text: string): ReceiptRead {
   const totals: { value: number; strength: number; position: number }[] = [];
   let pendingName = '', pendingPos = -1, summary = false, sawHemat = false, unplaced = 0, gaps = 0, lastItem: ReceiptLine | null = null, lastItemPos = -1;
   let paidPos = -1, changePos = -1, subtotalPos = -1;
+  const header: { text: string; position: number }[] = [];
+  let pendingCode = '';
+  // "Member Discount" right under an item: that item's discount only if another item follows (it sits inside the item
+  // list); as the last line before the summary it is the bill's discount.
+  const laterDecided: { item: ReceiptLine; value: number; position: number; label: string }[] = [];
   const alts = new Map<ReceiptLine, number>();
   const sources = out.sources!, add = (field: SourceField, position: number) => { sources[field] = [...(sources[field] || []), ...origin(position)]; };
   const dates: { date: string; time: string; position: number; score: number }[] = [], times: { time: string; position: number }[] = [];
@@ -428,16 +464,28 @@ export function readReceiptText(text: string): ReceiptRead {
     } else if (time && !readAmount(line.replace(TIMES, ' '))) { times.push({ time, position }); kinds[position] = 'meta'; return; }
     // Fuel: the litre and price-per-litre lines are details of the one purchase, not items.
     if (fuelDetail?.test(line)) { kinds[position] = 'meta'; pendingName = ''; return; }
+    // A product code under a pending name ("DB024 - 12/60", "SKU-88/XL") is that item's variant, kept as printed.
+    const printed = (source[position]?.raw || line).trim();
+    if (pendingName && position === pendingPos + 1 && !pendingCode && printed.length <= 28 && /\d/.test(printed) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(printed) && /[\-/]/.test(printed) && !/rp|\d{1,3}[.,]\d{3}\b/i.test(printed) && (printed.match(/[a-z]/gi) || []).length <= 6 && !quantityLine(line)) { pendingCode = printed; pendingPos = position; kinds[position] = 'item'; return; }
     const amount = readAmount(line);
     if (!amount) {
       // A name alone: its quantity and price may be on the next line ("ES TEH" / "2 x 6.000 12.000").
       if (/[a-z]{2,}/i.test(line) && !/\d{3,}/.test(line.replace(/[\s.,]/g, ''))) {
-        if (!out.merchant && position < 5 && looksLikeName(line) && !quantityLine(lines[position + 1]) && !keyOf(line) && !/^(jl|jln|jalan|ruko|komplek|blok|kel|kec|kota|cabang)\b/i.test(line)) { out.merchant = line.slice(0, 60); out.merchantRaw = line; add('merchant', position); kinds[position] = 'meta'; return; }
-        // A note under an item ("NO ICE", "LESS SUGAR") belongs to that item.
-        if (nearItem(position) && MODIFIER.test(line) && line.length <= 32) { (lastItem!.modifiers ||= []).push(line.replace(/^[+>~*]\s*/, '')); lastItem!.lines?.push(...origin(position)); kinds[position] = 'modifier'; pendingName = ''; return; }
+        // The header (before any item, and before the date unless nothing is found yet): candidates for the shop, its
+        // company and its outlet, scored after the whole receipt is read.
+        const headerLike = (line.match(/[a-z]/gi) || []).length >= 3 && !quantityLine(lines[position + 1]) && !keyOf(line);
+        if (!out.items.length && !lastItem && position < 7 && headerLike && (!dates.length || (!header.length && looksLikeName(line))) && !/^(selamat|welcome|struk|receipt|nota|invoice|bukti|terima kasih|thank)/i.test(line)) { header.push({ text: line.slice(0, 60), position }); kinds[position] = 'meta'; return; }
+        // A note under an item ("NO ICE", "1 hangat 2 ice") belongs to that item.
+        // Not when the next line is a price row without a name of its own: then this line is that row's name ("ES TEH" / "2 x 5.000 10.000").
+        const nextRow = lines[position + 1] ? readAmount(lines[position + 1]) : null, nextNamed = nextRow ? /[a-z]{3,}/i.test(lines[position + 1].slice(0, nextRow.start).replace(/\d+\s*[x×@*]+\s*|\b[x×]+\b/gi, ' ')) : true;
+        if (nearItem(position) && line.length <= 32 && modifierScore(line) >= 3 && (!nextRow || nextNamed)) { (lastItem!.modifiers ||= []).push(line.replace(/^[+>~*]\s*/, '')); lastItem!.lines?.push(...origin(position)); kinds[position] = 'modifier'; pendingName = ''; return; }
         if (summary || keyOf(line)) pendingName = '';
-        else { pendingName = line.slice(0, 60); pendingPos = position; }
-      } else out.skipped++;
+        else { pendingName = line.slice(0, 60); pendingPos = position; pendingCode = ''; }
+      } else {
+        // A product code under a name ("DB024 - 12/60") is that item's variant, not a new line of text.
+        if (pendingName && /[a-z]/i.test(line) && /\d/.test(line) && line.length <= 28 && position === pendingPos + 1) { pendingCode = line.trim(); pendingPos = position; kinds[position] = 'item'; }
+        else out.skipped++;
+      }
       return;
     }
     const label = line.slice(0, amount.start).replace(/[:=]\s*$/, '').trim();
@@ -448,6 +496,7 @@ export function readReceiptText(text: string): ReceiptRead {
     if (nearItem(position) && (key === 'discount' || (!key && amount.value < 0))) {
       const value = Math.abs(amount.value), item = lastItem!;
       const words = lettersOf(label).split(' ').filter(w => w.length >= 3 && !DISCOUNT_WORDS.test(w)), itemWords = lettersOf(item.name).split(' ').filter(w => w.length >= 3);
+      if (value >= 100 && value < netOf(item) && words.length && words.every(w => GENERIC_DISCOUNT_WORDS.test(w))) { laterDecided.push({ item, value, position, label }); kinds[position] = 'charge'; pendingName = ''; return; }
       if (value >= 100 && value < netOf(item) && (!words.length || words.some(w => itemWords.some(x => x.startsWith(w) || w.startsWith(x))))) {
         item.discount = (item.discount || 0) + value; item.lines?.push(...origin(position)); kinds[position] = 'item'; pendingName = ''; return;
       }
@@ -477,6 +526,12 @@ export function readReceiptText(text: string): ReceiptRead {
     const read = readItem(label, amount.value);
     // Punctuation alone ("—", "•") is not a name; then the name is on the line above.
     const own = /[a-z]{2,}/i.test(read.name) ? read.name : '';
+    // Hard item boundary: a priceless line right under an item, followed by a row with its own name and price, is not
+    // the start of that next name unless it clearly reads like one; it is a note about the item above.
+    const underItem = Boolean(own && pendingName && pendingPos === position - 1 && lastItem && lastItemPos === pendingPos - 1 && !summary);
+    if (underItem && pendingName.length <= 32 && modifierScore(pendingName) >= 2) {
+      (lastItem!.modifiers ||= []).push(pendingName); (lastItem!.modifiersUnsure ||= []).push(pendingName); lastItem!.lines?.push(...origin(pendingPos)); kinds[pendingPos] = 'modifier'; pendingName = '';
+    }
     const joinAbove = Boolean(own && pendingName && pendingPos === position - 1 && /[a-z]{3,}/i.test(pendingName) && !HEADERISH.test(pendingName) && !MODIFIER.test(pendingName) && !quantityLine(pendingName));
     const usedAbove = Boolean(pendingName) && (!own || joinAbove);
     const addOn = Boolean(lastItem && lastItemPos >= position - 3 && ADD_ON.test(own || label));
@@ -488,12 +543,22 @@ export function readReceiptText(text: string): ReceiptRead {
     const item: ReceiptLine = { name, qty: read.qty, price: read.price, total: read.qty * read.price, unitPrinted: read.unitPrinted, lines: [...(usedAbove ? origin(pendingPos) : []), ...origin(position)] };
     if (addOn) item.addOnOf = lastItem!.name;
     if (usedAbove) kinds[pendingPos] = 'item';
-    pendingName = '';
+    if (usedAbove && pendingCode) {
+      item.variant = pendingCode; item.lines = [...origin(pendingPos - 1), ...(item.lines || [])];
+      if (/[0-9][OIlS]|[OIlS][0-9]/.test(pendingCode)) item.variantUnsure = true;
+    }
+    const sku = label.match(/^\s*(\d{6,14})\b/)?.[1];
+    if (sku && !own) item.sku = sku;
+    pendingName = ''; pendingCode = '';
     out.items.push(item); kinds[position] = 'item';
     if (!addOn) lastItem = item;
     lastItemPos = position;
     if (read.alt && read.alt !== read.qty * read.price) alts.set(item, read.alt);
   });
+  for (const d of laterDecided) {
+    if (kinds.some((kind, i) => i > d.position && kind === 'item')) { d.item.discount = (d.item.discount || 0) + d.value; d.item.lines?.push(...origin(d.position)); kinds[d.position] = 'item'; }
+    else { out.discount += d.value; add('discount', d.position); out.charges!.push({ type: chargeType('discount', d.label), key: 'discount', label: d.label.slice(0, 40), amount: d.value, line: origin(d.position)[0] ?? d.position }); }
+  }
   // The purchase date: key words, a time on the same line and a place near the top count; expiry dates never win.
   const when = dates.filter(d => d.score > -10).sort((a, b) => b.score - a.score || a.position - b.position)[0];
   if (when) {
@@ -515,7 +580,24 @@ export function readReceiptText(text: string): ReceiptRead {
   const money = new Set([out.total, out.subtotal, out.paid, ...out.totals].filter(Boolean));
   while (out.items.length > 1 && money.has(out.items[out.items.length - 1].total) && out.items.slice(0, -1).reduce((n, i) => n + i.total, 0) > 0) { out.items.pop(); out.skipped++; }
   if (out.total) { const before = out.items.length; out.items = out.items.filter(item => netOf(item) <= out.total * 1.02); out.skipped += before - out.items.length; }
-  if (out.merchant) { const t = out.merchant.split(' '); if (t.length > 2 && t[0].length === 1) t.shift(); if (t.length > 2 && t[t.length - 1].length <= 2 && /[a-z]/.test(t[t.length - 1])) t.pop(); out.merchant = t.join(' '); }
+  // Shop name from the header candidates: the brand, not the company (PT/CV), an address, a payment brand or the outlet.
+  if (header.length) {
+    const roles = header.map((h, index) => {
+      const text = h.text.trim();
+      const role = LEGAL.test(text) ? 'legal' : ADDRESSISH.test(text) ? 'address' : PAYMENT_BRANDS.test(text) ? 'payment' : index > 0 && BRANCHISH.test(text) ? 'branch' : 'name';
+      return { ...h, text, role };
+    });
+    // A clear name first; then a short brand with dots ("MR D.I.Y."); never a line that starts with stray digits.
+    const brandLike = (text: string) => { const letters = (text.match(/[a-z]/gi) || []).length, visible = text.replace(/\s/g, '').length; return letters >= 3 && letters / visible >= .55 && !/^\d+\s/.test(text); };
+    const names = roles.filter(r => r.role === 'name');
+    const brand = names.find(r => looksLikeName(r.text)) || names.find(r => brandLike(r.text)) || roles.find(r => r.role === 'legal');
+    if (brand) { out.merchant = brand.text; out.merchantRaw = brand.text; add('merchant', brand.position); }
+    const legal = roles.find(r => r.role === 'legal' && r !== brand);
+    if (legal) out.legalEntity = legal.text;
+    const branch = roles.find(r => r !== brand && (r.role === 'branch' || (r.role === 'name' && brand && r.position > brand.position && (legal ? r.position > legal.position : true))));
+    if (branch) out.branch = branch.text;
+  }
+    if (out.merchant) { const t = out.merchant.split(' '); if (t.length > 2 && t[0].length === 1) t.shift(); if (t.length > 2 && t[t.length - 1].length <= 2 && /[a-z]/.test(t[t.length - 1])) t.pop(); out.merchant = t.join(' '); }
   out.itemGaps = gaps;
   repairItems(out, alts, unplaced > 0 || gaps > 0);
   repairCharges(out);

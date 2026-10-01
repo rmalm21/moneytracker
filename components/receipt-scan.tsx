@@ -31,7 +31,7 @@ import type { LedgerTx, SplitLine } from '@/lib/types';
  */
 
 type Background = (run: () => Promise<unknown>, info: { message: string; detail?: string; retry: { preset?: Partial<LedgerTx> } }) => void;
-type Item = { key: string; name: string; qty: number; price: number; discount: number; modifiers: string[]; addOnOf?: string; categoryId: string; subcategoryId: string; /** Its index in the reading (for its evidence). */ source?: number };
+type Item = { key: string; name: string; qty: number; price: number; discount: number; modifiers: string[]; /** Notes whose owner is not certain: asked once, "Catatan untuk item ini?". */ unsure?: string[]; variant?: string; variantUnsure?: boolean; sku?: string; addOnOf?: string; categoryId: string; subcategoryId: string; /** Its index in the reading (for its evidence). */ source?: number };
 type CatRef = { categoryId: string; subcategoryId: string | null };
 type Draft = {
   type: 'expense' | 'income'; amount: number; date: string; time: string; merchant: string; description: string; walletId: string; categoryId: string; subcategoryId: string; notes: string; items: Item[]; bySplit: boolean; payment: PaymentMethod;
@@ -78,7 +78,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const [progress, setProgress] = useState<OcrProgress | null>(null), [problem, setProblem] = useState(''), [pasteOpen, setPasteOpen] = useState(false), [pasted, setPasted] = useState('');
   const [useGemini, setUseGemini] = useState(() => geminiWanted()), [read, setRead] = useState<ReceiptRead | null>(null), [rawText, setRawText] = useState(''), [ocrMeta, setOcrMeta] = useState(''), [draft, setDraft] = useState<Draft | null>(null), [why, setWhy] = useState<{ category?: string; wallet?: string }>({}), [error, setError] = useState(''), [lowOk, setLowOk] = useState(false);
   const [result, setResult] = useState<OcrResult | null>(null), [area, setArea] = useState<{ prepared: Prepared; quarter: number } | null>(null), [cameraOpen, setCameraOpen] = useState(false);
-  const [source, setSource] = useState<{ label: string; box: Box | null } | null>(null), [cornersOpen, setCornersOpen] = useState(false), [reread, setReread] = useState<Reread | null>(null);
+  const [source, setSource] = useState<{ label: string; box: Box | null; origin: string } | null>(null), [cornersOpen, setCornersOpen] = useState(false), [reread, setReread] = useState<Reread | null>(null);
   const [settledFields, setSettledFields] = useState<string[]>([]), [duplicate, setDuplicate] = useState<Duplicate | null>(null), [dupOk, setDupOk] = useState(false), [parts, setParts] = useState(1), [debug, setDebug] = useState(false);
   const job = useRef(0), captureInput = useRef<HTMLInputElement>(null), moreInput = useRef<HTMLInputElement>(null);
   const [shownKeys, setShownKeys] = useState<ChargeKey[]>([]), [bigPhoto, setBigPhoto] = useState(false), [openItem, setOpenItem] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     setRead(next);
     setWhy({ category: guess.why, wallet: guess.walletWhy });
     const counted = checkReceipt(next).included;
-    setDraft({ subtotal: next.subtotal, ch: { discount: next.discount, tax: next.tax, service: next.service, delivery: next.delivery, fee: next.fee || 0, rounding: next.rounding }, inc: Object.fromEntries(CHARGE_ORDER.map(k => [k, !counted.includes(k)])) as Record<ChargeKey, boolean>, chargeMode: 'spread', chargeCats: {}, type, amount: guess.amount, date: guess.date, time: guess.time, merchant, description: guess.description, walletId: guess.walletId, categoryId: guess.categoryId || (type === 'income' ? profile?.salaryIncomeCategoryId || '' : ''), subcategoryId: guess.subcategoryId || '', notes: '', payment: next.payment, items: guess.items.map((item, i) => ({ key: key(), name: item.name, qty: item.qty, price: item.price, discount: item.discount || 0, modifiers: item.modifiers || [], ...(item.addOnOf ? { addOnOf: item.addOnOf } : {}), categoryId: item.categoryId || '', subcategoryId: item.subcategoryId || '', source: i })), bySplit: guess.splits.length > 1 });
+    setDraft({ subtotal: next.subtotal, ch: { discount: next.discount, tax: next.tax, service: next.service, delivery: next.delivery, fee: next.fee || 0, rounding: next.rounding }, inc: Object.fromEntries(CHARGE_ORDER.map(k => [k, !counted.includes(k)])) as Record<ChargeKey, boolean>, chargeMode: 'spread', chargeCats: {}, type, amount: guess.amount, date: guess.date, time: guess.time, merchant, description: guess.description, walletId: guess.walletId, categoryId: guess.categoryId || (type === 'income' ? profile?.salaryIncomeCategoryId || '' : ''), subcategoryId: guess.subcategoryId || '', notes: '', payment: next.payment, items: guess.items.map((item, i) => ({ key: key(), name: item.name, qty: item.qty, price: item.price, discount: item.discount || 0, modifiers: item.modifiers || [], ...(item.modifiersUnsure?.length ? { unsure: item.modifiersUnsure } : {}), ...(item.variant ? { variant: item.variant, ...(item.variantUnsure ? { variantUnsure: true } : {}) } : {}), ...(item.sku ? { sku: item.sku } : {}), ...(item.addOnOf ? { addOnOf: item.addOnOf } : {}), categoryId: item.categoryId || '', subcategoryId: item.subcategoryId || '', source: i })), bySplit: guess.splits.length > 1 });
     setError(''); setLowOk(false); setSettledFields([]); setDupOk(false);
   }
   function cancelIfBusy() { if (progress) cancelReceiptRead(); }
@@ -249,7 +249,28 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     return f?.evidence.box || null;
   };
   const canShow = (field: string) => Boolean(mapping && boxFor(field));
-  function show(field: string, label: string) { setSource({ label, box: boxFor(field) }); }
+  /** Where a value came from: read as printed, worked out from other values, or changed by the person. */
+  function originOf(field: string): string {
+    if (!draft || !read) return '';
+    if (field.startsWith('item:')) {
+      const item = draft.items.find(i => i.key === field.slice(5)), printed = item?.source !== undefined ? read.items[item.source] : undefined;
+      if (!item || !printed) return 'Ditambah manual';
+      if (printed.name !== item.name || printed.price !== item.price || printed.qty !== item.qty) return `Diedit manual · di struk: ${printed.name} ${printed.qty > 1 ? `${printed.qty} × ` : ''}${rupiah(printed.price)}`;
+      return printed.qty > 1 && printed.unitPrinted === false ? 'Terbaca dari struk · harga satuan dihitung dari total baris ÷ jumlah' : 'Terbaca langsung dari struk';
+    }
+    if (field === 'total') {
+      const check = result?.check;
+      if (check && draft.amount !== check.total) return `Diedit manual · di struk: ${rupiah(check.total)}`;
+      if (check && (check.source === 'computed' || check.source === 'items')) return 'Dihitung dari item dan biaya (total tidak terbaca jelas)';
+      if (result?.votes.resolved.includes('total')) return 'Dipilih dari beberapa bacaan karena membuat struk cocok';
+      return 'Terbaca langsung dari struk';
+    }
+    const was = field === 'merchant' ? read.merchant : field === 'date' ? read.date : field === 'time' ? read.time : field === 'payment' ? read.payment : undefined;
+    const now = field === 'merchant' ? draft.merchant : field === 'date' ? draft.date : field === 'time' ? draft.time : field === 'payment' ? draft.payment : undefined;
+    if (was !== undefined && was !== now) return 'Diedit manual';
+    return 'Terbaca langsung dari struk';
+  }
+  function show(field: string, label: string) { setSource({ label, box: boxFor(field), origin: originOf(field) }); }
   async function readAgain(field: string, label: string) {
     if (!result) return;
     const box = boxFor(field), line = result.passList.flatMap(p => p.lines).find(l => box && Math.abs(l.box.y - box.y) < box.height * .5 && l.box.x <= box.x + 2) || null;
@@ -329,7 +350,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   const wallets = draft?.type === 'income' ? inWallets : payWallets;
   const stageIndex = progress ? STAGES.findIndex(([stages]) => stages.includes(progress.stage)) : -1;
   const quality = result?.quality || area?.prepared.quality;
-  const itemStatus = (item: Item) => item.source !== undefined && !settledFields.includes(`item:${item.source}`) ? intel?.items[item.source]?.amount.status || 'likely' : 'likely';
+  const itemStatus = (item: Item) => item.unsure?.length || item.variantUnsure ? 'check' : item.source !== undefined && !settledFields.includes(`item:${item.source}`) ? intel?.items[item.source]?.amount.status || 'likely' : 'likely';
   const totalStatus = statusOf('total', intel?.grandTotal.status);
   const dateStatus = read?.items.length || read?.total ? statusOf('date', intel?.date.status) : 'likely';
   // The same rows the saved "Rincian struk" will show.
@@ -379,7 +400,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
             <strong className="rs-merchant">{draft.merchant || (draft.type === 'income' ? 'Pemasukan dari struk' : 'Tempat belum terbaca')}</strong>
             <small>{[draft.date && new Date(`${draft.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }), draft.time, draft.payment ? PAYMENT_LABELS[draft.payment] : ''].filter(Boolean).join(' · ')}</small>
           </div>
-          {photoUrl && <button type="button" className="rs-top-thumb" onClick={() => mapping ? setSource({ label: 'Seluruh struk', box: null }) : setBigPhoto(v => !v)} aria-label="Lihat foto struk"><img src={cropped?.url || upright?.url || photoUrl} alt=""/></button>}
+          {photoUrl && <button type="button" className="rs-top-thumb" onClick={() => mapping ? setSource({ label: 'Seluruh struk', box: null, origin: '' }) : setBigPhoto(v => !v)} aria-label="Lihat foto struk"><img src={cropped?.url || upright?.url || photoUrl} alt=""/></button>}
           <details className="rs-kebab" ref={moreMenu}>
             <summary aria-label="Lainnya"><MoreHorizontal size={18}/></summary>
             <div className="rs-kebab-menu" role="menu" onClick={() => moreMenu.current?.removeAttribute('open')}>
@@ -442,7 +463,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         <div className="rs-sec-head"><h4>Item</h4><small>{draft.items.length ? `${draft.items.length} · ${rupiah(itemsTotal)}` : 'belum ada'}</small>{draft.items.length > 8 && <button type="button" className="link-button" onClick={() => setAllItems(v => !v)}>{allItems ? 'Ringkas' : 'Semua'}</button>}</div>
         <ul className="rs-rows">{(allItems || draft.items.length <= 8 ? draft.items : draft.items.filter((item, i) => i < 5 || itemStatus(item) === 'check')).map(item => { const status = itemStatus(item), field = `item:${item.key}`, opened = openItem === item.key, cat = catName(item.subcategoryId || item.categoryId); return <li className={`rs-row ${status === 'check' ? 'is-check' : ''} ${opened ? 'is-open' : ''}`} key={item.key}>
           <button type="button" className="rs-row-main" aria-expanded={opened} onClick={() => setOpenItem(opened ? null : item.key)}>
-            <span className="rs-row-name">{item.name || 'Item tanpa nama'}{(item.qty > 1 || item.modifiers.length > 0 || (draft.bySplit && cat)) && <small>{[item.qty > 1 ? `${item.qty} × ${rupiah(item.price)}` : '', ...item.modifiers, draft.bySplit ? cat : ''].filter(Boolean).join(' · ')}</small>}{status === 'check' && <em><AlertTriangle size={12}/> Perlu dicek</em>}</span>
+            <span className="rs-row-name">{item.name || 'Item tanpa nama'}{(item.qty > 1 || item.variant || (draft.bySplit && cat)) && <small>{[item.qty > 1 ? `${item.qty} × ${rupiah(item.price)}` : '', item.variant || '', draft.bySplit ? cat : ''].filter(Boolean).join(' · ')}</small>}{item.modifiers.length > 0 && <small className="rs-mods">{item.modifiers.join(' · ')}</small>}{status === 'check' && <em><AlertTriangle size={12}/> Perlu dicek</em>}</span>
             <b>{rupiah(item.qty * item.price)}</b>
           </button>
           {item.discount > 0 && <div className="rs-row-sub"><span>Diskon</span><span>−{rupiah(item.discount)}</span></div>}
@@ -453,6 +474,9 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
               <span className="rs-item-x">×</span>
               <span className="rs-item-price"><Money value={item.price} onChange={price => { patchItem(item.key, { price }); if (item.source !== undefined) settle(`item:${item.source}`); }}/></span>
             </div>
+            {item.unsure?.map(note => <div className="rs-relation" key={note}><span>Catatan <b>“{note}”</b> untuk item ini?</span><button type="button" className="sb-chip" onClick={() => patchItem(item.key, { unsure: item.unsure!.filter(n => n !== note) })}><Check size={12}/> Ya</button><button type="button" className="sb-chip" onClick={() => patchItem(item.key, { unsure: item.unsure!.filter(n => n !== note), modifiers: item.modifiers.filter(n => n !== note) })}><X size={12}/> Bukan</button></div>)}
+            {item.variantUnsure && <div className="rs-relation"><span>Kode <b>{item.variant}</b> terbaca kurang jelas.</span><button type="button" className="sb-chip" onClick={() => patchItem(item.key, { variantUnsure: false })}><Check size={12}/> Sudah benar</button><button type="button" className="sb-chip" onClick={() => patchItem(item.key, { variant: undefined, variantUnsure: false })}><X size={12}/> Hapus</button></div>}
+            {(item.modifiers.length > 0 || item.variant || item.sku) && <div className="rs-item-notes">{item.variant && <span className="rs-note is-code">{item.variant}</span>}{item.sku && <span className="rs-note is-code">SKU {item.sku}</span>}{item.modifiers.map(note => <span className="rs-note" key={note}>{note}<button type="button" aria-label={`Hapus catatan ${note}`} onClick={() => patchItem(item.key, { modifiers: item.modifiers.filter(n => n !== note), unsure: item.unsure?.filter(n => n !== note) })}><X size={11}/></button></span>)}</div>}
             {item.discount > 0 && <div className="rs-item-disc"><span>Diskon −{rupiah(item.discount)}</span><button type="button" className="rs-text-button" onClick={() => patchItem(item.key, { discount: 0 })}><X size={12}/> Hapus diskon</button></div>}
             {status === 'check' && item.source !== undefined && (intel?.items[item.source]?.amount.alternatives.length || 0) > 0 && <div className="rs-alts"><small className="muted">Kemungkinan lain:</small>{intel!.items[item.source!].amount.alternatives.map(v => <button type="button" key={v} className="sb-chip" onClick={() => useValue(field, v)}>{rupiah(v)}</button>)}<button type="button" className="sb-chip" onClick={() => settle(`item:${item.source}`)}><Check size={12}/> Sudah benar</button></div>}
             {reread?.field === field && <RereadPanel reread={reread} onUse={value => useValue(field, value)} onClose={() => setReread(null)}/>}
@@ -526,6 +550,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     </form>}
 
     <Dialog open={Boolean(source)} onOpenChange={value => { if (!value) setSource(null); }}><DialogContent title={source ? `Di struk: ${source.label}` : 'Di struk'} className="mobile-sheet rs-source-dialog">
+      {source?.origin && <p className={`rs-origin ${source.origin.startsWith('Diedit') || source.origin.startsWith('Ditambah') ? 'is-manual' : source.origin.startsWith('Terbaca langsung') ? 'is-direct' : 'is-derived'}`}>{source.origin}</p>}
       {source && cropped && flatMapping && <ReceiptSource upright={cropped} mapping={flatMapping} box={source.box} label={source.label}/>}
       {source && !(cropped && flatMapping) && upright && mapping && <ReceiptSource upright={upright} mapping={mapping} box={source.box} label={source.label}/>}
       {source && !(cropped && flatMapping) && (!upright || !mapping) && photoUrl && <img className="rs-source-plain" src={photoUrl} alt="Foto struk"/>}
@@ -577,5 +602,8 @@ function OcrDebug({ result }: { result: OcrResult }) {
     <canvas ref={canvas} style={{ width: '100%', height: 'auto' }}/>
     <small className="muted">Cara meluruskan: {result.method} ({result.cornerConfidence}) · miring {result.skew}° · {result.passList.map(p => `${p.id} ${Math.round(p.confidence)}%`).join(', ')}</small>
     <small className="muted">{JSON.stringify(result.quality.numbers)}</small>
+    <small className="muted">Tinggi huruf ±{Math.round(result.textHeight || 0)} px · {result.passes} pass · {(result.ms / 1000).toFixed(1)} s</small>
+    {result.trace?.length > 0 && <ol className="rs-trace">{result.trace.map((t, i) => <li key={i} className={`is-${t.outcome}`}><b>{t.step}</b> {t.outcome}{t.ms ? ` · ${(t.ms / 1000).toFixed(1)} s` : ''}<small>{t.reason}</small></li>)}</ol>}
+    {result.failure?.length > 0 && <small className="rs-trace-fail">Masih gagal: {result.failure.join(' · ')}</small>}
   </details>;
 }

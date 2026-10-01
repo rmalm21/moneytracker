@@ -384,8 +384,9 @@ const CHARGE_KIND: Record<ReceiptSnapshotCharge['type'], SplitExtraKind> = {
   discount: 'discount', voucher: 'discount', shipping_discount: 'discount', tax: 'tax', service: 'service', delivery: 'delivery',
   admin_fee: 'admin', platform_fee: 'admin', packaging: 'admin', insurance: 'admin', other_fee: 'admin', tip: 'tip', rounding: 'rounding',
 };
+const noteOf = (item: ReceiptSnapshot['items'][number]) => { const note = [item.variant || '', ...(item.modifiers || [])].filter(Boolean).join(' · ').slice(0, 120); return note ? { note } : {}; };
 export function splitFromReceipt(receipt: ReceiptSnapshot, id: (prefix: string) => string = prefix => `${prefix}${Math.random().toString(36).slice(2, 9)}`) {
-  const items: SplitItem[] = receipt.items.filter(item => item.qty > 0 && item.price > 0).map(item => ({ id: id('i'), name: item.name.slice(0, 60), qty: item.qty, price: item.price, ...(item.discount ? { discount: item.discount } : {}), assign: 'shared' as const, people: [] }));
+  const items: SplitItem[] = receipt.items.filter(item => item.qty > 0 && item.price > 0).map(item => ({ id: id('i'), name: item.name.slice(0, 60), qty: item.qty, price: item.price, ...(item.discount ? { discount: item.discount } : {}), ...noteOf(item), assign: 'shared' as const, people: [] }));
   const extras: SplitExtra[] = receipt.charges.filter(charge => !charge.included && charge.amount).map(charge => {
     const kind = CHARGE_KIND[charge.type];
     return { id: id('x'), kind, label: charge.label || EXTRA_LABELS[kind], amount: kind === 'rounding' ? charge.amount : Math.abs(charge.amount), distribution: defaultDistribution(kind) };

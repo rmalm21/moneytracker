@@ -9,7 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const here = path.dirname(new URL(import.meta.url).pathname), out = path.join(here, 'out');
-const truth = JSON.parse(fs.readFileSync(path.join(out, 'truth.json'), 'utf8'));
+// SET=v25 reads truth-v25.json (the V2.5 structure set); without it, the original set.
+const truth = JSON.parse(fs.readFileSync(path.join(out, process.env.SET ? `truth-${process.env.SET}.json` : 'truth.json'), 'utf8'));
 
 import { METRICS, pct, score, summarize } from './score.mjs';
 
@@ -19,7 +20,9 @@ if (process.argv[2] === '--compare') {
   const sa = summarize(ids.map(id => score(truth[id], A[id]))), sb = summarize(ids.map(id => score(truth[id], B[id])));
   console.log(`${ids.length} foto\n${'Ukuran'.padEnd(30)}${a.padStart(8)}${b.padStart(8)}`);
   for (const [k, label] of METRICS) console.log(`${label.padEnd(30)}${pct(sa[k]).padStart(8)}${pct(sb[k]).padStart(8)}`);
-  for (const [k, label] of [['falseItems', 'Item palsu (jumlah)'], ['falseTotal', 'Total salah (jumlah)'], ['confidentWrong', 'Total salah tapi yakin']]) console.log(`${label.padEnd(30)}${String(sa[k]).padStart(8)}${String(sb[k]).padStart(8)}`);
+  for (const [k, label] of [['falseItems', 'Item palsu (jumlah)'], ['falseTotal', 'Total salah (jumlah)'], ['confidentWrong', 'Total salah tapi yakin'], ['relWrong', 'Relasi salah tanpa tanda']]) console.log(`${label.padEnd(30)}${String(sa[k]).padStart(8)}${String(sb[k]).padStart(8)}`);
+  console.log(`${'Pass rata-rata'.padEnd(30)}${(sa.passesAvg || 0).toFixed(1).padStart(8)}${(sb.passesAvg || 0).toFixed(1).padStart(8)}`);
+  console.log(`${'Butuh pass tambahan'.padEnd(30)}${pct(sa.escalated).padStart(8)}${pct(sb.escalated).padStart(8)}`);
   console.log(`${'Waktu rata-rata'.padEnd(30)}${`${(sa.msAvg / 1000).toFixed(1)}s`.padStart(8)}${`${(sb.msAvg / 1000).toFixed(1)}s`.padStart(8)}`);
   console.log('\nPer foto (total / item recall):');
   for (const id of ids) { const x = score(truth[id], A[id]), y = score(truth[id], B[id]); console.log(`${id.padEnd(28)}${`${x.total ? 'ok' : 'X'} ${pct(x.itemRecall)}`.padStart(10)}${`${y.total ? 'ok' : 'X'} ${pct(y.itemRecall)}`.padStart(10)}`); }
@@ -39,9 +42,9 @@ for (const id of Object.keys(truth).filter(id => !filter || id.includes(filter))
   try { results[id] = await page.evaluate(url => window.__readReceipt(url), `${base}/bench-fixture/${id}.jpg`); }
   catch (e) { results[id] = { error: String(e).slice(0, 300) }; }
   const s = score(truth[id], results[id]);
-  console.log(`${id.padEnd(28)} total ${s.total ? 'ok' : 'X '} items ${pct(s.itemRecall).padStart(4)} amount ${pct(s.itemAmount).padStart(4)} date ${s.date ?? '-'} pay ${s.payment ?? '-'} ${((Date.now() - started) / 1000).toFixed(1)}s`);
+  console.log(`${id.padEnd(28)} total ${s.total ? 'ok' : 'X '} items ${pct(s.itemRecall).padStart(4)} amount ${pct(s.itemAmount).padStart(4)} rel ${pct(s.relations)} date ${s.date ?? '-'} pay ${s.payment ?? '-'} passes ${results[id].passes ?? '-'}${results[id].failure?.length ? ` [${results[id].failure.join('; ')}]` : ''} ${((Date.now() - started) / 1000).toFixed(1)}s`);
   fs.writeFileSync(file, JSON.stringify(results));
 }
 const summary = summarize(Object.keys(results).map(id => score(truth[id], results[id])));
-console.log(Object.fromEntries(Object.entries(summary).map(([k, v]) => [k, typeof v === 'number' && v <= 1 && !['falseItems', 'falseTotal', 'confidentWrong'].includes(k) ? pct(v) : v])));
+console.log(Object.fromEntries(Object.entries(summary).map(([k, v]) => [k, typeof v === 'number' && v <= 1 && !['falseItems', 'falseTotal', 'confidentWrong', 'relWrong', 'passesAvg'].includes(k) ? pct(v) : v])));
 await browser.close();

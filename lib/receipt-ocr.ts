@@ -34,10 +34,17 @@ export type OcrResult = {
   /** Where each field was read, in working-image pixels. */
   fieldBoxes: Record<string, Box | null>; itemBoxes: (Box | null)[];
   quality: Quality; method: Prepared['method']; cornerConfidence: Prepared['cornerConfidence'];
+  /** Developer trace: every step of the reading ladder, why it ran (or was skipped) and what it changed. */
+  trace: TraceStep[];
+  /** Typical letter height in the working image (px), measured on the first pass; drives how much regions are enlarged. */
+  textHeight: number;
+  /** Where the reading still fails, in plain words, when it does not add up (empty when it does). */
+  failure: string[];
   /** The straightened working images and the mapping back to the photo; kept only while the review is open. */
   prepared: Prepared;
 };
 
+export type TraceStep = { step: string; reason: string; ms: number; outcome: 'settled' | 'better' | 'same' | 'worse' | 'skipped' };
 export const ocrAvailable = () => typeof window !== 'undefined' && typeof Worker !== 'undefined' && typeof WebAssembly === 'object' && typeof document !== 'undefined';
 
 /* ------------------------------------------------------------------ The OCR engine */
@@ -126,7 +133,7 @@ function toPage(lines: OcrLine[], rect: Box, scale: number, pad: number): OcrLin
 }
 type Variant = 'clean' | 'even' | 'bw';
 /** One OCR pass: the page or a region of it, in one variant. The native lines and the rebuilt rows are both parsed; the better is kept. */
-async function runPass(engine: OcrEngine, page: Prepared, variant: Variant, psm: '6' | '11', id: string, region?: { rect: Box; scale: number }): Promise<OcrPass> {
+async function runPass(engine: OcrEngine, page: Prepared, variant: Variant, psm: '6' | '11', id: string, region?: { rect: Box; scale: number; /** The whole page enlarged: counts as a whole-receipt reading. */ page?: boolean }): Promise<OcrPass> {
   const values = page[variant], pad = 12;
   let image: Blob, recognized: Recognized, size = { width: page.width, height: page.height };
   if (region) { const crop = cropRegion(values, page.width, page.height, region.rect, region.scale, pad); image = bmpBlob(crop.data, crop.width, crop.height); size = { width: crop.width, height: crop.height }; }
@@ -135,7 +142,7 @@ async function runPass(engine: OcrEngine, page: Prepared, variant: Variant, psm:
   if (region) recognized = { ...recognized, native: toPage(recognized.native, region.rect, region.scale, pad), rows: toPage(recognized.rows, region.rect, region.scale, pad) };
   const options = [recognized.native, recognized.rows].filter(lines => lines.length).map(lines => { const text = lines.map(l => l.text).join('\n'); const read = readReceiptText(text); return { lines, text, read, score: receiptScore(read) }; });
   const best = options.sort((a, b) => b.score - a.score)[0] || { lines: [], text: '', read: readReceiptText('') };
-  return { id, variant, psm, lines: best.lines, confidence: recognized.confidence, text: best.text, read: best.read, ...(region ? { region: region.rect } : {}) };
+  return { id, variant, psm, lines: best.lines, confidence: recognized.confidence, text: best.text, read: best.read, ...(region && !region.page ? { region: region.rect } : {}) };
 }
 /** The part of the page a zone covers (full width), from a pass's layout; null when the zone was not seen. */
 function zoneRect(pass: OcrPass, zones: string[], page: Prepared, extraLines = 1): Box | null {
@@ -144,7 +151,37 @@ function zoneRect(pass: OcrPass, zones: string[], page: Prepared, extraLines = 1
   const lineH = boxes.reduce((n, b) => n + b.height, 0) / boxes.length, y = Math.max(0, box.y - lineH * extraLines * 1.4);
   return { x: 0, y, width: page.width, height: Math.min(page.height - y, box.height + lineH * extraLines * 2.8) };
 }
+/** The recovery ladder's budget: at most this many passes, and no new step after this long once a total was read. */
+const MAX_PASSES = 7, LADDER_BUDGET_MS = 25_000;
 const settled = (read: ReceiptRead) => read.items.length > 0 && read.total > 0 && addsUp(read);
+/** Median height of the text lines a pass found (px of the working image); 0 when it found none. */
+export function textHeightOf(lines: OcrLine[]) {
+  const heights = lines.filter(l => l.text.replace(/\s/g, '').length >= 3 && l.box.height > 2).map(l => l.box.height).sort((a, b) => a - b);
+  return heights.length ? heights[Math.floor(heights.length / 2)] : 0;
+}
+/**
+ * How much to enlarge a region so its letters are about 32 px tall (where the engine reads best): at least the
+ * step's usual enlargement, at most 3×, and the enlarged crop stays within ~10 megapixels.
+ */
+export function regionScale(textHeight: number, rect: Box, usual: number) {
+  const want = textHeight > 0 ? 32 / textHeight : usual;
+  const room = Math.sqrt(10_000_000 / Math.max(1, rect.width * rect.height));
+  return Math.round(Math.max(1, Math.min(room, Math.max(usual, Math.min(3, want)))) * 100) / 100;
+}
+/** Where a reading that does not add up still fails, for the trace and the benchmark. */
+export function failureOf(read: ReceiptRead): string[] {
+  if (settled(read)) return [];
+  const out: string[] = [];
+  if (!read.total) out.push('total tidak terbaca');
+  if (!read.items.length) out.push('tidak ada item');
+  if (read.total && read.items.length) {
+    const check = checkReceipt(read);
+    if (!check.matches) out.push(`item + biaya ${check.computed} ≠ total ${read.total}`);
+  }
+  if (!read.merchant) out.push('nama toko tidak terbaca');
+  if (!read.date) out.push('tanggal tidak terbaca');
+  return out;
+}
 
 export type ReadOptions = { turn?: number; corners?: Quad; signal?: AbortSignal; engine?: OcrEngine; /** Already prepared (by analyzeReceiptPhoto, for the same photo and turn). */ prepared?: Prepared };
 /**
@@ -171,9 +208,11 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
   if (engine === tesseractEngine && !(await warm)) { report = null; try { await getWorker(); } catch { throw Error('Pembaca struk belum bisa dimuat. Periksa internet untuk pemakaian pertama, atau ketik isi struknya.'); } }
   try {
     stage = 'read';
+    const trace: TraceStep[] = [], t0 = Date.now();
     const passes: OcrPass[] = [await runPass(engine, page, 'even', '6', 'even-6')];
     stop();
     let fused = fuseReadings(passes);
+    trace.push({ step: 'even-6', reason: 'bacaan pertama seluruh struk', ms: Date.now() - t0, outcome: settled(fused.read) ? 'settled' : 'better' });
     // A photo taken sideways or upside down: turned when the first reading found little.
     const first = passes[0], weak = receiptScore(first.read) < 6;
     const turns = weak && !options.corners ? [...(page.landscape ? [1, 3] : []), ...(receiptScore(first.read) < 3 && first.confidence < 45 ? [2] : [])] : [];
@@ -181,23 +220,41 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
       stage = 'second'; label = quarter === 2 ? 'Membalik foto…' : `Memutar foto ${quarter === 1 ? 'ke kanan' : 'ke kiri'}…`; say('second', .56, label);
       const turned = await prepareOffPage(photo, { turn: (turn + quarter) % 4 }); stop();
       const pass = await runPass(engine, turned, 'even', '6', `turn${quarter}-even-6`); stop();
-      if (receiptScore(pass.read) > receiptScore(passes[0].read) + 2) { page = turned; passes.splice(0, passes.length, pass); fused = fuseReadings(passes); break; }
+      const better = receiptScore(pass.read) > receiptScore(passes[0].read) + 2;
+      trace.push({ step: `turn${quarter}`, reason: 'bacaan pertama lemah; foto mungkin miring/terbalik', ms: 0, outcome: better ? 'better' : 'same' });
+      if (better) { page = turned; passes.splice(0, passes.length, pass); fused = fuseReadings(passes); break; }
     }
+    // Letter height decides how much the closer looks enlarge (small print on a far-away receipt gets more).
+    const textHeight = textHeightOf(passes[0].lines), full: Box = { x: 0, y: 0, width: page.width, height: page.height };
     // Targeted passes until the receipt adds up, within a time budget (phones are slower; a photo that still reads
     // badly after ~25 s will not get better).
-    const planned: { label: string; run: () => Promise<OcrPass> | null }[] = [
-      { label: 'Membaca ulang dengan kontras tinggi…', run: () => runPass(engine, page, 'bw', '6', 'bw-6') },
-      { label: 'Membaca ulang bagian total…', run: () => { const rect = zoneRect(fused.base, ['summary', 'payment'], page) || (fused.read.total ? null : { x: 0, y: page.height * .55, width: page.width, height: page.height * .45 }); return rect ? runPass(engine, page, 'bw', '6', 'total-region', { rect, scale: 1.5 }) : null; } },
-      { label: 'Membaca ulang daftar item…', run: () => { const rect = !settled(fused.read) ? zoneRect(fused.base, ['items'], page) : null; return rect ? runPass(engine, page, 'clean', '6', 'items-region', { rect, scale: 1.3 }) : null; } },
-      { label: 'Membaca ulang nama toko…', run: () => { if (fused.read.merchant) return null; const rect = zoneRect(fused.base, ['header'], page, 0) || { x: 0, y: 0, width: page.width, height: page.height * .22 }; return runPass(engine, page, 'clean', '6', 'header-region', { rect, scale: 1.3 }); } },
-      { label: 'Membaca per kata…', run: () => runPass(engine, page, 'even', '11', 'even-11') },
+    // The recovery ladder: each step only when the receipt does not add up yet, cheapest and most likely first, and
+    // each aimed at what is still missing. It stops as soon as the receipt adds up (early exit) or the budget is spent.
+    const planned: { id: string; label: string; why: () => string | null; run: () => Promise<OcrPass> }[] = [
+      { id: 'zoom-even-6', label: 'Memperbesar tulisan kecil…', why: () => textHeight > 0 && textHeight < 20 && regionScale(textHeight, full, 1) >= 1.3 ? `huruf kecil (${textHeight} px) → diperbesar ${regionScale(textHeight, full, 1)}×` : null,
+        run: () => runPass(engine, page, 'even', '6', 'zoom-even-6', { rect: full, scale: regionScale(textHeight, full, 1), page: true }) },
+      { id: 'bw-6', label: 'Membaca ulang dengan kontras tinggi…', why: () => 'belum cocok; varian hitam-putih', run: () => runPass(engine, page, 'bw', '6', 'bw-6') },
+      { id: 'total-region', label: 'Membaca ulang bagian total…', why: () => (zoneRect(fused.base, ['summary', 'payment'], page) || !fused.read.total) ? (fused.read.total ? 'ringkasan dibaca lebih dekat' : 'total belum terbaca') : null,
+        run: () => { const rect = zoneRect(fused.base, ['summary', 'payment'], page) || { x: 0, y: page.height * .55, width: page.width, height: page.height * .45 }; return runPass(engine, page, 'bw', '6', 'total-region', { rect, scale: regionScale(textHeight, rect, 1.5) }); } },
+      { id: 'items-region', label: 'Membaca ulang daftar item…', why: () => zoneRect(fused.base, ['items'], page) ? 'item belum cocok dengan total' : null,
+        run: () => { const rect = zoneRect(fused.base, ['items'], page)!; return runPass(engine, page, 'clean', '6', 'items-region', { rect, scale: regionScale(textHeight, rect, 1.3) }); } },
+      { id: 'header-region', label: 'Membaca ulang nama toko…', why: () => fused.read.merchant ? null : 'nama toko belum terbaca',
+        run: () => { const rect = zoneRect(fused.base, ['header'], page, 0) || { x: 0, y: 0, width: page.width, height: page.height * .22 }; return runPass(engine, page, 'clean', '6', 'header-region', { rect, scale: regionScale(textHeight, rect, 1.3) }); } },
+      { id: 'even-11', label: 'Membaca per kata…', why: () => 'kolom mungkin terpisah; baca per kata', run: () => runPass(engine, page, 'even', '11', 'even-11') },
     ];
-    for (let i = 0; i < planned.length && !settled(fused.read) && (Date.now() - started < 25_000 || !fused.read.total); i++) {
-      stage = 'second'; label = planned[i].label; slice = [.55 + i * (.35 / planned.length), .55 + (i + 1) * (.35 / planned.length)];
-      const job = planned[i].run(); if (!job) continue;
+    for (let i = 0; i < planned.length; i++) {
+      const step = planned[i];
+      if (settled(fused.read)) { trace.push({ step: step.id, reason: 'struk sudah cocok', ms: 0, outcome: 'skipped' }); continue; }
+      if (passes.length >= MAX_PASSES || (Date.now() - started >= LADDER_BUDGET_MS && fused.read.total)) { trace.push({ step: step.id, reason: 'batas waktu/pass habis', ms: 0, outcome: 'skipped' }); continue; }
+      const reason = step.why();
+      if (!reason) { trace.push({ step: step.id, reason: 'tidak perlu', ms: 0, outcome: 'skipped' }); continue; }
+      stage = 'second'; label = step.label; slice = [.55 + i * (.35 / planned.length), .55 + (i + 1) * (.35 / planned.length)];
       say('second', slice[0], label);
-      passes.push(await job); stop();
+      const before = receiptScore(fused.read), t1 = Date.now();
+      passes.push(await step.run()); stop();
       fused = fuseReadings(passes);
+      const after = receiptScore(fused.read);
+      trace.push({ step: step.id, reason, ms: Date.now() - t1, outcome: settled(fused.read) ? 'settled' : after > before ? 'better' : after < before ? 'worse' : 'same' });
     }
     // Still not adding up with a total read: the total's number alone, enlarged, digits only. Its value is taken only
     // when it is the one reading that makes the receipt add up; otherwise it is kept as an alternative to choose from.
@@ -206,7 +263,8 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
       const box = fused.boxes('total'), line = fused.base.lines[fused.read.sources?.total?.[0] ?? -1] || null, plan = regionFor('total', box, line, page);
       if (plan) {
         stage = 'second'; label = 'Membaca ulang angka total…'; say('second', .9, label);
-        const found = await rereadField(page, plan, engine); stop();
+        const t2 = Date.now(), found = await rereadField(page, plan, engine); stop();
+        trace.push({ step: 'total-digits', reason: 'total dibaca ulang, angka saja', ms: Date.now() - t2, outcome: 'same' });
         totalAgain = found.values.filter((v): v is number => typeof v === 'number' && v !== fused.read.total).map(value => ({ value, fits: addsUp({ ...fused.read, total: value, totals: [value] }) }));
         const fits = totalAgain.filter(t => t.fits);
         const current = fused.votes.numbers.total || { value: fused.read.total, status: 'single' as const, support: 1, alternatives: [], passIds: [fused.base.id] };
@@ -214,6 +272,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
           fused.votes.numbers.total = { ...current, value: fits[0].value, alternatives: [...new Set([fused.read.total, ...current.alternatives].filter(v => v !== fits[0].value))] };
           fused.read.total = fits[0].value; fused.read.totals = [fits[0].value, ...(fused.read.totals || []).filter(v => v !== fits[0].value)];
           fused.votes.resolved.push('total');
+          trace[trace.length - 1].outcome = 'settled';
         } else if (totalAgain.length) fused.votes.numbers.total = { ...current, value: fused.read.total, status: 'conflict', alternatives: [...new Set([current.value ?? 0, ...current.alternatives, ...totalAgain.map(t => t.value)])].filter(v => v && v !== fused.read.total) };
       }
     }
@@ -225,6 +284,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     say('done', 1, 'Selesai');
     return {
       engineVersion: RECEIPT_ENGINE_VERSION, text: fused.base.text, confidence: fused.base.confidence, read, check, passes: passes.length, ms: Date.now() - started, cropped: page.cropped, skew: page.skew,
+      trace, textHeight, failure: failureOf(read),
       passList: passes, votes: fused.votes, fieldBoxes, itemBoxes: read.items.map((_, i) => fused.itemBox(i)), quality: page.quality, method: page.method, cornerConfidence: page.cornerConfidence, prepared: page,
     };
   } finally { report = null; releaseLater(); }
