@@ -41,7 +41,7 @@ export function score(t, result) {
   const chargeKeys = Object.keys(tcs).filter(k => tcs[k] || rc[k]);
   const times = Array.isArray(t.time) ? t.time : [t.time];
   return {
-    merchant: t.merchant ? (similar(t.merchant, read.merchant) >= .85 ? 1 : 0) : null,
+    merchant: t.merchant ? ([t.merchant, ...(t.merchantAlt || [])].some(m => similar(m, read.merchant) >= .85) ? 1 : 0) : null,
     date: t.date ? (read.date === t.date ? 1 : 0) : null,
     time: t.time ? (times.includes(read.time) ? 1 : 0) : null,
     total: total === t.total ? 1 : 0,

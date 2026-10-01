@@ -11,6 +11,7 @@
  *  4. Reading variants are made: clean grey, light evened out, and black-and-white.
  *  5. The photo's quality is judged (blur, light, glare, size…) in plain words.
  */
+import { looksLikeScreenshot } from './receipt-digital.ts';
 import { assessQuality, findPaper, findSkew, greyFromRgba, homography, inkAtEdges, mapPoint, multiply, paperCorners, quadSize, rotation, variants, warp, type Corners, type Grey, type Matrix, type Point, type Quad, type Quality } from './receipt-image.ts';
 
 export type PrepareOptions = { turn?: number; /** Corners set by hand, 0..1 of the upright photo (top-left, top-right, bottom-right, bottom-left). */ corners?: Quad };
@@ -24,6 +25,8 @@ export type Prepared = {
   /** How the receipt was straightened. */
   method: 'perspective' | 'rotate' | 'manual' | 'none';
   skew: number; landscape: boolean; cropped: boolean; quality: Quality; ms: number;
+  /** A phone screenshot (read as it is), not a photo of paper. */
+  digital?: boolean;
 };
 
 type Canvas2D = { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D };
@@ -58,7 +61,9 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
     const small = Math.min(1, 960 / Math.max(W, H)), preview = makeCanvas(W * small, H * small); draw(preview, small);
     const lowGrey: Grey = greyFromRgba(preview.ctx.getImageData(0, 0, preview.canvas.width, preview.canvas.height).data, preview.canvas.width, preview.canvas.height);
     release(preview);
-    const paper = findPaper(lowGrey), found = paper ? paperCorners(paper, lowGrey.width, lowGrey.height) : null;
+    // A screenshot (an order screen, an e-receipt) is read as it is: no paper to find, nothing to straighten.
+    const digital = !options.corners && looksLikeScreenshot(lowGrey.data, lowGrey.width, lowGrey.height);
+    const paper = digital ? null : findPaper(lowGrey), found = paper ? paperCorners(paper, lowGrey.width, lowGrey.height) : null;
     let cutFound = false;
     // 3. The shape to straighten (in upright-photo pixels).
     const sure = Boolean(paper && paper.fill >= .72);
@@ -69,7 +74,7 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
       const tight = sure && !loose;
       const area = paper && (tight ? paper : { ...paper, mask: undefined, x0: Math.max(0, Math.round(paper.x0 - (paper.x1 - paper.x0) * .35)), x1: Math.min(lowGrey.width - 1, Math.round(paper.x1 + (paper.x1 - paper.x0) * .35)), y0: Math.max(0, Math.round(paper.y0 - (paper.y1 - paper.y0) * .2)), y1: Math.min(lowGrey.height - 1, Math.round(paper.y1 + (paper.y1 - paper.y0) * .2)) });
       const box = area || { x0: 0, y0: 0, x1: lowGrey.width - 1, y1: lowGrey.height - 1 };
-      const skew = findSkew(lowGrey, area || null);
+      const skew = digital ? 0 : findSkew(lowGrey, area || null);
       const margin = .025, pw = (box.x1 - box.x0 + 1) / small, ph = (box.y1 - box.y0 + 1) / small;
       const cx = (box.x0 + box.x1 + 1) / 2 / small, cy = (box.y0 + box.y1 + 1) / 2 / small, rad = skew * Math.PI / 180, cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
       const cw = Math.min(W * 1.2, (pw * cos + ph * sin) * (1 + margin * 2)), ch = Math.min(H * 1.2, (pw * sin + ph * cos) * (1 + margin * 2));
@@ -126,7 +131,7 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
     return {
       width: outW, height: outH, clean, even, bw, toPhoto, photoWidth: W, photoHeight: H,
       corners: scaleQuad(geometry.quad, 1 / W, 1 / H), cornerConfidence: method === 'manual' ? 'manual' : cutFound ? 'low' : found ? found.confidence : 'none', method,
-      skew, landscape: size.width > size.height * 1.25, cropped: Boolean(paper) || method === 'manual', quality, ms: Date.now() - started,
+      skew, landscape: size.width > size.height * 1.25, cropped: Boolean(paper) || method === 'manual', quality, ms: Date.now() - started, ...(digital ? { digital } : {}),
     };
   } finally { bitmap.close(); }
 }

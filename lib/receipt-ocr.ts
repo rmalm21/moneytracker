@@ -183,7 +183,12 @@ export function failureOf(read: ReceiptRead): string[] {
   return out;
 }
 
-export type ReadOptions = { turn?: number; corners?: Quad; signal?: AbortSignal; engine?: OcrEngine; /** Already prepared (by analyzeReceiptPhoto, for the same photo and turn). */ prepared?: Prepared };
+/**
+ * Which readers to use. 'tesseract' or 'paddle' alone; 'paddle-first' = PP-OCRv6 reads the page, Tesseract only when the
+ * receipt does not add up yet (and for the closer looks at regions); 'tesseract-first' = the other way round.
+ */
+export type Routing = 'tesseract' | 'paddle' | 'paddle-first' | 'tesseract-first';
+export type ReadOptions = { turn?: number; corners?: Quad; signal?: AbortSignal; engine?: OcrEngine; routing?: Routing; /** Already prepared (by analyzeReceiptPhoto, for the same photo and turn). */ prepared?: Prepared };
 /**
  * Reads a receipt photo. Throws with a friendly message when the reader cannot start (old browser, first download
  * failed offline) or when it was cancelled.
@@ -209,7 +214,12 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
   try {
     stage = 'read';
     const trace: TraceStep[] = [], t0 = Date.now();
-    const passes: OcrPass[] = [await runPass(engine, page, 'even', '6', 'even-6')];
+    // The engines for this reading: the first reads the whole page; the other one is the second opinion.
+    const routing = options.engine ? 'tesseract' : options.routing || 'tesseract';
+    const paddle = routing === 'tesseract' ? null : await import('./ocr-paddle.ts').then(m => m.paddleEngine(m.paddleTierFor())).catch(() => null);
+    const firstEngine = (routing === 'paddle' || routing === 'paddle-first') && paddle ? paddle : engine;
+    const second = routing === 'paddle-first' && paddle ? engine : routing === 'tesseract-first' ? paddle : null;
+    const passes: OcrPass[] = [firstEngine === engine ? await runPass(engine, page, 'even', '6', 'even-6') : await runPass(firstEngine, page, 'clean', '6', 'paddle')];
     stop();
     let fused = fuseReadings(passes);
     trace.push({ step: 'even-6', reason: 'bacaan pertama seluruh struk', ms: Date.now() - t0, outcome: settled(fused.read) ? 'settled' : 'better' });
@@ -219,7 +229,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     for (const quarter of turns) {
       stage = 'second'; label = quarter === 2 ? 'Membalik foto…' : `Memutar foto ${quarter === 1 ? 'ke kanan' : 'ke kiri'}…`; say('second', .56, label);
       const turned = await prepareOffPage(photo, { turn: (turn + quarter) % 4 }); stop();
-      const pass = await runPass(engine, turned, 'even', '6', `turn${quarter}-even-6`); stop();
+      const pass = firstEngine === engine ? await runPass(engine, turned, 'even', '6', `turn${quarter}-even-6`) : await runPass(firstEngine, turned, 'clean', '6', `turn${quarter}-paddle`); stop();
       const better = receiptScore(pass.read) > receiptScore(passes[0].read) + 2;
       trace.push({ step: `turn${quarter}`, reason: 'bacaan pertama lemah; foto mungkin miring/terbalik', ms: 0, outcome: better ? 'better' : 'same' });
       if (better) { page = turned; passes.splice(0, passes.length, pass); fused = fuseReadings(passes); break; }
@@ -231,6 +241,8 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     // The recovery ladder: each step only when the receipt does not add up yet, cheapest and most likely first, and
     // each aimed at what is still missing. It stops as soon as the receipt adds up (early exit) or the budget is spent.
     const planned: { id: string; label: string; why: () => string | null; run: () => Promise<OcrPass> }[] = [
+      { id: 'second-engine', label: 'Membaca ulang dengan pembaca kedua…', why: () => second ? 'belum cocok; pembaca kedua membaca seluruh struk' : null,
+        run: () => second === engine ? runPass(engine, page, 'even', '6', 'even-6') : runPass(second!, page, 'clean', '6', 'paddle') },
       { id: 'zoom-even-6', label: 'Memperbesar tulisan kecil…', why: () => textHeight > 0 && textHeight < 20 && regionScale(textHeight, full, 1) >= 1.3 ? `huruf kecil (${textHeight} px) → diperbesar ${regionScale(textHeight, full, 1)}×` : null,
         run: () => runPass(engine, page, 'even', '6', 'zoom-even-6', { rect: full, scale: regionScale(textHeight, full, 1), page: true }) },
       { id: 'bw-6', label: 'Membaca ulang dengan kontras tinggi…', why: () => 'belum cocok; varian hitam-putih', run: () => runPass(engine, page, 'bw', '6', 'bw-6') },

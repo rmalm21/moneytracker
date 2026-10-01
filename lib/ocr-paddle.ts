@@ -7,7 +7,7 @@
  * the same OcrEngine interface as Tesseract, so the receipt logic never depends on either engine's own output format.
  */
 import type { OcrEngine, Recognized, RecognizeOptions } from './receipt-ocr.ts';
-import { linesFromWords, unionBox, type OcrLine, type OcrWord } from './receipt-rows.ts';
+import { linesFromWords, slopeOf, unionBox, type OcrLine, type OcrWord } from './receipt-rows.ts';
 
 export type PaddleTier = 'tiny' | 'small';
 type Item = { poly: number[][] | { x: number; y: number }[]; text: string; score: number };
@@ -50,16 +50,24 @@ const points = (poly: Item['poly']) => (poly as (number[] | { x: number; y: numb
 export function segmentWords(text: string, poly: Item['poly'], score: number): OcrWord[] {
   const pts = points(poly); if (!pts.length) return [];
   const x0 = Math.min(...pts.map(p => p.x)), x1 = Math.max(...pts.map(p => p.x)), y0 = Math.min(...pts.map(p => p.y)), y1 = Math.max(...pts.map(p => p.y));
+  // On a slanted line the top and bottom edges rise or fall: each word takes its height where it stands.
+  const [tl, tr, br, bl] = pts.length >= 4 ? pts : [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  const at = (a: { x: number; y: number }, b: { x: number; y: number }, x: number) => b.x === a.x ? a.y : a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x);
   const words = text.trim().split(/\s+/).filter(Boolean), total = words.reduce((n, w) => n + w.length, 0) + Math.max(0, words.length - 1);
-  let at = 0;
-  return words.map(word => { const start = x0 + (x1 - x0) * at / total, end = x0 + (x1 - x0) * (at + word.length) / total; at += word.length + 1; return { text: word, x0: start, x1: end, y0, y1, confidence: Math.round(score * 100) }; });
+  let used = 0;
+  return words.map(word => {
+    const start = x0 + (x1 - x0) * used / total, end = x0 + (x1 - x0) * (used + word.length) / total, mid = (start + end) / 2; used += word.length + 1;
+    return { text: word, x0: start, x1: end, y0: Math.min(at(tl, tr, mid), at(bl, br, mid)), y1: Math.max(at(tl, tr, mid), at(bl, br, mid)), confidence: Math.round(score * 100) };
+  });
 }
 /** Engine segments → the shared shape: native = one line per segment, rows = segments regrouped by height. */
 export function paddleToRecognized(items: Item[]): Recognized {
   const segments = items.filter(i => i.text.trim()).map(i => segmentWords(i.text, i.poly, i.score)).filter(w => w.length);
   const native: OcrLine[] = segments.map(words => { const tokens = words.map(w => ({ text: w.text, confidence: w.confidence ?? 0, box: { x: w.x0, y: w.y0, width: w.x1 - w.x0, height: w.y1 - w.y0 } })); return { text: words.map(w => w.text).join(' '), tokens, box: unionBox(tokens.map(t => t.box))!, confidence: tokens[0]?.confidence ?? 0 }; })
     .sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
-  const rows = linesFromWords(segments.flat(), 0);
+  // The tilt of the text from the segments' own polygons (top edge), so rows of a slanted receipt are not merged.
+  const baselines = items.map(i => points(i.poly)).filter(p => p.length >= 2).map(p => ({ x0: p[0].x, y0: p[0].y, x1: p[1].x, y1: p[1].y }));
+  const rows = linesFromWords(segments.flat(), slopeOf(baselines));
   const confidence = items.length ? items.reduce((n, i) => n + i.score, 0) / items.length * 100 : 0;
   return { native, rows, confidence };
 }
