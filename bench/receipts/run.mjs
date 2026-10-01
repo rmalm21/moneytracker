@@ -50,5 +50,5 @@ for (const id of Object.keys(truth).filter(id => !filter || id.includes(filter))
   fs.writeFileSync(file, JSON.stringify(results));
 }
 const summary = summarize(Object.keys(results).map(id => score(truth[id], results[id])));
-console.log(Object.fromEntries(Object.entries(summary).map(([k, v]) => [k, typeof v === 'number' && v <= 1 && !['falseItems', 'falseTotal', 'confidentWrong', 'relWrong', 'passesAvg'].includes(k) ? pct(v) : v])));
+console.log(Object.fromEntries(Object.entries(summary).map(([k, v]) => [k, typeof v === 'number' && v <= 1 && !['falseItems', 'falseTotal', 'confidentWrong', 'relWrong', 'phantomForbidden', 'originalAsPaid', 'passesAvg'].includes(k) ? pct(v) : v])));
 await browser.close();

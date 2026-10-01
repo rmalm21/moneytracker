@@ -35,3 +35,15 @@ test('screenshot vs photo: flat blocks and a phone-screen shape', () => {
   // Flat but 4:3 (a rendered test receipt, a scanned page): not taken for a phone screenshot.
   assert.equal(looksLikeScreenshot(new Uint8Array(160 * 120).fill(250), 160, 120), false);
 });
+
+test('a price a little higher than its name still joins it; the row order follows the page', () => {
+  const items = [seg('1 hangat 2 ice', 0, 100, 200, 120), seg('Rp18.000', 600, 128, 700, 148), seg('Roti Bakar Coklat', 0, 134, 260, 154), seg('less sugar', 0, 168, 160, 188)];
+  assert.deepEqual(paddleToRecognized(items).rows.map(r => r.text), ['1 hangat 2 ice', 'Roti Bakar Coklat   Rp18.000', 'less sugar']);
+});
+
+test('PP-OCRv6 segments are loose pieces: on a tie the rebuilt rows are read, not the segments', () => {
+  const seg = (text, x, y, w) => ({ text, score: .99, poly: [[x, y], [x + w, y], [x + w, y + 30], [x, y + 30]] });
+  const r = paddleToRecognized([seg('Es Teh Jumbo x3', 316, 705, 224), seg('Rp30.000', 759, 712, 125), seg('1 hangat 2 ice', 316, 742, 209), seg('Roti Bakar Coklat', 314, 778, 254), seg('Rp18.000', 757, 786, 124)]);
+  assert.equal(r.segments, true);
+  assert.deepEqual(r.rows.map(l => l.text.replace(/\s+/g, ' ')), ['Es Teh Jumbo x3 Rp30.000', '1 hangat 2 ice', 'Roti Bakar Coklat Rp18.000']);
+});

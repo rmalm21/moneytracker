@@ -50,7 +50,7 @@ export const ocrAvailable = () => typeof window !== 'undefined' && typeof Worker
 /* ------------------------------------------------------------------ The OCR engine */
 
 export type RecognizeOptions = { psm: '6' | '7' | '11'; whitelist?: string; rotate?: boolean; /** The image's size, to map word boxes back when the engine turned the image a little. */ size?: { width: number; height: number } };
-export type Recognized = { native: OcrLine[]; rows: OcrLine[]; confidence: number };
+export type Recognized = { native: OcrLine[]; rows: OcrLine[]; confidence: number; /** Native lines are loose text segments (a name and its price apart): on a tie the rebuilt rows win. */ segments?: boolean };
 export interface OcrEngine {
   recognize(image: Blob, options: RecognizeOptions): Promise<Recognized>;
   /** Stops the current reading and frees the engine. */
@@ -140,7 +140,7 @@ async function runPass(engine: OcrEngine, page: Prepared, variant: Variant, psm:
   else image = bmpBlob(values, page.width, page.height);
   recognized = await engine.recognize(image, { psm, size });
   if (region) recognized = { ...recognized, native: toPage(recognized.native, region.rect, region.scale, pad), rows: toPage(recognized.rows, region.rect, region.scale, pad) };
-  const options = [recognized.native, recognized.rows].filter(lines => lines.length).map(lines => { const text = lines.map(l => l.text).join('\n'); const read = readReceiptText(text); return { lines, text, read, score: receiptScore(read) }; });
+  const options = (recognized.segments ? [recognized.rows, recognized.native] : [recognized.native, recognized.rows]).filter(lines => lines.length).map(lines => { const text = lines.map(l => l.text).join('\n'); const read = readReceiptText(text); return { lines, text, read, score: receiptScore(read) }; });
   const best = options.sort((a, b) => b.score - a.score)[0] || { lines: [], text: '', read: readReceiptText('') };
   return { id, variant, psm, lines: best.lines, confidence: recognized.confidence, text: best.text, read: best.read, ...(region && !region.page ? { region: region.rect } : {}) };
 }

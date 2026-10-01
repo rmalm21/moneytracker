@@ -133,6 +133,20 @@ export function fuseReadings(passes: OcrPass[]): Fused {
     if (consensus.value !== undefined && consensus.status === 'agreed' && consensus.value !== read[field]) read[field] = consensus.value;
     else if (!read[field] && consensus.value !== undefined && consensus.status === 'single') read[field] = consensus.value;
   }
+  // One discount, two places: under an item in some passes, on the bill in others. It is counted once, and it goes
+  // where most whole-receipt passes put it.
+  const itemDiscountOf = (r: ReceiptRead) => r.items.reduce((n, i) => n + (i.discount || 0), 0);
+  const itemDiscounts = itemDiscountOf(read);
+  if (!base.read.discount && itemDiscounts && read.discount === itemDiscounts) read.discount = 0;
+  else if (read.discount && !itemDiscounts) {
+    const sameCount = whole.filter(p => p.read.items.length === read.items.length);
+    const underItem = sameCount.filter(p => !p.read.discount && itemDiscountOf(p.read) === read.discount);
+    const onBill = sameCount.filter(p => p.read.discount === read.discount && !itemDiscountOf(p.read));
+    if (underItem.length > onBill.length) {
+      underItem[0].read.items.forEach((item, i) => { if (item.discount) read.items[i] = { ...read.items[i], discount: item.discount }; });
+      read.discount = 0; read.charges = (read.charges || []).filter(c => c.key !== 'discount'); delete read.sources?.discount;
+    }
+  }
   if (votes.numbers.total?.value !== undefined && read.total && !read.totals?.includes(read.total)) read.totals = [read.total, ...(read.totals || [])];
   // Words and dates.
   const textVotes = <T extends string>(get: (r: ReceiptRead) => T, same?: (a: T, b: T) => boolean) => fuseValues(passes.filter(p => get(p.read)).map(p => ({ value: get(p.read), weight: passWeight(p), passId: p.id })), same);

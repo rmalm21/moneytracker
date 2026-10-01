@@ -26,7 +26,7 @@ export default function OcrBench() {
       const blob = await (await fetch(url)).blob();
       const { paddleEngine } = await import('@/lib/ocr-paddle');
       const started = performance.now(), r = await paddleEngine(tier).recognize(blob, { psm: '6' });
-      return { ms: Math.round(performance.now() - started), text: r.rows.map(l => l.text).join('\n'), segments: r.native.length, confidence: r.confidence };
+      return { ms: Math.round(performance.now() - started), text: r.rows.map(l => l.text).join('\n'), segments: r.native.length, confidence: r.confidence, native: r.native };
     };
     setReady(true);
   }, []);

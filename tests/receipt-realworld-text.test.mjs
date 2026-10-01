@@ -50,3 +50,11 @@ test('Alfamart digital receipt (first held-out image): delivery block, Ref line 
   assert.ok(!/delivered|budi/i.test(r.branch || ''));
   assert.ok(!r.items.some(i => /ref\.|budi|kenanga|kirim/i.test(i.name)));
 });
+
+test('a discount line not tied to its item and the "Total Diskon" summing it: counted once', () => {
+  const r = readReceiptText(['Alfamart', 'Ref. S-260728-ABCDEFG', 'Yakult Minuman Susu Fermentasi', '2   12100   24,200', '5x 65 ml', 'Hydro Coco Minuman Air Kelapa', '2   16000   32000', 'Original 500 mi', 'Disc. -4,000', 'Subtotal   4   56,200', 'Total Diskon   -4,000', 'Biaya Pengiriman   0', 'Total   52,200'].join('\n'));
+  const discounts = r.items.reduce((n, i) => n + (i.discount || 0), 0) + r.discount;
+  assert.equal(discounts, 4000);
+  assert.equal(r.total, 52200);
+  assert.ok(checkReceipt(r).matches);
+});

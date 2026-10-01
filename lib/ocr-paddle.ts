@@ -60,6 +60,30 @@ export function segmentWords(text: string, poly: Item['poly'], score: number): O
     return { text: word, x0: start, x1: end, y0: Math.min(at(tl, tr, mid), at(bl, br, mid)), y1: Math.max(at(tl, tr, mid), at(bl, br, mid)), confidence: Math.round(score * 100) };
   });
 }
+/**
+ * Segments → rows: a segment joins the row it overlaps most in height (tilt taken out) when they do not overlap side by
+ * side; otherwise it starts a new row. Overlap, not the distance between centres: a price printed a little higher than
+ * its name still belongs to it, and two close rows are not merged.
+ */
+export function rowsOfSegments(segments: OcrWord[][], slope = 0): OcrLine[] {
+  type Seg = { words: OcrWord[]; top: number; bottom: number; left: number; right: number };
+  const list: Seg[] = segments.filter(w => w.length).map(words => {
+    const left = Math.min(...words.map(w => w.x0)), right = Math.max(...words.map(w => w.x1)), mid = (left + right) / 2;
+    return { words, left, right, top: Math.min(...words.map(w => w.y0)) - slope * mid, bottom: Math.max(...words.map(w => w.y1)) - slope * mid };
+  }).sort((a, b) => a.top - b.top);
+  const rows: { segs: Seg[]; top: number; bottom: number }[] = [];
+  for (const seg of list) {
+    let best: (typeof rows)[number] | null = null, bestShare = 0;
+    for (const row of rows) {
+      if (row.segs.some(o => seg.left < o.right && o.left < seg.right)) continue;
+      const share = (Math.min(seg.bottom, row.bottom) - Math.max(seg.top, row.top)) / Math.max(1, Math.min(seg.bottom - seg.top, row.bottom - row.top));
+      if (share > bestShare) { bestShare = share; best = row; }
+    }
+    if (best && bestShare >= .45) { best.segs.push(seg); best.top = Math.min(best.top, seg.top); best.bottom = Math.max(best.bottom, seg.bottom); }
+    else rows.push({ segs: [seg], top: seg.top, bottom: seg.bottom });
+  }
+  return rows.sort((a, b) => (a.top + a.bottom) - (b.top + b.bottom)).map(row => linesFromWords(row.segs.sort((a, b) => a.left - b.left).flatMap(s => s.words).map(w => ({ ...w, y0: row.top, y1: row.bottom })), 0)[0]).filter(Boolean);
+}
 /** Engine segments → the shared shape: native = one line per segment, rows = segments regrouped by height. */
 export function paddleToRecognized(items: Item[]): Recognized {
   const segments = items.filter(i => i.text.trim()).map(i => segmentWords(i.text, i.poly, i.score)).filter(w => w.length);
@@ -67,9 +91,9 @@ export function paddleToRecognized(items: Item[]): Recognized {
     .sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
   // The tilt of the text from the segments' own polygons (top edge), so rows of a slanted receipt are not merged.
   const baselines = items.map(i => points(i.poly)).filter(p => p.length >= 2).map(p => ({ x0: p[0].x, y0: p[0].y, x1: p[1].x, y1: p[1].y }));
-  const rows = linesFromWords(segments.flat(), slopeOf(baselines));
+  const rows = rowsOfSegments(segments, slopeOf(baselines));
   const confidence = items.length ? items.reduce((n, i) => n + i.score, 0) / items.length * 100 : 0;
-  return { native, rows, confidence };
+  return { native, rows, confidence, segments: true };
 }
 
 export function paddleEngine(tier: PaddleTier = paddleTierFor()): OcrEngine & { id: string; tier: PaddleTier } {

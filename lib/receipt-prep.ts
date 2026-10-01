@@ -126,7 +126,9 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
       outside = new Uint8Array(outW * outH);
       for (let v = 0; v < outH; v++) for (let u = 0; u < outW; u++) { const p = mapPoint(toPhoto, u, v), kx = Math.round(p.x * small), ky = Math.round(p.y * small); if (kx < 0 || ky < 0 || kx >= lowGrey.width || ky >= lowGrey.height || !paper.mask[ky * lowGrey.width + kx]) outside[v * outW + u] = 1; }
     }
-    const quality = assessQuality({ preview: lowGrey, paper, corners: found, skew, photoWidth: W, photoHeight: H, receiptWidthInPhoto: size.width, working: { data: grey, width: outW, height: outH } });
+    const judged = assessQuality({ preview: lowGrey, paper, corners: found, skew, photoWidth: W, photoHeight: H, receiptWidthInPhoto: size.width, working: { data: grey, width: outW, height: outH } });
+    // A screenshot has no paper, light, glare or angle: only a small resolution is worth saying.
+    const quality = digital ? { ...judged, warnings: judged.warnings.filter(w => /^Resolusi/.test(w)), retake: false } : judged;
     const { clean, even, bw } = variants(grey, outW, outH, outside);
     return {
       width: outW, height: outH, clean, even, bw, toPhoto, photoWidth: W, photoHeight: H,

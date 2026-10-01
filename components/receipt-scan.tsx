@@ -169,7 +169,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       const [prepared, shown] = await Promise.all([analyzeReceiptPhoto(file, quarter), showUpright(file, quarter)]);
       if (job.current !== id) return;
       setProgress(null);
-      if (shown) setArea({ prepared, quarter }); else void scan(file, quarter, undefined, prepared);
+      // A screenshot has no paper edges to set: it is read straight away.
+      if (shown && !prepared.digital) setArea({ prepared, quarter }); else void scan(file, quarter, undefined, prepared);
     } catch (e) { if (job.current === id) { setProgress(null); setProblem((e as Error).message || 'Foto belum bisa dibaca.'); } }
   }
   function rotateArea() { if (!photo || !area) return; const next = (area.quarter + 1) % 4; setTurn(next); setArea(null); void prepareArea(photo, next); }
@@ -439,7 +440,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       </section>}
       {problem && <p className="sb-note is-warn" role="status">{problem}</p>}
       {quality && quality.warnings.length > 0 && !issues.length && <p className="rs-quality"><Info size={14}/> {quality.warnings[0]}</p>}
-      {result && (result.cornerConfidence === 'low' || result.method === 'rotate' || result.method === 'none') && upright && <button type="button" className="rs-corner-hint" onClick={() => setCornersOpen(true)}><Crop size={15}/> Batas struk kurang jelas. Atur sudut <ChevronRight size={15}/></button>}
+      {result && !result.prepared.digital && (result.cornerConfidence === 'low' || result.method === 'rotate' || result.method === 'none') && upright && <button type="button" className="rs-corner-hint" onClick={() => setCornersOpen(true)}><Crop size={15}/> Batas struk kurang jelas. Atur sudut <ChevronRight size={15}/></button>}
 
       {/* 3. The transaction: label beside value, edited in place. */}
       <div className="rs-sheet">

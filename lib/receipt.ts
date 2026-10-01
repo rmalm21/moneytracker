@@ -614,16 +614,15 @@ function readPaperText(text: string): ReceiptRead {
     lastItemPos = position;
     if (read.alt && read.alt !== read.qty * read.price) alts.set(item, read.alt);
   });
-  // "Total Diskon -4,000" that only sums the discounts already printed under the items is not a second discount.
-  const itemDiscounts = out.items.reduce((n, i) => n + (i.discount || 0), 0);
-  if (itemDiscounts) {
-    const summed = out.charges!.filter(c => c.key === 'discount' && /^\s*(?:total|jumlah)\s*(?:d[i1l]sk[o0]n|disc(?:ount)?|potongan|hemat|promo)/i.test(c.label) && c.amount === itemDiscounts);
-    for (const c of summed) { out.discount -= c.amount; out.charges!.splice(out.charges!.indexOf(c), 1); }
-  }
   for (const d of laterDecided) {
     if (kinds.some((kind, i) => i > d.position && kind === 'item')) { d.item.discount = (d.item.discount || 0) + d.value; d.item.lines?.push(...origin(d.position)); kinds[d.position] = 'item'; }
     else { out.discount += d.value; add('discount', d.position); out.charges!.push({ type: chargeType('discount', d.label), key: 'discount', label: d.label.slice(0, 40), amount: d.value, line: origin(d.position)[0] ?? d.position }); }
   }
+  // "Total Diskon -4,000" that only sums the discounts already printed above it (under the items or as their own
+  // lines) is not a second discount.
+  const isTotalDiscount = (c: ReceiptCharge) => c.key === 'discount' && /^\s*(?:total|jumlah)\s*(?:d[i1l]sk[o0]n|disc(?:ount)?|potongan|hemat|promo)/i.test(c.label);
+  const printedDiscounts = out.items.reduce((n, i) => n + (i.discount || 0), 0) + out.charges!.filter(c => c.key === 'discount' && !isTotalDiscount(c)).reduce((n, c) => n + c.amount, 0);
+  if (printedDiscounts) for (const c of out.charges!.filter(c => isTotalDiscount(c) && c.amount === printedDiscounts)) { out.discount -= c.amount; out.charges!.splice(out.charges!.indexOf(c), 1); }
   // The purchase date: key words, a time on the same line and a place near the top count; expiry dates never win.
   const when = dates.filter(d => d.score > -10).sort((a, b) => b.score - a.score || a.position - b.position)[0];
   if (when) {

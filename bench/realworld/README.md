@@ -36,7 +36,7 @@ Images and truth files are git-ignored by default (they can hold names, phone nu
 npm run dev
 ENGINE=tesseract    SET=realworld-dev node bench/receipts/run.mjs http://localhost:3000 rw-tess
 ENGINE=paddle-tiny  SET=realworld-dev node bench/receipts/run.mjs http://localhost:3000 rw-paddle
-ENGINE=auto         SET=realworld-dev node bench/receipts/run.mjs http://localhost:3000 rw-auto
+ENGINE=paddle-first SET=realworld-dev node bench/receipts/run.mjs http://localhost:3000 rw-auto   # app default
 SET=realworld-dev node bench/receipts/run.mjs --compare rw-tess rw-auto
 ```
 
