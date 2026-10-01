@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.1', date: '1 Okt 2026', title: 'Catat otomatis lebih paham maksudmu', items: [
+    ['📝', '“ga jadi”, “batal”, atau “yang parkir ga jadi” kini membatalkan yang dimaksud, jadi tidak ada yang tersimpan untuknya.'],
+    ['📝', 'Koreksi untuk satu catatan saja: “yang bensin 75 ternyata”, “eh parkirnya 4rb”, “tapi makan cash”, atau “eh bukan, pake mandiri”.'],
+    ['💸', 'Talangan yang diikuti “jadi dia utang ke gue” dicatat sekali sebagai piutang, tidak dobel. “kasih pinjem Budi” = Budi berutang padamu.'],
+    ['✅', 'Kalau ada yang kurang, Catat otomatis cukup bertanya satu hal, misalnya “Rp100.000 ke Jago dari dompet mana?”, lengkap dengan pilihan sekali ketuk.'],
+    ['💡', '“bayar servis motor” tidak lagi dianggap membayar Utang Motor, dan “yang tadi” yang bisa merujuk ke dua catatan akan ditanyakan.'],
+    ['💰', 'Paham “2jt200”, “2 kopi masing-masing 20rb”, “saldo 500rb”, “mau bayar …” (rencana), dan biaya admin transfer yang dicatat terpisah.'],
+  ] },
   { version: '3.0', date: '1 Okt 2026', title: 'Scan struk lebih paham isi struk', items: [
     ['🧾', 'Catatan di bawah item (mis. “1 hangat 2 ice”, “less sugar”, “springkle”) kini menempel ke item di atasnya, tampil kecil di bawah nama item, dan tidak lagi tercampur ke nama item berikutnya.'],
     ['🧾', 'Nama item dua baris, diskon member di bawah satu item, dan voucher setelah subtotal kini dibedakan: diskon item mengurangi item itu saja, voucher mengurangi tagihan.'],

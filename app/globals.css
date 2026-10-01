@@ -6896,3 +6896,10 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-trace .is-settled b { color: #10b981; }
 .rs-trace .is-worse b { color: #ef4444; }
 .rs-trace-fail { display: block; margin-top: 4px; color: var(--warn-ink); font-size: .74rem; }
+
+/* 140. 3.1: Catat otomatis asks one short question per action, with one-tap answers; what the message cancelled. */
+.qp-ask { display: grid; gap: 6px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+.qp-ask-q { display: flex; align-items: flex-start; gap: 6px; font-size: .82rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.qp-ask-q svg { flex: none; margin-top: 2px; color: var(--accent); }
+.qp-ask .qp-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.qp-cancelled { display: block; padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 5%, var(--paper)); color: var(--muted); font-size: .78rem; text-decoration-line: none; overflow-wrap: anywhere; }

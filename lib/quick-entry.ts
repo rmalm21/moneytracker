@@ -314,7 +314,7 @@ const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|tala
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
 const FILL_WORDS = /\b(isi|tambah|nambah|masukin|masukkan|top ?up)\b/;
-const LEND_OUT = /\b(pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin)\b/;
+const LEND_OUT = /\b((?:ngasi|kasi)h? (?:pinjem|pinjam|pinjaman|utang|hutang)|pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin)\b/;
 const LENT_TO_ME = /\b(?:pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|utangin|ngutangin)\s+(?:aku|saya|gue|gw|ku)\b/;
 const BORROW = /\b(pinjam|minjem|pinjem|minjam|meminjam|ngutang|ngehutang|berutang|berhutang|utang|hutang|dipinjemin|dipinjamin|dipinjami|kasbon|pinjaman)\b/;
 const PAY = /\b(bayar|byr|cicil|nyicil|angsur|lunas|lunasin|lunasi|balikin|ngembaliin|kembaliin|mengembalikan|transfer|tf|kirim|ngirim)\b/;
@@ -346,7 +346,7 @@ const FILLERS = /\b(tadi|td|barusan|hari ini|kemarin|kmrn|kmarin|(?<!makan )(?:p
 /** Words of schedules and plans, taken out of their names. */
 const PLAN_FILLERS = /\b(rencana|rencananya|berencana|planning|ingetin|ingatkan|ingetkan|ingatin|pengingat|reminder|remind|jangan lupa|langganan|mulai|akan|bakal|mau|otomatis|auto|langsung|draf|draft|konfirmasi)\b/g;
 /** Words that are never somebody's name. */
-const NOT_A_NAME = new Set(['aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli']);
+const NOT_A_NAME = new Set(['aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli']);
 
 /** Common short names of places. */
 const PLACES: Record<string, string> = { alfa: 'Alfamart', alfamart: 'Alfamart', alfamidi: 'Alfamidi', indo: 'Indomaret', indomaret: 'Indomaret', sbux: 'Starbucks', starbuck: 'Starbucks', starbucks: 'Starbucks', kfc: 'KFC', mcd: "McDonald's", mekdi: "McDonald's", hokben: 'HokBen', janjiw: 'Janji Jiwa', kenangan: 'Kopi Kenangan', tokped: 'Tokopedia', tokopedia: 'Tokopedia', shopee: 'Shopee', grab: 'Grab', gojek: 'Gojek', pertamina: 'Pertamina', spbu: 'SPBU', superindo: 'Superindo', hypermart: 'Hypermart', transmart: 'Transmart' };

@@ -24,7 +24,7 @@ function align(truth, pred) {
 export function scoreCase(c, pred) {
   const { pairs, extra } = align(c.actions, pred);
   const fields = {}, review = { need: 0, flagged: 0 };
-  let wrongConfident = 0, exact = pred.length === c.actions.length;
+  let wrongConfident = 0, exact = pred.length === c.actions.length, unneeded = 0, askOk = 0, askNeed = 0;
   for (const [t, p] of pairs) {
     if (!p) { exact = false; continue; }
     let wrong = false;
@@ -35,18 +35,23 @@ export function scoreCase(c, pred) {
       if (!ok) { exact = false; if (f !== 'category' && !p.flagged.has(f)) wrong = true; }
     }
     for (const f of t.review || []) { review.need++; if (p.flagged.has(f)) review.flagged++; else exact = false; }
+    // Asked for something that was right and not in doubt (category aside: it never blocks saving).
+    for (const f of p.flagged) if (f !== 'category' && !(t.review || []).includes(f) && f in t && same(f, t[f], p[f]) && t[f] !== null) unneeded++;
+    if (t.ask) { askNeed++; if (p.ask === t.ask) askOk++; else exact = false; }
     if (wrong && p.confident) wrongConfident++;
   }
   wrongConfident += extra.filter(p => p.confident).length;
-  return { id: c.id, tags: c.tags, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongConfident };
+  // Two actions for one money event: the same amount twice where the truth has it once.
+  const dupMoney = pred.filter((p, i) => p.amount && pred.findIndex(q => q.amount === p.amount) !== i).length - c.actions.filter((t, i) => t.amount && c.actions.findIndex(q => q.amount === t.amount) !== i).length;
+  return { id: c.id, tags: c.tags, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongConfident, unneeded, askOk, askNeed, dupMoney: Math.max(0, dupMoney) };
 }
 
 const pct = (a, b) => b ? `${Math.round(a / b * 100)}%` : '–';
 export function summarize(rows) {
-  const sum = { cases: rows.length, exact: 0, count: 0, extra: 0, missed: 0, wrongConfident: 0, review: { need: 0, flagged: 0 }, fields: {} };
+  const sum = { cases: rows.length, exact: 0, count: 0, extra: 0, missed: 0, wrongConfident: 0, unneeded: 0, askOk: 0, askNeed: 0, dupMoney: 0, review: { need: 0, flagged: 0 }, fields: {} };
   for (const r of rows) {
     if (r.exact) sum.exact++; if (r.count) sum.count++;
-    sum.extra += r.extra; sum.missed += r.missed; sum.wrongConfident += r.wrongConfident;
+    sum.extra += r.extra; sum.missed += r.missed; sum.wrongConfident += r.wrongConfident; sum.unneeded += r.unneeded || 0; sum.askOk += r.askOk || 0; sum.askNeed += r.askNeed || 0; sum.dupMoney += r.dupMoney || 0;
     sum.review.need += r.review.need; sum.review.flagged += r.review.flagged;
     for (const [f, v] of Object.entries(r.fields)) { const s = (sum.fields[f] ||= { ok: 0, n: 0 }); s.ok += v.ok; s.n += v.n; }
   }
@@ -63,5 +68,10 @@ export function summarize(rows) {
     'Aksi terlewat': sum.missed,
     'Keraguan ditandai': pct(sum.review.flagged, sum.review.need),
     'Aksi salah tapi yakin': sum.wrongConfident,
+    'Relasi tepat (link/orang/arah)': (() => { const rel = rows.filter(r => r.tags.includes('relation')); return pct(rel.filter(r => r.exact).length, rel.length); })(),
+    'Koreksi/pembatalan tepat': (() => { const c = rows.filter(r => r.tags.includes('correction') || r.tags.includes('negation')); return pct(c.filter(r => r.exact).length, c.length); })(),
+    'Pertanyaan tepat (hanya yang kurang)': pct(sum.askOk, sum.askNeed),
+    'Tanya yang tidak perlu': sum.unneeded,
+    'Uang tercatat dobel': sum.dupMoney,
   };
 }
