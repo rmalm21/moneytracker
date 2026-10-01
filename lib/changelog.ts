@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.2', date: '1 Okt 2026', title: 'Pembaca struk baru: PP-OCRv6', items: [
+    ['📷', 'Scan struk kini memakai pembaca tulisan baru (PP-OCRv6) di HP-mu sendiri. Struk yang miring, pudar, atau difoto di meja lebih sering terbaca benar. Pembaca lama tetap jadi cadangan.'],
+    ['🔒', 'Semua tetap dibaca di perangkat: tidak ada foto atau teks yang diunggah. Bahan pembaca diunduh sekali (± 20 MB), setelah itu bisa dipakai offline.'],
+    ['🧾', 'Screenshot struk digital (mis. Alfamart, Shopee) langsung dibaca tanpa perlu mengatur sudut, dan tidak lagi diberi peringatan foto terang.'],
+    ['🧾', 'Halaman pesanan e-commerce: nama toko dipisahkan dari platform, harga coret ditampilkan sebagai “Harga coret · tidak dihitung”, dan ongkir, voucher, serta biaya layanan masuk ke rincian biaya.'],
+    ['✅', 'Alamat, nomor HP, NPWP, nomor pesanan, “Delivered at”, dan cara bayar tidak lagi terbaca sebagai item. “Total Diskon” tidak dihitung dua kali.'],
+    ['💰', '“Total Incl. PPN” dikenali sebagai total, dan nama barang dengan kode ukuran (mis. 535MM*8K) tetap terbaca sebagai item.'],
+  ] },
   { version: '3.1', date: '1 Okt 2026', title: 'Catat otomatis lebih paham maksudmu', items: [
     ['📝', '“ga jadi”, “batal”, atau “yang parkir ga jadi” kini membatalkan yang dimaksud, jadi tidak ada yang tersimpan untuknya.'],
     ['📝', 'Koreksi untuk satu catatan saja: “yang bensin 75 ternyata”, “eh parkirnya 4rb”, “tapi makan cash”, atau “eh bukan, pake mandiri”.'],

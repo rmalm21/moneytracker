@@ -77,10 +77,10 @@ the final engine.** One is needed (see §9).
 
 | Mode | Merchant | Date | Total | Items | Amounts | Charges | Reconciled | Fake items | Forbidden as item | Wrong totals | Avg time |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Tesseract | 40 % | 80 % | 80 % | 88 % | 85 % | 100 % | 80 % | 2 | 1 | 1 | 10.6 s |
-| PP-OCRv6 tiny | 80 % | 60 % | 100 % | 100 % | 100 % | 50 % | 80 % | 1 | 1 | 0 | 6.4 s |
-| PP-OCRv6 small | 80 % | 80 % | 100 % | 100 % | 100 % | 67 % | 100 % | 0 | 0 | 0 | 13.7 s |
-| **paddle-first (app default)** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **0** | **0** | **0** | **18.4 s** |
+| Tesseract | 40 % | 80 % | 80 % | 88 % | 85 % | 100 % | 80 % | 2 | 1 | 1 | 10.4 s |
+| PP-OCRv6 tiny | 80 % | 60 % | 100 % | 100 % | 100 % | 50 % | 80 % | 1 | 1 | 0 | 6.2 s |
+| PP-OCRv6 small | 80 % | 80 % | 100 % | 100 % | 100 % | 67 % | 100 % | 0 | 0 | 0 | 13.4 s |
+| **paddle-first (app default)** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **100 %** | **0** | **0** | **0** | **17.7 s** |
 
 Confidently wrong totals: 0 in every mode. Original (crossed-out) price taken as paid: 0. Tesseract's wrong total was
 the MR D.I.Y. photo: the paper is slanted, and rows from different lines were merged.
@@ -106,9 +106,18 @@ During tuning, one fake item appeared on `v25-modifier-faded`: the note "1 hanga
 was that the loose PP-OCRv6 segments (name and price on separate lines) won a score tie against the rebuilt rows. That
 tie now goes to the rows (`Recognized.segments`), and a test covers it.
 
+Two fixes came from checking the review screen with the real images (not from the benchmark):
+- **Screenshots skip the "Tentukan area struk" step.** A screenshot no longer gets "Foto terlalu terang" or the
+  "Batas struk kurang jelas" hint; it is read straight away.
+- **One discount is not counted twice.** The Alfamart "Disc. −4,000" plus "Total Diskon −4,000" briefly showed as
+  −8,000 "sudah termasuk harga". Now:
+  - "Total Diskon" equal to the discounts printed above it is treated as a summary;
+  - when the passes disagree about where a discount sits, it stays under the item.
+  - The total was right before and after.
+
 ## 7. Latency and memory
 
-- **paddle-first on real photos: 18 s on average** in headless Chromium on this container's CPU. Measured with the
+- **paddle-first on real photos: 17.7 s on average** in headless Chromium on this container's CPU. Measured with the
   `small` model, because the benchmark browser reports ≥ 8 GB.
   - Most of the time goes to the whole-photo re-read, which runs when the receipt edges are unclear (most real photos).
   - Phones with < 8 GB use `tiny`, which takes ~6 s per read here.
@@ -138,7 +147,7 @@ tie now goes to the rows (`Recognized.segments`), and a test covers it.
    - restaurant bills with service charge and PB1.
 2. **Relations on real receipts: 40 %.** Variant and SKU lines that sit under the name in a second column are not
    linked yet.
-3. **Latency.** 18 s on a slanted real photo is long. The next step is to run the whole-photo read only when the first
+3. **Latency.** 17–26 s on a real photo is long. The next step is to run the whole-photo read only when the first
    read lacks a merchant or date, or does not reconcile.
 4. **Dates and times on synthetic photos with PP-OCRv6** are slightly worse than with Tesseract (88–92 % vs 94–97 %).
 5. **No fresh held-out run of the final engine.** The single held-out image was used for tuning after its first run.
