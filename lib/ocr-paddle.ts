@@ -18,6 +18,14 @@ export function paddleTierFor(memoryGb = typeof navigator !== 'undefined' ? (nav
   return memoryGb !== undefined && memoryGb >= 8 ? 'small' : 'tiny';
 }
 
+/**
+ * Threads for the engine: several only when the page is cross-origin isolated (COOP + COEP headers, see firebase.json),
+ * which is what lets WebAssembly share memory between workers; otherwise one (it still works, only slower).
+ */
+export function paddleThreads(isolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated, cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 1) {
+  return isolated ? Math.max(1, Math.min(4, cores || 1)) : 1;
+}
+
 let current: { tier: PaddleTier; ready: Promise<Instance> } | null = null, idle: ReturnType<typeof setTimeout> | undefined;
 function instance(tier: PaddleTier) {
   clearTimeout(idle);
@@ -30,7 +38,7 @@ function instance(tier: PaddleTier) {
       return await PaddleOCR.create({
         textDetectionModelName: `PP-OCRv6_${tier}_det`, textDetectionModelAsset: { url: `${base}/paddle/v6-${tier}/det.tar` },
         textRecognitionModelName: `PP-OCRv6_${tier}_rec`, textRecognitionModelAsset: { url: `${base}/paddle/v6-${tier}/rec.tar` },
-        ortOptions: { backend: 'wasm', wasmPaths: `${base}/ort/`, numThreads: 1, simd: true },
+        ortOptions: { backend: 'wasm', wasmPaths: `${base}/ort/`, numThreads: paddleThreads(), simd: true },
       }) as unknown as Instance;
     })();
     ready.catch(() => { if (current?.ready === ready) current = null; });
@@ -40,6 +48,8 @@ function instance(tier: PaddleTier) {
 }
 /** Frees the models and their memory after a few idle minutes (the next photo loads them again from the cache). */
 function releaseLater() { clearTimeout(idle); idle = setTimeout(() => { const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }, 3 * 60_000); }
+/** Starts loading the models ahead of a reading (e.g. when Scan struk opens), so the reading itself does not wait. */
+export function warmPaddle(tier: PaddleTier = paddleTierFor()) { void instance(tier).then(() => releaseLater(), () => undefined); }
 export function releasePaddle() { clearTimeout(idle); const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }
 
 const points = (poly: Item['poly']) => (poly as (number[] | { x: number; y: number })[]).map(p => Array.isArray(p) ? { x: p[0], y: p[1] } : p);

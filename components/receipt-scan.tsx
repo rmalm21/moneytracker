@@ -96,6 +96,8 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     setEditMoney(false); setAllItems(false); setRawOpen(false); setOpenCharge(''); setAddingCharge(false);
   }
   useEffect(() => { if (!open) { cancelIfBusy(); reset(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The receipt reader's models start loading while the photo is being taken or the area set.
+  useEffect(() => { if (open && ocrAvailable()) void import('@/lib/ocr-paddle').then(m => m.warmPaddle()).catch(() => undefined); }, [open]);
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
   useEffect(() => { try { setDebug(localStorage.getItem(DEBUG_KEY) === '1'); } catch { /* optional */ } }, []);
 

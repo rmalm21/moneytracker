@@ -2,7 +2,7 @@
 // screenshot detector. Pure functions; the engines themselves are measured by the benchmark in a browser.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { paddleToRecognized, segmentWords, paddleTierFor } from '../lib/ocr-paddle.ts';
+import { paddleToRecognized, segmentWords, paddleTierFor, paddleThreads } from '../lib/ocr-paddle.ts';
 import { flatShare, looksLikeScreenshot } from '../lib/receipt-digital.ts';
 
 const seg = (text, x0, y0, x1, y1, tilt = 0) => ({ text, score: .95, poly: [[x0, y0], [x1, y0 + tilt * (x1 - x0)], [x1, y1 + tilt * (x1 - x0)], [x0, y1]] });
@@ -46,4 +46,11 @@ test('PP-OCRv6 segments are loose pieces: on a tie the rebuilt rows are read, no
   const r = paddleToRecognized([seg('Es Teh Jumbo x3', 316, 705, 224), seg('Rp30.000', 759, 712, 125), seg('1 hangat 2 ice', 316, 742, 209), seg('Roti Bakar Coklat', 314, 778, 254), seg('Rp18.000', 757, 786, 124)]);
   assert.equal(r.segments, true);
   assert.deepEqual(r.rows.map(l => l.text.replace(/\s+/g, ' ')), ['Es Teh Jumbo x3 Rp30.000', '1 hangat 2 ice', 'Roti Bakar Coklat Rp18.000']);
+});
+
+test('several engine threads only on an isolated page (otherwise one, which always works)', () => {
+  assert.equal(paddleThreads(false, 8), 1);
+  assert.equal(paddleThreads(true, 8), 4);
+  assert.equal(paddleThreads(true, 2), 2);
+  assert.equal(paddleThreads(true, 0), 1);
 });

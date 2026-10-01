@@ -58,3 +58,9 @@ test('a discount line not tied to its item and the "Total Diskon" summing it: co
   assert.equal(r.total, 52200);
   assert.ok(checkReceipt(r).matches);
 });
+
+test('a subtotal printed before the item discounts still adds up (Alfamart style)', () => {
+  const r = read('alfamart-digital-1');
+  assert.equal(r.subtotal, 56200);
+  assert.ok(!checkReceipt(r).notes.some(n => /belum sama dengan subtotal/.test(n)));
+});

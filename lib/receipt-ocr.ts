@@ -247,7 +247,10 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     // The paper's outline was unsure (a patterned table, a hand, the edge of the photo): the cut may have dropped part of
     // the receipt (its header with the shop's name and date). PP-OCRv6 finds text in a cluttered photo by itself, so it
     // also reads the whole upright photo, and the better reading is kept.
-    if (firstEngine !== engine && !options.corners && !page.digital && (page.cornerConfidence === 'low' || page.cornerConfidence === 'none')) {
+    // Only when the first reading is not complete yet (it does not add up, or the shop or date is missing): a complete
+    // reading of the cut is kept as it is, which saves a whole second reading.
+    const complete = settled(fused.read) && Boolean(fused.read.merchant) && Boolean(fused.read.date);
+    if (firstEngine !== engine && !complete && !options.corners && !page.digital && (page.cornerConfidence === 'low' || page.cornerConfidence === 'none')) {
       const t1 = Date.now(), whole = await prepareOffPage(photo, { turn, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] }); stop();
       const pass = await runPass(firstEngine, whole, 'clean', '6', 'paddle-whole'); stop();
       const better = receiptScore(pass.read) > receiptScore(passes[0].read) || pass.read.merchant && !passes[0].read.merchant || pass.read.date && !passes[0].read.date && receiptScore(pass.read) >= receiptScore(passes[0].read);

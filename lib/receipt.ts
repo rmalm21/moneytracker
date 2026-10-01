@@ -853,7 +853,8 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   const matches = Boolean(best);
   if (!best && read.total && byPayment && !near(read.total, byPayment)) notes.push(`Total tertulis ${rp(read.total)}, tetapi bayar − kembalian = ${rp(byPayment)}. Periksa lagi.`);
   if (!best && read.total && all) notes.push(`Item dan biaya berjumlah ${rp(all)}, total tertulis ${rp(read.total)} (selisih ${rp(Math.abs(read.total - all))}). Mungkin ada item yang terlewat atau salah baca.`);
-  if (read.subtotal && itemsTotal && !near(read.subtotal, itemsTotal) && !near(read.subtotal, itemsTotal - read.discount)) notes.push(`Jumlah item ${rp(itemsTotal)} belum sama dengan subtotal ${rp(read.subtotal)}; periksa itemnya.`);
+  const itemsGross = read.items.reduce((n, i) => n + i.qty * i.price, 0);
+  if (read.subtotal && itemsTotal && !near(read.subtotal, itemsTotal) && !near(read.subtotal, itemsTotal - read.discount) && !near(read.subtotal, itemsGross)) notes.push(`Jumlah item ${rp(itemsTotal)} belum sama dengan subtotal ${rp(read.subtotal)}; periksa itemnya.`);
   const crossChecked = matches || Boolean(source === 'printed' && byPayment && near(read.total, byPayment));
   const lonely = source === 'printed' && !all && !byPayment;
   const tiny = total > 0 && total < 1000;

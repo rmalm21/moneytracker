@@ -217,7 +217,10 @@ export function fuseReadings(passes: OcrPass[]): Fused {
 export function addsUp(read: ReceiptRead) {
   const check = checkReceipt(read);
   if (!check.matches || Math.abs(check.computed - check.total) > 1) return false;
-  return !read.subtotal || !read.items.length || Math.abs(itemsNet(read.items) - read.subtotal) <= 1;
+  // The subtotal is printed after the item discounts on most receipts, before them on some (Alfamart: Subtotal 56,200,
+  // then "Total Diskon -4,000"); both are the same items.
+  const gross = read.items.reduce((n, i) => n + i.qty * i.price, 0);
+  return !read.subtotal || !read.items.length || Math.abs(itemsNet(read.items) - read.subtotal) <= 1 || (gross !== itemsNet(read.items) && Math.abs(gross - read.subtotal) <= 1);
 }
 export function resolveByArithmetic(read: ReceiptRead, votes: FieldVotes) {
   type Choice = { apply: (r: ReceiptRead, v: number) => void; options: number[]; name: string };
