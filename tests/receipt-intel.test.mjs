@@ -135,11 +135,11 @@ test('a long receipt: a row cut in half at the edge of a photo does not break th
   assert.deepEqual(read.items.map(i => i.name), ['BAWANG', 'TOMAT', 'WORTEL', 'KENTANG', 'TAHU']);
 });
 
-test('one discount read under the item by most passes and on the bill by one: kept under the item, counted once', () => {
+test('one discount read under the item by most passes (or half) and on the bill by the rest: kept under the item, counted once', () => {
   const head = 'Alfamart\nYakult Minuman Susu Fermentasi\n2   12100   24,200\nHydro Coco Minuman Air Kelapa\n2   16000   32000\n';
   const tail = 'Subtotal   4   56,200\nTotal Diskon   -4,000\nTotal   52,200';
   const under = `${head}Disc. -4,000\n${tail}`, apart = `${head}Original 500 mi\nDisc. -4,000\n${tail}`;
-  for (const order of [['a', 'b', 'c'], ['c', 'a', 'b']]) {
+  for (const order of [['a', 'b', 'c'], ['c', 'a', 'b'], ['c', 'a']]) {
     const texts = { a: under, b: under, c: apart };
     const fused = fuseReadings(order.map(id => pass(id, texts[id])));
     assert.equal(fused.read.discount, 0);

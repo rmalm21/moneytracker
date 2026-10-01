@@ -134,7 +134,7 @@ export function fuseReadings(passes: OcrPass[]): Fused {
     else if (!read[field] && consensus.value !== undefined && consensus.status === 'single') read[field] = consensus.value;
   }
   // One discount, two places: under an item in some passes, on the bill in others. It is counted once, and it goes
-  // where most whole-receipt passes put it.
+  // where most whole-receipt passes put it; on a tie, under the item (the more precise reading, same money).
   const itemDiscountOf = (r: ReceiptRead) => r.items.reduce((n, i) => n + (i.discount || 0), 0);
   const itemDiscounts = itemDiscountOf(read);
   if (!base.read.discount && itemDiscounts && read.discount === itemDiscounts) read.discount = 0;
@@ -142,7 +142,7 @@ export function fuseReadings(passes: OcrPass[]): Fused {
     const sameCount = whole.filter(p => p.read.items.length === read.items.length);
     const underItem = sameCount.filter(p => !p.read.discount && itemDiscountOf(p.read) === read.discount);
     const onBill = sameCount.filter(p => p.read.discount === read.discount && !itemDiscountOf(p.read));
-    if (underItem.length > onBill.length) {
+    if (underItem.length && underItem.length >= onBill.length) {
       underItem[0].read.items.forEach((item, i) => { if (item.discount) read.items[i] = { ...read.items[i], discount: item.discount }; });
       read.discount = 0; read.charges = (read.charges || []).filter(c => c.key !== 'discount'); delete read.sources?.discount;
     }
