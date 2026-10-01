@@ -10,7 +10,10 @@ import path from 'node:path';
 
 const here = path.dirname(new URL(import.meta.url).pathname), out = path.join(here, 'out');
 // SET=v25 reads truth-v25.json (the V2.5 structure set); without it, the original set.
-const truth = JSON.parse(fs.readFileSync(path.join(out, process.env.SET ? `truth-${process.env.SET}.json` : 'truth.json'), 'utf8'));
+// SET=realworld-dev / realworld-heldout: genuine images in bench/realworld/<set>/ with hand-written truth <set>.json.
+const real = (process.env.SET || '').startsWith('realworld'), realDir = path.join(here, '..', 'realworld');
+const truth = JSON.parse(fs.readFileSync(real ? path.join(realDir, `${process.env.SET}.json`) : path.join(out, process.env.SET ? `truth-${process.env.SET}.json` : 'truth.json'), 'utf8'));
+const imageDir = real ? path.join(realDir, process.env.SET) : out;
 
 import { METRICS, pct, score, summarize } from './score.mjs';
 
@@ -34,12 +37,13 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage();
 page.on('console', m => { if (m.type() === 'error') console.log('  [page]', m.text().slice(0, 200)); });
-await page.route('**/bench-fixture/**', route => route.fulfill({ path: path.join(out, decodeURIComponent(route.request().url().split('/bench-fixture/')[1])), contentType: 'image/jpeg' }));
+await page.route('**/bench-fixture/**', route => { const name = decodeURIComponent(route.request().url().split('/bench-fixture/')[1]); return route.fulfill({ path: path.join(imageDir, name), contentType: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg' }); });
 await page.goto(`${base}/ocr-bench/`); await page.waitForSelector('#bench-ready', { timeout: 180000 });
 const file = path.join(out, `result-${label}.json`), results = fs.existsSync(file) && filter ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 for (const id of Object.keys(truth).filter(id => !filter || id.includes(filter))) {
   const started = Date.now();
-  try { results[id] = await page.evaluate(url => window.__readReceipt(url), `${base}/bench-fixture/${id}.jpg`); }
+  // ENGINE=tesseract | paddle-tiny | paddle-small | auto (default: the app's own choice).
+  try { results[id] = await page.evaluate(([url, engine]) => window.__readReceipt(url, engine ? { engine } : {}), [`${base}/bench-fixture/${real ? id : `${id}.jpg`}`, process.env.ENGINE || '']); }
   catch (e) { results[id] = { error: String(e).slice(0, 300) }; }
   const s = score(truth[id], results[id]);
   console.log(`${id.padEnd(28)} total ${s.total ? 'ok' : 'X '} items ${pct(s.itemRecall).padStart(4)} amount ${pct(s.itemAmount).padStart(4)} rel ${pct(s.relations)} date ${s.date ?? '-'} pay ${s.payment ?? '-'} passes ${results[id].passes ?? '-'}${results[id].failure?.length ? ` [${results[id].failure.join('; ')}]` : ''} ${((Date.now() - started) / 1000).toFixed(1)}s`);

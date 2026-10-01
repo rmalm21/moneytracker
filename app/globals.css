@@ -6903,3 +6903,6 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .qp-ask-q svg { flex: none; margin-top: 2px; color: var(--accent); }
 .qp-ask .qp-picks { display: flex; flex-wrap: wrap; gap: 6px; }
 .qp-cancelled { display: block; padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 5%, var(--paper)); color: var(--muted); font-size: .78rem; text-decoration-line: none; overflow-wrap: anywhere; }
+/* 141. 3.2: the crossed-out price on an order screen, shown as information. */
+.rs-row-name small.rs-was { color: var(--muted); font-size: .72rem; }
+.rs-row-name small.rs-was s { text-decoration-thickness: 1px; }

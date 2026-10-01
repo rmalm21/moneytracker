@@ -1,0 +1,82 @@
+/**
+ * The second on-device reader: PaddleOCR.js (official SDK) with PP-OCRv6 (detection + recognition), on ONNX Runtime
+ * Web (WASM). Models and runtime files are served by the app itself (/ocr/paddle, /ocr/ort, see scripts/copy-ocr.mjs):
+ * no outside host and no upload. Loaded only when it is needed, and freed again after a few idle minutes.
+ *
+ * Two sizes: "tiny" (≈6 MB, for phones with little memory) and "small" (≈31 MB, more accurate). The reader is behind
+ * the same OcrEngine interface as Tesseract, so the receipt logic never depends on either engine's own output format.
+ */
+import type { OcrEngine, Recognized, RecognizeOptions } from './receipt-ocr.ts';
+import { linesFromWords, unionBox, type OcrLine, type OcrWord } from './receipt-rows.ts';
+
+export type PaddleTier = 'tiny' | 'small';
+type Item = { poly: number[][] | { x: number; y: number }[]; text: string; score: number };
+type Instance = { predict(image: Blob | ImageBitmap, params?: Record<string, unknown>): Promise<{ items: Item[]; image: { width: number; height: number }; metrics: Record<string, number> }[]>; dispose(): Promise<void> | void };
+
+/** The tier for this device: the small model only where there is memory for it (navigator.deviceMemory ≥ 8 GB). */
+export function paddleTierFor(memoryGb = typeof navigator !== 'undefined' ? (navigator as { deviceMemory?: number }).deviceMemory : undefined): PaddleTier {
+  return memoryGb !== undefined && memoryGb >= 8 ? 'small' : 'tiny';
+}
+
+let current: { tier: PaddleTier; ready: Promise<Instance> } | null = null, idle: ReturnType<typeof setTimeout> | undefined;
+function instance(tier: PaddleTier) {
+  clearTimeout(idle);
+  if (current?.tier !== tier) {
+    const old = current; current = null;
+    void old?.ready.then(o => o.dispose()).catch(() => undefined);
+    const base = `${window.location.origin}/ocr`;
+    const ready = (async () => {
+      const { PaddleOCR } = await import('@paddleocr/paddleocr-js');
+      return await PaddleOCR.create({
+        textDetectionModelName: `PP-OCRv6_${tier}_det`, textDetectionModelAsset: { url: `${base}/paddle/v6-${tier}/det.tar` },
+        textRecognitionModelName: `PP-OCRv6_${tier}_rec`, textRecognitionModelAsset: { url: `${base}/paddle/v6-${tier}/rec.tar` },
+        ortOptions: { backend: 'wasm', wasmPaths: `${base}/ort/`, numThreads: 1, simd: true },
+      }) as unknown as Instance;
+    })();
+    ready.catch(() => { if (current?.ready === ready) current = null; });
+    current = { tier, ready };
+  }
+  return current.ready;
+}
+/** Frees the models and their memory after a few idle minutes (the next photo loads them again from the cache). */
+function releaseLater() { clearTimeout(idle); idle = setTimeout(() => { const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }, 3 * 60_000); }
+export function releasePaddle() { clearTimeout(idle); const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }
+
+const points = (poly: Item['poly']) => (poly as (number[] | { x: number; y: number })[]).map(p => Array.isArray(p) ? { x: p[0], y: p[1] } : p);
+/**
+ * One detected text segment → word boxes: the segment's box split across its words by their share of characters
+ * (the engine gives one box per segment, the receipt logic works with words).
+ */
+export function segmentWords(text: string, poly: Item['poly'], score: number): OcrWord[] {
+  const pts = points(poly); if (!pts.length) return [];
+  const x0 = Math.min(...pts.map(p => p.x)), x1 = Math.max(...pts.map(p => p.x)), y0 = Math.min(...pts.map(p => p.y)), y1 = Math.max(...pts.map(p => p.y));
+  const words = text.trim().split(/\s+/).filter(Boolean), total = words.reduce((n, w) => n + w.length, 0) + Math.max(0, words.length - 1);
+  let at = 0;
+  return words.map(word => { const start = x0 + (x1 - x0) * at / total, end = x0 + (x1 - x0) * (at + word.length) / total; at += word.length + 1; return { text: word, x0: start, x1: end, y0, y1, confidence: Math.round(score * 100) }; });
+}
+/** Engine segments → the shared shape: native = one line per segment, rows = segments regrouped by height. */
+export function paddleToRecognized(items: Item[]): Recognized {
+  const segments = items.filter(i => i.text.trim()).map(i => segmentWords(i.text, i.poly, i.score)).filter(w => w.length);
+  const native: OcrLine[] = segments.map(words => { const tokens = words.map(w => ({ text: w.text, confidence: w.confidence ?? 0, box: { x: w.x0, y: w.y0, width: w.x1 - w.x0, height: w.y1 - w.y0 } })); return { text: words.map(w => w.text).join(' '), tokens, box: unionBox(tokens.map(t => t.box))!, confidence: tokens[0]?.confidence ?? 0 }; })
+    .sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+  const rows = linesFromWords(segments.flat(), 0);
+  const confidence = items.length ? items.reduce((n, i) => n + i.score, 0) / items.length * 100 : 0;
+  return { native, rows, confidence };
+}
+
+export function paddleEngine(tier: PaddleTier = paddleTierFor()): OcrEngine & { id: string; tier: PaddleTier } {
+  let cancelled = false;
+  return {
+    id: `paddle-v6-${tier}`, tier,
+    async recognize(image: Blob, _options: RecognizeOptions) {
+      cancelled = false;
+      const ocr = await instance(tier);
+      try {
+        const [result] = await ocr.predict(image, { textDetLimitSideLen: 1280, textDetLimitType: 'max' });
+        if (cancelled) throw Error('Pembacaan dibatalkan.');
+        return paddleToRecognized(result?.items || []);
+      } finally { releaseLater(); }
+    },
+    cancel() { cancelled = true; releasePaddle(); },
+  };
+}

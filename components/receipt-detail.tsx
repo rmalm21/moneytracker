@@ -12,7 +12,7 @@ import type { ReceiptSnapshot } from '@/lib/types';
 export function ReceiptDetail({ receipt, amount }: { receipt: ReceiptSnapshot; amount?: number }) {
   const [open, setOpen] = useState(receiptStartsOpen(receipt));
   const money = receiptMoneyRows(receipt);
-  const summary = [receipt.items.length ? `${receipt.items.length} item` : '', receipt.payment, receipt.merchant].filter(Boolean).join(' · ');
+  const summary = [receipt.items.length ? `${receipt.items.length} item` : '', receipt.payment, receipt.merchant, receipt.platform ? `via ${receipt.platform}` : ''].filter(Boolean).join(' · ');
   const differs = amount !== undefined && amount > 0 && receipt.total > 0 && amount !== receipt.total;
   const facts: [string, string][] = [
     ...(receipt.legalEntity ? [['Perusahaan', receipt.legalEntity] as [string, string]] : []),

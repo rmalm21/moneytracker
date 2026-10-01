@@ -8,3 +8,7 @@ out
 public/ocr
 bench/receipts/out
 bench/quick/out
+# Real receipts and screenshots (may hold personal data): kept local unless explicitly added.
+bench/realworld/realworld-*/
+bench/realworld/realworld-*.json
+bench/realworld/augmented/

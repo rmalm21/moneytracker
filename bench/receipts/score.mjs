@@ -55,6 +55,9 @@ export function score(t, result) {
     falseTotal: total && total !== t.total ? 1 : 0,
     confidentWrong: total !== t.total && check.confidence === 'tinggi' ? 1 : 0,
     relations: rel.all ? rel.ok / rel.all : null,
+    // V3 safety: a forbidden text (address, phone, payment, help button) read as an item.
+    phantomForbidden: (t.forbidden || []).filter(f => items.some(i => squash(i.name).includes(squash(f)))).length,
+    originalAsPaid: t.items.filter(i => i[3]?.originalPrice && items.some(r => r.total === i[3].originalPrice * i[1])).length,
     relWrong: rel.wrong,
     ms: result?.ms || 0,
     passes: result?.passes || 0,
@@ -68,6 +71,8 @@ export function summarize(scores) {
   out.falseTotal = scores.reduce((n, s) => n + s.falseTotal, 0);
   out.confidentWrong = scores.reduce((n, s) => n + s.confidentWrong, 0);
   out.relWrong = scores.reduce((n, s) => n + (s.relWrong || 0), 0);
+  out.phantomForbidden = scores.reduce((n, s) => n + (s.phantomForbidden || 0), 0);
+  out.originalAsPaid = scores.reduce((n, s) => n + (s.originalAsPaid || 0), 0);
   out.msAvg = avg('ms');
   out.passesAvg = avg('passes');
   out.escalated = scores.length ? scores.filter(s => s.passes > 1).length / scores.length : null;
