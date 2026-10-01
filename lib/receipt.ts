@@ -524,7 +524,7 @@ function readPaperText(text: string): ReceiptRead {
         const priceRow = (l?: string) => { const a = l && !readReceiptDate(l) && !timeOf(l) ? readAmount(l) : null; return Boolean(l && a && a.value >= 100 && !keyOf(l.slice(0, a.start)) && !notTransaction(l, l) && !/[a-z]{3,}/i.test(l.slice(0, a.start).replace(/\b(?:rp|pcs|x)\b/gi, ''))); };
         const codeLine = (l?: string) => Boolean(l && l.length <= 28 && /\d/.test(l) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(l.trim()) && /[\-/]/.test(l) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(l) && (l.match(/[a-z]/gi) || []).length <= 6);
         const itemAhead = priceRow(lines[position + 1]) || codeLine(source[position + 1]?.raw || lines[position + 1]) && priceRow(lines[position + 2]);
-        const headerLike = (line.match(/[a-z]/gi) || []).length >= 3 && !quantityLine(lines[position + 1]) && !keyOf(line) && !itemAhead;
+        const headerLike = (line.match(/[a-z]/gi) || []).length >= 3 && !quantityLine(lines[position + 1]) && !keyOf(line) && !itemAhead && !/^[a-z][a-z .]{1,20}\s*:\s*\S/i.test(line);
         if (!out.items.length && !lastItem && position < 7 && headerLike && (!dates.length || (!header.length && looksLikeName(line))) && !/^(selamat|welcome|struk|receipt|nota|invoice|bukti|terima kasih|thank)/i.test(line)) { header.push({ text: line.slice(0, 60), position }); kinds[position] = 'meta'; return; }
         // The rest of an item's name printed under its price row ("5 x 65 ml", "Original 500 ml"): a size or volume.
         if (nearItem(position) && line.length <= 32 && /\b\d+(?:[.,]\d+)?\s*(?:ml|l|ltr|liter|gr|g|gram|kg|pcs|pack|sachet|cm|mm|oz)\b/i.test(line) && !keyOf(line)) {

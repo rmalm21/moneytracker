@@ -215,14 +215,24 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     stage = 'read';
     const trace: TraceStep[] = [], t0 = Date.now();
     // The engines for this reading: the first reads the whole page; the other one is the second opinion.
-    const routing = options.engine ? 'tesseract' : options.routing || 'tesseract';
+    // PP-OCRv6 first: on the real receipts measured (bench/realworld) it read totals, items and the shop better than
+    // Tesseract alone, with no fake items; Tesseract is the second opinion and the fallback.
+    const routing = options.engine ? 'tesseract' : options.routing || 'paddle-first';
     const paddle = routing === 'tesseract' ? null : await import('./ocr-paddle.ts').then(m => m.paddleEngine(m.paddleTierFor())).catch(() => null);
-    const firstEngine = (routing === 'paddle' || routing === 'paddle-first') && paddle ? paddle : engine;
-    const second = routing === 'paddle-first' && paddle ? engine : routing === 'tesseract-first' ? paddle : null;
-    const passes: OcrPass[] = [firstEngine === engine ? await runPass(engine, page, 'even', '6', 'even-6') : await runPass(firstEngine, page, 'clean', '6', 'paddle')];
+    let firstEngine = (routing === 'paddle' || routing === 'paddle-first') && paddle ? paddle : engine;
+    let second = routing === 'paddle-first' && paddle ? engine : routing === 'tesseract-first' ? paddle : null;
+    let opening: OcrPass;
+    if (firstEngine === engine) opening = await runPass(engine, page, 'even', '6', 'even-6');
+    else {
+      // PP-OCRv6 could not start (models not cached yet and offline, too little memory): Tesseract reads instead.
+      say('load', .12, 'Menyiapkan pembaca struk (sekali saja)…');
+      try { opening = await runPass(firstEngine, page, 'clean', '6', 'paddle'); }
+      catch (error) { if (options.signal?.aborted) throw error; firstEngine = engine; second = null; opening = await runPass(engine, page, 'even', '6', 'even-6'); }
+    }
+    const passes: OcrPass[] = [opening];
     stop();
     let fused = fuseReadings(passes);
-    trace.push({ step: 'even-6', reason: 'bacaan pertama seluruh struk', ms: Date.now() - t0, outcome: settled(fused.read) ? 'settled' : 'better' });
+    trace.push({ step: opening.id, reason: opening.id === 'paddle' ? 'bacaan pertama seluruh struk (PP-OCRv6)' : 'bacaan pertama seluruh struk', ms: Date.now() - t0, outcome: settled(fused.read) ? 'settled' : 'better' });
     // A photo taken sideways or upside down: turned when the first reading found little.
     const first = passes[0], weak = receiptScore(first.read) < 6;
     const turns = weak && !options.corners ? [...(page.landscape ? [1, 3] : []), ...(receiptScore(first.read) < 3 && first.confidence < 45 ? [2] : [])] : [];
@@ -234,6 +244,16 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
       trace.push({ step: `turn${quarter}`, reason: 'bacaan pertama lemah; foto mungkin miring/terbalik', ms: 0, outcome: better ? 'better' : 'same' });
       if (better) { page = turned; passes.splice(0, passes.length, pass); fused = fuseReadings(passes); break; }
     }
+    // The paper's outline was unsure (a patterned table, a hand, the edge of the photo): the cut may have dropped part of
+    // the receipt (its header with the shop's name and date). PP-OCRv6 finds text in a cluttered photo by itself, so it
+    // also reads the whole upright photo, and the better reading is kept.
+    if (firstEngine !== engine && !options.corners && !page.digital && (page.cornerConfidence === 'low' || page.cornerConfidence === 'none')) {
+      const t1 = Date.now(), whole = await prepareOffPage(photo, { turn, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] }); stop();
+      const pass = await runPass(firstEngine, whole, 'clean', '6', 'paddle-whole'); stop();
+      const better = receiptScore(pass.read) > receiptScore(passes[0].read) || pass.read.merchant && !passes[0].read.merchant || pass.read.date && !passes[0].read.date && receiptScore(pass.read) >= receiptScore(passes[0].read);
+      trace.push({ step: 'paddle-whole', reason: 'potongan kertas kurang yakin; seluruh foto dibaca', ms: Date.now() - t1, outcome: better ? 'better' : 'same' });
+      if (better) { page = whole; passes.splice(0, passes.length, pass); fused = fuseReadings(passes); }
+    }
     // Letter height decides how much the closer looks enlarge (small print on a far-away receipt gets more).
     const textHeight = textHeightOf(passes[0].lines), full: Box = { x: 0, y: 0, width: page.width, height: page.height };
     // Targeted passes until the receipt adds up, within a time budget (phones are slower; a photo that still reads
@@ -242,7 +262,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     // each aimed at what is still missing. It stops as soon as the receipt adds up (early exit) or the budget is spent.
     const planned: { id: string; label: string; why: () => string | null; run: () => Promise<OcrPass> }[] = [
       { id: 'second-engine', label: 'Membaca ulang dengan pembaca kedua…', why: () => second ? 'belum cocok; pembaca kedua membaca seluruh struk' : null,
-        run: () => second === engine ? runPass(engine, page, 'even', '6', 'even-6') : runPass(second!, page, 'clean', '6', 'paddle') },
+        run: () => second === engine ? runPass(engine, page, 'even', '6', 'even-6') : runPass(second!, page, 'clean', '6', 'paddle').catch(() => runPass(engine, page, 'bw', '6', 'bw-6')) },
       { id: 'zoom-even-6', label: 'Memperbesar tulisan kecil…', why: () => textHeight > 0 && textHeight < 20 && regionScale(textHeight, full, 1) >= 1.3 ? `huruf kecil (${textHeight} px) → diperbesar ${regionScale(textHeight, full, 1)}×` : null,
         run: () => runPass(engine, page, 'even', '6', 'zoom-even-6', { rect: full, scale: regionScale(textHeight, full, 1), page: true }) },
       { id: 'bw-6', label: 'Membaca ulang dengan kontras tinggi…', why: () => 'belum cocok; varian hitam-putih', run: () => runPass(engine, page, 'bw', '6', 'bw-6') },

@@ -1,5 +1,5 @@
 // Dompet Ajaib service worker: fast app shell, offline fallback, and user-approved updates.
-const VERSION = 'v10';
+const VERSION = 'v11';
 const STATE = 'dompet-ajaib-state';
 const SHELL = `dompet-ajaib-shell-${VERSION}`;
 const RUNTIME = `dompet-ajaib-runtime-${VERSION}`;
@@ -28,8 +28,9 @@ self.addEventListener('fetch', event => {
     }).catch(() => caches.match(url.pathname.startsWith('/login') ? '/login/' : '/').then(page => page || caches.match('/'))));
     return;
   }
-  // Hashed build files never change: serve from cache first.
-  if (url.pathname.startsWith('/_next/static/')) {
+  // Hashed build files never change, and the receipt readers' models and runtime (/ocr: Tesseract, PP-OCRv6, ONNX
+  // Runtime) only change with a new app version: serve from cache first, download once.
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/ocr/')) {
     event.respondWith(caches.match(request).then(saved => saved || fetch(request).then(response => {
       if (response.ok) { const copy = response.clone(); caches.open(RUNTIME).then(cache => cache.put(request, copy)); }
       return response;

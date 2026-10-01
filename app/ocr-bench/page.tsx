@@ -16,7 +16,7 @@ export default function OcrBench() {
       const blob = await (await fetch(url)).blob();
       const { paddleEngine } = await import('@/lib/ocr-paddle');
       const engine = options.engine === 'paddle-tiny' ? paddleEngine('tiny') : options.engine === 'paddle-small' ? paddleEngine('small') : undefined;
-      const result = await readReceiptPhoto(blob, undefined, { ...(engine ? { engine } : {}), ...(options.engine === 'paddle-first' || options.engine === 'tesseract-first' ? { routing: options.engine } : {}) } as never) as unknown as Record<string, unknown>;
+      const result = await readReceiptPhoto(blob, undefined, { ...(engine ? { engine } : {}), ...(options.engine === 'paddle-first' || options.engine === 'tesseract-first' || options.engine === 'tesseract' ? { routing: options.engine } : {}) } as never) as unknown as Record<string, unknown>;
       // The working images are large; only the reading goes back to the runner.
       const { prepared: _prepared, passList, ...rest } = result as { prepared?: unknown; passList?: { id: string; text: string; confidence: number }[] } & Record<string, unknown>;
       return JSON.parse(JSON.stringify({ ...rest, passList: (passList || []).map(p => ({ id: p.id, text: p.text, confidence: p.confidence })) }));
