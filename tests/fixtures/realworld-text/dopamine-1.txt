@@ -8,8 +8,8 @@ Receipt Number   14:13
 Order ID   8AAUCD
 Bill Name   ASU0035
 Served By   sfping 2
-Collected By   vereena calist
-vereena calist
+Collected By   staf kasir
+staf kasir
 Dine In
 Butterscotch Sea Salt Latte x1   Rp 44.000
 Subtotal   Rp 44.000

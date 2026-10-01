@@ -47,6 +47,6 @@ test('Alfamart digital receipt (first held-out image): delivery block, Ref line 
   assert.equal(r.merchant, 'Alfamart');
   assert.deepEqual(r.items.map(i => [i.name, i.qty, i.total, i.discount]), [['Yakult Minuman Susu Fermentasi 5 x 65 ml', 2, 24200, undefined], ['Hydro Coco Minuman Air Kelapa Original 500 ml', 2, 32000, 4000]]);
   assert.equal(r.discount, 0); assert.equal(r.total, 52200); assert.equal(c.matches, true);
-  assert.ok(!/delivered|rama/i.test(r.branch || ''));
-  assert.ok(!r.items.some(i => /ref\.|rama|melati|kirim/i.test(i.name)));
+  assert.ok(!/delivered|budi/i.test(r.branch || ''));
+  assert.ok(!r.items.some(i => /ref\.|budi|kenanga|kirim/i.test(i.name)));
 });

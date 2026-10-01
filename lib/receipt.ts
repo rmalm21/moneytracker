@@ -442,7 +442,7 @@ function paymentOnly(label: string) {
 export function notTransaction(line: string, raw: string) {
   const money = /\d{1,3}(?:[.,]\d{3})+|\brp\b/i.test(raw);
   if (/\bnpwp\b/i.test(raw)) return true;
-  // Delivery and recipient lines of an order ("Delivered at : Rama A", "Maks Kirim", "Status Order") are not the shop.
+  // Delivery and recipient lines of an order ("Delivered at : Budi S", "Maks Kirim", "Status Order") are not the shop.
   if (/^\s*(?:delivered\s*(?:at|to)|dikirim\s*(?:ke|kepada)|penerima|alamat(?:\s*pengiriman)?|maks\.?\s*kirim|status\s*(?:order|pesanan)|estimasi(?:\s*tiba)?)\b/i.test(raw)) return true;
   // An order or receipt reference ("Ref. S-260728-AGTDTPZ") is an identifier, never part of an item's name.
   if (/^\s*(?:ref|reference|no\.?\s*ref|order\s*(?:id|no)|no\.?\s*(?:order|pesanan|transaksi))\b\.?\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{5,}\s*$/i.test(raw)) return true;

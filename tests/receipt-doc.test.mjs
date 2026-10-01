@@ -19,10 +19,10 @@ test('37/38 Shopee order: one product, every summary row in its place, total add
   assert.equal(check.matches, true); assert.equal(check.total, 162733);
   const roleOf = text => r.doc.lines.find(l => l.text.startsWith(text)).role;
   for (const t of ['Butuh Bantuan?', 'Ajukan Pengembalian', 'Hubungi Penjual', 'Lacak', 'Rincian Pesanan', 'Tonton Sekarang']) assert.equal(roleOf(t), 'ui_navigation', t);
-  assert.equal(roleOf('Rama Almahi'), 'recipient'); assert.equal(roleOf('Jalan Melati'), 'address'); assert.equal(roleOf('harga flash sale'), 'promo');
+  assert.equal(roleOf('Budi Santoso'), 'recipient'); assert.equal(roleOf('Jalan Kenanga'), 'address'); assert.equal(roleOf('harga flash sale'), 'promo');
   // No phone digits, address numbers or postcode anywhere in the money.
   const money = [...r.items.flatMap(i => [i.price, i.total]), ...r.charges.map(c => c.amount), r.total, r.subtotal];
-  for (const bad of [10510, 20, 3, 5, 8516128303, 6128, 3003]) assert.ok(!money.includes(bad), String(bad));
+  for (const bad of [10510, 20, 3, 5, 8120001234, 1234, 8120]) assert.ok(!money.includes(bad), String(bad));
 });
 
 test('86 the crossed-out price is never the paid price, also when the two prices come on separate lines', () => {
@@ -58,8 +58,8 @@ test('family: a paper receipt is not read as an order screen', () => {
 });
 
 test('23 phone numbers are recognised, and money needs an Rp', () => {
-  for (const p of ['+62 851-6128-3003', '(+62) 851-6128-3003', '081234567890', '0812 3456 7890']) assert.ok(PHONE.test(p), p);
+  for (const p of ['+62 812-0000-1234', '(+62) 812-0000-1234', '081234567890', '0812 3456 7890']) assert.ok(PHONE.test(p), p);
   assert.deepEqual(moneyIn('Rp699.000 Rp212.000').map(m => m.value), [699000, 212000]);
-  assert.deepEqual(moneyIn('Jalan Melati IV No.20 RT 3 10510').map(m => m.value), []);
+  assert.deepEqual(moneyIn('Jalan Kenanga II No.7 RT 3 10510').map(m => m.value), []);
   assert.deepEqual(moneyIn('Subtotal Diskon Pengiriman -Rp6.500').map(m => [m.value, m.negative]), [[6500, true]]);
 });

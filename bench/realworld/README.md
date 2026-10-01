@@ -23,7 +23,7 @@ Images and truth files are git-ignored by default (they can hold names, phone nu
     "date": "2026-09-27", "time": "19:42", "total": 162733, "payment": "shopeepay",
     "charges": { "delivery": 6500, "discount": 57967, "fee": 2200 },
     "items": [["[Penawaran Kombo] ENCHEN Mini 6 Alat C...", 1, 212000, { "originalPrice": 699000 }]],
-    "forbidden": ["Alamat Pengiriman", "Jalan Melati", "Butuh Bantuan", "Lacak", "DEBIT"],
+    "forbidden": ["Alamat Pengiriman", "Jalan Kenanga", "Butuh Bantuan", "Lacak", "DEBIT"],
     "quality": "ok"
   }
 }
