@@ -6883,7 +6883,7 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .rs-note.is-code { padding-right: 9px; font-family: ui-monospace, 'DejaVu Sans Mono', monospace; font-size: .7rem; background: var(--soft, color-mix(in srgb, var(--ink) 6%, var(--paper))); color: var(--muted); }
 .rs-note button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .rs-relation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 11%, var(--paper)); font-size: .8rem; }
-.rs-relation > span { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.rs-relation > span { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 /* Where a value came from, above the receipt picture: read directly, worked out, or edited. */
 .rs-origin { margin: 0 0 8px; padding: 6px 10px; border-radius: 10px; font-size: .78rem; line-height: 1.35; overflow-wrap: anywhere; background: color-mix(in srgb, var(--ink) 5%, var(--paper)); color: var(--muted); }
 .rs-origin.is-direct { background: color-mix(in srgb, #10b981 11%, var(--paper)); color: var(--ink); }

@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.0', date: '1 Okt 2026', title: 'Scan struk lebih paham isi struk', items: [
+    ['🧾', 'Catatan di bawah item (mis. “1 hangat 2 ice”, “less sugar”, “springkle”) kini menempel ke item di atasnya, tampil kecil di bawah nama item, dan tidak lagi tercampur ke nama item berikutnya.'],
+    ['🧾', 'Nama item dua baris, diskon member di bawah satu item, dan voucher setelah subtotal kini dibedakan: diskon item mengurangi item itu saja, voucher mengurangi tagihan.'],
+    ['🧾', 'Struk toko ritel: nama toko, nama perusahaan (PT/CV), dan cabang dipisahkan; kode varian dan SKU di bawah nama barang ikut tersimpan; PPN yang sudah termasuk harga tidak ditambahkan lagi.'],
+    ['✅', 'Yang belum pasti ditanya sekali: “Catatan ini untuk item ini?” atau “Kode terbaca kurang jelas”, cukup ketuk Ya/Bukan.'],
+    ['💡', 'Ikon mata kini juga menjelaskan asal nilainya: terbaca langsung dari struk, dihitung, atau diedit manual.'],
+    ['📷', 'Tulisan kecil dibaca lebih dekat secara otomatis, dan pembacaan berhenti begitu struk sudah cocok, jadi rata-rata lebih cepat.'],
+    ['💸', 'Catatan item ikut terbawa ke Split Bill dan ke Rincian struk di transaksi.'],
+  ] },
   { version: '2.10', date: '1 Okt 2026', title: 'Scan struk dibantu Gemini', items: [
     ['🧾', 'Scan struk kini bisa dibantu Gemini (3.5 Flash Lite) untuk membaca tempat, tanggal, item, pajak, diskon, total, dan cara bayar. Hasilnya tetap dicek dulu sebelum disimpan.'],
     ['🔒', 'Hanya potongan struk yang dikirim ke Gemini, bukan foto utuh, dan tidak disimpan di akunmu. Bisa dimatikan di layar Scan struk (“Bantu baca dengan Gemini”). Saat mati, offline, atau Gemini sedang penuh, struk dibaca di perangkat seperti biasa.'],
