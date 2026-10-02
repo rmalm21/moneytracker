@@ -85,3 +85,10 @@ frozen in `heldout-first/`), V3.0 frozen in `baseline-v30/` (`run-v30.mjs v30`).
 Relationship, direction and multi-action: `lib/catat/relations.ts` (verb roles, user perspective, purpose) and
 `lib/catat/segment.ts` (anchor segmentation). Sets `fixtures-v32dev.mjs` and `fixtures-v32heldout.mjs` (first run frozen
 in `heldout-first/`), V3.1 frozen in `baseline-v31/` (`run-v30.mjs v31`). Report: `REPORT-v32.md`.
+
+## Catat otomatis V3.3 (app 4.3)
+
+Contextual financial reasoning: `lib/catat/history.ts` (commands, historical resolver, queries, recurring changes),
+`lib/catat/composition.ts`, `lib/catat/group.ts`, `lib/catat/mutation.ts`. State-based benchmark `run-v33.mjs` over
+`fixtures-v33state.mjs` + `fixtures-v33dev.mjs` / `fixtures-v33heldout.mjs` (first run frozen in `heldout-first/`),
+V3.2 frozen in `baseline-v32/`. Report: `REPORT-v33.md`.

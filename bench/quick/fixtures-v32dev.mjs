@@ -71,7 +71,8 @@ const raw = [
   ['m03', ['segmentation', 'implicit', 'relation'], 'atuy ngutang 12k budi ngutang 20k', [a('receivable_new', 12000, { person: 'Atuy' }), a('receivable_new', 20000, { person: 'Budi' })]],
   ['m04', ['segmentation', 'implicit', 'repayment'], 'atuy bayar utang 12k budi bayar utang 5k', [a('receivable_payment', 12000, { person: 'Atuy', review: ['link'] }), a('receivable_payment', 5000, { person: 'Budi', review: ['link'] })]],
   ['m05', ['segmentation', 'implicit', 'date'], 'kmrn kopi 20k hari ini bensin 80k', [a('expense', 20000, { date: Y }), a('expense', 80000, { date: T })]],
-  ['m06', ['segmentation', 'nosplit'], 'makan 100k pajak 10k', [a('expense', undefined, { review: ['amount'] })]],
+  // V3.3: tax is a charge of the same purchase (100.000 + 10.000), no longer two amounts to check.
+  ['m06', ['segmentation', 'nosplit'], 'makan 100k pajak 10k', [a('expense', 110000)]],
   ['m07', ['segmentation', 'nosplit'], 'beli 2 ayam 20k', [a('expense', 20000)]],
   ['m08', ['segmentation', 'nosplit', 'purpose'], 'atuy ngutang 12k buat makan siang', [a('receivable_new', 12000, { person: 'Atuy', purpose: 'Makan Siang' })]],
   ['m09', ['segmentation', 'implicit', 'date'], 'kopi 15k kmrn roti 10k', [a('expense', 15000, { date: Y }), a('expense', 10000, { date: Y })]],
@@ -83,7 +84,8 @@ const raw = [
   ['m15', ['segmentation', 'implicit', 'relation', 'purpose'], 'atuy ngutang 12k buat ngedate budi ngutang 20k', [a('receivable_new', 12000, { person: 'Atuy', purpose: 'Ngedate' }), a('receivable_new', 20000, { person: 'Budi', purpose: null })]],
   ['m16', ['segmentation', 'implicit'], 'parkir 2k di kantor bensin 30k pake krom', [a('expense', 2000, { merchant: 'Kantor' }), a('expense', 30000, { wallet: 'krom' })]],
   // Pronouns
-  ['n01', ['pronoun', 'segmentation'], 'atuy ngutang 12k terus dia bayar 5k', [a('receivable_new', 12000, { person: 'Atuy' }), a('receivable_payment', 5000, { person: 'Atuy', review: ['link'] })]],
+  // V3.3: the payment settles the receivable created in the same message (12.000 → 7.000); no record left to pick.
+  ['n01', ['pronoun', 'segmentation'], 'atuy ngutang 12k terus dia bayar 5k', [a('receivable_new', 12000, { person: 'Atuy' }), a('receivable_payment', 5000, { person: 'Atuy' })]],
   ['n02', ['pronoun', 'relation'], 'dia ngutang 12k', [a('receivable_new', 12000, { review: ['person'] })]],
   // Corrections and negations
   ['c01', ['correction', 'relation'], 'atuy ngutang 12k eh 15k', [a('receivable_new', 15000, { person: 'Atuy' })]],

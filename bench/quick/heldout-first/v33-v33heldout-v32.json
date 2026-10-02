@@ -1,0 +1,2139 @@
+{
+ "set": "v33heldout",
+ "label": "v32",
+ "ms": 24.04,
+ "p95": 30.19,
+ "summary": {
+  "Kalimat benar seluruhnya": "23%",
+  "Jenis operasi tepat": "35%",
+  "Perubahan state tepat": "40%",
+  "Target historis tepat": "33%",
+  "Tepat: Pelunasan sebagian": "0%",
+  "Tepat: Pelunasan penuh": "0%",
+  "Tepat: Sisa saldo": "0%",
+  "Tepat: Deteksi bayar lebih": "0%",
+  "Tepat: Rujukan (dia / dalam pesan)": "0%",
+  "Tepat: Ubah transaksi": "0%",
+  "Tepat: Hapus / batal": "0%",
+  "Tepat: Ambigu → tanya": "50%",
+  "Tepat: Pertanyaan (tanpa mutasi)": "0%",
+  "Tepat: Aritmetika": "67%",
+  "Tepat: Diskon": "0%",
+  "Tepat: Biaya / service": "50%",
+  "Tepat: Cashback": "0%",
+  "Tepat: Transfer + admin": "100%",
+  "Tepat: Grup": "0%",
+  "Tepat: Split Bill": "0%",
+  "Tepat: Talangan": "50%",
+  "Tepat: Klaim": "50%",
+  "Tepat: Rencana": "33%",
+  "Tepat: Jadwal rutin": "0%",
+  "Tepat: Peringatan duplikat": "50%",
+  "Tepat: Nominal tanpa satuan aman": "0%",
+  "Tepat: Kalimat sederhana": "100%",
+  "Presisi peringatan duplikat": "–",
+  "Peringatan duplikat palsu": 0,
+  "Mutasi salah tapi yakin": 7,
+  "Target salah tapi yakin": 2,
+  "Uang tercatat dobel": 1,
+  "Saldo relasi negatif": 1,
+  "Aksi palsu": 1,
+  "Aksi terlewat": 8
+ },
+ "rows": [
+  {
+   "id": "e01",
+   "tags": [
+    "partial",
+    "remaining"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "rel": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": true,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 10000
+    },
+    "rel": {
+     "rr": 20000
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e02",
+   "tags": [
+    "partial",
+    "remaining",
+    "plan",
+    "unsuffixed"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "rel": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": false,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 10
+    },
+    "rel": {
+     "rr": 29990
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e03",
+   "tags": [
+    "settle"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "rel": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 30000
+    },
+    "rel": {
+     "rr": 0
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e04",
+   "tags": [
+    "overpay"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": false,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 1,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 50000
+    },
+    "rel": {
+     "rr": -20000
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 1
+   }
+  },
+  {
+   "id": "e05",
+   "tags": [
+    "partial",
+    "remaining"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "rel": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {
+     "rr": 30000
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e06",
+   "tags": [
+    "partial"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "rel": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": true,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": -100000
+    },
+    "rel": {
+     "d1": 300000
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e07",
+   "tags": [
+    "claim",
+    "partial"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "rel": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": true,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 700000
+    },
+    "rel": {
+     "c1": 500000
+    },
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e08",
+   "tags": [
+    "ambiguous"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 25000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e09",
+   "tags": [
+    "reference",
+    "partial"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": true,
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE",
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "": 15000
+    },
+    "rel": {},
+    "created": {
+     "receivable:Nisa": 40000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e10",
+   "tags": [
+    "reference",
+    "ambiguous"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": false,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE",
+    "CREATE",
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -10000
+    },
+    "rel": {},
+    "created": {
+     "receivable:Nisa": 40000,
+     "receivable:Rian": 20000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e11",
+   "tags": [
+    "reference",
+    "talang",
+    "partial"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": true,
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE",
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {
+     "gopay": -60000,
+     "": 20000
+    },
+    "rel": {},
+    "created": {
+     "receivable:Dodi": 60000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 2,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e12",
+   "tags": [
+    "update"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": false,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 1,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -25000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e13",
+   "tags": [
+    "update"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": false,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 1,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -40000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e14",
+   "tags": [
+    "delete"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": false,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e15",
+   "tags": [
+    "delete"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": false,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e16",
+   "tags": [
+    "update"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": false,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e17",
+   "tags": [
+    "delete"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": true,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e18",
+   "tags": [
+    "query"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true,
+    "query": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {
+     "receivable:Punya": 0
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e19",
+   "tags": [
+    "query"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true,
+    "query": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {
+     "debt:Total": 0
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e20",
+   "tags": [
+    "query"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true,
+    "query": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {
+     "receivable:Masih": 0
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e21",
+   "tags": [
+    "arithmetic"
+   ],
+   "exact": false,
+   "opsOk": true,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": false,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -5000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e22",
+   "tags": [
+    "arithmetic"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -10000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e23",
+   "tags": [
+    "arithmetic"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -35000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e24",
+   "tags": [
+    "discount"
+   ],
+   "exact": false,
+   "opsOk": true,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": false,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "jago": -400000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e25",
+   "tags": [
+    "discount",
+    "fee"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": false,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 1,
+   "negative": 0,
+   "phantom": 1,
+   "missed": 0,
+   "ops": [
+    "CREATE",
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "gopay": -300000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 2,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e26",
+   "tags": [
+    "cashback"
+   ],
+   "exact": false,
+   "opsOk": true,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": false,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "gopay": 100000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e27",
+   "tags": [
+    "transfer",
+    "fee"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "TRANSFER"
+   ],
+   "sim": {
+    "money": {
+     "bri": -1006500,
+     "jenius": 1000000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e28",
+   "tags": [
+    "group"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {
+     "receivable:Nisa": 50000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e29",
+   "tags": [
+    "group"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {
+     "receivable:Total": 90000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e30",
+   "tags": [
+    "split"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": true,
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -300000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e31",
+   "tags": [
+    "split"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": true,
+    "created": false,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "": -90000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e32",
+   "tags": [
+    "talang"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "jenius": -75000
+    },
+    "rel": {},
+    "created": {
+     "receivable:Nisa": 75000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e33",
+   "tags": [
+    "claim"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "jago": -85000
+    },
+    "rel": {},
+    "created": {
+     "claim:new": 85000
+    },
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e34",
+   "tags": [
+    "plan"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SCHEDULE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [
+     {
+      "amount": 350000,
+      "date": "2026-10-17",
+      "time": "09:00"
+     }
+    ],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e35",
+   "tags": [
+    "plan"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true,
+    "plansDone": false
+   },
+   "target": false,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SETTLE?"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e36",
+   "tags": [
+    "recurring"
+   ],
+   "exact": false,
+   "opsOk": true,
+   "stateOk": false,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "RECUR"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {
+     "new": {
+      "amount": 65000,
+      "date": "2026-10-15",
+      "time": "20:00"
+     }
+    },
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e37",
+   "tags": [
+    "recurring"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": false,
+    "recurring": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "SCHEDULE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [
+     {
+      "amount": 45000,
+      "date": "2026-11-15"
+     }
+    ],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e38",
+   "tags": [
+    "recurring"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": false
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 1,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {},
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 0,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e39",
+   "tags": [
+    "duplicate"
+   ],
+   "exact": false,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": false,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": true,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "gopay": -22000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e40",
+   "tags": [
+    "duplicate"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "gopay": -22000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e41",
+   "tags": [
+    "unsuffixed"
+   ],
+   "exact": false,
+   "opsOk": false,
+   "stateOk": false,
+   "checks": {
+    "money": false,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": false,
+   "confirmOk": false,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 1,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "gopay": -15
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e42",
+   "tags": [
+    "simple"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "cash": -3000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  },
+  {
+   "id": "e43",
+   "tags": [
+    "simple"
+   ],
+   "exact": true,
+   "opsOk": true,
+   "stateOk": true,
+   "checks": {
+    "money": true,
+    "created": true,
+    "updates": true,
+    "deletes": true,
+    "schedules": true,
+    "recurring": true
+   },
+   "target": null,
+   "warnOk": true,
+   "askOk": true,
+   "reviewOk": true,
+   "fieldsOk": true,
+   "confirmOk": true,
+   "dupWarned": false,
+   "dupExpected": false,
+   "wrongMutation": 0,
+   "wrongTarget": 0,
+   "dupMoney": 0,
+   "negative": 0,
+   "phantom": 0,
+   "missed": 0,
+   "ops": [
+    "CREATE"
+   ],
+   "sim": {
+    "money": {
+     "bri": 500000
+    },
+    "rel": {},
+    "created": {},
+    "updates": {},
+    "deletes": [],
+    "schedules": [],
+    "recurring": {},
+    "plansDone": [],
+    "cash": 1,
+    "negative": 0
+   }
+  }
+ ]
+}

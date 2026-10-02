@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.3', date: '2 Okt 2026', title: 'Catat otomatis paham catatan yang sudah ada', items: [
+    ['💰', '“atuy bayar 5k” mengurangi piutang Atuy yang sudah ada: Rp12.000 → Rp7.000. Kalau bayarnya lebih dari sisanya, kamu diberi tahu dan tidak ada saldo minus. “sisanya besok” langsung jadi rencana untuk sisa yang benar.'],
+    ['📝', 'Ubah atau hapus transaksi dengan kalimat biasa: “ubah kopi cotti tadi jadi 25k”, “hapus parkir tadi”, “yang kemarin harusnya 25 bukan 20”. Kalau ada dua yang mirip, kamu yang memilih. Hapus selalu minta konfirmasi.'],
+    ['🧾', 'Diskon, service, pajak, ongkir, dan cashback dihitung dalam satu transaksi: “makan 100k diskon 20k service 5k” jadi Rp85.000. Transfer dengan biaya admin: dompet tujuan tetap menerima pokoknya saja.'],
+    ['💸', '“gue bayar makan 150k bagi rata bertiga gue atuy budi” jadi Split Bill (Rp50.000 per orang), dan “budi sama aldi masing2 ngutang 10k” jadi dua piutang. Talangan dan klaim kantor dicatat sekali saja.'],
+    ['💡', 'Sebelum disimpan, kamu melihat apa yang berubah: saldo dompet, sisa piutang, rencana. Pertanyaan seperti “atuy masih ngutang berapa” langsung dijawab tanpa mencatat apa pun. Transaksi yang mirip baru saja dicatat diberi peringatan.'],
+    ['✅', 'Rencana dan jadwal rutin kini menyimpan jamnya. “mulai bulan depan spotify jadi 35k” dan “bulan depan stop spotify” mengubah jadwal tanpa mengubah transaksi lama. “wifi tadi udah gue bayar” menandai rencana WiFi selesai.'],
+  ] },
   { version: '4.2', date: '2 Okt 2026', title: 'Catat otomatis paham siapa berutang ke siapa', items: [
     ['📝', '“atuy ngutang 12k” dicatat sebagai piutang Atuy (Atuy berutang ke kamu), sedangkan “gue ngutang 12k ke aldi” atau “ngutang 12k ke aldi” dicatat sebagai utangmu ke Aldi.'],
     ['💡', 'Keperluannya dicatat terpisah: “atuy ngutang 12k buat ngedate” jadi Piutang Atuy Rp12.000 · Untuk: Ngedate. Kata setelah “buat/untuk” tidak lagi dianggap nama orang.'],

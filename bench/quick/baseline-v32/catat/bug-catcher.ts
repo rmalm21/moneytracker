@@ -22,14 +22,7 @@ import { knownPlaces, walletsIn, type QuickContext } from '../quick-entry.ts';
 export type BugCode =
   | 'KNOWN_WALLET_SWALLOWED_BY_MERCHANT' | 'MERCHANT_DUPLICATED_IN_DESCRIPTION' | 'UNASSIGNED_KNOWN_WALLET' | 'AMOUNT_INSIDE_ENTITY'
   | 'DATE_INSIDE_DESCRIPTION' | 'WALLET_AS_PERSON' | 'ROLE_COLLISION' | 'ENTITY_FRAGMENTATION';
-/** V3.3: the consequences of an action checked before commit (lib/catat/mutation.ts). */
-export type MutationBugCode =
-  | 'PAYMENT_EXCEEDS_REMAINING_BALANCE' | 'CLAIM_PAYMENT_EXCEEDS_REMAINING' | 'DUPLICATE_MONEY_MOVEMENT' | 'MISSING_RELATIONSHIP_UPDATE'
-  | 'WRONG_HISTORICAL_TARGET' | 'AMBIGUOUS_HISTORICAL_TARGET' | 'UPDATE_PARSED_AS_CREATE' | 'DELETE_PARSED_AS_CREATE' | 'QUERY_PARSED_AS_CREATE'
-  | 'TRANSFER_FEE_MISAPPLIED' | 'TRANSFER_PRINCIPAL_MISMATCH' | 'TRANSFER_DESTINATION_RECEIVED_FEE' | 'GROSS_NET_MISMATCH' | 'DISCOUNT_DOUBLE_COUNT'
-  | 'CASHBACK_PREMATURELY_CREDITED' | 'SPLIT_TOTAL_MISMATCH' | 'PARTIAL_SETTLEMENT_OVERFLOW' | 'PLAN_ACTUAL_DUPLICATE' | 'RECURRING_HISTORY_REWRITE'
-  | 'STALE_STATE_MUTATION' | 'UPDATE_COMMAND_CREATED_NEW_TRANSACTION';
-export type BugWarning = { code: BugCode | TemporalBugCode | RelationBugCode | MutationBugCode; detail: string; repaired: boolean };
+export type BugWarning = { code: BugCode | TemporalBugCode | RelationBugCode; detail: string; repaired: boolean };
 export type CheckedParse = { kind: string; description?: string; merchant?: string; walletId?: string; destinationWalletId?: string | null; person?: string };
 
 const SPENDING = new Set(['expense', 'income', 'plan_new', 'recurring_new']);

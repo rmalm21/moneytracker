@@ -29,7 +29,7 @@ export type SegmentDeps = {
 export type SegmentCandidate = { at: number; score: number; left: string; right: string; note: string };
 export type Segmentation = { cuts: number[]; trace: string[] };
 
-const CHARGE = /^(pajak|ppn|pb1|tax|service|servis|svc|ongkir|ongkos|admin|biaya|fee|tip|tips|diskon|disc|discount|potongan|promo|voucher|vocer|voucer|hemat|cashback|kembalian|total|sisa|dp|untung|rugi|modal|buat|untuk|utk|bwt|guna|demi|masing-masing|per|x|@|plus|tambah)\b/;
+const CHARGE = /^(pajak|ppn|tax|service|servis|svc|ongkir|ongkos|admin|biaya|fee|tip|tips|diskon|disc|potongan|cashback|kembalian|total|sisa|dp|untung|rugi|modal|buat|untuk|utk|bwt|guna|demi|masing-masing|per|x|@|plus|tambah)\b/;
 const FIN_VERB = /^(beli|bayar|byr|jajan|belanja|makan|minum|ngopi|isi|topup|top|tf|transfer|kirim|terima|dapat|dapet|gaji|gajian|jual|ngutang|utang|hutang|pinjam|minjem|pinjem|pinjemin|minjemin|pinjamin|talangin|nalangin|bayarin|balikin|ngembaliin|lunasin|dibayar|nabung|parkir|bensin)\b/;
 const LOAN_VERB = /^(ngutang|utang|hutang|pinjam|minjem|pinjem|pinjemin|minjemin|pinjamin|talangin|nalangin|bayarin|balikin|ngembaliin|lunasin|bayar|dibayar|nyicil|kasbon)$/;
 const PREP_MOD = /^(di|@|pakai|pake|pk|via|lewat|dari|dr|ke|masuk)$/;
@@ -64,13 +64,7 @@ function leadModifiers(norm: string, ctx: QuickContext, dateRe: () => RegExp, pl
 export function segmentPiece(source: string, start: number, end: number, ctx: QuickContext, deps: SegmentDeps): Segmentation {
   const src = source.slice(start, end), lower = src.toLocaleLowerCase('id-ID'), trace: string[] = [];
   const tokens = toks(src);
-  let money = findAmounts(lower).filter(a => (a.marked || a.value >= 1000) && !a.monthly);
-  // V3.3 "kopi 20 jago bensin 80 krom": plain numbers count as anchors only when each one is followed by a wallet
-  // (the amounts are then suggested as thousands and confirmed, never saved as read).
-  if (money.length < 2) {
-    const plain = findAmounts(lower).filter(a => !a.marked && a.value >= 10 && a.value < 100 && !a.monthly);
-    if (plain.length >= 2 && plain.every(a => walletsIn(lower.slice(a.index + a.text.length).trim().split(/\s+/)[0] || '', ctx.wallets).length)) money = plain;
-  }
+  const money = findAmounts(lower).filter(a => (a.marked || a.value >= 1000) && !a.monthly);
   if (money.length < 2) return { cuts: [], trace };
   const whole = deps.read(deps.prep(src));
   if (!whole || !SPLITTABLE.has(whole.kind) || findAmounts(lower).some(a => a.monthly)) return { cuts: [], trace };
@@ -94,8 +88,7 @@ export function segmentPiece(source: string, start: number, end: number, ctx: Qu
       let note = '';
       if (amountFirst) { if (k !== B.first) continue; }
       else if (!head) continue;
-      // "… nanti dapet cashback 10k", "… kena admin 2500": a charge after a few small words is still a charge.
-      if (CHARGE.test(head.replace(/^(?:(?:nanti|ntar|dapet|dapat|plus|kena|ada|tapi|terus|udah|sudah|trus|lalu)\s+)+/, ''))) { candidates.push({ at: k, score: -99, left, right, note: 'biaya/keperluan, bukan aksi baru' }); continue; }
+      if (CHARGE.test(head)) { candidates.push({ at: k, score: -99, left, right, note: 'biaya/keperluan, bukan aksi baru' }); continue; }
       const lead = leadModifiers(head, ctx, deps.dateRe, places), tailMods = leadModifiers(tail, ctx, deps.dateRe, places);
       const content = lead.rest.trim();
       if (!amountFirst && !content) { candidates.push({ at: k, score: -99, left, right, note: 'bagian kanan tanpa barang/kata kerja' }); continue; }

@@ -119,7 +119,9 @@ test('resolver keeps the rejected greedy span in its trace', () => {
 });
 test('a plain two-digit number is money only next to a wallet or a paying verb, and is always marked to check', () => {
   const a = one('bensin 80 krom');
-  assert.equal(a.result.amount, 80); assert.equal(a.fields.amount.status, 'check'); assert.deepEqual(a.options.amount, [80, 80000]);
+  // V3.3: the thousands reading is suggested first ("Rp80.000?") and still has to be confirmed; Rp80 stays one tap away.
+  assert.equal(a.result.amount, 80000); assert.equal(a.fields.amount.status, 'check'); assert.deepEqual(a.options.amount, [80000, 80]);
+  assert.deepEqual(a.result.inferredAmount, { raw: 80, value: 80000 });
   assert.equal(parseQuickPlan('iphone 15', ctx).actions.length, 0);
 });
 test('a person after "bayar" or "dari" that is not in the records is marked to check (never a silent guess)', () => {

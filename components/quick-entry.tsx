@@ -1,15 +1,17 @@
 'use client';
 import { Fragment, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AlertTriangle, HelpCircle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, PencilLine, Trash2, MessageCircleQuestion, HelpCircle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
 import { Input, Select } from './fields';
 import { Emoji } from './emoji';
 import { AppIcon, brandForName, emojiLibrary, emojiOrFallback } from './visual-identity';
-import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
+import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickContext, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
+import { compositionReceipt } from '@/lib/catat/composition';
+import { planMutation } from '@/lib/catat/mutation';
 import { FIELD_LABELS, FIELD_STATUS, parseQuickPlan, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
-import { createClaim, createDebt, createReceivable, newTx, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
+import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
 import { dateInTimeZone, formatDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import { presetHex } from '@/lib/category-templates';
@@ -25,7 +27,7 @@ import type { Budget, Category, Fund, LedgerTx, Recurring, Wallet } from '@/lib/
  * "Sesuai, simpan" saves it the same way the menu's own form does; "Ubah detail" opens the full transaction form.
  * The chips choose the kind when the sentence alone doesn't say it.
  */
-const icons: Record<QuickKind, LucideIcon> = { expense: TrendingDown, income: TrendingUp, transfer: ArrowLeftRight, debt_new: CreditCard, debt_payment: CreditCard, receivable_new: HandCoins, receivable_payment: HandCoins, claim_new: ShieldCheck, claim_payment: ShieldCheck, target: Target, wish: Gift, fund_new: Target, wish_new: Gift, budget: ChartPie, wallet_new: WalletCards, balance: Scale, category_new: FolderPlus, recurring_new: Repeat, plan_new: CalendarClock, note_new: StickyNote, open: Compass };
+const icons: Record<QuickKind, LucideIcon> = { tx_update: PencilLine, tx_delete: Trash2, query: MessageCircleQuestion, recurring_change: Repeat, expense: TrendingDown, income: TrendingUp, transfer: ArrowLeftRight, debt_new: CreditCard, debt_payment: CreditCard, receivable_new: HandCoins, receivable_payment: HandCoins, claim_new: ShieldCheck, claim_payment: ShieldCheck, target: Target, wish: Gift, fund_new: Target, wish_new: Gift, budget: ChartPie, wallet_new: WalletCards, balance: Scale, category_new: FolderPlus, recurring_new: Repeat, plan_new: CalendarClock, note_new: StickyNote, open: Compass };
 /** The other reading of each kind ("new" ↔ "paid", "new wallet" ↔ "its balance"), offered as a one-tap correction. */
 const sibling: Partial<Record<QuickKind, QuickKind>> = { debt_new: 'debt_payment', debt_payment: 'debt_new', receivable_new: 'receivable_payment', receivable_payment: 'receivable_new', claim_new: 'claim_payment', claim_payment: 'claim_new', target: 'wish', wish: 'target', fund_new: 'target', wish_new: 'wish', wallet_new: 'balance', balance: 'wallet_new', note_new: 'plan_new' };
 /** Tap-to-try examples: the sentence and what it becomes. A `section` starts a new block. */
@@ -141,7 +143,7 @@ function iconFor(name: string) {
 type Edit = { time?: string; amount?: number; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
 
 /** What one card saves when it is confirmed, built only when the person presses save. */
-type SaveJob = { run: () => Promise<unknown>; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
+type SaveJob = { /** V3.3: `linked` is the id of the record made by the action this one waits for (`after`). */ run: (linked?: string) => Promise<unknown>; after?: string; id?: string; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
 type CardEntry = { missing: string; build: () => SaveJob; openForm?: () => void; kind: QuickKind; amount: number };
 type Register = (id: string, entry: CardEntry | null) => void;
 const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈', check: '!', missing: '?' };
@@ -153,7 +155,15 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const today = todayInTimeZone(profile?.timeZone);
   // The reference clock for "jam 1" follows the minute the sentence is being written.
   const typedMinute = text ? Math.floor(Date.now() / 60000) : 0;
-  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone) }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute]);
+  // V3.3 read-only financial context, bounded: the entries of the last 14 days (at most 200), open plans and schedules.
+  const recent = useMemo(() => {
+    const from = new Date(`${today}T12:00:00`); from.setDate(from.getDate() - 14);
+    const since = from.toLocaleDateString('en-CA');
+    const ms = (t: LedgerTx) => { const c = t.createdAt as { toMillis?: () => number; seconds?: number } | undefined; return c?.toMillis ? c.toMillis() : c?.seconds ? c.seconds * 1000 : undefined; };
+    return data.transactions.filter(t => t.date >= since).sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 200)
+      .map(t => ({ id: t.id, type: t.type, amount: t.amount, date: t.date, time: t.time, walletId: t.walletId, destinationWalletId: t.destinationWalletId, categoryId: t.categoryId, subcategoryId: t.subcategoryId, merchant: t.merchant, description: t.description, receivableId: t.receivableId, debtId: t.debtId, claimId: t.claimId, plannedId: t.plannedId, splitBillId: t.splitBillId, counterparty: t.counterparty, createdMs: ms(t) }));
+  }, [data.transactions, today]);
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now() }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent]);
   /**
    * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
    * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
@@ -185,6 +195,10 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     if (!entry || !before || before.missing !== entry.missing || before.amount !== entry.amount || before.kind !== entry.kind) redraw(n => n + 1);
   }, []);
   const kept = actions.filter(a => !skipped.includes(a.id));
+  // V3.3 "Anggap 20 = Rp20.000 dan 80 = Rp80.000?": one tap confirms them all (never assumed without it).
+  const [confirmed, setConfirmed] = useState<Record<string, number>>({});
+  useEffect(() => { setConfirmed(c => Object.keys(c).length ? {} : c); }, [typed, mode]);
+  const confirmBlock = plan?.confirm && !plan.confirm.items.every(i => confirmed[i.id]) && <div className="qp-ask qp-confirm-all" role="group" aria-label={plan.confirm.question}><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>{plan.confirm.question}</span><span className="qp-picks"><button type="button" className="sb-chip" onClick={() => setConfirmed(Object.fromEntries(plan.confirm!.items.map(i => [i.id, i.amount])))}>Ya</button></span></div>;
 
   function reset() { setText(''); setMode('auto'); }
   /** Saves the chosen cards the way their own menus do, with one progress message. */
@@ -198,13 +212,18 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       return;
     }
     let jobs: SaveJob[];
-    try { jobs = entries.map(([, e]) => e!.build()); } catch (e) { setError((e as Error).message); return; }
+    try { jobs = entries.map(([id, e]) => ({ ...e!.build(), id })); } catch (e) { setError((e as Error).message); return; }
+    // V3.3: a payment of a receivable made in the same message waits for that receivable (it needs its id).
+    const orphan = jobs.find(j => j.after && !ids.includes(j.after));
+    if (orphan) { setError('Pembayaran ini untuk catatan yang ikut dilewati. Pakai lagi catatan itu, atau lewati pembayarannya juga.'); return; }
     const nav = jobs.find(j => j.navigate)?.navigate, work = jobs.filter(j => !j.navigate);
-    if (work.length === 1) { const j = work[0]; track(j.run(), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry }); }
+    const made = new Map<string, Promise<unknown>>();
+    const start = (j: SaveJob) => { const p = j.after && made.has(j.after) ? made.get(j.after)!.then(id => j.run(typeof id === 'string' ? id : undefined)) : j.run(); if (j.id) made.set(j.id, p); return p; };
+    if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry }); }
     else if (work.length) {
       // Started in order in one go, like the forms: queued writes keep their order offline too.
       const spent = entries.filter(([, e]) => e!.kind === 'expense').reduce((n, [, e]) => n + e!.amount, 0);
-      track(Promise.all(work.map(j => j.run())), { pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
+      track(Promise.all(work.map(start)), { pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
     reset(); onDone?.();
     if (nav) onNavigate?.(nav.key, nav.target);
@@ -250,7 +269,8 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{kept.length} aksi{needs ? ` · ${kept.length - needs} siap · ${needs} perlu dicek` : ' · semua siap'}</small><strong>{entries.length && entries.every(e => e.kind === 'expense') ? <>{rupiah(out)}<em> keluar</em></> : entries.length && entries.every(e => e.kind === 'income') ? <>{rupiah(income)}<em> masuk</em></> : entries.length && entries.every(e => e.kind === 'budget') ? <>{rupiah(budgets)}<em> anggaran</em></> : <>{kept.length}<em> catatan</em></>}</strong></span></div>
       {plan?.references.map(u => <small key={u} className="qp-flag is-check"><b>! Perlu dicek</b> · {u}</small>)}
       {plan?.cancelled.map(c => <small key={c} className="qp-cancelled">Dibatalkan: “{c}”</small>)}
-      <ul className="qb-list">{actions.map(a => <QuickCard key={`${a.id}:${a.result.kind}`} action={a} layout="row" register={register} skipped={skipped.includes(a.id)} onSkip={() => setSkipped(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} expanded={open.includes(a.id)} onToggle={() => setOpen(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} onOpenForm={openForm}/>)}</ul>
+      {confirmBlock}
+      <ul className="qb-list">{actions.map(a => <QuickCard key={`${a.id}:${a.result.kind}`} action={a} layout="row" register={register} confirmAmount={confirmed[a.id]} skipped={skipped.includes(a.id)} onSkip={() => setSkipped(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} expanded={open.includes(a.id)} onToggle={() => setOpen(list => list.includes(a.id) ? list.filter(x => x !== a.id) : [...list, a.id])} onOpenForm={openForm}/>)}</ul>
       {error && <small className="qp-warn" role="status">{error}</small>}
       <small className="qp-note">{kept.length < actions.length ? `${actions.length - kept.length} dilewati. ` : ''}Tanggal atau dompet yang disebut sekali berlaku untuk yang lain. Ketuk baris untuk mengubah, ✕ untuk melewati.</small>
       <div className="qp-actions"><Button type="button" onClick={() => commit(kept.map(a => a.id))} disabled={!kept.length}>Simpan semua ({kept.length})</Button></div>
@@ -266,8 +286,65 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
  * One action of the plan: the compact preview ("single") or a row that opens to the same preview ("row").
  * Only what needs attention is highlighted; the reasons stay behind "Kenapa?".
  */
-const QuickCard = memo(QuickCardView, (a, b) => a.action === b.action && a.layout === b.layout && a.error === b.error && a.skipped === b.skipped && a.expanded === b.expanded && a.register === b.register);
-function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle }: { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void }) {
+const OPERATIONS = new Set<QuickKind>(['tx_update', 'tx_delete', 'query', 'recurring_change']);
+const QuickCard = memo((props: CardProps) => OPERATIONS.has(props.action.result.kind) ? <OperationCardView {...props}/> : <QuickCardView {...props}/>, (a, b) => a.action === b.action && a.layout === b.layout && a.error === b.error && a.skipped === b.skipped && a.expanded === b.expanded && a.register === b.register && a.confirmAmount === b.confirmAmount);
+
+/**
+ * V3.3: a sentence about records that already exist — change one, delete (with a second tap), a question (nothing is
+ * saved), or a recurring rule from a date on. The ledger executes it, checking the record is still as previewed.
+ */
+function OperationCardView({ action, register, onSave, error: outerError = '' }: CardProps) {
+  const { data, user } = useApp();
+  const r = action.result, op = r.operation!, kind = r.kind;
+  const [picked, setPicked] = useState(''), [sure, setSure] = useState(false), [why, setWhy] = useState(false);
+  const targetId = picked || op.target?.id || '';
+  const targets = op.targets?.length ? op.targets : targetId ? [op.candidates?.find(c => c.id === targetId) || op.target!].filter(Boolean) : [];
+  const tx = data.transactions.find(t => t.id === targetId);
+  const changes = (op.changes || []).map(c => c.field === 'amount' && tx ? { ...c, before: tx.amount, label: `${rupiah(tx.amount)} → ${rupiah(Number(c.after))}` } : c);
+  const rule = op.recurring ? data.recurring.find(x => x.id === op.recurring!.id) : undefined;
+  const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
+  const destructive = kind === 'tx_delete';
+  const missing = kind === 'query' ? 'Ini pertanyaan; tidak ada yang disimpan.'
+    : kind === 'recurring_change' ? (rule ? '' : 'Jadwal rutinnya tidak ditemukan.')
+    : !targets.length ? (op.candidates && op.candidates.length > 1 ? 'Pilih transaksi yang dimaksud.' : 'Tidak ada transaksi yang cocok.')
+    : kind === 'tx_update' && (!tx || !changes.length) ? 'Transaksi yang mau diubah tidak ditemukan.'
+    : destructive && !sure ? `Ketuk “Ya, hapus” untuk menghapus ${targets.length > 1 ? `${targets.length} transaksi` : 'transaksi ini'}.` : '';
+  function build(): SaveJob {
+    const uid = user!.uid;
+    if (kind === 'tx_update') {
+      const before = tx!, next: LedgerTx = { ...before };
+      for (const c of changes) { if (c.field === 'amount') next.amount = Number(c.after); if (c.field === 'walletId') next.walletId = String(c.after); if (c.field === 'date') next.date = String(c.after); }
+      return { run: () => upsertTransaction(uid, next, before.id, { expect: { kind: 'transactions', id: before.id, amount: before.amount } }), pending: 'Mengubah transaksi…', success: 'Transaksi diubah.', detail: changes.map(c => c.label).join(' · '), failure: 'Transaksi belum diubah' };
+    }
+    if (kind === 'tx_delete') {
+      const list = targets.map(t => ({ id: t.id, amount: data.transactions.find(x => x.id === t.id)?.amount ?? t.amount ?? 0 }));
+      return { run: async () => { for (const t of list) await deleteTransaction(uid, t.id, { amount: t.amount }); }, pending: `Menghapus ${list.length} transaksi…`, success: list.length > 1 ? `${list.length} transaksi dihapus.` : 'Transaksi dihapus.', detail: targets.map(t => t.label).join(' · '), failure: 'Transaksi belum dihapus' };
+    }
+    const c = op.recurring!;
+    return { run: () => saveRecord<Recurring>(uid, 'recurring', c.stop ? { endDate: c.from } : { pendingChange: { amount: c.amount!, from: c.from } }, c.id), pending: 'Mengubah jadwal rutin…', success: c.stop ? `Jadwal ${c.name} berhenti ${c.fromLabel}.` : `Jadwal ${c.name} jadi ${rupiah(c.amount || 0)} ${c.fromLabel}.`, detail: 'Transaksi yang sudah tercatat tidak berubah', failure: 'Jadwal rutin belum diubah' };
+  }
+  useEffect(() => { register(action.id, { missing, build, kind, amount: kind === 'tx_update' ? Number(changes.find(c => c.field === 'amount')?.after || 0) : 0 }); });
+  useEffect(() => () => register(action.id, null), [action.id, register]);
+  const Icon = icons[kind];
+  const heading = kind === 'query' ? 'Pertanyaan' : kind === 'recurring_change' ? (op.recurring?.stop ? 'Hentikan jadwal rutin' : 'Ubah jadwal rutin') : kind === 'tx_update' ? 'Ubah transaksi' : targets.length > 1 ? `Hapus ${targets.length} transaksi` : 'Hapus transaksi';
+  const headline = kind === 'query' ? op.query?.answer || '' : kind === 'recurring_change' ? (op.recurring?.name || '') : kind === 'tx_update' ? changes.map(c => c.label).join(' · ') || '—' : targets.length > 1 ? rupiah(targets.reduce((n, t) => n + (t.amount || 0), 0)) : targets[0] ? rupiah(targets[0].amount || 0) : 'Yang mana?';
+  const effects = action.mutation ? [...action.mutation.moneyMovements.map(m => m.label), ...action.mutation.recurringChanges] : [];
+  return <div className={`quick-preview tone-${destructive ? 'out' : kind === 'query' ? 'neutral' : 'transfer'} qp-operation`}>
+    <div className="qp-head"><span className="qp-icon" aria-hidden="true"><Icon size={18}/></span><span className="qp-title"><small>{heading}</small><strong className={kind === 'query' || kind === 'tx_update' ? 'is-text' : ''}>{headline}</strong></span></div>
+    {kind === 'query' && op.query && op.query.lines.length > 1 && <ul className="qp-answer">{op.query.lines.map(l => <li key={l.label}><span>{l.label}</span><b>{rupiah(l.amount)}</b></li>)}</ul>}
+    {(kind === 'tx_update' || kind === 'tx_delete') && targets.length > 0 && <ul className="qp-targets">{targets.map(t => { const x = data.transactions.find(y => y.id === t.id); return <li key={t.id}><span>{t.label}</span>{x && <small>{walletName(x.walletId)}</small>}</li>; })}</ul>}
+    {!targets.length && op.candidates && op.candidates.length > 1 && <div className="qp-ask" role="group" aria-label="Transaksi yang mana?"><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>Yang mana?</span><span className="qp-picks">{op.candidates.map(c => <button type="button" key={c.id} className="sb-chip" onClick={() => setPicked(c.id)}>{c.label}</button>)}</span></div>}
+    {effects.length > 0 && targets.length > 0 && <div className="qp-impact" aria-label="Yang berubah"><small>Yang berubah</small>{effects.map(e => <span key={e} className="qp-impact-line">{e}</span>)}</div>}
+    {kind === 'recurring_change' && <div className="qp-impact"><small>Yang berubah</small>{effects.map(e => <span key={e} className="qp-impact-line is-plan">{e}</span>)}<span className="qp-impact-line">Transaksi yang sudah tercatat tidak berubah.</span></div>}
+    {action.evidence.length > 0 && <div className="qp-facts"><button type="button" className="qp-why-toggle" aria-expanded={why} onClick={() => setWhy(v => !v)}>{why ? 'Tutup alasan' : 'Kenapa?'}</button></div>}
+    {why && <ul className="qp-why-list">{action.evidence.map(e => <li key={e}>{e}</li>)}</ul>}
+    {(outerError || missing && kind !== 'query' && !(destructive && targets.length && !sure)) && <small className="qp-warn" role="status">{outerError || missing}</small>}
+    {destructive && targets.length > 0 && <div className="qp-actions">{!sure ? <Button type="button" variant="secondary" onClick={() => setSure(true)}><Trash2 size={15}/> {targets.length > 1 ? `Hapus ${targets.length} transaksi…` : 'Hapus…'}</Button> : <><small className="qp-confirm">{targets.length > 1 ? `${targets.length} transaksi akan dihapus. Saldo dompet dikembalikan.` : 'Transaksi ini akan dihapus. Saldo dompet dikembalikan.'}</small><Button type="button" variant="secondary" onClick={() => setSure(false)}>Batal</Button>{onSave && <Button type="button" className="qp-danger" onClick={onSave}>Ya, hapus</Button>}</>}</div>}
+    {(kind === 'tx_update' || kind === 'recurring_change') && onSave && <div className="qp-actions"><Button type="button" onClick={onSave} disabled={Boolean(missing)}><Check size={15}/> Simpan perubahan</Button></div>}
+  </div>;
+}
+type CardProps = { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void; /** V3.3: an amount confirmed for several cards at once ("Anggap 20 = Rp20.000…? Ya"). */ confirmAmount?: number };
+function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle, confirmAmount }: CardProps) {
   const { data, profile, user } = useApp();
   const [choice, setChoice] = useState(0), [why, setWhy] = useState(false), [kindOk, setKindOk] = useState(false);
   const result = choice ? action.alternatives[choice - 1].result : action.result;
@@ -277,6 +354,9 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   // A different reading means different fields: start them fresh.
   useEffect(() => { setEdit({}); setError(''); setDetails(false); }, [choice]);
   const change = (patch: Edit) => setEdit(v => ({ ...v, ...patch }));
+  useEffect(() => { if (confirmAmount) setEdit(v => ({ ...v, amount: confirmAmount })); }, [confirmAmount]);
+  // V3.3: one id per confirmation, so a repeated save of the same card changes nothing twice (lib/firestore.ts opId).
+  const opId = useMemo(() => `q${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`, [action]);
 
   const amount = edit.amount ?? result.amount ?? 0;
   const isFlow = kind === 'recurring_new' || kind === 'plan_new';
@@ -378,7 +458,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
         : kind === 'transfer' && !walletId ? 'Pilih dompet asalnya.'
         : txKinds.has(kind) && !walletId ? 'Pilih dompetnya dulu.'
         : kind === 'transfer' && (!destination || destination === walletId) ? 'Pilih dompet tujuan yang berbeda dari dompet asal.'
-        : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId ? 'Pilih catatan yang dimaksud.'
+        : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId && !result.operation?.linkAction ? (result.person || person ? `Belum ada ${kind === 'debt_payment' ? 'utang' : 'piutang'} ${person || result.person} yang tercatat. Pilih catatannya, atau ganti jadi pemasukan.` : 'Pilih catatan yang dimaksud.')
         : kind === 'target' && !linkId ? 'Pilih tujuan dananya.'
         : kind === 'target' && (!destination || destination === walletId) ? 'Tujuan dana ini belum punya dompet sendiri. Tekan Ubah detail untuk memilih dompet tujuan.'
         : kind === 'receivable_new' && !person.trim() ? 'Tulis nama orangnya.'
@@ -446,12 +526,12 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
         break;
       }
       case 'recurring_new':
-        run = () => saveRecord<Recurring>(uid, 'recurring', { name: name.trim(), type: flow, amount, walletId, destinationWalletId: null, categoryId: flowCategory || null, frequency, mode: scheduleMode, nextDate: date, anchorDay, active: true });
+        run = () => saveRecord<Recurring>(uid, 'recurring', { name: name.trim(), type: flow, amount, walletId, destinationWalletId: null, categoryId: flowCategory || null, frequency, mode: scheduleMode, nextDate: date, anchorDay, active: true, ...(time ? { time } : {}) });
         success = `Jadwal rutin ${name.trim()} tersimpan.`; detail = [money, frequencyText, walletName(walletId)].join(' · ');
         break;
       case 'plan_new': {
         const chosen = data.categories.find(c => c.id === flowCategory);
-        run = () => import('@/lib/finance-store').then(store => store.savePlan(uid, { title: name.trim(), type: flow, amount, date, walletId: walletId || null, categoryId: chosen ? chosen.parentId || chosen.id : null, subcategoryId: chosen?.parentId ? chosen.id : null, notes: '', committed: flow === 'expense' && committed, status: 'planned' }));
+        run = () => import('@/lib/finance-store').then(store => store.savePlan(uid, { ...(time ? { time } : {}), title: name.trim(), type: flow, amount, date, walletId: walletId || null, categoryId: chosen ? chosen.parentId || chosen.id : null, subcategoryId: chosen?.parentId ? chosen.id : null, notes: '', committed: flow === 'expense' && committed, status: 'planned' }));
         success = 'Rencana tersimpan. Saldo dompet belum berubah.'; detail = [name.trim(), money, formatDate(date)].join(' · ');
         break;
       }
@@ -464,9 +544,26 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       case 'claim_new': run = () => createClaim(uid, { name: name.trim(), amount, sourceWalletId: walletId, submissionDate: date, expectedPaymentDate: '', paidDate: '', status: 'submitted', description: '', notes: '' }); detail = `${name} · dari ${walletName(walletId)}`; break;
       case 'wish': { const item = data.wishlist.find(w => w.id === linkId)!; run = () => saveWish(uid, { saved: (item.saved || 0) + amount, history: [...(item.history || []), { date, amount }].slice(-60) }, item.id); detail = item.name; break; }
       default: {
-        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        const comp = result.composition && amount === result.composition.net ? result.composition : undefined;
+        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}), ...(comp ? { receipt: compositionReceipt(comp, description || category?.name || '', result.preset.merchant) } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        const op = result.operation, linkedTo = op?.linkAction;
+        // V3.3 Split Bill: one cash transaction for the total, the others' shares as receivables, in one commit (lib/split-bill-store.ts).
+        if (kind === 'expense' && result.split?.strong) {
+          const sp = result.split;
+          run = () => import('@/lib/split-bill-store').then(m => m.saveSplitBill(uid, { title: description || category?.name || 'Split bill', merchant: result.preset.merchant || '', date, time: tx.time || '', payer: 'me', payerId: sp.participants.find(p => p.isMe)?.id || '', walletId, transactionId: '', categoryId: result.preset.categoryId || null, subcategoryId: result.preset.subcategoryId || null, total: amount, method: 'equal', participants: sp.participants.map(p => ({ id: p.id, name: p.name, ...(p.isMe ? { isMe: true } : {}) })), items: [], extras: [], payments: [], notes: '' }, { newId: opId }));
+          detail = `Bagi rata ${sp.participants.length} orang · ${walletName(walletId)}`; success = `Split bill ${money} tersimpan.`;
+          break;
+        }
+        // A payment of a receivable or debt made in the same message: saved after it, with its id.
+        if (linkedTo && (kind === 'receivable_payment' || kind === 'debt_payment')) {
+          const field = kind === 'receivable_payment' ? 'receivableId' : 'debtId';
+          return { run: (linked?: string) => { if (!linked) return Promise.reject(Error('Catatan yang dibayar belum tersimpan.')); const t = { ...tx, [field]: linked }; validateTx(t); return upsertTransaction(uid, t, undefined, { opId }); }, after: linkedTo, pending: `Menyimpan ${label.toLowerCase()}…`, success, detail: [person, walletName(walletId)].filter(Boolean).join(' · '), failure: `${label} belum tersimpan` };
+        }
         validateTx(tx);
-        run = () => upsertTransaction(uid, tx);
+        // Settling from the balance as it is now ("lunas", "setengah") is checked again when saving; linked saves get one id.
+        const expect = op?.expect !== undefined && linkId === op.target?.id ? { kind: (kind === 'receivable_payment' ? 'receivables' : kind === 'claim_payment' ? 'claims' : 'debts') as 'receivables' | 'claims' | 'debts', id: linkId, remaining: op.expect } : undefined;
+        const stateful = Boolean(linkId || tx.plannedId);
+        run = () => upsertTransaction(uid, tx, undefined, stateful ? { opId, ...(expect ? { expect } : {}) } : {});
         detail = [tx.description || tx.merchant, category?.name, kind === 'transfer' || kind === 'target' ? `${walletName(walletId)} → ${walletName(destination)}` : walletName(walletId), date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
       }
     }
@@ -489,6 +586,8 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   switch (kind) {
     case 'expense': case 'income':
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
+      if (result.split?.strong) fact('s', `Bagi rata ${result.split.participants.length} orang`, 'qp-cat');
+      if (result.quantity && amount === result.quantity.total) fact('q', `${result.quantity.qty} × ${rupiah(result.quantity.unit)}`);
       if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
       fact('t', `${dayText(date)}${time ? ` · ${time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`, action.fields.time?.status === 'check' && !touched.time ? 'qp-missing' : '');
@@ -590,6 +689,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const answers: [string, string, () => void][] = !ask ? [] : ask.field === 'wallet' ? (ask.choices || []).filter(id => choices.some(w => w.id === id)).slice(0, 6).map(id => [id, walletName(id), () => change({ walletId: id })])
     : ask.field === 'to' ? (ask.choices || []).filter(id => walletsFor('transferIn').some(w => w.id === id)).slice(0, 6).map(id => [id, walletName(id), () => change({ destinationId: id })])
     : ask.field === 'link' ? (ask.choices || []).filter(id => linkOptions.some(o => o.id === id)).slice(0, 4).map(id => [id, shortLink(id), () => change({ linkId: id })])
+    : ask.field === 'person' ? (action.options.person || []).map(name => [name, name, () => change({ person: name })])
     : ask.field === 'amount' ? (action.options.amount || []).map(v => [String(v), rupiah(v), () => change({ amount: v })])
     : ask.field === 'date' ? (action.options.date || []).map(d => [d.date, dayText(d.date), () => change({ date: d.date })])
     : ask.field === 'kind' ? [[kind, QUICK_LABELS[kind], () => setKindOk(true)] as [string, string, () => void], ...action.alternatives.map((alt, i) => [alt.kind, alt.label, () => setChoice(i + 1)] as [string, string, () => void])] : [];
@@ -601,8 +701,18 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const whyButton = !choice && action.evidence.length > 0 && <button type="button" className="qp-why-toggle" aria-expanded={why} onClick={() => setWhy(v => !v)}>{why ? 'Tutup alasan' : 'Kenapa?'}</button>;
   // Clean text by default; the editors open with "Ubah", or by themselves where something must be chosen.
   const showFields = fields.length > 0 && (details || Boolean(missing) || amountOpen || kind === 'budget' && !oldBudget && !budgetScope);
+  // V3.3 consequence preview: what changes if this is saved (only for more than a plain spending).
+  const impact = !choice && action.mutation?.complex ? planMutation({ ...action, result: { ...result, amount, preset: { ...result.preset, walletId } } }, { wallets: data.wallets, categories: data.categories, history: [], today, recent: [] } as QuickContext, []) : null;
+  const impactLines = impact ? [
+    ...impact.moneyMovements.map(m => ({ key: `m${m.walletId}${m.delta}`, text: m.label, tone: m.delta < 0 ? 'down' : 'up' })),
+    ...impact.relationshipChanges.map(c => ({ key: `r${c.label}`, text: c.status === 'new' ? `${c.label}: baru ${rupiah(c.after)}` : `${c.label}: ${rupiah(c.before)} → ${rupiah(c.after)}${c.after === 0 ? ' (lunas)' : ''}`, tone: 'rel' })),
+    ...(result.composition && amount === result.composition.net ? [{ key: 'c', text: result.composition.formula, tone: 'calc' }] : []),
+    ...impact.updates.map(u => ({ key: `u${u}`, text: u, tone: 'rel' })), ...impact.schedules.map(u => ({ key: `s${u}`, text: u, tone: 'plan' })),
+  ] : [];
+  const impactBlock = impactLines.length > 0 && <div className="qp-impact" aria-label="Yang berubah"><small>Yang berubah</small>{impactLines.map(l => <span key={l.key} className={`qp-impact-line is-${l.tone}`}>{l.text}</span>)}</div>;
   const body = <>
     {(facts.length > 0 || whyButton) && <div className="qp-facts">{facts}{whyButton}</div>}
+    {impactBlock}
     {askBlock}
     {flagList}
     {picks.length > 0 && <div className="qp-pick-row">{picks}</div>}
@@ -615,6 +725,9 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     const cat = data.categories.find(c => c.id === (result.budget ? result.budget.subcategoryIds[0] || result.budget.categoryId : result.preset.subcategoryId || result.preset.categoryId));
     const detail = kind === 'budget' ? (result.budget?.id ? 'ubah nominal' : 'anggaran baru') : kind === 'transfer' ? `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}` : kind === 'note_new' ? `${heading} · ${dayText(date)}` : textual ? heading : [kind === 'expense' || kind === 'income' ? description !== cat?.name ? description || result.preset.merchant : '' : description || result.preset.merchant || name, walletName(walletId) && `${walletName(walletId)}${walletIsDefault ? ' (bawaan)' : ''}`, date && date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
     const attention = !skipped && Boolean(missing || flags.length || ask);
+    // V3.3: a balance that changes shows in the row itself ("Piutang Atuy Rp12.000 → Rp7.000").
+    const moved = impact?.relationshipChanges.find(c => c.status !== 'new');
+    const rowEffect = moved ? `${moved.label} → ${moved.after === 0 ? "lunas" : `sisa ${rupiah(moved.after)}`}` : "";
     // The row already shows the amount and the wallets: the question without them ("Dari dompet mana?").
     const shortAsk = ask?.question.replace(/^Rp[\d.]+(?:\s+(?:ke|dari)\s+\S+|\s+ini)?\s+/, '');
     const rowAsk = shortAsk ? shortAsk[0].toUpperCase() + shortAsk.slice(1) : '';
@@ -622,12 +735,13 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${expanded ? 'is-open' : ''}`}>
       <div className="qb-row">
         <span className="qb-icon" aria-hidden="true"><Icon size={15}/></span>
-        <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{rowTitle}</strong><small>{detail || action.text}</small>{attention && <em className="qb-attention"><AlertTriangle size={12}/> {rowAsk || flags[0]?.[1].note || missing}</em>}</button>
+        <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{rowTitle}</strong><small>{rowEffect || detail || action.text}</small>{attention && <em className="qb-attention"><AlertTriangle size={12}/> {rowAsk || flags[0]?.[1].note || missing}</em>}</button>
         {!textual && <b className="qb-amount">{amount ? rupiah(amount) : 'Nominal?'}</b>}
         <button type="button" className="qb-drop" aria-label={skipped ? `Pakai lagi ${action.text}` : `Lewati ${action.text}`} onClick={onSkip}>{skipped ? <RotateCcw size={15}/> : <X size={15}/>}</button>
       </div>
       {(expanded || attention) && !skipped && <div className="qb-body">
         <small className="qb-source">“{action.text}”</small>
+        {impactBlock}
         {/* The row already says what it is and the first thing to fix; the body only adds what to do about it. */}
         {ask && answers.length > 0 && <div className="qp-ask"><span className="qp-picks">{answers.map(([key, label, pick]) => <button type="button" key={key} className="sb-chip" onClick={pick}>{label}</button>)}</span></div>}
         {flags.length > (ask ? 0 : 1) && <div className="qp-flags">{flags.slice(ask ? 0 : 1).map(([key, f]) => <small key={key} className={`qp-flag is-${f.status}`}><b>{statusIcon[f.status]} {FIELD_STATUS[f.status]}</b> · {FIELD_LABELS[key]}{f.note ? `: ${f.note}` : ''}</small>)}</div>}

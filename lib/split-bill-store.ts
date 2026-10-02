@@ -67,8 +67,10 @@ const clearLinks = (people: SplitParticipant[]) => people.map(person => ({ ...pe
  * Saves a draft (no money records yet) or an active bill with all its ledger links. Links of an earlier version are
  * updated in place; what is no longer needed is removed only while nothing has been paid on it.
  */
-export async function saveSplitBill(uid: string, input: SplitBillInput, options: { draft?: boolean } = {}) {
-  const billRef = input.id ? ref(uid, 'splitBills', input.id) : doc(coll(uid, 'splitBills'));
+/** `newId` (Catat otomatis V3.3): a new bill saved under a fixed id, so a repeated save of the same confirmation does nothing. */
+export async function saveSplitBill(uid: string, input: SplitBillInput, options: { draft?: boolean; newId?: string } = {}) {
+  const billRef = input.id ? ref(uid, 'splitBills', input.id) : options.newId ? ref(uid, 'splitBills', options.newId) : doc(coll(uid, 'splitBills'));
+  let already = false;
   const billId = billRef.id, draft = Boolean(options.draft);
   const result = computeSplit(input);
   const title = input.title.trim(), me = input.participants.find(person => person.isMe), payer = payerOf(input);
@@ -88,6 +90,7 @@ export async function saveSplitBill(uid: string, input: SplitBillInput, options:
   try {
     await runTx(database(), async trx => {
       deleted = { receivables: [], debts: [], transactions: [] };
+      if (!input.id && options.newId && (await trx.get(billRef)).exists()) { already = true; return; }
       const oldSnap = input.id ? await trx.get(billRef) : null;
       if (input.id && !oldSnap?.exists()) throw Error('Split Bill tidak ditemukan.');
       const old = read<SplitBill>(oldSnap);
@@ -213,6 +216,7 @@ export async function saveSplitBill(uid: string, input: SplitBillInput, options:
       if (old) trx.update(billRef, { ...record, updatedAt: now() }); else trx.set(billRef, { ...record, createdAt: now(), updatedAt: now() });
     });
   } catch (error) { explain(error); }
+  if (already) return billId;
   if (deleted.receivables.length || deleted.debts.length || deleted.transactions.length) await noteDeleted(uid, deleted);
   if (!draft) await syncSnapshot(uid, earliest);
   return billId;

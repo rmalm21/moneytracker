@@ -25,16 +25,16 @@
  * category named in the text, then from common words (kopi → a food & drink category, bensin → transport…).
  * The user can also pick the kind first with the chips (Keluar, Masuk, Utang, Anggaran, Dompet…).
  */
-import type { Budget, Category, Claim, Debt, Fund, LedgerTx, PlannedTransaction, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
+import type { Budget, Category, Claim, Debt, Fund, LedgerTx, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
 import { flowOf, suggestCategory } from './categorize.ts';
 import { blankOut, resolveBoundaries, type BoundaryResult } from './catat/entities.ts';
 import { findTimes, timeSpans } from './catat/temporal.ts';
 
-export type QuickKind = 'tx_update' | 'tx_delete' | 'query' | 'recurring_change' | 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish'
+export type QuickKind = 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish'
   | 'fund_new' | 'wish_new' | 'budget' | 'wallet_new' | 'balance' | 'category_new' | 'recurring_new' | 'plan_new' | 'note_new' | 'open';
 export type QuickGroup = 'auto' | 'expense' | 'income' | 'transfer' | 'debt' | 'receivable' | 'claim' | 'target' | 'wish' | 'budget' | 'wallet' | 'category' | 'recurring' | 'plan' | 'open';
 export const QUICK_GROUPS: [QuickGroup, string][] = [['auto', 'Otomatis'], ['expense', 'Keluar'], ['income', 'Masuk'], ['transfer', 'Transfer'], ['debt', 'Utang'], ['receivable', 'Piutang'], ['claim', 'Klaim'], ['target', 'Tujuan dana'], ['wish', 'Wish list'], ['budget', 'Anggaran'], ['wallet', 'Dompet'], ['category', 'Kategori'], ['recurring', 'Rutin'], ['plan', 'Rencana'], ['open', 'Buka menu']];
-export const QUICK_LABELS: Record<QuickKind, string> = { tx_update: 'Ubah transaksi', tx_delete: 'Hapus transaksi', query: 'Pertanyaan', recurring_change: 'Ubah jadwal rutin', expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', debt_new: 'Utang baru', debt_payment: 'Bayar utang', receivable_new: 'Piutang baru', receivable_payment: 'Piutang dibayar', claim_new: 'Klaim kantor baru', claim_payment: 'Klaim cair', target: 'Isi tujuan dana', wish: 'Tabungan wish list', fund_new: 'Tujuan dana baru', wish_new: 'Wish list baru', budget: 'Anggaran', wallet_new: 'Dompet baru', balance: 'Perbarui saldo', category_new: 'Kategori baru', recurring_new: 'Jadwal rutin', plan_new: 'Rencana', note_new: 'Catatan', open: 'Buka menu' };
+export const QUICK_LABELS: Record<QuickKind, string> = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', debt_new: 'Utang baru', debt_payment: 'Bayar utang', receivable_new: 'Piutang baru', receivable_payment: 'Piutang dibayar', claim_new: 'Klaim kantor baru', claim_payment: 'Klaim cair', target: 'Isi tujuan dana', wish: 'Tabungan wish list', fund_new: 'Tujuan dana baru', wish_new: 'Wish list baru', budget: 'Anggaran', wallet_new: 'Dompet baru', balance: 'Perbarui saldo', category_new: 'Kategori baru', recurring_new: 'Jadwal rutin', plan_new: 'Rencana', note_new: 'Catatan', open: 'Buka menu' };
 const GROUP_OF: Partial<Record<QuickKind, Exclude<QuickGroup, 'auto'>>> = { debt_new: 'debt', debt_payment: 'debt', receivable_new: 'receivable', receivable_payment: 'receivable', claim_new: 'claim', claim_payment: 'claim', fund_new: 'target', wish_new: 'wish', wallet_new: 'wallet', balance: 'wallet', category_new: 'category', recurring_new: 'recurring', plan_new: 'plan', note_new: 'plan' };
 export const groupOf = (kind: QuickKind): Exclude<QuickGroup, 'auto'> => GROUP_OF[kind] || kind as Exclude<QuickGroup, 'auto'>;
 
@@ -46,18 +46,6 @@ export type QuickResult = {
   preset: Partial<LedgerTx>;
   /** New debt: who lent the money. New receivable: who owes it. Spending/income: who was paid or paid (no record). */
   person?: string;
-  /** V3.3: what this does to existing records (update, delete, settle, query…), with the target and the remaining balance. */
-  operation?: import('./catat/history').OperationInfo;
-  /** V3.3: gross, discount, charges and cashback inside this one purchase. */
-  composition?: import('./catat/composition').Composition;
-  /** V3.3: "3 kopi 18k satu" → 3 × 18.000. */
-  quantity?: { qty: number; unit: number; total: number };
-  /** V3.3: a shared spending (Split Bill): participants and their shares, from the Split Bill engine. */
-  split?: import('./catat/group').SplitReading;
-  /** V3.3: a plain "20" read as Rp20.000, to be confirmed. */
-  inferredAmount?: { raw: number; value: number };
-  /** V3.3: a recent entry this one looks like (a warning only). */
-  duplicateOf?: string;
   /** V3.2: what a loan or repayment is for ("buat ngedate" → "Ngedate"): its own field, never the person or a second action. */
   purpose?: string;
   /** Spending/income: how the person was read — after "kirim/transfer ke" (to), after "bayar" (pay), after "dari" (from). */
@@ -91,8 +79,8 @@ export type QuickContext = {
   history: Pick<LedgerTx, 'type' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId' | 'date'>[];
   today: string;
   debts?: Pick<Debt, 'id' | 'name' | 'provider' | 'outstandingAmount'>[];
-  receivables?: (Pick<Receivable, 'id' | 'person' | 'description' | 'remainingAmount'> & { date?: string; originalAmount?: number })[];
-  claims?: (Pick<Claim, 'id' | 'name' | 'remainingAmount'> & { amount?: number })[];
+  receivables?: (Pick<Receivable, 'id' | 'person' | 'description' | 'remainingAmount'> & { date?: string })[];
+  claims?: Pick<Claim, 'id' | 'name' | 'remainingAmount'>[];
   funds?: (Pick<Fund, 'id' | 'name' | 'isArchived' | 'linkedWalletId' | 'walletIds'> & { targetAmount?: number })[];
   wishlist?: Pick<WishItem, 'id' | 'name' | 'status'>[];
   /** Day of the month the salary comes (Pengaturan › Profil), for "pas gajian". */
@@ -102,18 +90,7 @@ export type QuickContext = {
   now?: string;
   /** Places the person confirmed before (local entity memory, lib/catat/memory.ts): supporting evidence only. */
   merchants?: string[];
-  /**
-   * V3.3 read-only financial context, bounded by the caller (recent days only): the records a sentence may talk about
-   * ("ubah kopi tadi", "atuy bayar 5k", "wifi udah dibayar", "spotify jadi 35k"). Never written while parsing.
-   */
-  recent?: RecentTx[];
-  plans?: (Pick<PlannedTransaction, 'id' | 'title' | 'type' | 'amount' | 'date' | 'walletId' | 'categoryId' | 'subcategoryId' | 'status'> & { time?: string })[];
-  recurring?: (Pick<Recurring, 'id' | 'name' | 'type' | 'amount' | 'walletId' | 'categoryId' | 'frequency' | 'nextDate' | 'active'> & Partial<Pick<Recurring, 'anchorDay' | 'time' | 'endDate'>>)[];
-  /** The moment the sentence is written (epoch ms): recency for "barusan dicatat" duplicate warnings. */
-  nowMs?: number;
 };
-/** A recent ledger entry as the V3.3 resolver sees it (no notes, no receipt). */
-export type RecentTx = Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'categoryId' | 'subcategoryId' | 'merchant' | 'description'> & Partial<Pick<LedgerTx, 'time' | 'receivableId' | 'debtId' | 'claimId' | 'plannedId' | 'splitBillId' | 'counterparty'>> & { createdMs?: number };
 
 const lower = (text: string) => text.toLocaleLowerCase('id-ID');
 /** Names people write in capitals or with their own spelling. */
@@ -1012,7 +989,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   rest = rest.replace(DATE_PHRASES, ' ').replace(/\b\d{1,2}\s*hari\s*(lalu|yang lalu|yg lalu)\b|\b(tgl|tanggal)\s*\d{1,2}\b/g, ' ');
   if (kind === 'recurring_new' || kind === 'plan_new') rest = rest.replace(FREQ_PHRASES, ' ').replace(PLAN_FILLERS, ' ');
   rest = rest.replace(VERBS, ' ').replace(FILLERS, ' ')
-    .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|reimburse|direimburse|diklaim|klaim|claim|nanti|diganti|ganti|rembes)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|claim)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
   const item = rest;
 
   if (flow === 'expense' || flow === 'income') {

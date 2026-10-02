@@ -71,8 +71,6 @@ export async function parseQuickPlanV3(input: string, ctx: QuickContext, mode: Q
     }
   } catch (error) { if (typeof console !== 'undefined') console.warn('Catat otomatis V3: NLP.js gagal, hasil tata bahasa dipakai.', error); }
   for (const action of plan.actions) {
-    // V3.3: an operation on existing records (ubah / hapus / tanya / jadwal) is not a new entry to cross-check.
-    if (['tx_update', 'tx_delete', 'query', 'recurring_change'].includes(action.result.kind)) continue;
     const clause = plan.clauses[action.clause]?.normalized || normalizeQuick(action.text);
     let sem: SemanticEngineResult;
     try { sem = await analyzeSemantics(clause, ctx); } catch (error) { console.warn('Catat otomatis V3: NLP.js gagal pada klausa, hasil tata bahasa dipakai.', error); continue; }
@@ -175,7 +173,6 @@ function resolve(action: V3Action, sem: SemanticEngineResult, clause: string, ct
     action.checks = [...(action.checks || []), ...caught.warnings];
   }
   refreshAction(action, ctx);
-  if (action.confirm) action.review = true;
   return notes;
 }
 

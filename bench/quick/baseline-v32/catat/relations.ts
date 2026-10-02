@@ -34,7 +34,7 @@ export type RelationReading = {
   thirdParty: boolean;
   role: VerbRole;
   verbAt: number;
-  subject: { word: string; party: Party; implicit: boolean; pronoun: boolean; at: number; /** V3.3: "dia" with two or more people named before: who it may be (asked, never guessed). */ ambiguousWith?: string[] };
+  subject: { word: string; party: Party; implicit: boolean; pronoun: boolean; at: number };
   /** The other person from the user's side (lender, borrower, payer, payee), title case; '' when not said. */
   counterparty: string;
   node: RelationshipNode;
@@ -83,7 +83,7 @@ const ROLES: Record<VerbClass, Omit<VerbRole, 'verb' | 'class'>> = {
  * nothing to what the grammar already reads, e.g. "bayar cicilan motor"). `active`: the one person already named
  * earlier in the message, for "dia / doi / orangnya".
  */
-export function readRelation(text: string, ctx: QuickContext, active?: { name: string; loan: boolean; names?: string[] }): RelationReading | null {
+export function readRelation(text: string, ctx: QuickContext, active?: { name: string; loan: boolean }): RelationReading | null {
   const toks = tokens(text);
   if (!toks.length) return null;
   const amounts = findAmounts(text).filter(a => a.marked || a.value >= 100);
@@ -102,7 +102,7 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
     else if (REPAID_V.test(w)) { at = i; cls = 'repaid'; }
     else if (REPAY_STRONG.test(w)) { at = i; cls = 'repay'; }
     else if (REPAY_WEAK.test(w) && (toks.slice(i + 1, i + 3).some(t => DEBT_NOUN.test(t.w)))) { at = i; cls = 'repay'; }
-    else if (REPAY_WEAK.test(w) && /^(bayar|byr|balikin|transfer|tf)$/.test(w) && i > 0 && active?.loan && (PRONOUN.test(toks[i - 1].w) || Boolean(active.name) && toks[i - 1].w === active.name.toLocaleLowerCase('id-ID'))) { at = i; cls = 'repay'; }
+    else if (REPAY_WEAK.test(w) && /^(bayar|byr|balikin|transfer|tf)$/.test(w) && i > 0 && active?.loan && (PRONOUN.test(toks[i - 1].w) || toks[i - 1].w === active.name.toLocaleLowerCase('id-ID'))) { at = i; cls = 'repay'; }
     else if (BORROW_V.test(w)) {
       // "utang gue ke aldi", "utang atuy ke gue": the noun with its owner, not the verb.
       const owner = toks[i + 1];
@@ -129,10 +129,9 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
       else if (PRONOUN.test(t.w)) {
         // "atuy, dia bayar utang": a name said before the pronoun in the same clause; otherwise the one person of the message.
         const earlier = toks.slice(0, j).reverse().find(x => person(x) && !isHonorific(x.w));
-        const many = !earlier && (active?.names?.length || 0) > 1 ? active!.names! : undefined;
-        const name = earlier ? title(earlier.w) : many ? '' : active?.name || '';
-        subject = { word: t.w, party: name || 'dia', implicit: false, pronoun: true, at: j, ...(many ? { ambiguousWith: many } : {}) };
-        trace.push(`“${t.w}” → ${name || (many ? `belum jelas: ${many.join(' atau ')}` : 'belum jelas siapa')}${earlier ? ' (disebut sebelumnya di kalimat ini)' : name ? ' (satu-satunya orang di pesan ini)' : ''}`);
+        const name = earlier ? title(earlier.w) : active?.name || '';
+        subject = { word: t.w, party: name || 'dia', implicit: false, pronoun: true, at: j };
+        trace.push(`“${t.w}” → ${name || 'belum jelas siapa'}${earlier ? ' (disebut sebelumnya di kalimat ini)' : active ? ' (satu-satunya orang di pesan ini)' : ''}`);
       } else if (person(t)) {
         const name = isHonorific(t.w) && toks[j + 1] && j + 1 < at && person(toks[j + 1]) ? toks[j + 1].w : t.w;
         subject = { word: name, party: title(name), implicit: false, pronoun: false, at: j };
@@ -232,7 +231,7 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
   if (cls === 'possession' && !counterpartyWhy) confidence = 'check';
 
   // Nothing to add: "bayar cicilan motor", "pinjam 500rb" — the grammar's reading stands.
-  if (subject.implicit && !counterparty && !purpose && !wallet && (cls === 'repay' || cls === 'borrow' || cls === 'repaid')) return null;
+  if (subject.implicit && !counterparty && !purpose && !wallet && (cls === 'repay' || cls === 'borrow')) return null;
 
   const why: string[] = [];
   const v = `“${verb}”`;

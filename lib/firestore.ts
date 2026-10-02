@@ -183,13 +183,24 @@ function relation(tx:LedgerTx,sign:number) { const side: {kind:'claims'|'receiva
  return side;
 }
 const splitManaged='Transaksi ini adalah bagianmu di Split Bill (dibayar orang lain). Ubah lewat menu Split Bill.';
-export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string) {
-  validateTx(input);const r=editId?ref(uid,'transactions',editId):doc(coll(uid,'transactions'));
-  let previousDate=input.date;
+/**
+ * V3.3 options: `opId` makes a create idempotent (a retried or double-tapped save finds the same document and does
+ * nothing); `expect` is the state the confirmed preview was computed from (a settle "lunas", an edit of Rp19.000) and is
+ * checked again inside the transaction, so a change made meanwhile on another device is never overwritten blindly.
+ */
+export type CommitExpect={kind:'receivables'|'debts'|'claims';id:string;remaining:number}|{kind:'transactions';id:string;amount:number};
+export class StaleStateError extends Error{constructor(message:string){super(message);this.name='StaleStateError';}}
+export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string,options:{opId?:string;expect?:CommitExpect}={}) {
+  validateTx(input);const r=editId?ref(uid,'transactions',editId):options.opId?ref(uid,'transactions',options.opId):doc(coll(uid,'transactions'));
+  let previousDate=input.date,already=false;
   // Standalone additions use an offline-capable atomic batch. Edits and linked repayments use transactions for consistency checks.
-  const linked=Boolean(relation(input,1)||input.draftId||input.plannedId);
+  const linked=Boolean(relation(input,1)||input.draftId||input.plannedId||options.opId||options.expect);
   if(!editId&&!linked) {const actions=walletActions(input);const source=await readDoc(uid,'wallets',ref(uid,'wallets',input.walletId));if(!source.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(source),actions.source);if(actions.destination&&input.destinationWalletId){const destination=await readDoc(uid,'wallets',ref(uid,'wallets',input.destinationWalletId));if(!destination.exists())throw Error('Dompet tujuan tidak ditemukan.');validateWalletUse(hydrate<Wallet>(destination),actions.destination);}const batch=writeBatch(database());const {id:_batchId,...payload}=input;batch.set(r,{...payload,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});for(const [wallet,delta] of Object.entries(effects(input))) batch.update(ref(uid,'wallets',wallet),{cachedBalance:increment(delta),updatedAt:serverTimestamp()});const pending=batch.commit();if(typeof navigator!=='undefined'&&!navigator.onLine){void pending.catch(console.error);return r.id;}await pending;await syncSnapshot(uid,input.date);return r.id;}
   await runTx(database(),async trx=>{
+    if(!editId&&options.opId){const prior=await trx.get(r);if(prior.exists()){already=true;return;}}
+    if(options.expect){const e=options.expect;const snap=await trx.get(ref(uid,e.kind,e.id));if(!snap.exists())throw new StaleStateError('Catatan yang dirujuk sudah tidak ada. Cek lagi sebelum menyimpan.');const d=snap.data();
+      if(e.kind==='transactions'){if(Number(d.amount)!==e.amount)throw new StaleStateError(`Transaksi ini sudah berubah (sekarang Rp${Number(d.amount).toLocaleString('id-ID')}). Cek lagi sebelum menyimpan.`);}
+      else{const now=Number(e.kind==='debts'?d.outstandingAmount:d.remainingAmount);if(now!==e.remaining)throw new StaleStateError(`Sisanya sudah berubah (sekarang Rp${now.toLocaleString('id-ID')}). Cek lagi sebelum menyimpan.`);}}
     const oldSnap=editId?await trx.get(r):null; if(editId&&!oldSnap?.exists())throw Error('Transaksi tidak ditemukan.');
     const old=oldSnap?.exists()?hydrate<LedgerTx>(oldSnap):null;previousDate=old?.date||input.date;
     const actions=walletActions(input);const walletSnap=await trx.get(ref(uid,'wallets',input.walletId));if(!walletSnap.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(walletSnap),actions.source,old,input);
@@ -216,9 +227,9 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
     if(old?.draftId&&old.draftId!==input.draftId)trx.update(ref(uid,'drafts',old.draftId),{status:'pending',updatedAt:serverTimestamp()});if(draftRef&&(!old||old.draftId!==input.draftId))trx.update(draftRef,{status:'posted',updatedAt:serverTimestamp()});
     if(old?.plannedId&&old.plannedId!==input.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});if(plannedRef)trx.update(plannedRef,{status:'posted',postedTransactionId:r.id,updatedAt:serverTimestamp()});
     if(old)trx.update(r,{...fields,updatedAt:serverTimestamp()});else trx.set(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-  });await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
+  });if(already)return r.id;await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
 }
-export async function deleteTransaction(uid:string,id:string) {
+export async function deleteTransaction(uid:string,id:string,expect?:{amount:number}) {
   const r=ref(uid,'transactions',id);let removedDate='',droppedDraft='';
   // A plain transaction (not linked to a debt, claim, receivable, fund, schedule or plan) is deleted with a batch: it is
   // applied to the device copy at once, kept in the device's send queue and delivered even if the app is closed or
@@ -226,6 +237,8 @@ export async function deleteTransaction(uid:string,id:string) {
   const current=await readDoc(uid,'transactions',r);
   if(!current.exists()){const server=await getDocFromServer(r).catch(()=>null);if(!server?.exists()){markTxDeleted([id]);return;}}
   const plain=current.exists()?hydrate<LedgerTx>(current):null;
+  // V3.3: deleting what the preview showed, not something changed since on another device.
+  if(expect&&plain&&plain.amount!==expect.amount)throw new StaleStateError(`Transaksi ini sudah berubah (sekarang Rp${plain.amount.toLocaleString('id-ID')}). Cek lagi sebelum menghapus.`);
   if(plain&&!['claim_advance','receivable_issue','borrowing'].includes(plain.type)&&!(plain.splitBillId&&plain.type==='expense')&&!relation(plain,-1)&&!plain.draftId&&!plain.plannedId){
     const batch=writeBatch(database());
     // A wallet deleted since then has no balance to correct (updating it would fail the whole batch).
@@ -303,7 +316,11 @@ export async function mergeCategory(uid:string,from:Category,to:Category){if(fro
   const gone=writeBatch(database());gone.delete(ref(uid,'categories',from.id));await settle(gone.commit());await noteDeleted(uid,{categories:[from.id]});await syncSnapshot(uid,'0000-01-01');return affected.length+nested.length;
 }
 
-export async function createDueDrafts(uid:string,recurring:Recurring[],today=new Date().toLocaleDateString('en-CA')){for(const schedule of recurring.filter(r=>r.active&&r.nextDate&&r.nextDate<=today)){let count=0;while(count++<12){const sr=ref(uid,'recurring',schedule.id);const current=await getDoc(sr);if(!current.exists())break;const due=current.data().nextDate as string;if(due>today)break;const next=advanceSchedule(due,schedule.frequency,scheduleDay({nextDate:due,anchorDay:current.data().anchorDay}));const mode=(current.data().mode||'reminder') as Recurring['mode'];const draftId=`${schedule.id}_${due}`;const dr=ref(uid,'drafts',draftId);await runTx(database(),async trx=>{const [actual,existing]=await Promise.all([trx.get(sr),trx.get(dr)]);if(!actual.exists()||actual.data().nextDate!==due)return;if(mode!=='reminder'&&!existing.exists())trx.set(dr,{recurringId:schedule.id,plannedDate:due,type:schedule.type,amount:schedule.amount,walletId:schedule.walletId,destinationWalletId:schedule.destinationWalletId||null,categoryId:schedule.categoryId||null,name:schedule.name,status:'pending',mode,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(sr,{nextDate:next,updatedAt:serverTimestamp()});});}}}
+export async function createDueDrafts(uid:string,recurring:Recurring[],today=new Date().toLocaleDateString('en-CA')){for(const schedule of recurring.filter(r=>r.active&&r.nextDate&&r.nextDate<=today)){let count=0;while(count++<12){const sr=ref(uid,'recurring',schedule.id);const current=await getDoc(sr);if(!current.exists())break;const due=current.data().nextDate as string;if(due>today)break;const next=advanceSchedule(due,schedule.frequency,scheduleDay({nextDate:due,anchorDay:current.data().anchorDay}));const mode=(current.data().mode||'reminder') as Recurring['mode'];const draftId=`${schedule.id}_${due}`;
+      // V3.3: "bulan depan stop" ends the schedule from that date; "mulai bulan depan jadi 35k" applies from it. Past entries never change.
+      const endDate=current.data().endDate as string|null|undefined,pending=current.data().pendingChange as Recurring['pendingChange'];
+      if(endDate&&due>=endDate){await settle(updateDoc(sr,{active:false,updatedAt:serverTimestamp()}));break;}
+      const amount=pending&&due>=pending.from?pending.amount:schedule.amount;const dr=ref(uid,'drafts',draftId);await runTx(database(),async trx=>{const [actual,existing]=await Promise.all([trx.get(sr),trx.get(dr)]);if(!actual.exists()||actual.data().nextDate!==due)return;if(mode!=='reminder'&&!existing.exists())trx.set(dr,{recurringId:schedule.id,plannedDate:due,type:schedule.type,amount,walletId:schedule.walletId,destinationWalletId:schedule.destinationWalletId||null,categoryId:schedule.categoryId||null,name:schedule.name,status:'pending',mode,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});trx.update(sr,{nextDate:next,...(pending&&due>=pending.from?{amount:pending.amount,pendingChange:null}:{}),updatedAt:serverTimestamp()});});}}}
 export async function postAutoDrafts(uid:string,drafts:Draft[]){for(const draft of drafts.filter(d=>d.status==='pending'&&d.mode==='auto')){try{await upsertTransaction(uid,newTx({type:draft.type,amount:draft.amount,date:draft.plannedDate,walletId:draft.walletId,destinationWalletId:draft.destinationWalletId,categoryId:draft.categoryId,description:draft.name,draftId:draft.id,recurringTransactionId:draft.recurringId}));}catch(error){console.error('Transaksi otomatis perlu ditinjau:',error);}}}
 /** A skipped draft is deleted for good: its schedule has already moved on, so nothing brings it back. */
 export async function dismissDraft(uid:string,id:string){await runTx(database(),async trx=>{const r=ref(uid,'drafts',id),draft=await trx.get(r);if(!draft.exists()||draft.data().status!=='pending')throw Error('Transaksi ini sudah diproses.');trx.delete(r)});await noteDeleted(uid,{drafts:[id]});}

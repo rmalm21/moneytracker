@@ -7154,3 +7154,21 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .hh-days strong { font-size: 1.2rem; }
 @media (min-width: 900px) { .hh .home-hero-amount { font-size: 2.9rem; } .hh-ring, .hh-days { width: 88px; height: 88px; } .hh-days strong { font-size: 1.6rem; } }
 @media (max-width: 340px) { .hh .home-hero-amount { font-size: 1.3rem; } }
+
+/* 145. Catat otomatis V3.3 — consequence preview ("Yang berubah"), operations, answers */
+.qp-impact { display: grid; gap: 4px; margin: 8px 0 2px; padding: 9px 11px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); }
+.qp-impact > small { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.qp-impact-line { font-size: .82rem; line-height: 1.35; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.qp-impact-line.is-down { color: var(--rose); }
+.qp-impact-line.is-up { color: var(--positive); }
+.qp-impact-line.is-rel { font-weight: 600; }
+.qp-impact-line.is-calc, .qp-impact-line.is-plan { color: var(--muted); }
+.qp-answer, .qp-targets { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.qp-answer li, .qp-targets li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 4%, var(--paper)); font-size: .84rem; min-width: 0; }
+.qp-answer li span, .qp-targets li span { min-width: 0; overflow-wrap: anywhere; }
+.qp-answer li b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qp-targets li small { color: var(--muted); white-space: nowrap; }
+.qp-operation .qp-title strong.is-text { font-size: 1.02rem; line-height: 1.3; }
+.qp-confirm { flex: 1 1 100%; color: var(--rose); font-size: .8rem; }
+.qp-danger, .qp-danger:hover { background: var(--rose); border-color: var(--rose); color: #fff; }
+.qp-confirm-all { margin: 0 0 8px; }

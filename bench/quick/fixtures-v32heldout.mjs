@@ -42,13 +42,15 @@ const raw = [
   ['h27', ['segmentation', 'implicit', 'date'], 'kemarin bakso 15k hari ini parkir 3k', [a('expense', 15000, { date: Y }), a('expense', 3000, { date: T })]],
   ['h28', ['segmentation', 'implicit', 'date', 'repayment'], 'mie ayam 12k kemarin bensin 20k krom hari ini rian bayar utang 10k', [a('expense', 12000, { date: Y }), a('expense', 20000, { date: T, wallet: 'krom' }), a('receivable_payment', 10000, { person: 'Rian', date: T, review: ['link'] })]],
   ['h29', ['segmentation', 'implicit', 'relation'], 'parkir 2rb rian minjem 20rb', [a('expense', 2000), a('receivable_new', 20000, { person: 'Rian' })]],
-  ['h30', ['segmentation', 'nosplit'], 'makan 50k service 5k', [a('expense', undefined, { review: ['amount'] })]],
+  // V3.3: service is a charge of the same purchase.
+  ['h30', ['segmentation', 'nosplit'], 'makan 50k service 5k', [a('expense', 55000)]],
   ['h31', ['segmentation', 'nosplit'], 'beli 3 donat 15k', [a('expense', 15000)]],
   ['h32', ['segmentation', 'nosplit', 'purpose'], 'rian minjem 50rb buat beli bensin', [a('receivable_new', 50000, { person: 'Rian', purpose: 'Beli Bensin' })]],
   ['h33', ['segmentation', 'implicit'], 'pulsa 25k jenius kopi 18k gopay', [a('expense', 25000, { wallet: 'jenius' }), a('expense', 18000, { wallet: 'gopay' })]],
   ['h34', ['segmentation', 'implicit', 'date'], 'tadi sarapan 15k terus kmrn malem martabak 30k', [a('expense', 15000, { date: T }), a('expense', 30000, { date: Y })]],
   ['h35', ['segmentation', 'implicit'], 'gaji 5jt bonus 1jt', [a('income', 5000000), a('income', 1000000)]],
-  ['h36', ['pronoun', 'segmentation'], 'rian ngutang 20rb terus doi bayar 10rb', [a('receivable_new', 20000, { person: 'Rian' }), a('receivable_payment', 10000, { person: 'Rian', review: ['link'] })]],
+  // V3.3: settles the receivable created in the same message.
+  ['h36', ['pronoun', 'segmentation'], 'rian ngutang 20rb terus doi bayar 10rb', [a('receivable_new', 20000, { person: 'Rian' }), a('receivable_payment', 10000, { person: 'Rian' })]],
   ['h37', ['correction', 'relation'], 'rian ngutang 20rb eh 25rb', [a('receivable_new', 25000, { person: 'Rian' })]],
   ['h38', ['correction', 'relation'], 'nisa ngutang 30rb eh rian', [a('receivable_new', 30000, { person: 'Rian' })]],
   ['h39', ['correction', 'relation'], 'aku ngutang ke nisa eh ke rian 50rb', [a('debt_new', 50000, { person: 'Rian' })]],
