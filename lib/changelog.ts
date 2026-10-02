@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.6', date: '2 Okt 2026', title: 'Beranda baru yang lebih segar', items: [
+    ['💡', 'Beranda dirombak: tiap kartu punya warna sendiri, angka ringkas bisa digeser di HP, dan pemilih periode jadi tombol kecil.'],
+    ['📝', 'Catat cepat kini berupa ikon bulat kecil berwarna, dan Transaksi Terbaru menampilkan 5 transaksi terakhir dengan ringkas.'],
+    ['💰', 'Anggaran tampil sebagai ubin dengan lingkaran pemakaian, dan Saldo Dompet sebagai kartu berwarna yang bisa digeser.'],
+  ] },
   { version: '3.5', date: '2 Okt 2026', title: 'Bunga saldo otomatis', items: [
     ['💰', 'Bunga otomatis per dompet: isi bunga per tahun (boleh desimal, mis. 4,5%), pajak bunga bisa dinyalakan dengan tarif bebas, lalu pilih bunga cair tiap hari, tiap minggu, atau tiap bulan di tanggal pilihanmu.'],
     ['💡', 'Bunga dihitung dari saldo akhir tiap hari dan dibulatkan biasa saat cair (Rp10,77 → Rp11), lengkap dengan simulasi sebelum disimpan. Hari yang terlewat dihitung satu per satu saat aplikasi dibuka, tanpa dobel walau dibuka di dua HP.'],

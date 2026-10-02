@@ -6993,3 +6993,116 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 button.int-more { justify-self: start; font-size: .74rem; }
 .int-status dd small { display: inline; margin-left: 6px; }
 .int-status dl > div { align-items: center; }
+
+/* 143. Beranda refresh: colour per card, metric strip, round quick actions, budget rings, wallet cards (dashboard-home.tsx). */
+.home-dash { --w-accent: var(--accent); }
+.home-dash [data-w='budgets'], .home-dash [data-w='budget'] { --w-accent: #d9822b; }
+.home-dash [data-w='wallets'], .home-dash [data-w='free'] { --w-accent: #1f9d8b; }
+.home-dash [data-w='recent'] { --w-accent: #5b6ee1; }
+.home-dash [data-w='incomeExpense'], .home-dash [data-w='income'] { --w-accent: #2f8f5b; }
+.home-dash [data-w='expenses'], .home-dash [data-w='avgDaily'], .home-dash [data-w='categoryDonut'], .home-dash [data-w='topCategories'] { --w-accent: #d1495b; }
+.home-dash [data-w='forecast'], .home-dash [data-w='expenseTrend'] { --w-accent: #7c5cd6; }
+.home-dash [data-w='upcoming'], .home-dash [data-w='cashFlow'] { --w-accent: #2a86c7; }
+.home-dash [data-w='inbox'], .home-dash [data-w='claims'] { --w-accent: #d99a1e; }
+.home-dash [data-w='receivables'], .home-dash [data-w='liabilities'] { --w-accent: #c2558f; }
+.home-dash [data-w='funds'], .home-dash [data-w='reserved'], .home-dash [data-w='netWorth'], .home-dash [data-w='assets'] { --w-accent: #3a9d6b; }
+
+/* Hero: soft light shapes, larger number. */
+.home-dash .home-hero { isolation: isolate; }
+.home-hero-glow { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(160px 160px at 92% 8%, rgba(255, 255, 255, .22), transparent 70%), radial-gradient(220px 140px at 8% 108%, rgba(255, 255, 255, .14), transparent 70%), radial-gradient(120px 120px at 60% 60%, rgba(255, 210, 120, .12), transparent 70%); }
+.home-dash .home-hero-amount { font-size: clamp(2rem, 9vw, 2.6rem); letter-spacing: -.035em; }
+
+/* Period: a pill, not a full-width card; opens to the selector. */
+.home-dash .dashboard-period { display: block; width: fit-content; max-width: 100%; margin: -4px 0 14px; padding: 0; border-radius: 99px; box-shadow: none; background: var(--paper); border: 1px solid var(--line); }
+.home-dash .dashboard-period > summary { min-height: 0; padding: 7px 14px; gap: 8px; font-size: .78rem; font-weight: 600; color: var(--muted); }
+.home-dash .dashboard-period > summary strong { color: var(--ink); }
+.home-dash .dashboard-period[open] { width: 100%; border-radius: 18px; }
+.home-dash .dashboard-period[open] > summary { border-bottom: 1px solid var(--line); }
+
+/* Cards: a thin colour bar and a faint tint per card, so the page is not one long list of identical boxes. */
+.home-dash .widget-columns .panel, .home-dash .recent-strip .panel { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--w-accent) 18%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--w-accent) 6%, var(--paper)), var(--paper) 120px); }
+.home-dash .widget-columns .panel::before, .home-dash .recent-strip .panel::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--w-accent), color-mix(in srgb, var(--w-accent) 35%, transparent)); }
+.home-dash .widget-details > summary > span > strong:first-child, .home-dash .widget-head > span > strong:first-child { display: inline-flex; align-items: center; gap: 8px; }
+.home-dash .widget-details > summary > span > strong:first-child::before, .home-dash .widget-head > span > strong:first-child::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 3px; background: var(--w-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--w-accent) 18%, transparent); }
+.home-dash .widget-columns .link-button, .home-dash .recent-strip .link-button { color: var(--w-accent); border-color: color-mix(in srgb, var(--w-accent) 30%, var(--line)); background: color-mix(in srgb, var(--w-accent) 8%, var(--paper)); }
+
+/* Metrics: colourful compact tiles. */
+.home-dash .metric-grid .stat-card { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--w-accent) 22%, var(--line)); background: radial-gradient(120px 90px at 100% 0, color-mix(in srgb, var(--w-accent) 16%, transparent), transparent 70%), var(--paper); }
+.home-dash .metric-grid .stat-card .metric-icon { color: var(--w-accent); background: color-mix(in srgb, var(--w-accent) 14%, var(--paper)); }
+.home-dash .metric-grid .stat-value { color: var(--ink); }
+
+/* Quick actions: round icons with a label under each. */
+.home-dash .quick-strip .quick-row { gap: 4px; mask-image: none; padding: 2px 0 4px; }
+.home-dash .quick-strip .quick-action { flex: 0 0 78px; display: grid; justify-items: center; gap: 6px; padding: 6px 2px; border: 0; background: none; box-shadow: none; text-align: center; font-size: .72rem; line-height: 1.2; white-space: normal; }
+.home-dash .quick-strip .quick-action svg { width: 46px; height: 46px; padding: 13px; border-radius: 16px; color: #fff; background: linear-gradient(140deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--deep))); box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 28%, transparent); }
+.home-dash .quick-strip .quick-action:nth-child(4n+2) svg { background: linear-gradient(140deg, #2f8f5b, #1d5f3c); box-shadow: 0 6px 14px rgba(47, 143, 91, .28); }
+.home-dash .quick-strip .quick-action:nth-child(4n+3) svg { background: linear-gradient(140deg, #5b6ee1, #3a46a0); box-shadow: 0 6px 14px rgba(91, 110, 225, .28); }
+.home-dash .quick-strip .quick-action:nth-child(4n+4) svg { background: linear-gradient(140deg, #d9822b, #a85a12); box-shadow: 0 6px 14px rgba(217, 130, 43, .28); }
+.home-dash .quick-strip .quick-action span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 76px; }
+.home-dash .quick-strip .quick-action small { font-size: .64rem; }
+.home-dash .quick-strip .quick-action:hover { background: none; transform: translateY(-2px); }
+
+/* Recent transactions: a short, tidy list. */
+.home-dash .recent-widget .transaction-row { border-radius: 14px; }
+
+/* Budgets: tiles with a ring. */
+.budget-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.budget-tile { --identity-color: var(--w-accent, var(--accent)); display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: transform .14s, border-color .14s; }
+.budget-tile:hover { border-color: color-mix(in srgb, var(--identity-color) 45%, var(--line)); transform: translateY(-1px); }
+.bt-ring { --ring: var(--identity-color); flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: conic-gradient(var(--ring) var(--pct), color-mix(in srgb, var(--ring) 14%, var(--line)) 0); }
+.budget-tile.warn .bt-ring { --ring: #e0a100; }
+.budget-tile.over .bt-ring { --ring: var(--danger, #d1495b); }
+.bt-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--paper); font-size: 1.05rem; overflow: hidden; }
+.bt-text { display: grid; min-width: 0; gap: 1px; }
+.bt-name { font-size: .76rem; font-weight: 700; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bt-text strong { font: 800 .95rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bt-text small { font-size: .7rem; color: var(--muted); }
+.bt-text .bm-pct { font-weight: 800; }
+.home-dash [data-w='budgets'] .widget-body > .link-button { margin-top: 10px; }
+
+/* Wallets: a row of small colour cards. */
+.wallet-strip { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 8px; margin: 0 -2px; scrollbar-width: none; }
+.wallet-strip::-webkit-scrollbar { display: none; }
+.wallet-chipcard { --identity-color: var(--accent); flex: 0 0 148px; scroll-snap-align: start; display: grid; gap: 4px; padding: 12px; border: 0; border-radius: 18px; color: #fff; text-align: left; font: inherit; cursor: pointer; background: radial-gradient(90px 70px at 100% 0, rgba(255, 255, 255, .22), transparent 70%), linear-gradient(140deg, var(--identity-color), color-mix(in srgb, var(--identity-color) 58%, var(--deep))); box-shadow: 0 8px 18px color-mix(in srgb, var(--identity-color) 26%, transparent); transition: transform .14s; }
+.wallet-chipcard:hover { transform: translateY(-2px); }
+.wcc-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wcc-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+.wcc-top small { font-size: .62rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: rgba(255, 255, 255, .78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wcc-name { margin-top: 6px; font-size: .8rem; font-weight: 700; color: rgba(255, 255, 255, .92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wallet-chipcard strong { font: 800 1rem/1.2 var(--font-head); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wallet-chipcard strong, .wcc-name { text-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
+.wallet-groups-sum { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 10px; font-size: .74rem; color: var(--muted); }
+.wallet-groups-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Phones: metrics as one swipeable row instead of a stack. */
+@media (max-width: 720px) {
+  .home-dash .metric-grid { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin: 0 -16px 14px; padding: 2px 16px 8px; scrollbar-width: none; }
+  .home-dash .metric-grid::-webkit-scrollbar { display: none; }
+  .home-dash .metric-grid > .widget-slot { flex: 0 0 min(64%, 210px); scroll-snap-align: start; grid-column: auto !important; }
+  .home-dash .metric-grid .stat-card { height: 100%; }
+}
+@media (min-width: 960px) { .budget-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .wallet-chipcard, .budget-tile, .home-dash .quick-strip .quick-action { transition: none; } }
+/* 143b. Beranda refresh fixes */
+@media (max-width: 720px) { .home-dash .metric-grid { scroll-padding-inline: 16px; } }
+.home-dash .quick-strip .quick-action { flex: 0 0 74px; }
+.home-dash .quick-strip .quick-action svg { width: 44px !important; height: 44px !important; min-width: 44px; padding: 12px; box-sizing: border-box; }
+.home-dash .quick-strip .quick-action span { max-width: 72px; overflow-wrap: normal; word-break: normal; hyphens: none; font-size: .68rem; }
+.budget-tile { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 8px; row-gap: 6px; align-items: center; padding: 10px 10px 9px; }
+.budget-tile .bt-ring { width: 38px; height: 38px; }
+.budget-tile .bt-icon { width: 30px; height: 30px; font-size: .9rem; }
+.budget-tile .bt-text { display: contents; }
+.budget-tile .bt-name { grid-column: 2; grid-row: 1; }
+.budget-tile .bt-text strong { grid-column: 1 / -1; grid-row: 2; font-size: .96rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.budget-tile .bt-text small { grid-column: 1 / -1; grid-row: 3; margin-top: -4px; }
+/* 143c. Smaller icons on Beranda */
+.home-dash .quick-strip .quick-action { flex: 0 0 66px; gap: 5px; }
+.home-dash .quick-strip .quick-action svg { width: 34px !important; height: 34px !important; min-width: 34px; padding: 9px; border-radius: 11px; box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 22%, transparent); }
+.home-dash .quick-strip .quick-action span { font-size: .66rem; max-width: 64px; }
+.home-dash .metric-grid .stat-card .metric-icon { width: 28px; height: 28px; }
+.home-dash .metric-grid .stat-card .metric-icon svg { width: 14px; height: 14px; }
+.budget-tile .bt-ring { width: 32px; height: 32px; }
+.budget-tile .bt-icon { width: 25px; height: 25px; font-size: .78rem; }
+.wcc-icon { width: 24px; height: 24px; border-radius: 8px; font-size: .85rem; }
+.home-dash .quick-strip .quick-action { flex-basis: 72px; }
+.home-dash .quick-strip .quick-action span { max-width: 70px; font-size: .64rem; letter-spacing: -.01em; }
