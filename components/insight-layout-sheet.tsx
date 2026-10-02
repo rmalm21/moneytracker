@@ -8,16 +8,16 @@ import { Button } from './ui/button';
 export const defaultSections: { key: string; label: string; hint: string; icon: LucideIcon }[] = [
   { key: 'brief', label: 'Ringkasan', hint: '2–4 kalimat tentang keadaan keuanganmu', icon: Sparkles },
   { key: 'changed', label: 'Yang berubah', hint: 'Perubahan paling berarti dan penyebabnya', icon: ArrowUpRight },
-  { key: 'profile', label: 'Profil Insight', hint: 'Profil risiko, target, prioritas', icon: UserRound },
   { key: 'actions', label: 'Prioritas sekarang', hint: '3 hal terpenting + yang kamu sematkan', icon: Lightbulb },
-  { key: 'progress', label: 'Kemajuan', hint: 'Yang membaik dan sudah teratasi', icon: CircleCheck },
-  { key: 'pressure', label: 'Keadaan & tekanan', hint: 'Momentum, tekanan utama, radar keuangan', icon: Gauge },
-  { key: 'health', label: 'Indikator kesehatan', hint: '6 indikator: menabung, dana darurat, cicilan…', icon: HeartPulse },
-  { key: 'wealth', label: 'Uang menganggur & investasi', hint: 'Dana idle, urutan penyaluran, rencana investasi', icon: Sprout },
+  { key: 'progress', label: 'Yang membaik', hint: 'Yang membaik dan sudah teratasi', icon: CircleCheck },
+  { key: 'pressure', label: 'Arah & yang perlu dijaga', hint: 'Membaik atau memburuk, dan hal yang sedang berat', icon: Gauge },
+  { key: 'details', label: 'Rincian', hint: 'Pengeluaran, arus uang, target & aset, skenario, data', icon: BrainCircuit },
+  { key: 'health', label: 'Indikator skor', hint: '6 indikator: menabung, dana darurat, cicilan…', icon: HeartPulse },
+  { key: 'profile', label: 'Profil Insight', hint: 'Profil risiko, target, prioritas', icon: UserRound },
+  { key: 'wealth', label: 'Uang menganggur & investasi', hint: 'Dana menganggur, urutan penyaluran, rencana investasi', icon: Sprout },
   { key: 'paycheck', label: 'Rencana gajian berikutnya', hint: 'Pembagian gaji per pos', icon: HandCoins },
   { key: 'charts', label: 'Grafik siklus & porsi', hint: 'Pola per siklus dan porsi kebutuhan/keinginan', icon: Gauge },
-  { key: 'details', label: 'Rincian analisis', hint: 'Pengeluaran, cashflow, kewajiban, target, kekayaan, kebiasaan, harga', icon: BrainCircuit },
-  { key: 'timeline', label: 'Riwayat Insight', hint: 'Perubahan penting dari waktu ke waktu', icon: Clock3 },
+  { key: 'timeline', label: 'Riwayat & keputusan', hint: 'Perubahan penting dan hasil keputusanmu', icon: Clock3 },
 ];
 /**
  * Saved order with sections added in later versions put at their default place (after the section that comes

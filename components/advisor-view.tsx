@@ -1,23 +1,28 @@
 'use client';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Star, Pin, PinOff, Calculator, LayoutList, UserRound, Layers, HandCoins, Sprout, SlidersHorizontal, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Landmark, Lightbulb, Repeat, Scissors, TrendingDown, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Pin, PinOff, Calculator, LayoutList, UserRound, Layers, HandCoins, Sprout, SlidersHorizontal, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Lightbulb, Scissors, TrendingDown, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { usePeriodTransactions } from './period-selector';
 import { Button } from './ui/button';
 import { AppIcon, identityStyle } from './visual-identity';
-import { analyzeFinances, pastCycles, type Advice, type Apply, type CalcRow, type Finding, type Tone } from '@/lib/advisor';
+import { pastCycles, type Advice, type Apply, type CalcRow, type Finding, type Tone } from '@/lib/advisor';
 import { budgetWindow, metrics, rupiah } from '@/lib/accounting';
 import { committedAmount } from '@/lib/finance-control';
 import { saveProfile, saveRecord } from '@/lib/firestore';
 import { InsightProfileSheet } from './insight-profile-sheet';
-import { InsightLayoutSheet, defaultSections, mergeOrder } from './insight-layout-sheet';
-import { ChangedSection, EvidenceDrawer, ProgressSection, ScoreDeltaLine, SignalRow, StoryCard, TimelineSection, type StoryHandlers } from './insight-story';
+import { InsightLayoutSheet, mergeOrder } from './insight-layout-sheet';
+import { SignalRow, TimelineSection } from './insight-story';
+import { Capped, InsightSection, ModuleBoundary, HelpButton, useCollapsed } from './insight/section';
+import { InsightHero } from './insight/hero';
+import { AskInsight, ExplainSheet, FinancialBrief } from './insight/brief';
+import { ChangeCard, PriorityRow, ProgressList, StorySheet } from './insight/stories';
+import { CashflowPanel, CostIndexCard, DataSummary, DecisionTimeline, GoalChoices, ScenarioSandbox } from './insight/deep';
+import { briefView, cashflowView, changesView, dataView, explainView, heroView, help, priorityView, progressView, questionsView, type PriorityItem } from '@/lib/insight-v3/view';
 import { analyzePrices } from '@/lib/insight-v25';
 import { analyzeInsightV3 } from '@/lib/insight-v3';
 import { recordDecision } from '@/lib/insight-v3/decisions';
-import { BriefV3, CostPanel, DataPanel, DecisionList, GoalOptionsPanel, ImpactChain, LiquidityPanel, ScenarioLab, StatePanel } from './insight-v3';
-import { FlaskConical, Database } from 'lucide-react';
+import { Activity, BarChart3, Database, FlaskConical, HeartPulse, History } from 'lucide-react';
 import { dismiss as dismissSignal, readMemory, restoreAll, snooze as snoozeSignal, type InsightMemory } from '@/lib/insight-v25/lifecycle';
 import type { InsightSignal } from '@/lib/insight-v25/types';
 import { priorityLabels, riskLabels, type InsightProfile } from '@/lib/insight-profile';
@@ -55,14 +60,6 @@ function Spark({ values, labels, percent, width = 132, height = 38 }: { values: 
     </svg>
     {labels && <figcaption><span>{labels[0]}</span><span>{labels[last]}</span></figcaption>}
   </figure>;
-}
-
-function Ring({ score, tone }: { score: number; tone: Tone }) {
-  const r = 46, c = 2 * Math.PI * r;
-  return <div className={`ins-ring tone-${tone}`} role="img" aria-label={`Skor kesehatan keuangan ${score} dari 100`}>
-    <svg viewBox="0 0 110 110" aria-hidden="true"><circle cx="55" cy="55" r={r} className="ins-ring-track"/><circle cx="55" cy="55" r={r} className="ins-ring-bar" strokeDasharray={`${c * score / 100} ${c}`}/></svg>
-    <div><strong>{score}</strong><small>dari 100</small></div>
-  </div>;
 }
 
 const partIcons: Record<string, LucideIcon> = { savings: Coins, emergency: ShieldCheck, debt: CreditCard, budget: Target, runway: CalendarClock, trend: TrendingUp };
@@ -225,163 +222,157 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     track(task, { pending: 'Menyimpan anggaran…', success: action.kind === 'create-budget' ? `Anggaran ${action.name} dibuat.` : 'Anggaran diperbarui.', failure: 'Anggaran belum tersimpan', after: () => setBusy('') });
   }
 
-  const handlers: StoryHandlers = { onOpen: setOpenSig, onGo: navigate, onApply: apply, busy };
   const card = (f: Finding, i?: number, tag?: string) => <FindingCard key={f.id} finding={f} index={i} tag={tag} onApply={apply} onGo={navigate} onHide={hide} busy={busy === f.id} pinned={pinned.includes(f.id)} onPin={togglePin}/>;
   const pinFirst = (list: Finding[]) => [...list.filter(f => pinned.includes(f.id)).sort((a, b) => pinned.indexOf(a.id) - pinned.indexOf(b.id)), ...list.filter(f => !pinned.includes(f.id))];
-  const heading = <div className="page-heading"><div><h1>Insight</h1><p>Saran otomatis dari riwayat transaksimu. Dihitung di perangkat ini, datamu tidak dikirim ke mana pun.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary small" onClick={() => setLayoutOpen(true)}><LayoutList size={15}/> Atur tampilan</button></div></div>;
-  if (!advice) return <>{heading}<div className="view-skeleton" aria-busy="true" aria-label="Menganalisis riwayat"><span/><span/><span/></div></>;
+  const collapse = useCollapsed(user?.uid);
+  const [explainOpen, setExplainOpen] = useState(false);
+  const [sub, setSub] = useState('summary');
+  const [changesAll, setChangesAll] = useState(false);
+  const hintKey = user ? `dompet-ajaib:insight-hint:${user.uid}` : '';
+  const [hintSeen, setHintSeen] = useState(true);
+  useEffect(() => { try { setHintSeen(Boolean(hintKey && localStorage.getItem(hintKey))); } catch { /* per-device */ } }, [hintKey]);
+  function openStory(sig: string) { setOpenSig(sig); if (!hintSeen && hintKey) { setHintSeen(true); try { localStorage.setItem(hintKey, '1'); } catch { /* per-device */ } } }
+  // Navigation memory: coming back from a transaction, budget or claim restores the tab, sub-view and scroll position.
+  const navKey = 'dompet-ajaib:insight-nav';
+  function go(view: string, focus?: string) { try { sessionStorage.setItem(navKey, JSON.stringify({ tab, sub, y: window.scrollY })); } catch { /* per-tab */ } navigate(view, focus); }
+  const ready = Boolean(v3);
+  useEffect(() => {
+    if (!ready) return;
+    try { const saved = JSON.parse(sessionStorage.getItem(navKey) || 'null'); if (saved) { sessionStorage.removeItem(navKey); setTab(saved.tab || ''); setSub(saved.sub || 'summary'); requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved.y || 0))); } } catch { /* per-tab */ }
+  }, [ready]);
+  const heading = <div className="ix-heading"><div><h1>Insight</h1><small>Dihitung di perangkat ini dari catatanmu sendiri</small></div><button type="button" className="ix-icon-btn" onClick={() => setLayoutOpen(true)} aria-label="Atur tampilan Insight" title="Atur tampilan"><LayoutList size={18}/></button></div>;
+  if (!advice || !v3 || !report) return <div className="insight-page ix-page">{heading}<div className="ix-skeleton" aria-busy="true" aria-label="Menyiapkan Insight"><span className="sk-hero"/><span className="sk-line"/><span className="sk-line short"/><span className="sk-card"/></div></div>;
 
-  const { summary: s } = advice;
+  const hero = heroView(v3), brief = briefView(v3), changes = changesView(v3, changesAll ? 99 : 3), questions = questionsView(v3);
   const everything = [...advice.actions, ...advice.wealth, ...advice.reduce, ...advice.loose, ...advice.budgetTips, ...advice.habits, ...advice.recurring, ...advice.obligations, ...advice.alerts];
-  const pinnedCards = pinned.map(id => everything.find(f => f.id === id)).filter((f): f is Finding => Boolean(f));
-  const priorityAll = v3!.priority.filter(st => !(st.root.finding && pinned.includes(st.root.finding.id)) && !(st.root.finding && allHidden.includes(st.root.finding.id) && !showHidden));
-  const priorityTop = priorityAll.slice(0, 3), priorityRest = priorityAll.slice(3);
-  const potential = advice.impact.monthly;
-  const maxCycle = Math.max(1, ...advice.cycles.flatMap(c => [c.income, c.expense]));
-  const dismissedCount = Object.values(report!.memory.s).filter(r => r.dd || (r.su && r.su > today)).length;
+  const findingById = (id?: string) => everything.find(f => f.id === id);
+  const pinnedCards = pinned.map(id => findingById(id)).filter((f): f is Finding => Boolean(f) && !allHidden.includes(f!.id));
+  const pv = priorityView(v3, { pinned, hidden: showHidden ? [] : allHidden });
+  const pinnedRows: PriorityItem[] = pinnedCards.filter(f => !pv.top.some(p => p.findingId === f.id) && !pv.rest.some(p => p.findingId === f.id)).map(f => ({ signature: `advisor:${f.id}`, title: f.title, why: f.detail.replace(/\*\*|==/g, '').split(/(?<=[.!?])\s/)[0], tone: f.tone === 'good' ? 'good' : f.tone === 'bad' ? 'bad' : f.tone === 'warn' ? 'warn' : 'info', findingId: f.id, pinKey: f.id, action: f.apply ? { label: f.apply.kind === 'create-budget' ? `Buat ${short(f.apply.amount)}` : `Ubah ke ${short(f.apply.amount)}`, apply: f.apply, target: f.target } : f.target ? { label: 'Lihat', target: f.target } : undefined }));
+  const priorityTop = [...pinnedRows, ...pv.top].slice(0, Math.max(3, pinnedRows.length));
+  const priorityRest = [...[...pinnedRows, ...pv.top].slice(priorityTop.length), ...pv.rest];
+  const progress = progressView(v3, today, new Set(changes.top.map(c => c.signature)));
+  const knownSigs = new Set([...report.stories.map(st => st.signature), ...report.signals.map(sg => sg.signature)]);
+  const dismissedCount = Object.values(report.memory.s).filter(r => r.dd || (r.su && r.su > today)).length;
   const hiddenCount = allHidden.length + dismissedCount;
   const topCats = advice.categories.filter(c => c.avg >= 10_000).slice(0, 8);
-  const deep = report!.deepDive;
-  // An Advisor card already told by a V2.5 signal in the same tab is shown once (the signal opens the full story).
+  const deep = report.deepDive;
   const told = new Set(Object.values(deep).flat().map(sg => sg.finding?.id).filter(Boolean) as string[]);
   const once = (list: Finding[]) => list.filter(f => !told.has(f.id) || pinned.includes(f.id));
   const goalIds = /^(emergency|fund-|saving-rate)/;
-  const tabs: { key: string; label: string; icon: LucideIcon; hint: string; items?: Finding[]; signals?: InsightSignal[]; panel?: React.ReactNode; empty: string }[] = [
-    { key: 'spending', label: 'Pengeluaran', icon: Scissors, hint: 'Perubahan per kategori, merchant dan anggaran (dengan penyebabnya), lalu saran memangkas, pos yang longgar dan anggaran.', signals: deep.spending, items: pinFirst(once(visible([...advice.reduce, ...advice.loose, ...advice.budgetTips]))), empty: 'Tidak ada pos pengeluaran yang perlu diubah. Bagus!' },
-    { key: 'cats', label: 'Kategori', icon: Gauge, hint: 'Rata-rata per siklus dan arah trennya. Ketuk untuk melihat transaksinya.', empty: 'Belum ada pengeluaran.' },
-    { key: 'cashflow', label: 'Cashflow', icon: TrendingUp, hint: 'Laju belanja, pemasukan, dan bekal sampai gajian.', signals: deep.cashflow, panel: <LiquidityPanel report={v3!}/>, items: pinFirst(once(visible(advice.alerts))), empty: 'Arus uang berjalan sesuai pola biasanya.' },
-    { key: 'duty', label: 'Kewajiban', icon: Landmark, hint: 'Utang, piutang, klaim kantor, dan Split Bill.', signals: deep.duty, items: pinFirst(once(visible(advice.obligations.filter(f => !goalIds.test(f.id))))), empty: 'Semua kewajiban aman.' },
-    { key: 'goals', label: 'Target', icon: Target, hint: 'Dana darurat, tujuan dana, dan rasio menabung.', signals: deep.goals, panel: <GoalOptionsPanel report={v3!}/>, items: pinFirst(once(visible(advice.obligations.filter(f => goalIds.test(f.id))))), empty: 'Target dana berjalan aman.' },
-    { key: 'wealth', label: 'Kekayaan', icon: Sprout, hint: 'Uang menganggur, dana darurat yang bisa lebih produktif, dan investasi sesuai profil risikomu.', signals: deep.wealth, items: pinFirst(visible(advice.wealth)), empty: 'Belum ada uang menganggur — semua saldo sedang terpakai sesuai kebutuhan.' },
-    { key: 'habits', label: 'Kebiasaan', icon: CalendarClock, hint: 'Transaksi tidak biasa, pola waktu belanja, kebocoran kecil, dan pengeluaran rutin.', signals: deep.habits, items: pinFirst(once(visible([...advice.habits, ...advice.recurring]))), empty: 'Tidak ada pola belanja yang mencolok.' },
-    { key: 'prices', label: 'Harga', icon: Repeat, hint: 'Perubahan harga langganan, dan harga barang dari struk yang kamu pindai (toko dan ukuran yang sama, minimal 3 pembelian).', signals: [...deep.prices, ...prices], panel: tab === 'prices' ? <CostPanel report={v3!}/> : null, empty: 'Belum ada perubahan harga yang cukup datanya.' },
-    { key: 'data', label: 'Data', icon: Database, hint: 'Kelengkapan catatan yang dipakai Insight.', signals: report!.signals.filter(sg => sg.domain === 'data' && sg.lifecycleState !== 'DISMISSED'), panel: <DataPanel report={v3!}/>, empty: 'Data lengkap.' },
-    { key: 'lab', label: 'Lab Skenario', icon: FlaskConical, hint: 'Bandingkan “bagaimana jika” tanpa mengubah data apa pun.', panel: tab === 'lab' ? <ScenarioLab report={v3!} saved={v3!.memory.lab || []} onSave={list => saveMemory({ ...v3!.memory, lab: list.slice(0, 3) })}/> : null, empty: '' },
+  const shownSigs = new Set([...changes.top, ...changes.rest].map(c => c.signature).concat(priorityTop.map(p => p.signature)));
+  // Warnings from the Advisor that no story above covers ("Penting" before): reachable under "Lihat lainnya".
+  const otherWarnings = everything.filter((f, i, a) => a.findIndex(x => x.id === f.id) === i && (f.tone === 'bad' || f.tone === 'warn') && !report.signals.some(sg => sg.finding?.id === f.id && shownSigs.has(sg.signature)) && !priorityRest.some(p => p.findingId === f.id) && !priorityTop.some(p => p.findingId === f.id) && (showHidden || !allHidden.includes(f.id)));
+  const rowMenu = (item: PriorityItem) => {
+    const sg = report.signals.find(x => x.signature === item.signature);
+    return [
+      { label: pinned.includes(item.pinKey) ? 'Lepas sematan' : 'Sematkan ke atas', onSelect: () => togglePin(item.pinKey) },
+      ...(sg && sg.tone !== 'positive' ? [{ label: 'Ingatkan minggu depan', onSelect: () => snoozeStory(sg) }] : []),
+      { label: 'Sembunyikan', onSelect: () => item.findingId ? hide(item.findingId) : sg && dismissStory(sg) },
+    ];
+  };
+  const doAction = (item: PriorityItem) => { if (item.action?.apply) { const f = findingById(item.findingId); if (f) apply(item.action.apply, f); } else if (item.action?.target) go(item.action.target.view, item.action.target.focus); };
+  const signalRows = (list: InsightSignal[]) => list.length ? <Capped className="ins2-rows" limit={3} label="perubahan">{list.map(sg => <SignalRow key={sg.signature} signal={sg} onOpen={openStory}/>)}</Capped> : null;
+  const cards = (list: Finding[]) => list.length ? <Capped className="ins-grid">{list.map(f => card(f))}</Capped> : null;
+  const tabs: { key: string; label: string; icon: LucideIcon; question: string }[] = [
+    { key: 'spending', label: 'Pengeluaran', icon: Scissors, question: 'Ke mana uangku pergi, dan apa yang berubah?' },
+    { key: 'cashflow', label: 'Arus uang', icon: TrendingUp, question: 'Apakah uangku aman sampai gajian?' },
+    { key: 'goals', label: 'Target & aset', icon: Target, question: 'Bagaimana target dana, dana darurat, dan uang menganggur?' },
+    { key: 'lab', label: 'Skenario', icon: FlaskConical, question: 'Bagaimana jika ada yang berubah? (simulasi)' },
+    { key: 'data', label: 'Data', icon: Database, question: 'Seberapa kuat dasar Insight ini?' },
   ];
-  // "Penting": every warning or urgent finding from all tabs in one list, most urgent first, so nothing needs hunting.
-  const source = new Map<string, string>();
-  tabs.forEach(t => t.items?.forEach(f => { if (!source.has(f.id)) source.set(f.id, t.label); }));
-  const knownSigs = new Set(report!.stories.map(st => st.signature));
-  const urgency = (f: Finding) => (f.tone === 'bad' ? 2e12 : 1e12) + (f.saving || 0);
-  const important = [...source.keys()].map(id => tabs.flatMap(t => t.items || []).find(f => f.id === id)!).filter(f => f.tone === 'bad' || f.tone === 'warn').sort((a, b) => urgency(b) - urgency(a));
-  tabs.unshift({ key: 'important', label: 'Penting', icon: Star, hint: 'Semua peringatan dan hal mendesak dari setiap bagian di bawah, dikumpulkan jadi satu. Yang paling mendesak di atas.', items: pinFirst(important), empty: 'Tidak ada hal penting — semua bagian dalam kondisi aman.' });
   const active = tabs.find(t => t.key === tab) || tabs[0];
+  const subs = [['summary', 'Ringkas'], ['cats', 'Kategori'], ['habits', 'Kebiasaan'], ['prices', 'Harga']] as const;
+  const tabBody = () => {
+    switch (active.key) {
+      case 'spending': return <>
+        <div className="ix-subtabs" role="tablist" aria-label="Bagian pengeluaran">{subs.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? 'active' : ''} onClick={() => setSub(k)}>{l}</button>)}</div>
+        {sub === 'summary' && <>{signalRows(deep.spending)}{cards(pinFirst(once(visible([...advice.reduce, ...advice.loose, ...advice.budgetTips]))))}{!deep.spending.length && !advice.reduce.length && !advice.loose.length && !advice.budgetTips.length && <p className="ix-empty-line">Tidak ada pos pengeluaran yang perlu diubah.</p>}</>}
+        {sub === 'cats' && (topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => go('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
+          <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
+          <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small></span>
+          <Spark values={[...c.history, c.projected]}/>
+          <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
+        </button>)}</div> : <p className="ix-empty-line">Belum ada pengeluaran.</p>)}
+        {sub === 'habits' && <>{signalRows(deep.habits)}{cards(pinFirst(once(visible([...advice.habits, ...advice.recurring]))))}{!deep.habits.length && !advice.habits.length && !advice.recurring.length && <p className="ix-empty-line">Tidak ada pola belanja yang mencolok.</p>}</>}
+        {sub === 'prices' && <ModuleBoundary name="Harga"><CostIndexCard report={v3}/>{signalRows([...deep.prices, ...prices])}</ModuleBoundary>}
+      </>;
+      case 'cashflow': return <ModuleBoundary name="Arus uang"><CashflowPanel report={v3} view={cashflowView(v3)}/>{signalRows([...deep.cashflow, ...deep.duty])}{cards(pinFirst(once(visible([...advice.alerts, ...advice.obligations.filter(f => !goalIds.test(f.id))]))))}</ModuleBoundary>;
+      case 'goals': return <ModuleBoundary name="Target & aset"><GoalChoices report={v3}/>{signalRows([...deep.goals, ...deep.wealth])}{cards(pinFirst(once(visible([...advice.obligations.filter(f => goalIds.test(f.id)), ...advice.wealth]))))}{!v3.goalOptions.length && !deep.goals.length && !deep.wealth.length && !advice.wealth.length && !advice.obligations.some(f => goalIds.test(f.id)) && <p className="ix-empty-line">Target dana dan aset berjalan aman.</p>}</ModuleBoundary>;
+      case 'lab': return <ModuleBoundary name="Lab Skenario"><ScenarioSandbox report={v3} saved={v3.memory.lab || []} onSave={list => saveMemory({ ...v3.memory, lab: list.slice(0, 3) })}/></ModuleBoundary>;
+      default: return <ModuleBoundary name="Data"><DataSummary view={dataView(v3)} onOpenHealth={() => go('health')}/>{signalRows(report.signals.filter(sg => sg.domain === 'data' && sg.lifecycleState !== 'DISMISSED'))}</ModuleBoundary>;
+    }
+  };
+  const sec = (id: string, title: string, subtitle: string, icon: LucideIcon, defaultOpen: boolean, body: React.ReactNode, right?: React.ReactNode) => <InsightSection id={id} title={title} subtitle={subtitle} icon={icon} open={collapse.isOpen(id, defaultOpen)} onToggle={() => collapse.toggle(id, defaultOpen)} right={right}>{body}</InsightSection>;
+  const openHealth = () => { if (!collapse.isOpen('health', false)) collapse.toggle('health', false); setTimeout(() => document.getElementById('ix-h-health')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
 
+  const maxCycle = Math.max(1, ...advice.cycles.flatMap(c => [c.income, c.expense]));
   const sections: Record<string, React.ReactNode> = {
-    profile: <>
-    <ProfileBar personal={advice.personal} emergency={advice.idle.emergencyTargetText} onEdit={() => setProfileOpen(true)}/>
-
-    </>,
-    health: <>
-    <div className="ins-parts">{advice.parts.map(p => { const level = p.score >= 75 ? 'good' : p.score >= 50 ? 'warn' : 'bad'; const PartIcon = partIcons[p.key] || Gauge; return <div key={p.key} className={`ins-part tone-${level}`}>
-      <div className="ins-part-top"><span className="ins-part-icon" aria-hidden="true"><PartIcon size={17}/></span><span className="ins-part-label">{p.label}</span><em>{level === 'good' ? 'Baik' : level === 'warn' ? 'Cukup' : 'Rendah'}</em></div>
-      <strong>{p.value}</strong>
-      <i role="img" aria-label={`Skor ${Math.round(p.score)} dari 100`}><b style={{ width: `${Math.max(4, p.score)}%` }}/></i>
-      <small>{p.hint}</small>
-    </div>; })}</div>
-
-    {!advice.enoughHistory && <div className="notice">Baru {advice.cyclesUsed} siklus gaji yang punya catatan. Saran tentang anggaran dan kategori yang longgar muncul setelah minimal 2 siklus lengkap.</div>}
-
-    </>,
-    actions: <>
-    <section className="ins-section">
-      <SectionHead icon={Lightbulb} title="Prioritas sekarang" hint="Yang paling berarti dulu: seberapa serius, seberapa yakin, dampaknya, dan seberapa mendesak."/>
-      {pinnedCards.length > 0 && <div className="ins-grid">{visible(pinnedCards).map(f => card(f))}</div>}
-      {priorityTop.length ? <div className="ins-grid">{priorityTop.map((st, i) => <StoryCard key={st.id} story={st} index={i} handlers={handlers} onDismiss={st2 => dismissStory(st2.root)}/>)}</div> : !pinnedCards.length && <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>Tidak ada hal mendesak. Keuanganmu berjalan sesuai pola biasanya.</p>}
-      {priorityRest.length > 0 && <>
-        <button type="button" className="ins2-more" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>{moreOpen ? 'Sembunyikan' : `Lihat lainnya (${priorityRest.length})`}</button>
-        {moreOpen && <div className="ins-grid">{priorityRest.map(st => <StoryCard key={st.id} story={st} handlers={handlers} compact onDismiss={st2 => dismissStory(st2.root)}/>)}</div>}
+    brief: sec('brief', 'Ringkasan', 'Keadaan siklus ini dalam beberapa kalimat', Sparkles, true, <><FinancialBrief lines={brief} known={knownSigs} onOpen={openStory} onExplain={() => setExplainOpen(true)}/><AskInsight report={v3} questions={questions} known={knownSigs} onOpen={openStory}/></>),
+    changed: sec('changed', 'Yang berubah', report.learning.active ? 'Butuh riwayat untuk membandingkan' : 'Dibanding pola biasamu di hari siklus yang sama', Activity, true, report.learning.active
+      ? <div className="ix-learning"><strong>{report.learning.message}</strong><span>{report.learning.detail}.</span><small>Sementara ini Insight menunjukkan keadaan sekarang saja dan tidak menebak dari pola orang lain.</small></div>
+      : changes.quiet ? <p className="ix-empty-line">Tidak ada perubahan besar. Pengeluaranmu berjalan sesuai pola biasanya.</p>
+      : <>{!hintSeen && <p className="ix-hint">Ketuk kartu untuk melihat kenapa.</p>}<div className="ix-changes">{changes.top.map(c => <ChangeCard key={c.signature} item={c} onOpen={openStory}/>)}</div>{(changes.rest.length > 0 || changesAll) && <button type="button" className="ix-more" onClick={() => setChangesAll(v => !v)}>{changesAll ? 'Ringkas' : `Lihat semua perubahan (${changes.top.length + changes.rest.length})`}</button>}</>),
+    actions: sec('actions', 'Prioritas sekarang', 'Hal yang paling perlu kamu perhatikan', Lightbulb, true, priorityTop.length ? <>
+      <ol className="ix-rows">{priorityTop.map((p, i) => <PriorityRow key={p.signature} item={p} index={i} onOpen={openStory} onAction={doAction} busy={busy === p.findingId} menu={rowMenu(p)}/>)}</ol>
+      {(priorityRest.length > 0 || otherWarnings.length > 0) && <>
+        <button type="button" className="ix-more" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>{moreOpen ? 'Ringkas' : `Lihat lainnya (${priorityRest.length + otherWarnings.length})`}</button>
+        {moreOpen && <><ol className="ix-rows" start={priorityTop.length + 1}>{priorityRest.map((p, i) => <PriorityRow key={p.signature} item={p} index={priorityTop.length + i} onOpen={openStory} onAction={doAction} busy={busy === p.findingId} menu={rowMenu(p)}/>)}</ol>{otherWarnings.length > 0 && <><h4 className="ix-h4">Peringatan lain</h4>{cards(otherWarnings)}</>}</>}
       </>}
-    </section>
-
-    </>,
-    brief: <BriefV3 report={v3!} onOpen={setOpenSig} known={knownSigs}/>,
-    pressure: <StatePanel report={v3!}/>,
-    changed: report!.learning.active ? <div className="ins2-learning"><strong>{report!.learning.message}</strong><small>{report!.learning.detail}. Insight tidak menebak pola dari orang lain.</small></div> : <ChangedSection stories={v3!.changed} handlers={handlers}/>,
-    progress: <ProgressSection stories={report!.progress.stories} resolved={report!.progress.resolved} onOpen={setOpenSig}/>,
-    timeline: <><DecisionList report={v3!}/><TimelineSection entries={[...v3!.memory.tl].reverse()}/></>,
-    wealth: <>
-    <WealthSection advice={advice} onEdit={() => setProfileOpen(true)}/>
-    </>,
-    paycheck: <>
-    {advice.paycheck.length > 0 && <PaycheckPlan advice={advice}/>}
-
-    </>,
-    charts: <>
-    {advice.enoughHistory && <div className="ins-duo">
+    </> : <p className="ix-empty-line">Tidak ada yang mendesak saat ini.</p>),
+    progress: progress.top.length ? sec('progress', 'Yang membaik', 'Kemajuan dan hal yang sudah selesai', CircleCheck, true, <ProgressList view={progress} onOpen={openStory}/>) : null,
+    pressure: sec('pressure', 'Arah & yang perlu dijaga', 'Arah = membaik atau memburuk · Perlu dijaga = hal sementara yang sedang berat', Gauge, false, <div className="ix-stack">
+      <div className="ix-card"><small>Arah keuangan <HelpButton {...help.momentum}/></small><strong className="ix-mid">{hero.momentum.label}</strong><p>{hero.momentum.line}</p>{hero.momentum.parts.length > 0 && <ul className="ix-plain-list">{hero.momentum.parts.map(p => <li key={p.key} className={p.good === true ? 'good' : p.good === false ? 'held' : ''}><b>{p.label}</b><span>{p.detail}</span></li>)}</ul>}</div>
+      <div className="ix-card"><small>Yang perlu dijaga <HelpButton {...help.watch}/></small><ul className="ix-plain-list">{hero.allPressures.map(p => <li key={p.domain} className={`lvl-${p.level}`}><b>{p.label} <em>{p.levelText}</em></b><span>{p.reasons[0] || p.explain}</span></li>)}</ul></div>
+      {v3.regimes.length > 0 && <p className="ix-note">Konteks siklus ini: {v3.regimes.map(r => `${r.label} (${r.evidence[0]})`).join('; ')}.</p>}
+    </div>),
+    details: sec('details', 'Rincian', 'Lihat lebih dalam: pengeluaran, arus uang, target, skenario, dan data', BrainCircuit, true, <>
+      <div className="ix-tabs" role="tablist" aria-label="Rincian">{tabs.map(t => <button type="button" role="tab" key={t.key} aria-selected={active.key === t.key} className={active.key === t.key ? 'active' : ''} onClick={event => { setTab(t.key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }}><t.icon size={15} aria-hidden="true"/>{t.label}</button>)}</div>
+      <div className="ix-tab-body" role="tabpanel" aria-label={active.label}><p className="ix-tab-question">{active.question}</p>{tabBody()}</div>
+    </>),
+    health: sec('health', 'Indikator skor', '6 hal yang membentuk skor kesehatan', HeartPulse, false, <>
+      <div className="ins-parts">{advice.parts.map(p => { const level = p.score >= 75 ? 'good' : p.score >= 50 ? 'warn' : 'bad'; const PartIcon = partIcons[p.key] || Gauge; return <div key={p.key} className={`ins-part tone-${level}`}>
+        <div className="ins-part-top"><span className="ins-part-icon" aria-hidden="true"><PartIcon size={17}/></span><span className="ins-part-label">{p.label}</span><em>{level === 'good' ? 'Baik' : level === 'warn' ? 'Cukup' : 'Rendah'}</em></div>
+        <strong>{p.value}</strong>
+        <i role="img" aria-label={`Skor ${Math.round(p.score)} dari 100`}><b style={{ width: `${Math.max(4, p.score)}%` }}/></i>
+        <small>{p.hint}</small>
+      </div>; })}</div>
+      {!advice.enoughHistory && <div className="notice">Baru {advice.cyclesUsed} siklus gaji yang punya catatan. Saran tentang anggaran dan kategori yang longgar muncul setelah minimal 2 siklus lengkap.</div>}
+    </>),
+    profile: sec('profile', 'Profil Insight', 'Risiko, target, dan prioritas yang menyesuaikan saran', UserRound, false, <ProfileBar personal={advice.personal} emergency={advice.idle.emergencyTargetText} onEdit={() => setProfileOpen(true)}/>),
+    wealth: (advice.idle.total >= Math.max(1, advice.personal.idleMinimum) || advice.invest) ? sec('wealth', 'Uang menganggur & investasi', 'Dana yang belum terpakai dan rencana investasi (perkiraan)', Sprout, false, <WealthSection advice={advice} onEdit={() => setProfileOpen(true)} bare/>) : null,
+    paycheck: advice.paycheck.length ? sec('paycheck', 'Rencana gajian berikutnya', 'Pembagian gaji per pos dari rata-rata pemasukan', HandCoins, false, <PaycheckPlan advice={advice} bare/>) : null,
+    charts: advice.enoughHistory ? sec('charts', 'Grafik siklus & porsi', 'Pemasukan dan pengeluaran tiap siklus', BarChart3, false, <div className="ins-duo">
       <section className="panel ins-box">
-        <SectionHead icon={Gauge} title="Pola per siklus" hint="Pemasukan dan pengeluaran tiap siklus gaji."/>
-        <div className="ins-bars" role="img" aria-label={advice.cycles.map(c => `${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`).join('; ')}>{advice.cycles.map(c => <div key={c.label} className="ins-bar-col" title={`${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`}>
-          <div className="ins-bar-pair"><i className="in" style={{ height: `${c.income / maxCycle * 100}%` }}/><i className="out" style={{ height: `${c.expense / maxCycle * 100}%` }}/></div>
-          <small>{c.label}</small>
-        </div>)}</div>
+        <h3 className="ix-h4">Pola per siklus</h3>
+        <div className="ins-bars" role="img" aria-label={advice.cycles.map(c => `${c.label}: masuk ${short(c.income)}, keluar ${short(c.expense)}`).join('; ')}>{advice.cycles.map(c => <div key={c.label} className="ins-bar-col"><div className="ins-bar-pair"><i className="in" style={{ height: `${c.income / maxCycle * 100}%` }}/><i className="out" style={{ height: `${c.expense / maxCycle * 100}%` }}/></div><small>{c.label}</small></div>)}</div>
         <div className="ins-legend"><span><i className="in"/>Pemasukan</span><span><i className="out"/>Pengeluaran</span><span className="ins-legend-note">Kini = siklus berjalan</span></div>
       </section>
-      {s.avgIncome > 0 && <section className="panel ins-box">
-        <SectionHead icon={Gauge} title="Porsi kebutuhan, keinginan & sisa" hint={`Rata-rata per siklus dibanding pemasukan, dengan batas sesuai profilmu.`}/>
-        <div className="ins-split-bar" role="img" aria-label={`Kebutuhan ${pct(advice.split.needs)}, keinginan ${pct(advice.split.wants)}, sisa ${pct(advice.split.saved)}`}>
-          <i className="needs" style={{ flex: advice.split.needs }}/><i className="wants" style={{ flex: advice.split.wants }}/><i className="saved" style={{ flex: advice.split.saved }}/>
-        </div>
-        <div className="ins-split-legend">
-          {([['needs', 'Kebutuhan', advice.split.needs, `maks ${pct(advice.limits.needs)}`, advice.split.needs > advice.limits.needs], ['wants', 'Keinginan', advice.split.wants, `maks ${pct(advice.limits.wants)}`, advice.split.wants > advice.limits.wants], ['saved', 'Sisa', advice.split.saved, `min ${pct(advice.limits.savings)}`, advice.split.saved < advice.limits.savings]] as const).map(([key, label, value, ideal, over]) => <div key={key} className={over ? 'over' : ''}>
-            <span><i className={key}/>{label}</span><strong>{pct(value)}</strong><small>{ideal}</small>
-          </div>)}
-        </div>
+      {advice.summary.avgIncome > 0 && <section className="panel ins-box">
+        <h3 className="ix-h4">Porsi kebutuhan, keinginan & sisa</h3>
+        <div className="ins-split-bar" role="img" aria-label={`Kebutuhan ${pct(advice.split.needs)}, keinginan ${pct(advice.split.wants)}, sisa ${pct(advice.split.saved)}`}><i className="needs" style={{ flex: advice.split.needs }}/><i className="wants" style={{ flex: advice.split.wants }}/><i className="saved" style={{ flex: advice.split.saved }}/></div>
+        <div className="ins-split-legend">{([['needs', 'Kebutuhan', advice.split.needs, `maks ${pct(advice.limits.needs)}`, advice.split.needs > advice.limits.needs], ['wants', 'Keinginan', advice.split.wants, `maks ${pct(advice.limits.wants)}`, advice.split.wants > advice.limits.wants], ['saved', 'Sisa', advice.split.saved, `min ${pct(advice.limits.savings)}`, advice.split.saved < advice.limits.savings]] as const).map(([key, label, value, ideal, over]) => <div key={key} className={over ? 'over' : ''}><span><i className={key}/>{label}</span><strong>{pct(value)}</strong><small>{ideal}</small></div>)}</div>
       </section>}
-    </div>}
-
-    </>,
-    details: <>
-    <section className="ins-section">
-      <SectionHead icon={BrainCircuit} title="Rincian analisis"/>
-      <div className="ins-tabs" role="tablist" aria-label="Rincian analisis">{tabs.map(t => { const count = t.key === 'cats' ? topCats.length : (t.items?.length || 0) + (t.signals?.length || 0); return <button type="button" role="tab" key={t.key} aria-selected={active.key === t.key} className={active.key === t.key ? 'active' : ''} onClick={event => { setTab(t.key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }}><t.icon size={15} aria-hidden="true"/>{t.label}{count > 0 && <b>{count}</b>}</button>; })}</div>
-      <div className="ins-tab-body" role="tabpanel">
-        <small className="ins-tab-hint">{active.hint}</small>
-        {active.key === 'cats'
-          ? topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => navigate('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
-            <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
-            <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small><i className="ins-cat-share" style={identityStyle(c.color)}><b style={{ width: `${Math.max(3, Math.round(c.share / Math.max(...topCats.map(x => x.share), .01) * 100))}%` }}/></i></span>
-            <Spark values={[...c.history, c.projected]}/>
-            <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
-          </button>)}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>
-          : active.items?.length || active.signals?.length || active.panel ? <>
-            {active.panel}
-            {active.signals?.length ? <div className="ins2-rows">{active.signals.map(sg => <SignalRow key={sg.signature} signal={sg} onOpen={setOpenSig}/>)}</div> : null}
-            {active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f, undefined, active.key === 'important' ? source.get(f.id) : undefined))}</div> : null}
-          </> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>}
-      </div>
-    </section>
-
-    </>,
+    </div>) : null,
+    timeline: sec('timeline', 'Riwayat & keputusan', 'Perubahan penting dan hasil keputusanmu', History, false, <div className="ix-stack"><div><h4 className="ix-h4">Keputusan & hasilnya</h4><DecisionTimeline report={v3}/></div><TimelineSection entries={[...v3.memory.tl].reverse()}/></div>),
   };
+  const topOrder = order.filter(key => !hiddenSections.includes(key));
+  const firstKey = topOrder[0] === 'brief' ? 'brief' : '';
 
-  return <div className="insight-page">
+  return <div className="insight-page ix-page">
     {heading}
     {history.error && <p className="form-error" role="alert">{history.error}</p>}
-
-    <section className={`ins-hero tone-${advice.verdictTone}`}>
-      <Ring score={advice.score} tone={advice.verdictTone}/>
-      <div className="ins-hero-text">
-        <span className="ins-kicker"><BrainCircuit size={15}/> Skor kesehatan keuangan</span>
-        <p className="ins-verdict">{v3!.hero.statement}</p>
-        <p className="i3-hero-state"><span>Momentum: <b>{v3!.momentum.enough ? v3!.momentum.label : 'belum cukup riwayat'}</b></span>{v3!.hero.pressure && <span>Tekanan utama: <b>{v3!.hero.pressure}</b></span>}</p>
-        <ScoreDeltaLine delta={report!.hero.delta}/>
-        <small className="ins-basis">{advice.enoughHistory ? `Dari ${advice.cyclesUsed} siklus gaji terakhir · ${s.daysLeft} hari lagi sampai gajian` : 'Riwayat masih sedikit — saran makin tajam setelah 2 siklus gaji tercatat.'}</small>
-      </div>
-      <div className="ins-chips">
-        <span><small>Rata-rata masuk</small><strong>{short(s.avgIncome)}</strong></span>
-        <span><small>Rata-rata keluar</small><strong>{short(s.avgExpense)}</strong></span>
-        <span><small>Sisa per siklus</small><strong>{pct(s.savingsRate)}</strong></span>
-        <span className="ins-chip-save"><small>Potensi hemat</small><strong>{potential > 0 ? `${short(potential)}/bln` : '–'}</strong></span>
-      </div>
-    </section>
-
-    {order.filter(key => !hiddenSections.includes(key)).map(key => <Fragment key={key}>{sections[key]}</Fragment>)}
-    {openSig && (() => { const sg = [...report!.signals, ...prices].find(x => x.signature === openSig); const horizon = sg ? { IMMEDIATE: 'Segera', CURRENT_CYCLE: 'Siklus ini', MULTI_CYCLE: 'Beberapa siklus', LONG_TERM: 'Jangka panjang' }[v3!.horizonOf(sg)] : undefined; const labels = new Map(v3!.graph.nodes.map(n => [n.id, n.label])); const outs = v3!.outcomes.filter(o => o.decision.sig === openSig); return <EvidenceDrawer story={report!.stories.find(st => st.signature === openSig)} signal={sg} items={history.items} onClose={() => setOpenSig('')} handlers={handlers} onDismiss={dismissStory} onSnooze={snoozeStory} badge={horizon} extra={<><ImpactChain edges={v3!.chain(openSig)} labels={labels}/>{outs.length > 0 && <section><h4>Keputusan sebelumnya</h4><ul className="i3-explain">{outs.map(o => <li key={o.decision.id}>{o.text}</li>)}</ul></section>}</>}/>; })()}
+    <div className={`ix-top ${firstKey ? 'has-side' : ''}`}>
+      <InsightHero hero={hero} onFullScore={openHealth}/>
+      {firstKey && sections.brief}
+    </div>
+    {topOrder.filter(k => k !== firstKey).map(key => <Fragment key={key}>{sections[key]}</Fragment>)}
+    {openSig && <ModuleBoundary name="Rincian"><StorySheet report={v3} signature={openSig} extraSignals={prices} items={history.items} onClose={() => setOpenSig('')} onGo={go} onApply={apply} busy={busy} onDismiss={dismissStory} onSnooze={snoozeStory}/></ModuleBoundary>}
+    {explainOpen && <ExplainSheet sections={explainView(v3)} onClose={() => setExplainOpen(false)}/>}
     <InsightProfileSheet open={profileOpen} onOpenChange={setProfileOpen} saved={profile?.insightProfile} onSave={saveInsightProfile}/>
     <InsightLayoutSheet open={layoutOpen} onOpenChange={setLayoutOpen} order={order} hidden={hiddenSections} pinnedCount={pinned.length} onSave={(nextOrder, nextHidden) => { setLayoutOpen(false); saveLayout({ order: nextOrder, hidden: nextHidden }); }} onClearPins={() => saveLayout({ pinned: [] }, 'Semua sematan dilepas.')}/>
-    {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran diabaikan atau ditunda.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}
-    <p className="ins-disclaimer">Insight adalah perhitungan otomatis dari catatanmu sendiri, bukan nasihat keuangan profesional. Kebutuhan dan keinginan ditebak dari nama kategori.</p>
+    {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran disembunyikan atau ditunda.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}
+    <p className="ins-disclaimer">Insight adalah perhitungan otomatis dari catatanmu sendiri, bukan nasihat keuangan profesional.</p>
   </div>;
 }
 
@@ -404,7 +395,7 @@ const riskDots = (level: number) => <span className="ins-risk" aria-label={`Risi
 const instrumentColors: Record<string, string> = { rdpu: 'var(--chart-1)', deposito: 'var(--chart-5)', sbn: 'var(--chart-3)', obligasi: 'var(--chart-4)', saham: 'var(--chart-2)', emas: '#c9a227' };
 
 /** Idle money, the order it should go (emergency → expensive debt → investing) and the investment mix. */
-function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void }) {
+function WealthSection({ advice, onEdit, bare }: { advice: Advice; onEdit: () => void; bare?: boolean }) {
   const { idle, invest, personal } = advice;
   if (idle.total < Math.max(1, personal.idleMinimum) && !invest) return null;
   const steps: [string, number, string][] = [
@@ -412,9 +403,7 @@ function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void 
     ['Lunasi utang berbunga tinggi', idle.debtFirst, 'bunga ≥ 8% per tahun'],
     ['Investasikan', idle.investable, idle.held ? 'ditahan dulu: uang tersedia kurang sampai gajian' : `sesuai profil ${riskLabels[personal.risk].label}`],
   ];
-  return <section className="ins-section">
-    <SectionHead icon={Sprout} title="Uang menganggur & investasi" hint={`Disesuaikan dengan profil ${riskLabels[personal.risk].label}, jangka ${personal.horizon === 'short' ? 'pendek' : personal.horizon === 'mid' ? 'menengah' : 'panjang'}.`}/>
-    <div className="ins-wealth">
+  const body = <div className="ins-wealth">
       <div className="panel ins-box ins-idle">
         <div className="ins-idle-total"><small>Total uang menganggur</small><strong>{short(idle.total)}</strong><span>Nilai riilnya turun ±{short(idle.total * INFLATION)}/tahun kalau didiamkan (inflasi {Math.round(INFLATION * 100)}%).</span></div>
         <div className="ins-idle-tiles">
@@ -445,20 +434,26 @@ function WealthSection({ advice, onEdit }: { advice: Advice; onEdit: () => void 
         </div>}
         <div className="ins-disclaimer" role="note"><Info size={16} aria-hidden="true"/><p><b>Hanya perkiraan dan saran, bukan janji.</b> Angka imbal hasil di sini adalah perkiraan rata-rata jangka panjang (sudah dikurangi pajak dan biaya) untuk gambaran saja. Hasil sebenarnya mengikuti kondisi pasar dan bisa lebih rendah — saham, reksa dana, dan emas bahkan bisa turun nilainya. Sebelum membeli, <b>cek imbal hasil terbaru</b> di aplikasi investasi atau bank resmi yang terdaftar dan diawasi OJK (untuk SBN, di situs Kemenkeu atau mitra distribusinya), lalu baca prospektus/ketentuannya.</p></div>
       </div>}
-    </div>
+    </div>;
+  if (bare) return body;
+  return <section className="ins-section">
+    <SectionHead icon={Sprout} title="Uang menganggur & investasi" hint={`Disesuaikan dengan profil ${riskLabels[personal.risk].label}, jangka ${personal.horizon === 'short' ? 'pendek' : personal.horizon === 'mid' ? 'menengah' : 'panjang'}.`}/>
+    {body}
   </section>;
 }
 
 /** How the next salary could be split, based on averages and the personal targets. */
-function PaycheckPlan({ advice }: { advice: Advice }) {
+function PaycheckPlan({ advice, bare }: { advice: Advice; bare?: boolean }) {
   const rows = advice.paycheck;
   const colors: Record<string, string> = { needs: 'var(--chart-3)', debt: 'var(--rose)', emergency: 'var(--chart-1)', goals: 'var(--chart-5)', invest: 'var(--chart-4)', extra: 'var(--positive)', wants: 'var(--chart-2)' };
-  return <section className="ins-section">
-    <SectionHead icon={HandCoins} title="Rencana gajian berikutnya" hint={`Pembagian dari rata-rata pemasukan ${short(advice.summary.avgIncome)} dengan target tabunganmu ${pct(advice.personal.savingsTarget)}.`}/>
-    <div className="panel ins-box ins-paycheck">
+  const body = <div className="panel ins-box ins-paycheck">
       <div className="ins-alloc-bar" role="img" aria-label={rows.map(r => `${r.label} ${pct(r.share)}`).join(', ')}>{rows.map(r => <i key={r.key} style={{ flex: Math.max(r.share, .01), background: colors[r.key] }} title={`${r.label} ${pct(r.share)}`}/>)}</div>
       <ul className="ins-pay">{rows.map(r => <li key={r.key} className={`tone-${r.tone}`}><i style={{ background: colors[r.key] }} aria-hidden="true"/><span><strong>{r.label}</strong><small>{r.note}</small></span><em><strong>{short(r.amount)}</strong><small>{pct(r.share)}</small></em></li>)}</ul>
       <p className="ins-pay-tip"><Layers size={14} aria-hidden="true"/><span>Tips: pindahkan porsi tabungan &amp; investasi <b>di hari gajian</b>, sisanya baru dipakai belanja.</span></p>
-    </div>
+    </div>;
+  if (bare) return body;
+  return <section className="ins-section">
+    <SectionHead icon={HandCoins} title="Rencana gajian berikutnya" hint={`Pembagian dari rata-rata pemasukan ${short(advice.summary.avgIncome)} dengan target tabunganmu ${pct(advice.personal.savingsTarget)}.`}/>
+    {body}
   </section>;
 }

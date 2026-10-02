@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.6', date: '2 Okt 2026', title: 'Insight lebih mudah dibaca', items: [
+    ['💡', 'Halaman Insight disusun ulang: keadaanmu di atas, lalu yang berubah, prioritas, dan yang membaik. Rincian ada di bawah dan dibuka kalau perlu.'],
+    ['📝', 'Setiap bagian bisa diciutkan dengan judul yang jelas, dan pilihanmu diingat. Kata yang membingungkan diganti: “tekanan” jadi “Perlu dijaga”, “momentum” jadi “Arah”.'],
+    ['🧾', 'Yang berubah dan Prioritas masing-masing paling banyak 3. Ketuk kartu untuk melihat kenapa, lalu turun sampai ke transaksinya. Sematkan, ingatkan, dan sembunyikan ada di menu ⋯.'],
+    ['💸', 'Arus uang langsung menjawab “aman sampai gajian?”. Lab Skenario menampilkan yang berubah lebih dulu, tetap berlabel SIMULASI dan tidak mengubah data.'],
+    ['✅', 'Tab rincian dari 11 jadi 5. Halaman jauh lebih pendek dan tetap bisa dibuka saat offline.'],
+  ] },
   { version: '4.5', date: '2 Okt 2026', title: 'Insight melihat gambaran utuh', items: [
     ['💡', 'Kartu skor kini menunjukkan Momentum (membaik, stabil, campuran, tertekan) dan tekanan utama, misalnya “Likuiditas aman, tapi target dana sedang mendapat tekanan”. Tekanan sementara tidak mengubah skor.'],
     ['📝', 'Tanya Insight: ketik “kenapa uang tersedia turun?”, “makan naik karena apa?”, atau “klaim gue gimana?”. Jawaban diambil dari catatanmu beserta buktinya, dan tidak mengubah apa pun. Ada juga tombol “Jelaskan siklus ini”.'],
