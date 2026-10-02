@@ -6957,6 +6957,7 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .int-sim .is-total dd, .int-detail-rows .is-total dd { color: var(--accent); }
 .int-detail-rows .is-faint { font-size: .74rem; }
 .int-note { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: .74rem; line-height: 1.45; color: var(--muted); }
+.int-delete-note { margin: 0 0 4px; font-size: .72rem; line-height: 1.45; text-align: center; }
 .int-confirm { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .int-confirm-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .82rem; }
 .int-confirm ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }

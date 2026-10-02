@@ -223,3 +223,32 @@ test('a payout confirmed or corrected to the bank figure is never rewritten, and
   assert.ok(!changes.remove.some(t => t.date === '2026-10-02') && !changes.update.some(p => p.date === '2026-10-02'));
   assert.deepEqual(unconfirmedInterest(corrected, 'jenius').map(t => t.date), ['2026-10-03', '2026-10-01']);
 });
+
+test('a deleted (skipped) payout is not made again; later days are worked out without it', () => {
+  const settings = on(4.5);
+  const full = planInterest(wallet(10_000_000, settings), [], '2026-10-06');
+  const gone = full.find(p => p.date === '2026-10-03');
+  // The user deleted 3 Okt: it is removed from the records and noted as skipped.
+  const kept = asTransactions(full.filter(p => p !== gone));
+  const skipped = wallet(10_000_000, { ...settings, skipped: ['2026-10-03'] });
+  const plan = planInterest(skipped, kept, '2026-10-06');
+  assert.ok(!plan.some(p => p.date === '2026-10-03'));
+  const changes = reconcileInterest(skipped, plan, kept, '2026-10-06');
+  assert.equal(changes.create.length, 0);
+  assert.ok(!changes.create.some(p => p.id === gone.id));
+  // The days after carry one rupiah less of base: recalculated as updates, never duplicates.
+  assert.ok(changes.update.every(p => p.date > '2026-10-03'));
+  assert.equal(changes.remove.length, 0);
+  // Changing the rate later keeps the skipped list.
+  const next = updateInterestSettings(skipped.interest, { enabled: true, rate: 5, basis: 'year', tax: true, taxRate: 20, startDate: '2026-10-01' }, '2026-10-06');
+  assert.deepEqual(next.skipped, ['2026-10-03']);
+});
+
+test('a deleted weekly payout drops what had accrued up to it; the next week starts fresh', () => {
+  const settings = scheduled('week', 7);
+  const plan = planInterest(wallet(100_000_000, { ...settings, skipped: ['2026-10-04'] }), [], '2026-10-13');
+  assert.ok(!plan.some(p => p.date === '2026-10-04'));
+  const after = plan.find(p => p.date === '2026-10-11');
+  assert.equal(after.record.accrualFrom, '2026-10-05');
+  assert.equal(after.record.days, 7);
+});

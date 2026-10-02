@@ -6,7 +6,7 @@
  * (`wint_{walletId}_{date}`), together with the wallet's cached balance: two devices doing this at once end with one
  * record, and the balance moves exactly once.
  */
-import { increment, serverTimestamp, updateDoc, deleteField } from 'firebase/firestore';
+import { arrayUnion, increment, serverTimestamp, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from './firebase';
 import { isOffline, runTx, settle } from './offline';
 import { loadAllTransactions, newTx, noteDeleted, ref, syncSnapshot } from './firestore';
@@ -49,7 +49,7 @@ export function accrueInterest(uid: string, wallets: Wallet[], categories: Categ
           const wrote = await runTx(database(), async trx => {
             const [old, current] = await Promise.all([trx.get(r), trx.get(w)]);
             const settings = current.exists() ? (current.data() as Wallet).interest : undefined;
-            if (!settings || !(settings.enabled || settings.endDate) || (!settings.enabled && old.exists()) || old.exists() && old.data().interest?.confirmed) return false;
+            if (!settings || !(settings.enabled || settings.endDate) || settings.skipped?.includes(item.date) || (!settings.enabled && old.exists()) || old.exists() && old.data().interest?.confirmed) return false;
             const before = old.exists() ? Number(old.data().amount) || 0 : 0;
             const same = old.exists() && before === item.amount && old.data().interest?.closing === item.record.closing && old.data().interest?.rate === item.record.rate && old.data().interest?.taxRate === item.record.taxRate && old.data().interest?.netMicro === item.record.netMicro;
             if (same) return false;
@@ -95,5 +95,24 @@ export async function confirmInterest(uid: string, transactionId: string, actual
     if (actual !== before) trx.update(ref(uid, 'wallets', data.walletId), { cachedBalance: increment(actual - before), updatedAt: serverTimestamp() });
     return data.date;
   });
+  await syncSnapshot(uid, date).catch(() => undefined);
+}
+
+/**
+ * The user deletes a credited interest as wrong. The transaction goes, the wallet balance drops by its amount, and the
+ * day is noted on the wallet's settings so the next run does not pay it again; the following days are recalculated.
+ */
+export async function deleteInterest(uid: string, transactionId: string) {
+  const r = ref(uid, 'transactions', transactionId);
+  const date = await runTx(database(), async trx => {
+    const snap = await trx.get(r);
+    if (!snap.exists() || snap.data().interest?.source !== 'wallet_interest') throw Error('Catatan bunga tidak ditemukan.');
+    const data = snap.data() as LedgerTx, w = ref(uid, 'wallets', data.walletId);
+    const wallet = await trx.get(w);
+    trx.delete(r);
+    trx.update(w, { cachedBalance: increment(-(Number(data.amount) || 0)), ...(wallet.exists() && (wallet.data() as Wallet).interest ? { 'interest.skipped': arrayUnion(data.date) } : {}), updatedAt: serverTimestamp() });
+    return data.date;
+  });
+  await noteDeleted(uid, { transactions: [transactionId] });
   await syncSnapshot(uid, date).catch(() => undefined);
 }

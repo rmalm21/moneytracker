@@ -23,8 +23,9 @@ export type InterestBasis = 'year' | 'month';
  * every month on a day (1–31; a shorter month pays on its last day). Interest still accrues daily either way. */
 export type InterestPayout = 'day' | 'week' | 'month';
 export type InterestPeriod = { from: string; rate: number; basis: InterestBasis; tax: boolean; taxRate: number; payout?: InterestPayout; payoutDay?: number };
-/** `endDate` (exclusive) is set when the feature is turned off: no interest from that day on. */
-export type WalletInterest = { enabled: boolean; startDate: string; endDate?: string; periods: InterestPeriod[] };
+/** `endDate` (exclusive) is set when the feature is turned off: no interest from that day on. `skipped` lists payout days
+ * the user deleted as wrong: nothing is paid on them again, and what had accrued up to them is dropped with them. */
+export type WalletInterest = { enabled: boolean; startDate: string; endDate?: string; periods: InterestPeriod[]; skipped?: string[] };
 /** The calculation behind one credited day, kept on its transaction. Micro-rupiah = rupiah × 1 000 000. */
 export type InterestRecord = {
   source: 'wallet_interest'; walletId: string; date: string; closing: number; rate: number; basis: InterestBasis;
@@ -120,6 +121,7 @@ export function runInterest(wallet: Pick<Wallet, 'id' | 'openingBalance'> & { in
   // A payout the user confirmed (or corrected to the bank's figure) stays as it is: it counts as money in the wallet,
   // and that day's accrual is settled by it.
   const confirmedDays = new Set(transactions.filter(tx => isInterestTx(tx, wallet.id) && tx.interest?.confirmed && tx.date >= settings.startDate && tx.date <= last).map(tx => tx.date));
+  const skippedDays = new Set(settings.skipped || []);
   // Everything else moves the base balance: opening balance, all other transactions, confirmed payouts, and interest
   // from outside the window (an earlier time the feature was on), which is real money in the wallet.
   let running = wallet.openingBalance;
@@ -142,7 +144,7 @@ export function runInterest(wallet: Pick<Wallet, 'id' | 'openingBalance'> & { in
       const d = dailyInterest(closing, period);
       if (d.grossMicro > zero) { acc = { gross: acc.gross + d.grossMicro, tax: acc.tax + d.taxMicro, net: acc.net + d.netMicro, from: acc.from || day, days: acc.days + 1 }; }
     }
-    if (confirmedDays.has(day)) { acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 }; continue; }
+    if (confirmedDays.has(day) || skippedDays.has(day)) { acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 }; continue; }
     if (!period || !acc.days || !(isPayoutDay(day, period) || (closesWindow && day === last))) continue;
     // Each payout is rounded on its own (half up); nothing is carried to the next one.
     const amount = creditOf(acc.net);
@@ -228,7 +230,7 @@ export function updateInterestSettings(current: WalletInterest | undefined, inpu
   const reopening = !current || !current.enabled;
   if (reopening) {
     const start = input.startDate || today;
-    return { enabled: true, startDate: start, periods: [...(current?.periods || []).filter(p => p.from < start), { from: start, ...next }] };
+    return { enabled: true, startDate: start, periods: [...(current?.periods || []).filter(p => p.from < start), { from: start, ...next }], ...(current?.skipped?.length ? { skipped: current.skipped } : {}) };
   }
   const active = periodOn(current, today) || current.periods[current.periods.length - 1];
   const same = active && active.rate === next.rate && active.basis === next.basis && active.tax === next.tax && (!next.tax || active.taxRate === next.taxRate) && (active.payout || 'day') === next.payout && (next.payout === 'day' || active.payoutDay === next.payoutDay);
@@ -237,7 +239,7 @@ export function updateInterestSettings(current: WalletInterest | undefined, inpu
   if (same && startDate === current.startDate) return current;
   const from = startDate > today ? startDate : today;
   const periods = same ? current.periods.map(p => p.from === current.startDate ? { ...p, from: startDate } : p) : [...current.periods.filter(p => p.from < from), { from, ...next }];
-  return { enabled: true, startDate, periods };
+  return { enabled: true, startDate, periods, ...(current.skipped?.length ? { skipped: current.skipped } : {}) };
 }
 
 /** Credited interest the user has not checked against the bank yet, newest first. */
