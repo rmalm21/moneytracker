@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.9', date: '2 Okt 2026', title: 'Transaksi Terbaru lebih tegas', items: [
+    ['💡', 'Transaksi Terbaru di Beranda kini seragam: kiri berisi nama, kategori, dan dompet; kanan berisi nominal dan tanggal. Tidak ada lagi label berwarna yang bikin ramai, dan semua nominal sejajar.'],
+  ] },
   { version: '3.8', date: '2 Okt 2026', title: 'Beranda lebih rapi', items: [
     ['💡', 'Transaksi Terbaru di Beranda lebih lega dan tegas: judul satu baris, nominal jelas di kanan, dan tanda “Belum dicek” untuk bunga pindah ke bawah nominal.'],
     ['💡', 'Kartu angka seperti Jatah aman per hari kembali tersusun rapi di tempatnya, tidak perlu digeser lagi.'],

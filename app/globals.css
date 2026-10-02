@@ -7106,8 +7106,18 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .home-dash .recent-widget .tx-meta { display: flex; flex-wrap: nowrap; gap: 0; overflow: hidden; margin: 0; font-size: .74rem; color: var(--muted); }
 .home-dash .recent-widget .tx-meta > span { flex: 0 1 auto; min-width: 0; margin: 0 !important; padding: 0; overflow: hidden; text-overflow: ellipsis; }
 .home-dash .recent-widget .tx-meta > span:first-child { flex: none; }
-.home-dash .recent-widget .tx-meta > .tx-type { display: none; }
-.home-dash .recent-widget .tx-meta > span + span::before { content: '·'; margin: 0 5px; opacity: .6; }
+.home-dash .recent-widget .tx-meta > span + span::before { content: '·' !important; display: inline !important; width: auto !important; height: auto !important; margin: 0 6px !important; padding: 0 !important; border-radius: 0 !important; background: none !important; color: var(--muted); font-weight: 400; opacity: .7; }
+.home-dash .recent-widget .tx-meta > .tx-cat { display: inline !important; padding: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; color: var(--muted) !important; font-weight: 500 !important; font-size: inherit !important; }
+.home-dash .recent-widget .tx-meta > .tx-cat:first-child::before { content: none !important; }
+.home-dash .recent-widget .data-row-side > .tx-time { display: none; }
+.tx-side-date { display: none !important; }
+.home-dash .recent-widget .data-row-side > .tx-side-date { display: block !important; }
+.home-dash .recent-widget .tx-meta > .tx-recon { display: none; }
+.home-dash .recent-widget .tx-meta > .tx-date { display: none; }
+.home-dash .recent-widget .tx-meta > .tx-date + span::before { content: none !important; margin: 0 !important; }
+.home-dash .recent-widget .tx-meta > span { font-size: .76rem !important; }
+.home-dash .recent-widget .transaction-row:has(.tx-auto) .tx-meta > .tx-date { display: inline; }
+.home-dash .recent-widget .transaction-row:has(.tx-auto) .tx-meta > .tx-type { display: none; }
 .home-dash .recent-widget .tx-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .home-dash .recent-widget .data-row-side { flex: none; max-width: 42%; gap: 3px; }
 .home-dash .recent-widget .data-row-side > strong { padding: 0 !important; background: none !important; font-size: .95rem; white-space: nowrap; }
