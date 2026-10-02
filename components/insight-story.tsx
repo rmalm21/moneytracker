@@ -92,7 +92,7 @@ function Calc({ rows }: { rows: CalcRow[] }) {
 }
 
 /** Evidence drawer: what, why (drivers), the numbers, how sure and why, limits, transactions, actions. */
-export function EvidenceDrawer({ story, signal, items, onClose, handlers, onDismiss, onSnooze }: { story?: Story; signal?: InsightSignal; items: LedgerTx[]; onClose: () => void; handlers: StoryHandlers; onDismiss?: (s: InsightSignal) => void; onSnooze?: (s: InsightSignal) => void }) {
+export function EvidenceDrawer({ story, signal, items, onClose, handlers, onDismiss, onSnooze, extra, badge }: { story?: Story; signal?: InsightSignal; items: LedgerTx[]; onClose: () => void; handlers: StoryHandlers; onDismiss?: (s: InsightSignal) => void; onSnooze?: (s: InsightSignal) => void; extra?: React.ReactNode; badge?: string }) {
   const s = story?.root || signal;
   const byId = useMemo(() => new Map(items.map(t => [t.id, t])), [items]);
   if (!s) return null;
@@ -100,9 +100,10 @@ export function EvidenceDrawer({ story, signal, items, onClose, handlers, onDism
   const txs = txIds.map(id => byId.get(id)).filter((t): t is LedgerTx => Boolean(t));
   const apply = s.action?.apply || s.finding?.apply, target = s.action?.target || s.finding?.target;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent title={s.title} className="ins2-drawer">
-    <div className={`ins2-drawer-head tone-${statusTone[s.tone]}`}><span>{statusWord[s.tone]}</span><StateBadge state={s.lifecycleState}/><span className="ins2-conf">{s.confidence.label}</span></div>
+    <div className={`ins2-drawer-head tone-${statusTone[s.tone]}`}><span>{statusWord[s.tone]}</span><StateBadge state={s.lifecycleState}/>{badge && <span className="i3-horizon">{badge}</span>}<span className="ins2-conf">{s.confidence.label}</span></div>
     <p className="ins2-what">{s.summary}</p>
     {s.drivers[0]?.children?.length ? <section><h4>Kenapa</h4><ul className="ins2-drivers"><DriverNode d={s.drivers[0]}/></ul><small className="ins2-note">Setiap cabang dijumlahkan sama dengan induknya. “Frekuensi” = lebih sering/jarang, “nominal” = lebih mahal/murah per transaksi.</small></section> : null}
+    {extra}
     {story && story.members.length > 0 && <section><h4>Termasuk dalam cerita ini</h4><ul className="ins2-members">{story.members.map(m => <li key={m.signature}>{m.headline || m.title}</li>)}</ul></section>}
     {s.evidence.length > 0 && <section><h4>Bukti</h4><dl className="ins2-evidence">{s.evidence.map((e, i) => <div key={i}><dt>{e.label}</dt><dd>{e.value}{e.note && <small>{e.note}</small>}</dd></div>)}</dl></section>}
     {s.calc && <section><h4>Dari mana angka ini?</h4><Calc rows={s.calc}/></section>}
@@ -163,7 +164,7 @@ export function ProgressSection({ stories, resolved, onOpen }: { stories: Story[
   </section>;
 }
 
-const timelineWord: Record<TimelineEntry['e'], string> = { new: 'Muncul', worse: 'Memburuk', better: 'Membaik', resolved: 'Teratasi', resurfaced: 'Muncul lagi' };
+const timelineWord: Record<TimelineEntry['e'], string> = { new: 'Muncul', worse: 'Memburuk', better: 'Membaik', resolved: 'Teratasi', resurfaced: 'Muncul lagi', milestone: 'Pencapaian', outcome: 'Hasil keputusan' };
 export function TimelineSection({ entries }: { entries: TimelineEntry[] }) {
   if (!entries.length) return null;
   return <section className="ins-section">

@@ -39,6 +39,9 @@ export type InsightOptions = {
   hiddenFindings?: string[];
   /** Advisor output already computed for the same input (skips running it twice). */
   advice?: Advice;
+  /** Insight V3 hook: may annotate the raw signals (regime context) and returns extra signals that then take part in
+   * lifecycle, stories and ranking like any other. */
+  extend?: (ctx: InsightContext, raw: InsightSignal[], advice: Advice) => InsightSignal[];
 };
 export type InsightReport = {
   advice: Advice;
@@ -71,6 +74,7 @@ export function analyzeInsight(input: AdvisorInput, options: InsightOptions = {}
     ...spendingSignals(ctx), ...budgetSignals(ctx), ...incomeSignals(ctx), ...claimSignals(ctx), ...receivableSignals(ctx),
     ...debtSignals(ctx), ...goalSignals(ctx), ...recurringSignals(ctx), ...anomalySignals(ctx), ...dataQualitySignals(ctx),
   ];
+  raw.push(...(options.extend?.(ctx, raw, advice) || []));
   const { adapted } = bridgeAdvisor(advice, raw, ctx.today);
   // Advisor spending cards read the same categories, so the same Data Health caveat applies to them.
   if (ctx.quality.uncategorizedCurrent >= .05) for (const s of adapted) if (s.domain === 'spending' || s.domain === 'budget') s.caveats.push(`${Math.round(ctx.quality.uncategorizedCurrent * 100)}% pengeluaran siklus ini belum memiliki kategori, jadi angka per kategori bisa kurang.`);

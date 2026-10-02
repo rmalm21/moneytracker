@@ -11,6 +11,7 @@ export const defaultSections: { key: string; label: string; hint: string; icon: 
   { key: 'profile', label: 'Profil Insight', hint: 'Profil risiko, target, prioritas', icon: UserRound },
   { key: 'actions', label: 'Prioritas sekarang', hint: '3 hal terpenting + yang kamu sematkan', icon: Lightbulb },
   { key: 'progress', label: 'Kemajuan', hint: 'Yang membaik dan sudah teratasi', icon: CircleCheck },
+  { key: 'pressure', label: 'Keadaan & tekanan', hint: 'Momentum, tekanan utama, radar keuangan', icon: Gauge },
   { key: 'health', label: 'Indikator kesehatan', hint: '6 indikator: menabung, dana darurat, cicilan…', icon: HeartPulse },
   { key: 'wealth', label: 'Uang menganggur & investasi', hint: 'Dana idle, urutan penyaluran, rencana investasi', icon: Sprout },
   { key: 'paycheck', label: 'Rencana gajian berikutnya', hint: 'Pembagian gaji per pos', icon: HandCoins },

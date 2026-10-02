@@ -36,6 +36,8 @@ export function committedAmount(data: Data, today: string, cycleEnd: string, set
 export function availableMoney(free: number, committed: number, settings: AvailabilitySettings = {}) {
   return free - committed - Math.max(0, settings.freeMoneyBuffer || 0);
 }
+/** Jatah Aman per hari: what is left of the living budgets, spread over the days until payday (dashboard + Insight). */
+export function safeDaily(discretionaryRemaining: number, daysRemaining: number) { return Math.max(0, discretionaryRemaining) / Math.max(1, daysRemaining); }
 export function budgetCommitted(budget:Budget,data:Data,asOf:Date,salaryDay:number){
   const window=budgetWindow(budget,asOf,salaryDay);
   const matches=budgetMatcher(budget,data.categories);

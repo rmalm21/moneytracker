@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.5', date: '2 Okt 2026', title: 'Insight melihat gambaran utuh', items: [
+    ['💡', 'Kartu skor kini menunjukkan Momentum (membaik, stabil, campuran, tertekan) dan tekanan utama, misalnya “Likuiditas aman, tapi target dana sedang mendapat tekanan”. Tekanan sementara tidak mengubah skor.'],
+    ['📝', 'Tanya Insight: ketik “kenapa uang tersedia turun?”, “makan naik karena apa?”, atau “klaim gue gimana?”. Jawaban diambil dari catatanmu beserta buktinya, dan tidak mengubah apa pun. Ada juga tombol “Jelaskan siklus ini”.'],
+    ['💸', 'Lab Skenario: bandingkan “bagaimana jika” seperti gaji −20%, klaim tertunda, atau pengeluaran tak terduga. Kamu bisa melihat titik uang tersempit sebelum gajian dan menyimpan sampai 3 skenario. Semua berlabel SIMULASI dan data aslimu tidak berubah.'],
+    ['🧾', '“Kenapa?” kini juga menunjukkan dampaknya: anggaran, uang tersedia, dan ruang untuk target, lengkap dengan mana yang pasti dan mana yang perkiraan. Ada Indeks Biaya Pribadi dari struk, pola setelah gajian, dan porsi pemasukan tidak tetap.'],
+    ['✅', 'Insight mengingat anggaran yang kamu ubah lewat saran dan menunjukkan hasilnya setelah satu siklus. Saran investasi ditahan saat uang sampai gajian tipis. Kalau tidak ada yang berubah, Insight cukup bilang “Keuangan relatif stabil”.'],
+  ] },
   { version: '4.4', date: '2 Okt 2026', title: 'Insight bisa menjelaskan “kenapa”', items: [
     ['💡', 'Bagian baru “Yang berubah”: perubahan paling berarti dibanding pola biasamu di hari siklus yang sama, termasuk kabar baik. Ketuk “Kenapa?” untuk melihat penyebabnya: Makan & Minum → Pesan Antar → GrabFood, karena lebih sering atau lebih mahal per transaksi.'],
     ['✅', 'Setiap saran punya tingkat keyakinan (“Keyakinan tinggi”, “Cukup yakin”, “Data terbatas”) beserta alasannya. Kalau banyak pengeluaran belum berkategori, Insight bilang terus terang.'],

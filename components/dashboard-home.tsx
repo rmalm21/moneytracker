@@ -20,7 +20,7 @@ const TrendMiniChart = dynamic(() => import('./trend-mini-chart'), { ssr: false,
 const ForecastWidget = dynamic(() => import('./forecast').then(m => m.ForecastWidget), { ssr: false, loading: () => <div className="panel"><div className="chart-skeleton" aria-hidden="true"/></div> });
 const CategoryDonut = dynamic(() => import('./category-donut').then(m => m.CategoryDonut), { ssr: false, loading: chartLoading });
 import { budgetCurrent, budgetIconCategoryId, countedBudgets, metrics, rupiah } from '@/lib/accounting';
-import { availableMoney, budgetCommitted, committedAmount, upcomingEvents } from '@/lib/finance-control';
+import { availableMoney, budgetCommitted, committedAmount, safeDaily, upcomingEvents } from '@/lib/finance-control';
 import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
 import { incomeBreakdown } from '@/lib/insights';
 import { saveProfile } from '@/lib/firestore';
@@ -100,7 +100,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
  const flowBasis=prevRange.partial?`Periode lalu, ${prevRange.days} hari pertama`:'Periode lalu',startBasis='Awal periode ini (akhir periode lalu)';
  /** Value to compare with, the tone of a rise, and what it is compared with. Balances compare with the start of this period. */
  const compare:Partial<Record<WidgetId,[number,'up'|'down',string]>>={avgDaily:[prevSummary.expense/prevRange.days,'down',flowBasis],income:[prevSummary.income,'up',flowBasis],expenses:[prevSummary.expense,'down',flowBasis],cashFlow:[prevSummary.cashFlow,'up',flowBasis],budget:[remaining+summary.expense-prevSummary.expense,'up',`${flowBasis} (sisa jika belanja sama)`],free:[stat.free-summary.cashFlow,'up',startBasis],assets:[stat.assets-summary.cashFlow,'up',startBasis],netWorth:[stat.netWorth-summary.cashFlow,'up',startBasis],liabilities:[stat.liabilities-borrowed+repaid,'down',startBasis]};
- const amount:Partial<Record<WidgetId,number>>={avgDaily:summary.expense/prevRange.days,free:stat.free,budget:remaining,income:summary.income,expenses:summary.expense,cashFlow:summary.cashFlow,assets:stat.assets,netWorth:stat.netWorth,liabilities:stat.liabilities,reserved:stat.reserved,safeDaily:Math.max(0,stat.discretionaryRemaining)/cycle.daysRemaining,daysUntilSalary:cycle.daysRemaining};
+ const amount:Partial<Record<WidgetId,number>>={avgDaily:summary.expense/prevRange.days,free:stat.free,budget:remaining,income:summary.income,expenses:summary.expense,cashFlow:summary.cashFlow,assets:stat.assets,netWorth:stat.netWorth,liabilities:stat.liabilities,reserved:stat.reserved,safeDaily:safeDaily(stat.discretionaryRemaining,cycle.daysRemaining),daysUntilSalary:cycle.daysRemaining};
  async function save(changes:Parameters<typeof saveProfile>[1]){if(!user)return;setError('');try{await saveProfile(user.uid,changes)}catch(e){setPending(null);setError((e as Error).message||'Pengaturan belum tersimpan.')}}
  function layout(ids:string[]){setPending(ids);void save({dashboardWidgets:ids,dashboardWidgetsVersion:LAYOUT_VERSION})}
  function move(from:string,to:string){layout(reorder(selected.map(id=>({id})),from,to).map(item=>item.id))}

@@ -12,8 +12,12 @@ import { committedAmount } from '@/lib/finance-control';
 import { saveProfile, saveRecord } from '@/lib/firestore';
 import { InsightProfileSheet } from './insight-profile-sheet';
 import { InsightLayoutSheet, defaultSections, mergeOrder } from './insight-layout-sheet';
-import { BriefSection, ChangedSection, EvidenceDrawer, ProgressSection, ScoreDeltaLine, SignalRow, StoryCard, TimelineSection, type StoryHandlers } from './insight-story';
-import { analyzeInsight, analyzePrices } from '@/lib/insight-v25';
+import { ChangedSection, EvidenceDrawer, ProgressSection, ScoreDeltaLine, SignalRow, StoryCard, TimelineSection, type StoryHandlers } from './insight-story';
+import { analyzePrices } from '@/lib/insight-v25';
+import { analyzeInsightV3 } from '@/lib/insight-v3';
+import { recordDecision } from '@/lib/insight-v3/decisions';
+import { BriefV3, CostPanel, DataPanel, DecisionList, GoalOptionsPanel, ImpactChain, LiquidityPanel, ScenarioLab, StatePanel } from './insight-v3';
+import { FlaskConical, Database } from 'lucide-react';
 import { dismiss as dismissSignal, readMemory, restoreAll, snooze as snoozeSignal, type InsightMemory } from '@/lib/insight-v25/lifecycle';
 import type { InsightSignal } from '@/lib/insight-v25/types';
 import { priorityLabels, riskLabels, type InsightProfile } from '@/lib/insight-profile';
@@ -166,13 +170,14 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
 
   const memoryIn = useMemo(() => readMemory(profile?.insightMemory), [profile?.insightMemory]);
   // Insight V2.5: the Advisor (unchanged) plus explainable signals, stories and lifecycle. All on this device.
-  const report = useMemo(() => {
+  const v3 = useMemo(() => {
     if (history.loading) return null;
     const stat = metrics(data, cycle.start, cycle.end, salaryDay, day, Boolean(profile?.netWorthIncludesReceivables));
     const committed = committedAmount(data, today, cycle.end, profile || {});
-    return analyzeInsight({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, safetyBuffer: profile?.freeMoneyBuffer, profile: profile?.insightProfile }, { memory: memoryIn, hiddenFindings: hidden });
+    return analyzeInsightV3({ data, history: history.items, today, salaryDay, monthlySalary: profile?.monthlySalary || 0, warnPercent: profile?.budgetWarningPercent || 80, stat, committed, safetyBuffer: profile?.freeMoneyBuffer, profile: profile?.insightProfile }, { memory: memoryIn, hiddenFindings: hidden, profile: profile || {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history.loading, history.items, data, cycle.start, cycle.end, salaryDay, today, profile?.netWorthIncludesReceivables, profile?.excludeCommittedFromAvailable, profile?.commitmentHorizon, profile?.freeMoneyBuffer, profile?.monthlySalary, profile?.insightProfile, memoryIn, hidden]);
+  const report = v3?.v25 || null;
   const advice: Advice | null = report?.advice || null;
   // Insight memory (lifecycle, dismiss/snooze, score snapshots) lives in the user's own profile; written only when
   // it really changed (at most a few small writes a day), never as a copy of the ledger.
@@ -182,17 +187,18 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     if (!report || !user) return;
     // The old per-device "abaikan" list moves into the synced memory once.
     const legacy = readHidden(user.uid);
-    const next = legacy.length && !report.memory.hidden ? { ...report.memory, hidden: legacy } : report.memory;
-    if (report.memoryChanged || next !== report.memory) saveMemory(next);
+    const mem = v3!.memory;
+    const next = legacy.length && !mem.hidden ? { ...mem, hidden: legacy } : mem;
+    if (v3!.memoryChanged || next !== mem) saveMemory(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [report, user?.uid]);
+  }, [v3, user?.uid]);
   const [openSig, setOpenSig] = useState('');
-  function dismissStory(s: InsightSignal) { if (!report) return; setOpenSig(''); saveMemory(dismissSignal(report.memory, s, today)); }
-  function snoozeStory(s: InsightSignal) { if (!report) return; setOpenSig(''); const until = new Date(`${today}T12:00:00`); until.setDate(until.getDate() + 7); saveMemory(snoozeSignal(report.memory, s, until.toLocaleDateString('en-CA'), today)); }
+  function dismissStory(s: InsightSignal) { if (!v3) return; setOpenSig(''); saveMemory(dismissSignal(v3.memory, s, today)); }
+  function snoozeStory(s: InsightSignal) { if (!v3) return; setOpenSig(''); const until = new Date(`${today}T12:00:00`); until.setDate(until.getDate() + 7); saveMemory(snoozeSignal(v3.memory, s, until.toLocaleDateString('en-CA'), today)); }
   const [moreOpen, setMoreOpen] = useState(false);
 
-  function hide(id: string) { const next = [...new Set([...hidden, id])]; setHidden(next); if (user) try { localStorage.setItem(hiddenKey(user.uid), JSON.stringify(next)); } catch { /* per-device preference */ } if (report) saveMemory({ ...report.memory, hidden: [...new Set([...(report.memory.hidden || []), id])] }); }
-  function restore() { setHidden([]); setShowHidden(false); if (user) try { localStorage.removeItem(hiddenKey(user.uid)); } catch { /* per-device preference */ } if (report) saveMemory(restoreAll(report.memory)); }
+  function hide(id: string) { const next = [...new Set([...hidden, id])]; setHidden(next); if (user) try { localStorage.setItem(hiddenKey(user.uid), JSON.stringify(next)); } catch { /* per-device preference */ } if (v3) saveMemory({ ...v3.memory, hidden: [...new Set([...(v3.memory.hidden || []), id])] }); }
+  function restore() { setHidden([]); setShowHidden(false); if (user) try { localStorage.removeItem(hiddenKey(user.uid)); } catch { /* per-device preference */ } if (v3) saveMemory(restoreAll(v3.memory)); }
   const allHidden = [...new Set([...hidden, ...(report?.memory.hidden || [])])];
   const visible = (list: Finding[]) => showHidden ? list : list.filter(f => !allHidden.includes(f.id));
   const [tab, setTab] = useState('');
@@ -208,6 +214,14 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       const base: Partial<Budget> = { name: action.name, categoryId: action.categoryId, subcategoryId: null, amount: action.amount, classification: 'living', cycleType: 'salary', cycleStartDay: salaryDay, warningPercent: profile?.budgetWarningPercent || 80, notes: 'Dibuat dari saran Insight', rolloverEnabled: false, active: true, sortOrder: data.budgets.reduce((n, x) => Math.max(n, (x.sortOrder ?? -1) + 1), data.budgets.length), createdDate: today, lastSettledStart: budgetWindow({ cycleType: 'salary' } as Budget, new Date(`${today}T12:00:00`), salaryDay).start, rolloverCarry: 0 };
       task = saveRecord<Budget>(user.uid, 'budgets', base);
     }
+    // Decision memory: what was decided from which Insight (the budget itself is saved by the normal flow above).
+    if (v3) {
+      const sig = report!.signals.find(sg => sg.finding?.id === finding.id)?.signature;
+      const old = action.kind === 'set-budget' ? data.budgets.find(b => b.id === action.budgetId) : undefined;
+      const cat = action.kind === 'set-budget' ? old?.categoryId : action.categoryId;
+      const name = action.kind === 'create-budget' ? action.name : old?.name || report!.context.nameOf(cat || '');
+      saveMemory(recordDecision(v3.memory, { d: today, k: action.kind === 'set-budget' ? 'budget_set' : 'budget_create', sig, f: finding.id, cat: cat ? report!.context.parentOf(cat) : undefined, budgetId: action.kind === 'set-budget' ? action.budgetId : undefined, label: action.kind === 'set-budget' ? `Anggaran ${name} diubah` : `Anggaran ${name} dibuat`, before: old?.amount, after: action.amount }));
+    }
     track(task, { pending: 'Menyimpan anggaran…', success: action.kind === 'create-budget' ? `Anggaran ${action.name} dibuat.` : 'Anggaran diperbarui.', failure: 'Anggaran belum tersimpan', after: () => setBusy('') });
   }
 
@@ -220,7 +234,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const { summary: s } = advice;
   const everything = [...advice.actions, ...advice.wealth, ...advice.reduce, ...advice.loose, ...advice.budgetTips, ...advice.habits, ...advice.recurring, ...advice.obligations, ...advice.alerts];
   const pinnedCards = pinned.map(id => everything.find(f => f.id === id)).filter((f): f is Finding => Boolean(f));
-  const priorityAll = report!.priority.filter(st => !(st.root.finding && pinned.includes(st.root.finding.id)) && !(st.root.finding && allHidden.includes(st.root.finding.id) && !showHidden));
+  const priorityAll = v3!.priority.filter(st => !(st.root.finding && pinned.includes(st.root.finding.id)) && !(st.root.finding && allHidden.includes(st.root.finding.id) && !showHidden));
   const priorityTop = priorityAll.slice(0, 3), priorityRest = priorityAll.slice(3);
   const potential = advice.impact.monthly;
   const maxCycle = Math.max(1, ...advice.cycles.flatMap(c => [c.income, c.expense]));
@@ -232,15 +246,17 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const told = new Set(Object.values(deep).flat().map(sg => sg.finding?.id).filter(Boolean) as string[]);
   const once = (list: Finding[]) => list.filter(f => !told.has(f.id) || pinned.includes(f.id));
   const goalIds = /^(emergency|fund-|saving-rate)/;
-  const tabs: { key: string; label: string; icon: LucideIcon; hint: string; items?: Finding[]; signals?: InsightSignal[]; empty: string }[] = [
+  const tabs: { key: string; label: string; icon: LucideIcon; hint: string; items?: Finding[]; signals?: InsightSignal[]; panel?: React.ReactNode; empty: string }[] = [
     { key: 'spending', label: 'Pengeluaran', icon: Scissors, hint: 'Perubahan per kategori, merchant dan anggaran (dengan penyebabnya), lalu saran memangkas, pos yang longgar dan anggaran.', signals: deep.spending, items: pinFirst(once(visible([...advice.reduce, ...advice.loose, ...advice.budgetTips]))), empty: 'Tidak ada pos pengeluaran yang perlu diubah. Bagus!' },
     { key: 'cats', label: 'Kategori', icon: Gauge, hint: 'Rata-rata per siklus dan arah trennya. Ketuk untuk melihat transaksinya.', empty: 'Belum ada pengeluaran.' },
-    { key: 'cashflow', label: 'Cashflow', icon: TrendingUp, hint: 'Laju belanja, pemasukan, dan bekal sampai gajian.', signals: deep.cashflow, items: pinFirst(once(visible(advice.alerts))), empty: 'Arus uang berjalan sesuai pola biasanya.' },
+    { key: 'cashflow', label: 'Cashflow', icon: TrendingUp, hint: 'Laju belanja, pemasukan, dan bekal sampai gajian.', signals: deep.cashflow, panel: <LiquidityPanel report={v3!}/>, items: pinFirst(once(visible(advice.alerts))), empty: 'Arus uang berjalan sesuai pola biasanya.' },
     { key: 'duty', label: 'Kewajiban', icon: Landmark, hint: 'Utang, piutang, klaim kantor, dan Split Bill.', signals: deep.duty, items: pinFirst(once(visible(advice.obligations.filter(f => !goalIds.test(f.id))))), empty: 'Semua kewajiban aman.' },
-    { key: 'goals', label: 'Target', icon: Target, hint: 'Dana darurat, tujuan dana, dan rasio menabung.', signals: deep.goals, items: pinFirst(once(visible(advice.obligations.filter(f => goalIds.test(f.id))))), empty: 'Target dana berjalan aman.' },
+    { key: 'goals', label: 'Target', icon: Target, hint: 'Dana darurat, tujuan dana, dan rasio menabung.', signals: deep.goals, panel: <GoalOptionsPanel report={v3!}/>, items: pinFirst(once(visible(advice.obligations.filter(f => goalIds.test(f.id))))), empty: 'Target dana berjalan aman.' },
     { key: 'wealth', label: 'Kekayaan', icon: Sprout, hint: 'Uang menganggur, dana darurat yang bisa lebih produktif, dan investasi sesuai profil risikomu.', signals: deep.wealth, items: pinFirst(visible(advice.wealth)), empty: 'Belum ada uang menganggur — semua saldo sedang terpakai sesuai kebutuhan.' },
     { key: 'habits', label: 'Kebiasaan', icon: CalendarClock, hint: 'Transaksi tidak biasa, pola waktu belanja, kebocoran kecil, dan pengeluaran rutin.', signals: deep.habits, items: pinFirst(once(visible([...advice.habits, ...advice.recurring]))), empty: 'Tidak ada pola belanja yang mencolok.' },
-    { key: 'prices', label: 'Harga', icon: Repeat, hint: 'Perubahan harga langganan, dan harga barang dari struk yang kamu pindai (toko dan ukuran yang sama, minimal 3 pembelian).', signals: [...deep.prices, ...prices], empty: 'Belum ada perubahan harga yang cukup datanya.' },
+    { key: 'prices', label: 'Harga', icon: Repeat, hint: 'Perubahan harga langganan, dan harga barang dari struk yang kamu pindai (toko dan ukuran yang sama, minimal 3 pembelian).', signals: [...deep.prices, ...prices], panel: tab === 'prices' ? <CostPanel report={v3!}/> : null, empty: 'Belum ada perubahan harga yang cukup datanya.' },
+    { key: 'data', label: 'Data', icon: Database, hint: 'Kelengkapan catatan yang dipakai Insight.', signals: report!.signals.filter(sg => sg.domain === 'data' && sg.lifecycleState !== 'DISMISSED'), panel: <DataPanel report={v3!}/>, empty: 'Data lengkap.' },
+    { key: 'lab', label: 'Lab Skenario', icon: FlaskConical, hint: 'Bandingkan “bagaimana jika” tanpa mengubah data apa pun.', panel: tab === 'lab' ? <ScenarioLab report={v3!} saved={v3!.memory.lab || []} onSave={list => saveMemory({ ...v3!.memory, lab: list.slice(0, 3) })}/> : null, empty: '' },
   ];
   // "Penting": every warning or urgent finding from all tabs in one list, most urgent first, so nothing needs hunting.
   const source = new Map<string, string>();
@@ -279,10 +295,11 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     </section>
 
     </>,
-    brief: <BriefSection brief={report!.brief} onOpen={setOpenSig} known={knownSigs}/>,
-    changed: report!.learning.active ? <div className="ins2-learning"><strong>{report!.learning.message}</strong><small>{report!.learning.detail}. Insight tidak menebak pola dari orang lain.</small></div> : <ChangedSection stories={report!.changed} handlers={handlers}/>,
+    brief: <BriefV3 report={v3!} onOpen={setOpenSig} known={knownSigs}/>,
+    pressure: <StatePanel report={v3!}/>,
+    changed: report!.learning.active ? <div className="ins2-learning"><strong>{report!.learning.message}</strong><small>{report!.learning.detail}. Insight tidak menebak pola dari orang lain.</small></div> : <ChangedSection stories={v3!.changed} handlers={handlers}/>,
     progress: <ProgressSection stories={report!.progress.stories} resolved={report!.progress.resolved} onOpen={setOpenSig}/>,
-    timeline: <TimelineSection entries={report!.timeline}/>,
+    timeline: <><DecisionList report={v3!}/><TimelineSection entries={[...v3!.memory.tl].reverse()}/></>,
     wealth: <>
     <WealthSection advice={advice} onEdit={() => setProfileOpen(true)}/>
     </>,
@@ -327,7 +344,8 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
             <Spark values={[...c.history, c.projected]}/>
             <span className="ins-cat-num"><strong>{short(c.avg)}</strong><small className={c.trend > .1 ? 'up' : c.trend < -.1 ? 'down' : ''}>{c.trend > .1 ? `▲ ${pct(c.trend)}` : c.trend < -.1 ? `▼ ${pct(-c.trend)}` : 'stabil'}</small></span>
           </button>)}</div> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>
-          : active.items?.length || active.signals?.length ? <>
+          : active.items?.length || active.signals?.length || active.panel ? <>
+            {active.panel}
             {active.signals?.length ? <div className="ins2-rows">{active.signals.map(sg => <SignalRow key={sg.signature} signal={sg} onOpen={setOpenSig}/>)}</div> : null}
             {active.items?.length ? <div className="ins-grid">{active.items.map(f => card(f, undefined, active.key === 'important' ? source.get(f.id) : undefined))}</div> : null}
           </> : <p className="ins-empty"><Sparkles size={18} aria-hidden="true"/>{active.empty}</p>}
@@ -345,7 +363,8 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       <Ring score={advice.score} tone={advice.verdictTone}/>
       <div className="ins-hero-text">
         <span className="ins-kicker"><BrainCircuit size={15}/> Skor kesehatan keuangan</span>
-        <p className="ins-verdict">{report!.hero.statement}</p>
+        <p className="ins-verdict">{v3!.hero.statement}</p>
+        <p className="i3-hero-state"><span>Momentum: <b>{v3!.momentum.enough ? v3!.momentum.label : 'belum cukup riwayat'}</b></span>{v3!.hero.pressure && <span>Tekanan utama: <b>{v3!.hero.pressure}</b></span>}</p>
         <ScoreDeltaLine delta={report!.hero.delta}/>
         <small className="ins-basis">{advice.enoughHistory ? `Dari ${advice.cyclesUsed} siklus gaji terakhir · ${s.daysLeft} hari lagi sampai gajian` : 'Riwayat masih sedikit — saran makin tajam setelah 2 siklus gaji tercatat.'}</small>
       </div>
@@ -358,7 +377,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     </section>
 
     {order.filter(key => !hiddenSections.includes(key)).map(key => <Fragment key={key}>{sections[key]}</Fragment>)}
-    {openSig && <EvidenceDrawer story={report!.stories.find(st => st.signature === openSig)} signal={[...report!.signals, ...prices].find(sg => sg.signature === openSig)} items={history.items} onClose={() => setOpenSig('')} handlers={handlers} onDismiss={dismissStory} onSnooze={snoozeStory}/>}
+    {openSig && (() => { const sg = [...report!.signals, ...prices].find(x => x.signature === openSig); const horizon = sg ? { IMMEDIATE: 'Segera', CURRENT_CYCLE: 'Siklus ini', MULTI_CYCLE: 'Beberapa siklus', LONG_TERM: 'Jangka panjang' }[v3!.horizonOf(sg)] : undefined; const labels = new Map(v3!.graph.nodes.map(n => [n.id, n.label])); const outs = v3!.outcomes.filter(o => o.decision.sig === openSig); return <EvidenceDrawer story={report!.stories.find(st => st.signature === openSig)} signal={sg} items={history.items} onClose={() => setOpenSig('')} handlers={handlers} onDismiss={dismissStory} onSnooze={snoozeStory} badge={horizon} extra={<><ImpactChain edges={v3!.chain(openSig)} labels={labels}/>{outs.length > 0 && <section><h4>Keputusan sebelumnya</h4><ul className="i3-explain">{outs.map(o => <li key={o.decision.id}>{o.text}</li>)}</ul></section>}</>}/>; })()}
     <InsightProfileSheet open={profileOpen} onOpenChange={setProfileOpen} saved={profile?.insightProfile} onSave={saveInsightProfile}/>
     <InsightLayoutSheet open={layoutOpen} onOpenChange={setLayoutOpen} order={order} hidden={hiddenSections} pinnedCount={pinned.length} onSave={(nextOrder, nextHidden) => { setLayoutOpen(false); saveLayout({ order: nextOrder, hidden: nextHidden }); }} onClearPins={() => saveLayout({ pinned: [] }, 'Semua sematan dilepas.')}/>
     {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran diabaikan atau ditunda.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}

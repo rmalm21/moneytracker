@@ -20,7 +20,7 @@ export const categories = [
   cat('trans', 'Transportasi'), cat('trans-fuel', 'Bensin', 'trans'), cat('trans-ride', 'Ojol', 'trans'), cat('trans-park', 'Parkir', 'trans'),
   cat('shop', 'Belanja'), cat('shop-online', 'Belanja Online', 'shop'), cat('shop-groc', 'Belanja Dapur', 'shop'),
   cat('fun', 'Hiburan'), cat('bills', 'Tagihan'), cat('bills-power', 'Listrik', 'bills'), cat('bills-net', 'Internet', 'bills'), cat('bills-stream', 'Langganan Streaming', 'bills'),
-  cat('home', 'Sewa Kos'), cat('give', 'Sedekah'), cat('gadget', 'Gadget'),
+  cat('home', 'Sewa Kos'), cat('give', 'Sedekah'), cat('gadget', 'Gadget'), cat('travel', 'Liburan'), cat('travel-ticket', 'Tiket Pesawat', 'travel'), cat('travel-hotel', 'Hotel', 'travel'),
   cat('salary', 'Gaji', null, 'income'), cat('side', 'Sampingan', null, 'income'),
 ];
 

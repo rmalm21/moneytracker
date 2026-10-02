@@ -12,10 +12,13 @@ import { daysBetween } from './context.ts';
 import { roundToTotal } from './drivers.ts';
 import type { InsightMemory, ScoreSnapshot } from './lifecycle.ts';
 
+/** Health score formula version (lib/advisor.ts); bump it whenever the formula changes. */
+export const HEALTH_VERSION = 1;
 export type ScoreDelta = { previous: ScoreSnapshot; delta: number; days: number; rows: { key: string; label: string; change: number; from: number; to: number }[] };
 
 export function scoreDelta(advice: Pick<Advice, 'score' | 'parts'>, history: ScoreSnapshot[], today: string): ScoreDelta | null {
-  const earlier = history.filter(h => h.d < today).sort((a, b) => a.d.localeCompare(b.d));
+  // Only scores from the same formula version are comparable.
+  const earlier = history.filter(h => h.d < today && (h.hv ?? 1) === HEALTH_VERSION).sort((a, b) => a.d.localeCompare(b.d));
   const previous = [...earlier].reverse().find(h => daysBetween(h.d, today) >= 7) || earlier[earlier.length - 1];
   if (!previous) return null;
   const total = advice.parts.reduce((n, p) => n + p.weight, 0) || 1;
@@ -28,7 +31,7 @@ export function scoreDelta(advice: Pick<Advice, 'score' | 'parts'>, history: Sco
 
 /** Today's snapshot (replaces an earlier one from today). Keeps the last 14 days daily, then one per cycle. */
 export function recordScore(memory: InsightMemory, advice: Pick<Advice, 'score' | 'parts'>, today: string, cycleStart: string): InsightMemory {
-  const snap: ScoreSnapshot = { d: today, c: cycleStart, s: advice.score, p: Object.fromEntries(advice.parts.map(p => [p.key, Math.round(p.score * 10) / 10])) };
+  const snap: ScoreSnapshot = { d: today, c: cycleStart, s: advice.score, hv: HEALTH_VERSION, p: Object.fromEntries(advice.parts.map(p => [p.key, Math.round(p.score * 10) / 10])) };
   const list = [...memory.h.filter(h => h.d !== today), snap].sort((a, b) => a.d.localeCompare(b.d));
   const kept = list.filter((h, i) => daysBetween(h.d, today) <= 14 || !list.slice(i + 1).some(o => o.c === h.c && daysBetween(o.d, today) > 14));
   const same = memory.h.find(h => h.d === today);

@@ -29,16 +29,20 @@ export type SignalMemory = {
   n: number; sd?: string;
   /** Dismissed on / reference size then / snoozed until / resolved on. */
   dd?: string; dv?: number; dsv?: number; su?: string; r?: string;
+  /** V3: peak severity, times dismissed / snoozed, last material change. */
+  ps?: number; dc?: number; sc?: number; lm?: string;
 };
-export type ScoreSnapshot = { d: string; c: string; s: number; p: Record<string, number> };
-export type TimelineEntry = { d: string; k: string; e: 'new' | 'worse' | 'better' | 'resolved' | 'resurfaced'; t: string; tone: Status };
-export type InsightMemory = { v: 1; s: Record<string, SignalMemory>; h: ScoreSnapshot[]; tl: TimelineEntry[]; hidden?: string[] };
+/** `hv`: health formula version (absent = 1); scores of different versions are never compared. */
+export type ScoreSnapshot = { d: string; c: string; s: number; p: Record<string, number>; hv?: number };
+export type TimelineEntry = { d: string; k: string; e: 'new' | 'worse' | 'better' | 'resolved' | 'resurfaced' | 'milestone' | 'outcome'; t: string; tone: Status };
+/** V3 adds `dec` (decisions taken from Insight, see lib/insight-v3/decisions.ts) and `mi` (milestones already logged). */
+export type InsightMemory = { v: 1; s: Record<string, SignalMemory>; h: ScoreSnapshot[]; tl: TimelineEntry[]; hidden?: string[]; dec?: import('../insight-v3/decisions').DecisionRecord[]; mi?: Record<string, number>; /** V3 Lab Skenario: up to 3 saved scenarios. */ lab?: import('../insight-v3/scenario').ScenarioInput[] };
 
 export const emptyMemory = (): InsightMemory => ({ v: 1, s: {}, h: [], tl: [] });
 export function readMemory(value: unknown): InsightMemory {
   const m = value as Partial<InsightMemory> | null | undefined;
   if (!m || m.v !== 1 || typeof m.s !== 'object') return emptyMemory();
-  return { v: 1, s: { ...(m.s || {}) }, h: Array.isArray(m.h) ? m.h.slice(-24) : [], tl: Array.isArray(m.tl) ? m.tl.slice(-40) : [], ...(Array.isArray(m.hidden) ? { hidden: m.hidden.filter(x => typeof x === 'string').slice(0, 100) } : {}) };
+  return { v: 1, s: { ...(m.s || {}) }, h: Array.isArray(m.h) ? m.h.slice(-24) : [], tl: Array.isArray(m.tl) ? m.tl.slice(-40) : [], ...(Array.isArray(m.hidden) ? { hidden: m.hidden.filter(x => typeof x === 'string').slice(0, 100) } : {}), ...(Array.isArray(m.dec) ? { dec: m.dec.slice(-30) } : {}), ...(m.mi && typeof m.mi === 'object' ? { mi: { ...m.mi } } : {}), ...(Array.isArray(m.lab) ? { lab: m.lab.slice(0, 3) } : {}) };
 }
 
 const negative = (tone: Status) => tone === 'watch' || tone === 'important';
@@ -56,7 +60,7 @@ export type LifecycleResult = { signals: InsightSignal[]; resolved: ResolvedItem
  */
 export function applyLifecycle(signals: InsightSignal[], memory: InsightMemory, today: string, cycleStart: string, evaluated: Set<Domain>): LifecycleResult {
   const before = JSON.stringify(memory);
-  const next: InsightMemory = { v: 1, s: Object.fromEntries(Object.entries(memory.s).map(([k, v]) => [k, { ...v }])), h: [...memory.h], tl: [...memory.tl], ...(memory.hidden ? { hidden: [...memory.hidden] } : {}) };
+  const next: InsightMemory = { ...memory, v: 1, s: Object.fromEntries(Object.entries(memory.s).map(([k, v]) => [k, { ...v }])), h: [...memory.h], tl: [...memory.tl], ...(memory.hidden ? { hidden: [...memory.hidden] } : {}) };
   const log = (k: string, e: TimelineEntry['e'], t: string, tone: Status) => { if (!next.tl.some(x => x.k === k && x.e === e && x.d === today)) next.tl.push({ d: today, k, e, t, tone }); };
   const present = new Set<string>();
   const out = signals.map(s => {
@@ -71,6 +75,7 @@ export function applyLifecycle(signals: InsightSignal[], memory: InsightMemory, 
       if (s.material) log(s.signature, 'new', s.headline || s.title, s.tone);
     }
     rec.t = s.title; rec.tone = s.tone; rec.l = today; if (rec.c) rec.c = cycleStart;
+    if (s.severity > (rec.ps ?? 0)) rec.ps = Math.round(s.severity * 100) / 100;
     if (rec.dd) {
       const worse = s.severity >= (rec.dsv ?? 1) + .15 || mag >= (rec.dv ?? Infinity) * 1.25 && negative(s.tone);
       if (worse) { delete rec.dd; delete rec.dv; delete rec.dsv; rec.st = 'active'; rec.tr = 'worse'; rec.td = today; rec.v = mag; rec.sv = s.severity; log(s.signature, 'resurfaced', s.headline || s.title, s.tone); }
@@ -82,8 +87,8 @@ export function applyLifecycle(signals: InsightSignal[], memory: InsightMemory, 
       if (rec.su && rec.su <= today) delete rec.su;
       if (negative(s.tone) && rec.v > 0 && rec.td !== today) {
         const ratio = mag / rec.v;
-        if (ratio >= 1.15 || s.severity >= rec.sv + .15) { rec.tr = 'worse'; rec.td = today; rec.v = mag; rec.sv = s.severity; if (s.material) log(s.signature, 'worse', s.headline || s.title, s.tone); }
-        else if (ratio <= .85) { rec.tr = 'better'; rec.td = today; rec.v = mag; rec.sv = s.severity; if (s.material) log(s.signature, 'better', s.headline || s.title, 'positive'); }
+        if (ratio >= 1.15 || s.severity >= rec.sv + .15) { rec.tr = 'worse'; rec.td = today; rec.lm = today; rec.v = mag; rec.sv = s.severity; if (s.material) log(s.signature, 'worse', s.headline || s.title, s.tone); }
+        else if (ratio <= .85) { rec.tr = 'better'; rec.td = today; rec.lm = today; rec.v = mag; rec.sv = s.severity; if (s.material) log(s.signature, 'better', s.headline || s.title, 'positive'); }
       }
       state = rec.td && fresh(rec.td, today) ? (rec.tr === 'worse' ? 'WORSENING' : 'IMPROVING') : fresh(rec.f, today) ? 'NEW' : 'ACTIVE';
     }
@@ -116,13 +121,13 @@ export function applyLifecycle(signals: InsightSignal[], memory: InsightMemory, 
 export function dismiss(memory: InsightMemory, s: InsightSignal, today: string): InsightMemory {
   const next = readMemory(JSON.parse(JSON.stringify(memory)));
   const rec = next.s[s.signature] || { st: 'active', t: s.title, tone: s.tone, dm: s.domain, f: today, l: today, c: '', v: magnitude(s), sv: s.severity, n: 0 } as SignalMemory;
-  next.s[s.signature] = { ...rec, st: 'dismissed', dd: today, dv: magnitude(s), dsv: s.severity };
+  next.s[s.signature] = { ...rec, st: 'dismissed', dd: today, dv: magnitude(s), dsv: s.severity, dc: (rec.dc || 0) + 1 };
   return next;
 }
 export function snooze(memory: InsightMemory, s: InsightSignal, until: string, today: string): InsightMemory {
   const next = readMemory(JSON.parse(JSON.stringify(memory)));
   const rec = next.s[s.signature] || { st: 'active', t: s.title, tone: s.tone, dm: s.domain, f: today, l: today, c: '', v: magnitude(s), sv: s.severity, n: 0 } as SignalMemory;
-  next.s[s.signature] = { ...rec, su: until };
+  next.s[s.signature] = { ...rec, su: until, sc: (rec.sc || 0) + 1 };
   return next;
 }
 export function restoreAll(memory: InsightMemory): InsightMemory {
