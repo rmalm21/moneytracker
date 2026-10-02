@@ -7,6 +7,7 @@
  * the same OcrEngine interface as Tesseract, so the receipt logic never depends on either engine's own output format.
  */
 import type { OcrEngine, Recognized, RecognizeOptions } from './receipt-ocr.ts';
+import { healReaderCacheOnce } from './ocr-cache.ts';
 import { linesFromWords, slopeOf, unionBox, type OcrLine, type OcrWord } from './receipt-rows.ts';
 
 export type PaddleTier = 'tiny' | 'small';
@@ -26,9 +27,13 @@ export function paddleTierFor(memoryGb = typeof navigator !== 'undefined' ? (nav
  * Threads for the engine: several only when the page is cross-origin isolated (COOP + COEP headers, see firebase.json),
  * which is what lets WebAssembly share memory between workers; otherwise one (it still works, only slower).
  */
-export function paddleThreads(isolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated, cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 1) {
-  return isolated ? Math.max(1, Math.min(4, cores || 1)) : 1;
+export function paddleThreads(isolated = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated, cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : 1, failedBefore = threadsFailedBefore()) {
+  return isolated && !failedBefore ? Math.max(1, Math.min(4, cores || 1)) : 1;
 }
+/** A phone where the engine once failed to start on several threads (e.g. not enough memory) uses one from then on. */
+const ONE_THREAD_KEY = 'dompet-ajaib:paddle-one-thread';
+function threadsFailedBefore() { try { return typeof localStorage !== 'undefined' && localStorage.getItem(ONE_THREAD_KEY) === '1'; } catch { return false; } }
+function rememberThreadsFailed() { try { localStorage.setItem(ONE_THREAD_KEY, '1'); } catch { /* optional */ } }
 
 type Loading = { tier: PaddleTier; ready: Promise<Instance>; loaded?: boolean };
 let current: Loading | null = null, idle: ReturnType<typeof setTimeout> | undefined;
@@ -39,6 +44,7 @@ function instance(tier: PaddleTier) {
     void old?.ready.then(o => o.dispose()).catch(() => undefined);
     const base = `${window.location.origin}/ocr`;
     const ready = (async () => {
+      await healReaderCacheOnce();
       const { PaddleOCR } = await import('@paddleocr/paddleocr-js');
       return await PaddleOCR.create({
         textDetectionModelName: `PP-OCRv6_${tier}_det`, textDetectionModelAsset: { url: `${base}/paddle/v6-${tier}/det.tar` },
@@ -47,7 +53,8 @@ function instance(tier: PaddleTier) {
       }) as unknown as Instance;
     })();
     const entry: Loading = { tier, ready };
-    ready.then(() => { entry.loaded = true; }, () => { if (current === entry) current = null; });
+    const threads = paddleThreads();
+    ready.then(() => { entry.loaded = true; }, () => { if (current === entry) current = null; if (threads > 1) rememberThreadsFailed(); });
     current = entry;
   }
   return current.ready;

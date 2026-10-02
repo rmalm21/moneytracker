@@ -17,6 +17,7 @@
  * One field can also be read again on its own (rereadField): only its region, enlarged, digits only for amounts.
  * A sideways or upside-down photo is turned automatically when the first reading finds little.
  */
+import { healReaderCacheOnce } from './ocr-cache.ts';
 import type { Worker as TesseractWorker } from 'tesseract.js';
 import { checkReceipt, readReceiptText, receiptScore, type ReceiptCheck, type ReceiptRead } from './receipt.ts';
 import { linesFromWords, slopeOf, unionBox, type Box, type OcrLine, type OcrWord } from './receipt-rows.ts';
@@ -59,10 +60,12 @@ export interface OcrEngine {
 
 let worker: Promise<TesseractWorker> | null = null, idle: ReturnType<typeof setTimeout> | undefined;
 let report: ((message: { status: string; progress: number }) => void) | null = null;
+
 function getWorker() {
   clearTimeout(idle);
   if (!worker) {
     worker = (async () => {
+      await healReaderCacheOnce();
       const { createWorker } = await import('tesseract.js');
       const base = `${window.location.origin}/ocr`;
       const created = await createWorker(['ind', 'eng'], 1 /* LSTM only */, {
@@ -210,7 +213,12 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     if (message.status === 'recognizing text') say(stage === 'load' ? 'read' : stage, slice[0] + message.progress * (slice[1] - slice[0]), label);
     else if (stage === 'load') say('load', .1 + message.progress * .08, /download/i.test(message.status) ? 'Mengunduh pembaca struk (sekali saja)…' : 'Menyiapkan pembaca struk…');
   };
-  if (engine === tesseractEngine && !(await warm)) { report = null; try { await getWorker(); } catch { throw Error('Pembaca struk belum bisa dimuat. Periksa internet untuk pemakaian pertama, atau ketik isi struknya.'); } }
+  // Tesseract is the second opinion (and the reader when PP-OCRv6 is not used): when it cannot start, PP-OCRv6 still
+  // reads; the reading only fails when neither can.
+  let tesseractReady = engine !== tesseractEngine || Boolean(await warm);
+  if (!tesseractReady) { report = null; tesseractReady = await getWorker().then(() => true, () => false); }
+  const unavailable = () => Error('Pembaca struk belum bisa dimuat. Periksa internet untuk pemakaian pertama, atau ketik isi struknya.');
+  if (!tesseractReady && (options.engine || options.routing === 'tesseract')) throw unavailable();
   try {
     stage = 'read';
     const trace: TraceStep[] = [], t0 = Date.now();
@@ -223,8 +231,9 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     const paddle = paddleModule && paddleTier ? paddleModule.paddleEngine(paddleTier) : null;
     const paddleState = paddleModule && paddleTier ? await paddleModule.paddleState(paddleTier) : 'ready';
     let firstEngine = (routing === 'paddle' || routing === 'paddle-first') && paddle ? paddle : engine;
-    let second = routing === 'paddle-first' && paddle ? engine : routing === 'tesseract-first' ? paddle : null;
+    let second = routing === 'paddle-first' && paddle ? (tesseractReady ? engine : null) : routing === 'tesseract-first' ? paddle : null;
     let opening: OcrPass;
+    if (firstEngine === engine && !tesseractReady) throw unavailable();
     if (firstEngine === engine) opening = await runPass(engine, page, 'even', '6', 'even-6');
     else {
       // PP-OCRv6 could not start (models not cached yet and offline, too little memory): Tesseract reads instead.
@@ -233,7 +242,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
       if (paddleState === 'download') { say('load', .12, 'Mengunduh pembaca struk (sekali saja)…'); void navigator.storage?.persist?.().catch(() => undefined); }
       else if (paddleState === 'cached') say('load', .12, 'Menyiapkan pembaca struk…');
       try { opening = await runPass(firstEngine, page, 'clean', '6', 'paddle'); }
-      catch (error) { if (options.signal?.aborted) throw error; firstEngine = engine; second = null; opening = await runPass(engine, page, 'even', '6', 'even-6'); }
+      catch (error) { if (options.signal?.aborted) throw error; if (!tesseractReady) throw unavailable(); firstEngine = engine; second = null; opening = await runPass(engine, page, 'even', '6', 'even-6'); }
     }
     const passes: OcrPass[] = [opening];
     stop();
@@ -292,7 +301,9 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
       stage = 'second'; label = step.label; slice = [.55 + i * (.35 / planned.length), .55 + (i + 1) * (.35 / planned.length)];
       say('second', slice[0], label);
       const before = receiptScore(fused.read), t1 = Date.now();
-      passes.push(await step.run()); stop();
+      // A step whose reader cannot run (e.g. Tesseract did not start) is skipped; the reading so far still stands.
+      try { passes.push(await step.run()); } catch (error) { if (options.signal?.aborted) throw error; trace.push({ step: step.id, reason: 'pembaca tidak tersedia', ms: Date.now() - t1, outcome: 'skipped' }); continue; }
+      stop();
       fused = fuseReadings(passes);
       const after = receiptScore(fused.read);
       trace.push({ step: step.id, reason, ms: Date.now() - t1, outcome: settled(fused.read) ? 'settled' : after > before ? 'better' : after < before ? 'worse' : 'same' });

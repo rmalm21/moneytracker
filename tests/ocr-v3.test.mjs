@@ -49,8 +49,9 @@ test('PP-OCRv6 segments are loose pieces: on a tie the rebuilt rows are read, no
 });
 
 test('several engine threads only on an isolated page (otherwise one, which always works)', () => {
-  assert.equal(paddleThreads(false, 8), 1);
-  assert.equal(paddleThreads(true, 8), 4);
-  assert.equal(paddleThreads(true, 2), 2);
-  assert.equal(paddleThreads(true, 0), 1);
+  assert.equal(paddleThreads(false, 8, false), 1);
+  assert.equal(paddleThreads(true, 8, false), 4);
+  assert.equal(paddleThreads(true, 2, false), 2);
+  assert.equal(paddleThreads(true, 0, false), 1);
+  assert.equal(paddleThreads(true, 8, true), 1); // failed to start on threads before
 });

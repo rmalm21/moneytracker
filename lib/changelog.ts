@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.4', date: '2 Okt 2026', title: 'Perbaikan: pembaca struk tidak bisa dimuat', items: [
+    ['✅', 'Memperbaiki pesan “Pembaca struk belum bisa dimuat” setelah update 3.3. File pembaca lama yang tersimpan di HP kini diperbarui otomatis, tanpa perlu menghapus data aplikasi.'],
+    ['✅', 'Kalau salah satu dari dua pembaca struk gagal dimulai, yang lain tetap membaca. Pesan gagal hanya muncul kalau keduanya tidak bisa.'],
+    ['📷', 'HP yang tidak sanggup membaca dengan beberapa inti prosesor sekaligus otomatis memakai mode biasa di scan berikutnya.'],
+  ] },
   { version: '3.3', date: '1 Okt 2026', title: 'Scan struk jauh lebih cepat', items: [
     ['📷', 'Scan struk kini sekitar 2–3 kali lebih cepat: pembaca struk memakai beberapa inti prosesor HP sekaligus, dengan hasil baca yang sama.'],
     ['📷', 'Bahan pembaca mulai disiapkan begitu layar Scan struk dibuka, jadi tidak perlu menunggu lagi setelah foto diambil.'],

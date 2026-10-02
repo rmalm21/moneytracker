@@ -1,5 +1,5 @@
 // Dompet Ajaib service worker: fast app shell, offline fallback, and user-approved updates.
-const VERSION = 'v12';
+const VERSION = 'v13';
 const STATE = 'dompet-ajaib-state';
 const SHELL = `dompet-ajaib-shell-${VERSION}`;
 const RUNTIME = `dompet-ajaib-runtime-${VERSION}`;
@@ -30,11 +30,13 @@ self.addEventListener('fetch', event => {
   }
   // Hashed build files never change, and the receipt readers' models and runtime (/ocr: Tesseract, PP-OCRv6, ONNX
   // Runtime) only change with a new app version: serve from cache first, download once.
+  // The page is cross-origin isolated (for the receipt reader's threads), and the browser then only starts a worker whose
+  // script says so too: every copy served from here carries those headers, also a copy saved before they existed.
   if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/ocr/')) {
     event.respondWith(caches.match(request).then(saved => saved || fetch(request).then(response => {
       if (response.ok) { const copy = response.clone(); caches.open(RUNTIME).then(cache => cache.put(request, copy)); }
       return response;
-    })));
+    })).then(isolated));
     return;
   }
   // Everything else on this site: show the cached copy immediately and refresh it in the background.
@@ -58,6 +60,12 @@ self.addEventListener('notificationclick', event => {
 });
 
 // Background check (Android, installed app): the browser wakes the worker now and then; show a reminder that is due.
+function isolated(response) {
+  if (!response || response.type === 'opaque' || response.headers.get('cross-origin-embedder-policy')) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cross-Origin-Embedder-Policy', 'require-corp'); headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 const readJson = key => caches.open(STATE).then(cache => cache.match(key)).then(hit => hit ? hit.json() : null).catch(() => null);
 const writeJson = (key, value) => caches.open(STATE).then(cache => cache.put(key, new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })));
 const toMinutes = time => { const [h, m] = String(time).split(':').map(Number); return h * 60 + m; };
