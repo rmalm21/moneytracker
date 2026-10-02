@@ -32,12 +32,12 @@ test('zero and negative balances earn nothing (no negative interest)', () => {
   assert.deepEqual(planInterest(wallet(-1_000_000, on()), [], '2026-10-05'), []);
 });
 
-test('one completed day: credited whole rupiah, the fraction carried; today is never credited early', () => {
+test('one completed day: credited whole rupiah (rounded half up); today is never credited early', () => {
   const plan = planInterest(wallet(10_000_000, on()), [], '2026-10-02');
   assert.equal(plan.length, 1);
   assert.deepEqual([plan[0].id, plan[0].date, plan[0].amount], [interestId('jenius', '2026-10-01'), '2026-10-01', 986]);
   assert.equal(plan[0].record.closing, 10_000_000);
-  assert.equal(plan[0].record.carryOutMicro, 301_370);
+  assert.equal(plan[0].record.carryOutMicro, 0);
   assert.deepEqual(planInterest(wallet(10_000_000, on()), [], '2026-10-01'), []);
 });
 
@@ -47,8 +47,8 @@ test('catch-up over missed days compounds day by day on each closing balance', (
   assert.equal(plan[1].record.closing, 10_000_986);
   assert.equal(plan[2].record.closing, 10_000_986 + plan[1].amount);
   // Not "today's balance × 4 days": each day uses its own closing balance.
-  let balance = 10_000_000, carry = 0;
-  for (const p of plan) { assert.equal(p.record.closing, balance); const net = p.record.netMicro + carry; assert.equal(p.amount, Math.floor(net / 1e6)); carry = net % 1e6; balance += p.amount; }
+  let balance = 10_000_000;
+  for (const p of plan) { assert.equal(p.record.closing, balance); assert.equal(p.amount, Math.round(p.record.netMicro / 1e6)); balance += p.amount; }
 });
 
 test('a transaction during the catch-up period changes the following days only', () => {
@@ -125,13 +125,14 @@ test('a backdated transaction recalculates the affected days (update, not duplic
   assert.deepEqual(gone.remove.map(t => t.date), ['2026-10-02', '2026-10-03', '2026-10-04']);
 });
 
-test('rounding: small balances still earn over time (carry), and the total matches the exact sum', () => {
-  const plan = planInterest(wallet(100_000, on(4.5, { tax: false })), [], addDays('2026-10-01', 30));
-  const exact = 100_000 * 0.045 / 365; // ≈ Rp12,33 a day
-  assert.ok(plan.length === 30 && plan.every(p => p.amount === 12 || p.amount === 13));
-  const tiny = planInterest(wallet(5_000, on(4.5, { tax: false })), [], addDays('2026-10-01', 30));
-  assert.ok(tiny.length >= 18 && tiny.every(p => p.amount === 1));
-  assert.ok(Math.abs(plan.reduce((n, p) => n + p.amount, 0) - exact * 30) < 1.5);
+test('rounding: half up per payout (10,77 → 11, 10,30 → 10), nothing carried; under Rp0,50 a day earns nothing', async () => {
+  const { creditOf } = await import('../lib/wallet-interest.ts');
+  assert.equal(creditOf(BigInt(10_770_000)), 11); assert.equal(creditOf(BigInt(10_500_000)), 11);
+  assert.equal(creditOf(BigInt(10_499_999)), 10); assert.equal(creditOf(BigInt(10_300_000)), 10); assert.equal(creditOf(BigInt(0)), 0);
+  const plan = planInterest(wallet(100_000, on(4.5, { tax: false })), [], addDays('2026-10-01', 30)); // ≈ Rp12,33 a day
+  assert.ok(plan.length === 30 && plan.every(p => p.amount === 12));
+  assert.ok(plan.every(p => p.record.carryInMicro === 0 && p.record.carryOutMicro === 0));
+  assert.deepEqual(planInterest(wallet(3_000, on(4.5, { tax: false })), [], addDays('2026-10-01', 30)), []); // ≈ Rp0,37 a day
 });
 
 test('large balances stay exact', () => {
@@ -174,7 +175,7 @@ test('monthly payout on a chosen date: accrues daily, pays once, no compounding 
   assert.deepEqual(planned.map(p => p.date), ['2026-10-25']);
   assert.equal(planned[0].record.days, 25); assert.equal(planned[0].record.accrualFrom, '2026-10-01');
   // 25 days on an unchanged balance (nothing paid in between): 25 × Rp986,30
-  assert.equal(planned[0].amount, Math.floor(25 * 986.30137));
+  assert.equal(planned[0].amount, Math.round(25 * 986.30137));
   assert.equal(pending.from, '2026-10-26'); assert.equal(pending.days, 8); assert.equal(pending.nextPayout, '2026-11-25');
   // Day 31 in a 30-day month pays on the 30th; February on its last day.
   assert.ok(isPayoutDay('2026-11-30', { payout: 'month', payoutDay: 31 }));

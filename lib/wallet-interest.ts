@@ -11,8 +11,8 @@
  * a refresh, a second tab or a second phone all lead to the same records; every record has a fixed id
  * (`wint_{walletId}_{YYYY-MM-DD}`), so a day can never be credited twice.
  *
- * Precision: amounts are worked out in micro-rupiah with integers (BigInt). Only whole rupiah are credited; the
- * fraction below Rp1 is carried to the next day, so nothing is lost over time and no floating point drift builds up.
+ * Precision: amounts are worked out in micro-rupiah with integers (BigInt), so no floating point drift builds up.
+ * Only whole rupiah are credited: each payout is rounded half up (Rp10,77 → Rp11).
  */
 import { effects } from './accounting.ts';
 import type { LedgerTx, Wallet } from './types.ts';
@@ -28,7 +28,7 @@ export type WalletInterest = { enabled: boolean; startDate: string; endDate?: st
 /** The calculation behind one credited day, kept on its transaction. Micro-rupiah = rupiah × 1 000 000. */
 export type InterestRecord = {
   source: 'wallet_interest'; walletId: string; date: string; closing: number; rate: number; basis: InterestBasis;
-  taxEnabled: boolean; taxRate: number; grossMicro: number; taxMicro: number; netMicro: number; carryInMicro: number; carryOutMicro: number;
+  taxEnabled: boolean; taxRate: number; grossMicro: number; taxMicro: number; netMicro: number; /** Always 0 since payouts are rounded on their own (kept for records made before). */ carryInMicro: number; carryOutMicro: number;
   /** Paid weekly or monthly: the accrual days this payment covers (from `accrualFrom` to `date`) and how it is paid. */
   accrualFrom?: string; days?: number; payout?: InterestPayout;
   /** Checked against the bank by the user: the transaction's amount is then the bank's, `calculated` the app's own.
@@ -63,6 +63,8 @@ export function dailyInterest(closing: number, period: Pick<InterestPeriod, 'rat
   const taxMicro = period.tax ? grossMicro * scaled(period.taxRate) / (BigInt(10000) * BigInt(100)) : BigInt(0);
   return { grossMicro, taxMicro, netMicro: grossMicro - taxMicro };
 }
+/** The rupiah credited for an accrued amount: ordinary rounding, half up (Rp10,77 → Rp11, Rp10,30 → Rp10). */
+export const creditOf = (micro: bigint) => micro > BigInt(0) ? Number((micro + MICRO / BigInt(2)) / MICRO) : 0;
 /** Micro-rupiah → rupiah with decimals, for showing the calculation (Rp1.232,88). */
 export const microToRupiah = (micro: bigint | number) => Number(BigInt(micro)) / 1e6;
 
@@ -131,7 +133,7 @@ export function runInterest(wallet: Pick<Wallet, 'id' | 'openingBalance'> & { in
   }
   const zero = BigInt(0);
   const planned: PlannedInterest[] = [];
-  let credited = 0, carry = zero, day = settings.startDate;
+  let credited = 0, day = settings.startDate;
   let acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 };
   for (let n = 0; n < MAX_DAYS && day <= last; n++, day = addDays(day, 1)) {
     running += byDay.get(day) || 0;
@@ -140,24 +142,24 @@ export function runInterest(wallet: Pick<Wallet, 'id' | 'openingBalance'> & { in
       const d = dailyInterest(closing, period);
       if (d.grossMicro > zero) { acc = { gross: acc.gross + d.grossMicro, tax: acc.tax + d.taxMicro, net: acc.net + d.netMicro, from: acc.from || day, days: acc.days + 1 }; }
     }
-    if (confirmedDays.has(day)) { carry = zero; acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 }; continue; }
+    if (confirmedDays.has(day)) { acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 }; continue; }
     if (!period || !acc.days || !(isPayoutDay(day, period) || (closesWindow && day === last))) continue;
-    const pot = acc.net + carry, amount = Number(pot / MICRO), carryIn = carry;
-    carry = pot % MICRO;
+    // Each payout is rounded on its own (half up); nothing is carried to the next one.
+    const amount = creditOf(acc.net);
     if (amount > 0) {
       credited += amount;
       const several = acc.days > 1 || acc.from !== day;
       planned.push({ id: interestId(wallet.id, day), date: day, amount, record: {
         source: 'wallet_interest', walletId: wallet.id, date: day, closing, rate: period.rate, basis: period.basis,
         taxEnabled: period.tax, taxRate: period.tax ? period.taxRate : 0,
-        grossMicro: Number(acc.gross), taxMicro: Number(acc.tax), netMicro: Number(acc.net), carryInMicro: Number(carryIn), carryOutMicro: Number(carry),
+        grossMicro: Number(acc.gross), taxMicro: Number(acc.tax), netMicro: Number(acc.net), carryInMicro: 0, carryOutMicro: 0,
         ...(several ? { accrualFrom: acc.from, days: acc.days } : {}), ...(period.payout && period.payout !== 'day' ? { payout: period.payout } : {}),
       } });
     }
     acc = { gross: zero, tax: zero, net: zero, from: '', days: 0 };
   }
   const period = periodOn(settings, today) || periodOn(settings, last);
-  const pending = acc.days ? { micro: Number(acc.net + carry), from: acc.from, days: acc.days, nextPayout: period && !closesWindow ? nextPayout(today, period) : null } : null;
+  const pending = acc.days ? { micro: Number(acc.net), from: acc.from, days: acc.days, nextPayout: period && !closesWindow ? nextPayout(today, period) : null } : null;
   return { planned, pending };
 }
 
@@ -193,23 +195,23 @@ export function estimateToday(wallet: Pick<Wallet, 'id' | 'openingBalance'> & { 
   if (!period) return null;
   const closing = wallet.openingBalance + transactions.filter(tx => tx.date <= today).reduce((sum, tx) => sum + (effects(tx)[wallet.id] || 0), 0);
   const day = dailyInterest(closing, period);
-  return { closing, ...day, net: Math.round(microToRupiah(day.netMicro)) };
+  return { closing, ...day, net: creditOf(day.netMicro) };
 }
 
 /**
- * The simulation on the settings screen: the same daily formula and the same whole-rupiah crediting with carry,
+ * The simulation on the settings screen: the same daily formula and the same rounding per payout,
  * compounding for `days` days with no other transactions. Informational only; it writes nothing.
  */
 export function simulateInterest(balance: number, period: Pick<InterestPeriod, 'rate' | 'basis' | 'tax' | 'taxRate' | 'payout'>, days = 30) {
   const first = dailyInterest(balance, period);
   // Paid every day, every 7 days or every 30 days (a simple stand-in for the real calendar; informational only).
   const every = period.payout === 'week' ? 7 : period.payout === 'month' ? 30 : 1;
-  let current = Math.max(0, Math.round(balance)), carry = BigInt(0), accrued = BigInt(0), total = 0;
+  let current = Math.max(0, Math.round(balance)), accrued = BigInt(0), total = 0;
   for (let n = 1; n <= days; n++) {
     accrued += dailyInterest(current, period).netMicro;
     if (n % every && n !== days) continue;
-    const pot = accrued + carry, amount = Number(pot / MICRO);
-    carry = pot % MICRO; accrued = BigInt(0); current += amount; total += amount;
+    const amount = creditOf(accrued);
+    accrued = BigInt(0); current += amount; total += amount;
   }
   return { gross: microToRupiah(first.grossMicro), tax: microToRupiah(first.taxMicro), net: microToRupiah(first.netMicro), days, total, ending: current };
 }

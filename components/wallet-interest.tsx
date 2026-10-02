@@ -12,7 +12,7 @@ import { Button } from './ui/button';
 import { Field, Input, Money, Select } from './fields';
 import { rupiah } from '@/lib/accounting';
 import { todayInTimeZone } from '@/lib/period';
-import { annualRate, DEFAULT_TAX_RATE, estimateToday, microToRupiah, periodOn, runInterest, simulateInterest, unconfirmedInterest, updateInterestSettings, type InterestBasis, type InterestPayout, type InterestPending } from '@/lib/wallet-interest';
+import { annualRate, creditOf, DEFAULT_TAX_RATE, estimateToday, microToRupiah, periodOn, runInterest, simulateInterest, unconfirmedInterest, updateInterestSettings, type InterestBasis, type InterestPayout, type InterestPending } from '@/lib/wallet-interest';
 import type { LedgerTx, Wallet } from '@/lib/types';
 
 const WEEKDAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
@@ -125,7 +125,7 @@ export function InterestSheet({ wallet, open, onOpenChange, notify }: { wallet: 
 function InterestSummary({ wallet, state, notify }: { wallet: Wallet; state: ReturnType<typeof useInterestState>; notify: (message: string) => void }) {
   return <section className="int-status">
     <dl>
-      {state.pending && state.pending.nextPayout && state.pending.nextPayout > state.today && <div><dt>Terkumpul, belum cair</dt><dd>+{rupiah(Math.floor(microToRupiah(state.pending.micro)))}<small>cair {dateLabel(state.pending.nextPayout)}</small></dd></div>}
+      {state.pending && state.pending.nextPayout && state.pending.nextPayout > state.today && <div><dt>Terkumpul, belum cair</dt><dd>+{rupiah(creditOf(BigInt(state.pending.micro)))}<small>cair {dateLabel(state.pending.nextPayout)}</small></dd></div>}
       {state.estimate && <div><dt>Estimasi hari ini</dt><dd>+{rupiah(state.estimate.net)}<small>belum masuk saldo</small></dd></div>}
       {state.last && <div><dt>Terakhir cair</dt><dd>+{rupiah(state.last.amount)}<small>{dateLabel(state.last.date)}</small></dd></div>}
     </dl>
