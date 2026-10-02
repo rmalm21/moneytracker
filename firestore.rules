@@ -32,13 +32,26 @@ service cloud.firestore {
         && data.extras is list && data.extras.size() <= 60
         && data.payments is list && data.payments.size() <= 500;
     }
+    // Bunga saldo otomatis: a credited day is an income with its calculation, on the id of its wallet and date
+    // (wint_{walletId}_{date}), so a day can exist only once. Other transactions cannot pose as one.
+    function interestOk(transactionId) {
+      let data = request.resource.data;
+      let marked = transactionId.matches('wint_.*');
+      return (!marked && !('interest' in data))
+        || (marked && 'interest' in data && data.interest is map
+            && data.interest.get('source', '') == 'wallet_interest'
+            && data.type == 'income' && data.amount is int && data.amount > 0
+            && data.interest.get('walletId', '') == data.walletId
+            && data.interest.get('date', '') == data.date
+            && transactionId == 'wint_' + data.walletId + '_' + data.date);
+    }
     function validName(data, longest) { return data.name is string && data.name.size() > 0 && data.name.size() <= longest; }
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {
         allow read, delete: if own(userId);
-        allow create: if own(userId) && expenseAllowed(userId, null);
-        allow update: if own(userId) && expenseAllowed(userId, resource);
+        allow create: if own(userId) && expenseAllowed(userId, null) && interestOk(transactionId);
+        allow update: if own(userId) && expenseAllowed(userId, resource) && interestOk(transactionId);
       }
       // Split Bill: bills, saved people and groups belong to the signed-in user only.
       match /splitBills/{billId} {

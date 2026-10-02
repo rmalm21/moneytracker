@@ -34,6 +34,11 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(!user||!profile||(profile.appearanceDefaults||0)>=2)return;void saveProfile(user.uid,{appearanceDefaults:2,...(!profile.fontSize||profile.fontSize==='m'?{fontSize:'s' as const}:{})}).catch(()=>{});},[user,profile?.uid,profile?.appearanceDefaults]);
   useEffect(()=>{if(user&&profile&&data.budgets.some(b=>b.rolloverEnabled))void settleBudgets(user.uid,data.budgets,profile.salaryCycleStartDay,dateInTimeZone(new Date(),profile.timeZone)).catch(e=>setError(e.message));},[user,profile?.uid,profile?.salaryCycleStartDay,profile?.timeZone,data.budgets]);
   useEffect(()=>{if(user&&data.recurring.length&&typeof navigator!=='undefined'&&navigator.onLine)void createDueDrafts(user.uid,data.recurring,todayInTimeZone(profile?.timeZone)).catch(e=>setError(e.message));},[user,profile?.timeZone,data.recurring]);
+  // Bunga saldo otomatis: completed days are credited lazily when the app is open (lib/interest-store.ts). Runs again
+  // after transactions change, so a backdated edit recalculates the affected days; writes are idempotent per day.
+  const txKey=`${data.transactions.length}:${data.transactions.reduce((n,t)=>n+t.amount+t.date.length,0)}`;
+  const interestKey=data.wallets.filter(w=>(w.interest?.enabled||w.interest?.endDate)&&!w.isArchived).map(w=>`${w.id}:${JSON.stringify(w.interest)}`).join('|');
+  useEffect(()=>{if(!user||!interestKey||typeof navigator==='undefined'||!navigator.onLine)return;const timer=setTimeout(()=>{void import('@/lib/interest-store').then(m=>m.accrueInterest(user.uid,data.wallets,data.categories,todayInTimeZone(profile?.timeZone))).catch(e=>console.error('Bunga saldo:',e));},2500);return()=>clearTimeout(timer);},[user,interestKey,profile?.timeZone,txKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{if(user&&data.drafts.some(d=>d.status==='pending'&&d.mode==='auto')&&typeof navigator!=='undefined'&&navigator.onLine)void postAutoDrafts(user.uid,data.drafts);},[user,data.drafts]);
   const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
   const value={user,profile,data:view,loading,error,cycle,sync,ready:configured};return <Context.Provider value={value}>{children}</Context.Provider>;

@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.5', date: '2 Okt 2026', title: 'Bunga saldo otomatis', items: [
+    ['💰', 'Bunga otomatis per dompet: isi bunga per tahun (boleh desimal, mis. 4,5%), pajak bunga bisa dinyalakan dengan tarif bebas, lalu pilih bunga cair tiap hari, tiap minggu, atau tiap bulan di tanggal pilihanmu.'],
+    ['💡', 'Bunga dihitung dari saldo akhir tiap hari, lengkap dengan simulasi sebelum disimpan. Hari yang terlewat dihitung satu per satu saat aplikasi dibuka, tanpa dobel walau dibuka di dua HP.'],
+    ['✅', 'Setiap bunga yang cair bisa dicocokkan dengan bank langsung di menu Transaksi: ketuk “Sesuai”, atau “Ubah” untuk memakai nominal dari bank. Saldo ikut disesuaikan.'],
+    ['📝', 'Bagian atas detail dompet kini lebih ringkas: saldo, status bunga, dan tombol aksi dalam satu baris.'],
+    ['📷', 'Garis pemindai di Scan struk kini terus bergerak selama struk dibaca.'],
+  ] },
   { version: '3.4', date: '2 Okt 2026', title: 'Perbaikan: pembaca struk tidak bisa dimuat', items: [
     ['✅', 'Memperbaiki pesan “Pembaca struk belum bisa dimuat” setelah update 3.3. File pembaca lama yang tersimpan di HP kini diperbarui otomatis, tanpa perlu menghapus data aplikasi.'],
     ['✅', 'Kalau salah satu dari dua pembaca struk gagal dimulai, yang lain tetap membaca. Pesan gagal hanya muncul kalau keduanya tidak bisa.'],
