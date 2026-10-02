@@ -22,8 +22,8 @@ test('rows of a tilted receipt are not merged: the slope comes from the segments
   assert.ok(/^GREEN LEAF MIRROR\s+20,000$/.test(rows[0]), rows[0]);
 });
 
-test('the small model only where the device has the memory for it', () => {
-  assert.equal(paddleTierFor(4), 'tiny'); assert.equal(paddleTierFor(8), 'small'); assert.equal(paddleTierFor(undefined), 'tiny');
+test('the small model on 4 GB phones and up (and when the browser does not say), tiny only below', () => {
+  assert.equal(paddleTierFor(2), 'tiny'); assert.equal(paddleTierFor(4), 'small'); assert.equal(paddleTierFor(8), 'small'); assert.equal(paddleTierFor(undefined), 'small');
 });
 
 test('screenshot vs photo: flat blocks and a phone-screen shape', () => {

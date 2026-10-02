@@ -6,7 +6,7 @@ import { readReceiptPhoto } from '@/lib/receipt-ocr';
  * Development-only page for the receipt benchmark (bench/receipts/run.mjs). It exposes window.__readReceipt so the
  * runner can read a photo with the same code the app uses, with a chosen engine. In a production build it shows nothing.
  */
-type Options = { engine?: 'tesseract' | 'paddle-tiny' | 'paddle-small' | 'paddle-first' | 'tesseract-first' };
+type Options = { engine?: 'tesseract' | 'paddle-tiny' | 'paddle-small' | 'paddle-first' | 'paddle-first-tiny' | 'tesseract-first' };
 export default function OcrBench() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -16,7 +16,7 @@ export default function OcrBench() {
       const blob = await (await fetch(url)).blob();
       const { paddleEngine } = await import('@/lib/ocr-paddle');
       const engine = options.engine === 'paddle-tiny' ? paddleEngine('tiny') : options.engine === 'paddle-small' ? paddleEngine('small') : undefined;
-      const result = await readReceiptPhoto(blob, undefined, { ...(engine ? { engine } : {}), ...(options.engine === 'paddle-first' || options.engine === 'tesseract-first' || options.engine === 'tesseract' ? { routing: options.engine } : {}) } as never) as unknown as Record<string, unknown>;
+      const result = await readReceiptPhoto(blob, undefined, { ...(engine ? { engine } : {}), ...(options.engine === 'paddle-first' || options.engine === 'tesseract-first' || options.engine === 'tesseract' ? { routing: options.engine } : {}), ...(options.engine === 'paddle-first-tiny' ? { routing: 'paddle-first', paddleTier: 'tiny' } : {}) } as never) as unknown as Record<string, unknown>;
       // The working images are large; only the reading goes back to the runner.
       const { prepared: _prepared, passList, ...rest } = result as { prepared?: unknown; passList?: { id: string; text: string; confidence: number }[] } & Record<string, unknown>;
       return JSON.parse(JSON.stringify({ ...rest, passList: (passList || []).map(p => ({ id: p.id, text: p.text, confidence: p.confidence })) }));

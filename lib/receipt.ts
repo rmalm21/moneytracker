@@ -494,7 +494,11 @@ function readPaperText(text: string): ReceiptRead {
   const fuelDetail = type === 'fuel' ? /\b(harga\s*\/?\s*(l|liter|ltr)|\/\s*(l|liter|ltr)\b|volume|liter|ltr|pompa|pulau|nozzle|shift|spbu)\b/i : null;
   const nearItem = (position: number) => Boolean(lastItem && !summary && (lastItemPos === position - 1 || kinds[position - 1] === 'modifier'));
   lines.forEach((line, position) => {
-    const date = readReceiptDate(line), time = timeOf(line);
+    // "Tgl.07-28-202613:40:27": the year and the time printed (or read) without a space between them.
+    const dated = line.replace(/(\b\d{1,2}[-/.]\d{1,2}[-/.]20\d{2})(?=[01]?\d[:.][0-5]\d)/, '$1 ');
+    // "07:00 - 22:00" is opening hours or a delivery window, never the time of the purchase.
+    const range = /(?<![\d.\/-])\d{1,2}[:.][0-5]\d\s*[-–]\s*\d{1,2}[:.][0-5]\d(?![\d.:])/.test(dated);
+    const date = readReceiptDate(dated), time = range ? '' : timeOf(dated);
     if (date || (time && /\b(jam|time|waktu|pukul|tgl|tanggal|date)\b/i.test(line))) {
       kinds[position] = 'meta';
       if (date) dates.push({ date, time, position, score: (/\b(tgl|tanggal|date|tanggal transaksi|waktu)\b/i.test(line) ? 3 : 0) + (time ? 2 : 0) + (position < Math.max(8, lines.length * .4) ? 1 : 0) - (NOT_PURCHASE.test(line) ? 20 : 0) });

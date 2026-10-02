@@ -188,7 +188,7 @@ export function failureOf(read: ReceiptRead): string[] {
  * receipt does not add up yet (and for the closer looks at regions); 'tesseract-first' = the other way round.
  */
 export type Routing = 'tesseract' | 'paddle' | 'paddle-first' | 'tesseract-first';
-export type ReadOptions = { turn?: number; corners?: Quad; signal?: AbortSignal; engine?: OcrEngine; routing?: Routing; /** Already prepared (by analyzeReceiptPhoto, for the same photo and turn). */ prepared?: Prepared };
+export type ReadOptions = { turn?: number; corners?: Quad; signal?: AbortSignal; engine?: OcrEngine; routing?: Routing; /** PP-OCRv6 size; by default chosen from the device's memory. */ paddleTier?: 'tiny' | 'small'; /** Already prepared (by analyzeReceiptPhoto, for the same photo and turn). */ prepared?: Prepared };
 /**
  * Reads a receipt photo. Throws with a friendly message when the reader cannot start (old browser, first download
  * failed offline) or when it was cancelled.
@@ -208,7 +208,7 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
   let slice: [number, number] = [.18, .55], label = 'Membaca tulisan…', stage: OcrStage = 'load';
   report = message => {
     if (message.status === 'recognizing text') say(stage === 'load' ? 'read' : stage, slice[0] + message.progress * (slice[1] - slice[0]), label);
-    else if (stage === 'load') say('load', .1 + message.progress * .08, /load|download/i.test(message.status) ? 'Menyiapkan pembaca struk (sekali saja)…' : 'Menyiapkan pembaca struk…');
+    else if (stage === 'load') say('load', .1 + message.progress * .08, /download/i.test(message.status) ? 'Mengunduh pembaca struk (sekali saja)…' : 'Menyiapkan pembaca struk…');
   };
   if (engine === tesseractEngine && !(await warm)) { report = null; try { await getWorker(); } catch { throw Error('Pembaca struk belum bisa dimuat. Periksa internet untuk pemakaian pertama, atau ketik isi struknya.'); } }
   try {
@@ -218,14 +218,20 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     // PP-OCRv6 first: on the real receipts measured (bench/realworld) it read totals, items and the shop better than
     // Tesseract alone, with no fake items; Tesseract is the second opinion and the fallback.
     const routing = options.engine ? 'tesseract' : options.routing || 'paddle-first';
-    const paddle = routing === 'tesseract' ? null : await import('./ocr-paddle.ts').then(m => m.paddleEngine(m.paddleTierFor())).catch(() => null);
+    const paddleModule = routing === 'tesseract' ? null : await import('./ocr-paddle.ts').catch(() => null);
+    const paddleTier = paddleModule && (options.paddleTier || paddleModule.paddleTierFor());
+    const paddle = paddleModule && paddleTier ? paddleModule.paddleEngine(paddleTier) : null;
+    const paddleState = paddleModule && paddleTier ? await paddleModule.paddleState(paddleTier) : 'ready';
     let firstEngine = (routing === 'paddle' || routing === 'paddle-first') && paddle ? paddle : engine;
     let second = routing === 'paddle-first' && paddle ? engine : routing === 'tesseract-first' ? paddle : null;
     let opening: OcrPass;
     if (firstEngine === engine) opening = await runPass(engine, page, 'even', '6', 'even-6');
     else {
       // PP-OCRv6 could not start (models not cached yet and offline, too little memory): Tesseract reads instead.
-      say('load', .12, 'Menyiapkan pembaca struk (sekali saja)…');
+      // Only a real first download says so; models already saved on the phone just load (a second or two), and models
+      // still in memory from the last photo need nothing at all.
+      if (paddleState === 'download') { say('load', .12, 'Mengunduh pembaca struk (sekali saja)…'); void navigator.storage?.persist?.().catch(() => undefined); }
+      else if (paddleState === 'cached') say('load', .12, 'Menyiapkan pembaca struk…');
       try { opening = await runPass(firstEngine, page, 'clean', '6', 'paddle'); }
       catch (error) { if (options.signal?.aborted) throw error; firstEngine = engine; second = null; opening = await runPass(engine, page, 'even', '6', 'even-6'); }
     }

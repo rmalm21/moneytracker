@@ -165,3 +165,36 @@ ENGINE=paddle-first                   node bench/receipts/run.mjs http://localho
 ```
 
 Results are written to `bench/receipts/out/result-<label>.json` (not committed).
+
+## 11. App 3.3: speed (same reading, 2–3× faster)
+
+| Set | Mode | 3.2 time | 3.3 time | Quality 3.2 → 3.3 |
+|---|---|---|---|---|
+| Real 5 | paddle-first (default) | 17.7 s | **6.2 s** | unchanged; time-of-day 100 % (a delivery window is no longer taken as the time) |
+| Real 5 | PP-OCRv6 small | 13.4 s | 5.2 s | unchanged |
+| Real 5 | PP-OCRv6 tiny | 6.1 s | 3.8 s | unchanged |
+| Synthetic 16 | paddle-first | 5.7 s | 3.1 s | date/time 88 → 100 % |
+| Synthetic 39 | paddle-first | 8.1 s | 3.8 s | date 92 → 100 % |
+
+What changed:
+- **Four threads.** COOP `same-origin` + COEP `require-corp` (firebase.json) make the page cross-origin isolated, so ONNX
+  Runtime uses up to 4 threads. Recognition with the small model went from 9.5 s to 3.5 s per pass.
+  - Google Fonts and the Firebase APIs are compatible with these headers; this was checked.
+  - Without isolation the engine still runs, on one thread.
+- **No unneeded re-read.** The whole-photo re-read runs only when the first reading is incomplete: it does not add up,
+  or the shop or date is missing.
+- **Preloading.** The models start loading when Scan struk opens, and stay in memory for 10 minutes after use.
+- **Model choice.** Phones with 4 GB or more (and iPhones, which do not report memory) use the small models.
+  - On real receipts, default mode with tiny read 80 % of totals and dates, against 100 % with small.
+  - Tiny remains for phones with less than 4 GB.
+- **Parser fixes.**
+  - A subtotal printed before item discounts (Alfamart) is accepted.
+  - "07:00 - 22:00" is a window, not the purchase time.
+  - A time glued to the year ("202613:40:27") is read.
+
+**Caching was checked.** On the second scan, every model and runtime file came from the service-worker cache, with no
+network request. The "Mengunduh pembaca struk (sekali saja)" message now appears only when a file is really missing
+from the cache; it used to appear on every reading.
+
+The times above are from this container (4 cores, headless Chromium). Phones differ; the ratio between 3.2 and 3.3 is
+the meaningful part.

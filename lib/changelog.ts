@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.3', date: '1 Okt 2026', title: 'Scan struk jauh lebih cepat', items: [
+    ['📷', 'Scan struk kini sekitar 2–3 kali lebih cepat: pembaca struk memakai beberapa inti prosesor HP sekaligus, dengan hasil baca yang sama.'],
+    ['📷', 'Bahan pembaca mulai disiapkan begitu layar Scan struk dibuka, jadi tidak perlu menunggu lagi setelah foto diambil.'],
+    ['🔒', 'Pembaca struk tersimpan di HP setelah unduhan pertama dan tidak diunduh ulang. Pesan “Mengunduh pembaca struk” kini hanya muncul saat memang mengunduh; setelah itu langsung membaca, dan pembaca tetap siap selama 10 menit setelah dipakai.'],
+    ['💡', 'Struk yang sudah terbaca lengkap tidak dibaca ulang. Bacaan tambahan hanya dipakai kalau ada yang kurang.'],
+    ['✅', 'HP dengan RAM 4 GB ke atas (dan iPhone) kini memakai pembaca yang lebih teliti: total dan tanggal lebih sering benar.'],
+    ['🧾', 'Struk dengan subtotal sebelum diskon (mis. Alfamart) langsung dianggap cocok, dan jam kirim seperti “07:00 - 22:00” tidak lagi dikira jam belanja.'],
+  ] },
   { version: '3.2', date: '1 Okt 2026', title: 'Pembaca struk baru: PP-OCRv6', items: [
     ['📷', 'Scan struk kini memakai pembaca tulisan baru (PP-OCRv6) di HP-mu sendiri. Struk yang miring, pudar, atau difoto di meja lebih sering terbaca benar. Pembaca lama tetap jadi cadangan.'],
     ['🔒', 'Semua tetap dibaca di perangkat: tidak ada foto atau teks yang diunggah. Bahan pembaca diunduh sekali (± 20 MB), setelah itu bisa dipakai offline.'],

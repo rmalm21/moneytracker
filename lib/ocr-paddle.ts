@@ -13,9 +13,13 @@ export type PaddleTier = 'tiny' | 'small';
 type Item = { poly: number[][] | { x: number; y: number }[]; text: string; score: number };
 type Instance = { predict(image: Blob | ImageBitmap, params?: Record<string, unknown>): Promise<{ items: Item[]; image: { width: number; height: number }; metrics: Record<string, number> }[]>; dispose(): Promise<void> | void };
 
-/** The tier for this device: the small model only where there is memory for it (navigator.deviceMemory ≥ 8 GB). */
+/**
+ * The tier for this device: the small (more accurate) models on any phone with 4 GB or more, and where the browser does
+ * not say (iPhone); the tiny ones only on phones with very little memory. Measured on real receipts, tiny misread totals
+ * and dates that small read right, and small on 4 threads takes about as long as tiny used to.
+ */
 export function paddleTierFor(memoryGb = typeof navigator !== 'undefined' ? (navigator as { deviceMemory?: number }).deviceMemory : undefined): PaddleTier {
-  return memoryGb !== undefined && memoryGb >= 8 ? 'small' : 'tiny';
+  return memoryGb !== undefined && memoryGb < 4 ? 'tiny' : 'small';
 }
 
 /**
@@ -26,7 +30,8 @@ export function paddleThreads(isolated = typeof crossOriginIsolated !== 'undefin
   return isolated ? Math.max(1, Math.min(4, cores || 1)) : 1;
 }
 
-let current: { tier: PaddleTier; ready: Promise<Instance> } | null = null, idle: ReturnType<typeof setTimeout> | undefined;
+type Loading = { tier: PaddleTier; ready: Promise<Instance>; loaded?: boolean };
+let current: Loading | null = null, idle: ReturnType<typeof setTimeout> | undefined;
 function instance(tier: PaddleTier) {
   clearTimeout(idle);
   if (current?.tier !== tier) {
@@ -41,13 +46,26 @@ function instance(tier: PaddleTier) {
         ortOptions: { backend: 'wasm', wasmPaths: `${base}/ort/`, numThreads: paddleThreads(), simd: true },
       }) as unknown as Instance;
     })();
-    ready.catch(() => { if (current?.ready === ready) current = null; });
-    current = { tier, ready };
+    const entry: Loading = { tier, ready };
+    ready.then(() => { entry.loaded = true; }, () => { if (current === entry) current = null; });
+    current = entry;
   }
   return current.ready;
 }
-/** Frees the models and their memory after a few idle minutes (the next photo loads them again from the cache). */
-function releaseLater() { clearTimeout(idle); idle = setTimeout(() => { const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }, 3 * 60_000); }
+/**
+ * Where the engine is for this device, so the screen says the right thing: already in memory (nothing to wait for),
+ * saved on the phone (loaded from the cache in a moment), or still to be downloaded once.
+ */
+export async function paddleState(tier: PaddleTier = paddleTierFor()): Promise<'ready' | 'cached' | 'download'> {
+  if (current?.tier === tier && current.loaded) return 'ready';
+  try {
+    const base = `${window.location.origin}/ocr`, files = [`${base}/paddle/v6-${tier}/det.tar`, `${base}/paddle/v6-${tier}/rec.tar`, `${base}/ort/ort-wasm-simd-threaded.wasm`];
+    const hits = await Promise.all(files.map(url => caches.match(url)));
+    return hits.every(Boolean) ? 'cached' : 'download';
+  } catch { return 'cached'; }
+}
+/** Frees the models and their memory after some idle minutes (the next photo loads them again from the cache, not the internet). */
+function releaseLater() { clearTimeout(idle); idle = setTimeout(() => { const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }, 10 * 60_000); }
 /** Starts loading the models ahead of a reading (e.g. when Scan struk opens), so the reading itself does not wait. */
 export function warmPaddle(tier: PaddleTier = paddleTierFor()) { void instance(tier).then(() => releaseLater(), () => undefined); }
 export function releasePaddle() { clearTimeout(idle); const old = current; current = null; void old?.ready.then(o => o.dispose()).catch(() => undefined); }

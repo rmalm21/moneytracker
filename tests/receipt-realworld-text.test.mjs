@@ -64,3 +64,9 @@ test('a subtotal printed before the item discounts still adds up (Alfamart style
   assert.equal(r.subtotal, 56200);
   assert.ok(!checkReceipt(r).notes.some(n => /belum sama dengan subtotal/.test(n)));
 });
+
+test('a delivery window is not the purchase time; a time glued to the year still is', () => {
+  const r = readReceiptText(['Alfamart', 'Maks Kirim :   Selasa, 28 Juli 2026', '07:00 - 22:00', 'Es Teh   1   5,000   5,000', 'Total   5,000', 'Tgl.07-28-202613:40:27'].join('\n'));
+  assert.equal(r.date, '2026-07-28');
+  assert.equal(r.time, '13:40');
+});
