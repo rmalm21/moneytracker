@@ -154,19 +154,68 @@ export function cashflowView(r: InsightV3Report) {
 }
 
 // ——— Explain this cycle (narrative order) ———
+export type ExplainStep = {
+  key: 'overall' | 'income' | 'spending' | 'cash' | 'obligations' | 'progress' | 'watch';
+  title: string; tone: Tone; status: string;
+  figure?: { value: string; caption: string };
+  bar?: { ratio: number; marker?: number; label: string };
+  line: string; details: string[];
+  /** Plain text of the whole step (first line = the main sentence), for screen readers and tests. */
+  lines: string[];
+};
 export function explainView(r: InsightV3Report) {
-  const hero = heroView(r), w = r.world, sections = r.explain(), cf = cashflowView(r);
+  const hero = heroView(r), w = r.world, cur = w.currentCycle, sections = r.explain(), cf = cashflowView(r);
   const pick = (title: string) => sections.find(s => s.title === title)?.lines || [];
-  const typical = w.income.typical;
-  return [
-    { title: 'Keseluruhan', lines: [`Skor ${hero.score} (${hero.label.toLowerCase()}). Arah: ${hero.momentum.label.toLowerCase()}.`, hero.statement] },
-    { title: 'Pemasukan', lines: [`Siklus ini masuk ${money(w.currentCycle.income)}${typical ? `; biasanya ${money(typical)} per siklus` : ''}.`, ...(w.income.irregularShare >= .1 ? [`${percent(w.income.irregularShare)} pemasukan beberapa siklus terakhir dari sumber tidak tetap.`] : [])] },
-    { title: 'Pengeluaran', lines: [...pick('Ringkasan').slice(1, 2), ...pick('Penyebab utama')] },
-    { title: 'Uang sampai gajian', lines: [`${cf.status.text}. Titik tersempit ±${money(cf.lowest.balance)} sekitar ${dayMonth(cf.lowest.date)}.`, `Uang tersedia ${money(w.liquidity.available)}; jatah aman ${money(w.liquidity.safeDaily)} per hari.`] },
-    { title: 'Kewajiban', lines: [...pick('Kewajiban terdekat'), ...(w.obligations.claimsOutstanding ? [`Klaim kantor belum cair ${money(w.obligations.claimsOutstanding)}.`] : []), ...(w.obligations.receivablesOutstanding ? [`Piutang belum kembali ${money(w.obligations.receivablesOutstanding)}.`] : [])] },
-    { title: 'Kemajuan', lines: pick('Kemajuan').length ? pick('Kemajuan') : ['Belum ada kemajuan baru yang tercatat.'] },
-    { title: 'Yang perlu diperhatikan', lines: [...hero.watch.map(x => `${x.label}: ${x.reason}`), ...(r.priority.slice(0, 1).map(s => s.root.headline || s.title))].slice(0, 3).concat(hero.watch.length || r.priority.length ? [] : ['Tidak ada yang mendesak.']) },
-  ].filter(s => s.lines.length);
+  const median = (v: number[]) => { const s = [...v].sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : 0; };
+  const typicalIncome = w.income.typical, typicalExpense = median(w.historicalCycles.map(c => c.expense));
+  const progress = cur.total ? cur.elapsed / cur.total : 0;
+
+  // Income: compared with a usual full cycle; a missing salary is said plainly instead of looking like a crash.
+  const incomeRatio = typicalIncome ? cur.income / typicalIncome : 1;
+  const income: Pick<ExplainStep, 'tone' | 'status' | 'line'> = !typicalIncome ? { tone: 'info', status: 'Belum ada pembanding', line: 'Pola pemasukan terlihat setelah beberapa siklus tercatat.' }
+    : incomeRatio >= .9 ? { tone: 'good', status: 'Sesuai biasanya', line: `Pemasukan sudah ${percent(Math.min(incomeRatio, 9.99))} dari biasanya.` }
+    : incomeRatio >= .5 ? { tone: 'info', status: 'Sebagian masuk', line: `Baru ${percent(incomeRatio)} dari pemasukan biasa.` }
+    : { tone: 'warn', status: 'Belum lengkap', line: `Baru ${percent(incomeRatio)} dari biasanya. Kalau gaji sudah masuk tapi belum dicatat, catat dulu supaya hitungannya tepat.` };
+
+  // Spending: compared with what usually has gone out by this day of the cycle.
+  const expectedSoFar = typicalExpense * progress, spendRatio = expectedSoFar ? cur.expense / expectedSoFar : 1;
+  const causes = pick('Penyebab utama').filter(l => !/^Tidak ada perubahan/.test(l));
+  const spending: Pick<ExplainStep, 'tone' | 'status'> = !typicalExpense ? { tone: 'info', status: 'Belum ada pembanding' }
+    : spendRatio > 1.15 ? { tone: 'warn', status: 'Lebih cepat' } : spendRatio < .85 ? { tone: 'good', status: 'Lebih hemat' } : { tone: 'good', status: 'Sesuai pola' };
+
+  const bills = w.obligations.upcoming.filter(e => e.amount < 0 && !e.id.startsWith('salary:') && e.date < cur.end).sort((a, b) => a.date.localeCompare(b.date));
+  const billTotal = bills.reduce((n, e) => n - e.amount, 0);
+  const progressLines = pick('Kemajuan');
+  const watchLines = [...hero.watch.map(x => `${x.label}: ${x.reason}`), ...r.priority.slice(0, 1).map(s => s.root.headline || s.title)].filter((l, k, all) => all.indexOf(l) === k).slice(0, 3);
+
+  const steps: Omit<ExplainStep, 'lines'>[] = [
+    { key: 'overall', title: 'Keseluruhan', tone: hero.tone, status: hero.label, figure: { value: String(hero.score), caption: 'skor kesehatan dari 100' },
+      // The statement often is the top thing to watch; then the overall card tells the direction instead of repeating it.
+      line: watchLines.some(l => l.includes(hero.statement.replace(/\.$/, ''))) && hero.momentum.enough ? `Arah ${hero.momentum.label.toLowerCase()}: ${hero.momentum.line.replace(/^./, c => c.toLowerCase())}` : hero.statement,
+      details: [`Arah: ${hero.momentum.label.toLowerCase()}. ${hero.momentum.line}`, ...hero.why.strong.map(p => `Kuat di ${p.label.toLowerCase()} (${p.value}).`), ...hero.why.held.map(p => `Tertahan oleh ${p.label.toLowerCase()} (${p.value}).`)] },
+    { key: 'income', title: 'Pemasukan', ...income, figure: { value: money(cur.income), caption: 'masuk siklus ini' },
+      bar: typicalIncome ? { ratio: Math.min(1, incomeRatio), label: `biasanya ${money(typicalIncome)} per siklus` } : undefined,
+      details: [...(w.income.regularTypical && w.income.regularTypical !== typicalIncome ? [`Gaji tetap biasanya ${money(w.income.regularTypical)}.`] : []), ...(w.income.irregularShare >= .1 ? [`${percent(w.income.irregularShare)} pemasukan beberapa siklus terakhir dari sumber tidak tetap (lembur, bonus, sampingan).`] : [])] },
+    { key: 'spending', title: 'Pengeluaran', ...spending, figure: { value: money(cur.expense), caption: `keluar dalam ${cur.elapsed} hari` },
+      bar: typicalExpense ? { ratio: Math.min(1, cur.expense / typicalExpense), marker: Math.min(1, progress), label: `biasanya ${money(typicalExpense)} satu siklus penuh` } : undefined,
+      line: causes[0] || (!typicalExpense ? 'Tidak ada perubahan berarti dibanding pola biasa.' : spendRatio > 1.15 ? `Biasanya sampai hari ini sekitar ${money(expectedSoFar)}. Naiknya merata, tidak ada satu kategori yang melonjak.` : `Biasanya sampai hari ini sekitar ${money(expectedSoFar)}. Tidak ada kategori yang melonjak.`),
+      details: [...causes.slice(1), ...(typicalExpense && causes.length ? [`Biasanya sampai hari ini sekitar ${money(expectedSoFar)}.`] : [])] },
+    { key: 'cash', title: 'Uang sampai gajian', tone: cf.status.tone, status: cf.status.tone === 'good' ? 'Aman' : cf.status.tone === 'warn' ? 'Mepet' : 'Bisa minus', figure: { value: money(cf.lowest.balance), caption: `titik tersempit · sekitar ${dayMonth(cf.lowest.date)}` },
+      line: w.liquidity.safeDaily > 0 ? `Uang tersedia ${money(w.liquidity.available)}, jatah aman ${money(w.liquidity.safeDaily)} per hari.` : `Uang tersedia ${money(w.liquidity.available)}, tapi anggaran belanja siklus ini sudah terpakai semua.`,
+      details: [`${cf.status.text}. Perkiraan dari uang bebas sekarang, laju belanja, dan jadwal yang tercatat.`, ...cf.events.filter(e => e.kind === 'scheduled' || e.kind === 'claim').slice(0, 3).map(e => `${dayMonth(e.date)} · ${e.label} ${signedMoney(e.amount)}`)] },
+    { key: 'obligations', title: 'Kewajiban', tone: bills.length ? 'info' : 'good', status: bills.length ? `${bills.length} tagihan` : 'Tidak ada tagihan', figure: bills.length ? { value: money(billTotal), caption: 'tagihan terjadwal sebelum gajian' } : undefined,
+      line: bills.length ? `Terdekat: ${bills[0].title} ${money(-bills[0].amount)} pada ${dayMonth(bills[0].date)}.` : 'Tidak ada tagihan terjadwal sebelum gajian.',
+      details: [...bills.slice(1, 4).map(e => `${dayMonth(e.date)} · ${e.title} ${money(-e.amount)}`), ...(w.obligations.claimsOutstanding ? [`Klaim kantor belum cair ${money(w.obligations.claimsOutstanding)}.`] : []), ...(w.obligations.receivablesOutstanding ? [`Piutang belum kembali ${money(w.obligations.receivablesOutstanding)}.`] : []), ...(w.obligations.debtOutstanding ? [`Sisa utang ${money(w.obligations.debtOutstanding)}.`] : [])] },
+    { key: 'progress', title: 'Kemajuan', tone: progressLines.length ? 'good' : 'info', status: progressLines.length ? `${progressLines.length} membaik` : 'Belum ada', line: progressLines[0] || 'Belum ada kemajuan baru yang tercatat.', details: progressLines.slice(1) },
+    { key: 'watch', title: 'Yang perlu diperhatikan', tone: watchLines.length ? 'warn' : 'good', status: watchLines.length ? `${watchLines.length} hal` : 'Tidak ada', line: watchLines[0] || 'Tidak ada yang mendesak.', details: watchLines.slice(1) },
+  ];
+  return steps.map(s => ({ ...s, lines: [s.line, ...s.details] })) as ExplainStep[];
+}
+
+/** Where the running cycle stands, for the top of "Jelaskan siklus ini". */
+export function cycleView(r: InsightV3Report) {
+  const c = r.world.currentCycle;
+  return { day: c.elapsed, total: c.total, daysLeft: c.daysLeft, ratio: c.total ? Math.min(1, c.elapsed / c.total) : 0, range: `${dayMonth(c.start)} – ${dayMonth(c.end)}` };
 }
 
 // ——— Data ———

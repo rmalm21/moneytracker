@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.7', date: '2 Okt 2026', title: 'Jelaskan siklus ini, versi baru', items: [
+    ['💡', 'Penjelasan siklus kini dibuka dengan posisi siklus: hari ke berapa dan berapa hari lagi gajian.'],
+    ['📝', 'Setiap bagian jadi kartu dengan ikon, status berwarna (misalnya Aman, Lebih cepat, Sesuai biasanya), angka utama yang besar, dan satu kalimat inti. Rincian dibuka kalau perlu.'],
+    ['💰', 'Pemasukan dan pengeluaran dibandingkan dengan biasanya lewat batang. Pengeluaran juga diberi garis hari ini, jadi langsung kelihatan apakah belanja lebih cepat dari biasanya.'],
+    ['✅', 'Kalau gaji belum tercatat, Insight bilang terus terang dan mengingatkan untuk mencatatnya, supaya tidak terlihat seperti pemasukan anjlok.'],
+  ] },
   { version: '4.6', date: '2 Okt 2026', title: 'Insight lebih mudah dibaca', items: [
     ['💡', 'Halaman Insight disusun ulang: keadaanmu di atas, lalu yang berubah, prioritas, dan yang membaik. Rincian ada di bawah dan dibuka kalau perlu.'],
     ['📝', 'Setiap bagian bisa diciutkan dengan judul yang jelas, dan pilihanmu diingat. Kata yang membingungkan diganti: “tekanan” jadi “Perlu dijaga”, “momentum” jadi “Arah”.'],

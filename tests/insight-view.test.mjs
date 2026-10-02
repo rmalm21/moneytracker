@@ -114,3 +114,13 @@ test('the view layer never computes money and never writes', () => {
   assert.doesNotMatch(ui, /saveRecord|setDoc|deleteDoc|fetch\(/);
   assert.doesNotMatch(ui, />[^<]*\b(Tekanan|Momentum|Likuiditas)\b[^<]*</, 'engine words leak into visible text');
 });
+
+test('explain cards: every chapter has a status, a tone and one main sentence; a missing salary is said plainly', () => {
+  for (const id of ids) {
+    const steps = explainView(run(id).r);
+    for (const s of steps) { assert.ok(s.status && s.line && ['good', 'info', 'warn', 'bad'].includes(s.tone), `${id}/${s.key}`); assert.doesNotMatch(s.line, jargon, `${id}/${s.key}: ${s.line}`); if (s.bar) assert.ok(s.bar.ratio >= 0 && s.bar.ratio <= 1, `${id}/${s.key}`); }
+  }
+  const { r } = run('stable', input => { const salary = input.data.transactions.filter(t => t.type === 'income' && t.date >= addDays(input.today, -40)); input.data.transactions = input.data.transactions.filter(t => !salary.includes(t)); });
+  const inc = explainView(r).find(s => s.key === 'income');
+  if (r.world.currentCycle.income < r.world.income.typical * .5) { assert.equal(inc.tone, 'warn'); assert.match(inc.line, /belum dicatat/); }
+});

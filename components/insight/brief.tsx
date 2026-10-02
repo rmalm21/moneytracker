@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { BookOpen, ChevronDown, MessageCircle, Send } from 'lucide-react';
+import { ArrowDownLeft, BookOpen, CalendarClock, ChevronDown, Eye, HeartPulse, MessageCircle, Receipt, Send, ShoppingBag, TrendingUp, type LucideIcon } from 'lucide-react';
 import { Dialog, DialogContent } from '../ui/dialog';
 import { ask, type Answer } from '@/lib/insight-v3/ask';
 import type { InsightV3Report } from '@/lib/insight-v3';
-import type { briefView, explainView } from '@/lib/insight-v3/view';
+import type { briefView, cycleView, ExplainStep } from '@/lib/insight-v3/view';
 
 /** The page's short narrative: 2–4 lines, each one opens its source. */
 export function FinancialBrief({ lines, known, onOpen, onExplain }: { lines: ReturnType<typeof briefView>; known: Set<string>; onOpen: (sig: string) => void; onExplain: () => void }) {
@@ -41,16 +41,40 @@ export function AskInsight({ report, questions, known, onOpen }: { report: Insig
   </div>;
 }
 
-/** "Jelaskan siklus ini": a short story in order, opened in a full sheet. */
-export function ExplainSheet({ sections, onClose }: { sections: ReturnType<typeof explainView>; onClose: () => void }) {
+const stepIcon: Record<ExplainStep['key'], LucideIcon> = { overall: HeartPulse, income: ArrowDownLeft, spending: ShoppingBag, cash: CalendarClock, obligations: Receipt, progress: TrendingUp, watch: Eye };
+
+/**
+ * "Jelaskan siklus ini": where the cycle stands, then one card per chapter. Each card says its status in a chip,
+ * gives the one number that matters, compares it with what is usual, and keeps the rest one tap away.
+ */
+export function ExplainSheet({ steps, cycle, onClose }: { steps: ExplainStep[]; cycle: ReturnType<typeof cycleView>; onClose: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
   return <Dialog open onOpenChange={o => { if (!o) onClose(); }}><DialogContent title="Siklus ini" className="ix-sheet ix-explain">
-    <ol className="ix-story-steps">{sections.map((s, i) => <li key={s.title}>
-      <span className="ix-step-no" aria-hidden="true">{i + 1}</span>
-      <div><h4>{s.title}</h4><p>{s.lines[0]}</p>
-        {s.lines.length > 1 && (open === s.title ? <ul>{s.lines.slice(1).map((l, k) => <li key={k}>{l}</li>)}</ul> : <button type="button" className="link-button" onClick={() => setOpen(s.title)}>Selengkapnya <ChevronDown size={13} aria-hidden="true"/></button>)}
-      </div>
-    </li>)}</ol>
-    <p className="ix-note">Disusun dari catatanmu sendiri dengan aturan tetap, tanpa AI dan tanpa internet.</p>
+    <div className="ix-cycle" aria-label={`Hari ke-${cycle.day} dari ${cycle.total}, ${cycle.daysLeft} hari lagi gajian`}>
+      <div className="ix-cycle-top"><span><strong>Hari ke-{cycle.day}</strong> dari {cycle.total}</span><em>{cycle.daysLeft} hari lagi gajian</em></div>
+      <i className="ix-cycle-bar" aria-hidden="true"><b style={{ width: `${Math.round(cycle.ratio * 100)}%` }}/></i>
+      <small>{cycle.range}</small>
+    </div>
+    <ol className="ix-chapters">{steps.map((s, k) => {
+      const Icon = stepIcon[s.key], isOpen = open === s.key;
+      return <li key={s.key} className={`ix-chapter tone-${s.tone}`}>
+        <header>
+          <span className="ix-chapter-icon" aria-hidden="true"><Icon size={18}/></span>
+          <h4><small>{k + 1} · </small>{s.title}</h4>
+          <span className="ix-chapter-status">{s.status}</span>
+        </header>
+        {s.figure && <p className="ix-chapter-figure"><strong>{s.figure.value}</strong><span>{s.figure.caption}</span></p>}
+        {s.bar && <div className="ix-chapter-bar">
+          <i aria-hidden="true"><b style={{ width: `${Math.max(2, Math.round(s.bar.ratio * 100))}%` }}/>{s.bar.marker !== undefined && <u style={{ left: `${Math.round(s.bar.marker * 100)}%` }} title="hari ini"/>}</i>
+          <small>{s.bar.label}{s.bar.marker !== undefined ? ' · │ hari ini' : ''}</small>
+        </div>}
+        <p className="ix-chapter-line">{s.line}</p>
+        {s.details.length > 0 && <>
+          <button type="button" className="ix-chapter-more" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : s.key)}>{isOpen ? 'Tutup rincian' : `Rincian (${s.details.length})`} <ChevronDown size={14} className={isOpen ? 'open' : ''} aria-hidden="true"/></button>
+          {isOpen && <ul className="ix-chapter-details">{s.details.map((d, n) => <li key={n}>{d}</li>)}</ul>}
+        </>}
+      </li>;
+    })}</ol>
+    <p className="ix-note ix-explain-foot">Disusun dari catatanmu sendiri dengan aturan tetap, tanpa AI dan tanpa internet.</p>
   </DialogContent></Dialog>;
 }

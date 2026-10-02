@@ -18,7 +18,7 @@ import { InsightHero } from './insight/hero';
 import { AskInsight, ExplainSheet, FinancialBrief } from './insight/brief';
 import { ChangeCard, PriorityRow, ProgressList, StorySheet } from './insight/stories';
 import { CashflowPanel, CostIndexCard, DataSummary, DecisionTimeline, GoalChoices, ScenarioSandbox } from './insight/deep';
-import { briefView, cashflowView, changesView, dataView, explainView, heroView, help, priorityView, progressView, questionsView, type PriorityItem } from '@/lib/insight-v3/view';
+import { briefView, cashflowView, cycleView, changesView, dataView, explainView, heroView, help, priorityView, progressView, questionsView, type PriorityItem } from '@/lib/insight-v3/view';
 import { analyzePrices } from '@/lib/insight-v25';
 import { analyzeInsightV3 } from '@/lib/insight-v3';
 import { recordDecision } from '@/lib/insight-v3/decisions';
@@ -368,7 +368,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     </div>
     {topOrder.filter(k => k !== firstKey).map(key => <Fragment key={key}>{sections[key]}</Fragment>)}
     {openSig && <ModuleBoundary name="Rincian"><StorySheet report={v3} signature={openSig} extraSignals={prices} items={history.items} onClose={() => setOpenSig('')} onGo={go} onApply={apply} busy={busy} onDismiss={dismissStory} onSnooze={snoozeStory}/></ModuleBoundary>}
-    {explainOpen && <ExplainSheet sections={explainView(v3)} onClose={() => setExplainOpen(false)}/>}
+    {explainOpen && <ExplainSheet steps={explainView(v3)} cycle={cycleView(v3)} onClose={() => setExplainOpen(false)}/>}
     <InsightProfileSheet open={profileOpen} onOpenChange={setProfileOpen} saved={profile?.insightProfile} onSave={saveInsightProfile}/>
     <InsightLayoutSheet open={layoutOpen} onOpenChange={setLayoutOpen} order={order} hidden={hiddenSections} pinnedCount={pinned.length} onSave={(nextOrder, nextHidden) => { setLayoutOpen(false); saveLayout({ order: nextOrder, hidden: nextHidden }); }} onClearPins={() => saveLayout({ pinned: [] }, 'Semua sematan dilepas.')}/>
     {hiddenCount > 0 && <div className="ins-hidden-note"><span>{hiddenCount} saran disembunyikan atau ditunda.</span><button type="button" className="link-button" onClick={() => setShowHidden(v => !v)}>{showHidden ? 'Sembunyikan lagi' : 'Tampilkan'}</button><button type="button" className="link-button" onClick={restore}>Pulihkan semua</button></div>}
