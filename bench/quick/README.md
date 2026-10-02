@@ -68,3 +68,9 @@ references ("dua-duanya", "yang bensin", "sisanya", "yang kedua"), values shared
 record checks, conflict detection, per-field states (Terverifikasi, Kemungkinan benar, Perlu dicek, Belum terbaca),
 one-tap alternatives and short reasons. The precedence rules are written at the top of that file.
 `parseQuickText` and `parseQuickBatch` keep their behaviour and their tests.
+
+## Catat otomatis V3 (app 4.0)
+
+Dual-semantic engine (Financial Grammar + NLP.js, consensus, Bug Catcher). Sets `fixtures-v30dev.mjs` (development)
+and `fixtures-v30heldout.mjs` (first held-out, first result frozen in `heldout-first/`), runner `run-v30.mjs`
+(modes v25 · grammar · nlp · v3), engine-value script `nlp-value.mjs`. Full report: `REPORT-v3.md`.

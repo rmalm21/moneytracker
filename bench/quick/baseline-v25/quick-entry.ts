@@ -27,7 +27,6 @@
  */
 import type { Budget, Category, Claim, Debt, Fund, LedgerTx, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
 import { flowOf, suggestCategory } from './categorize.ts';
-import { blankOut, resolveBoundaries, type BoundaryResult } from './catat/entities.ts';
 
 export type QuickKind = 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish'
   | 'fund_new' | 'wish_new' | 'budget' | 'wallet_new' | 'balance' | 'category_new' | 'recurring_new' | 'plan_new' | 'note_new' | 'open';
@@ -43,12 +42,8 @@ export type QuickResult = {
   kind: QuickKind; amount: number; date: string;
   /** Transaction fields (type, wallet, linked record…); for new records it carries the wallet, date and description. */
   preset: Partial<LedgerTx>;
-  /** New debt: who lent the money. New receivable: who owes it. Spending/income: who was paid or paid (no record). */
+  /** New debt: who lent the money. New receivable: who owes it. */
   person?: string;
-  /** Spending/income: how the person was read — after "kirim/transfer ke" (to), after "bayar" (pay), after "dari" (from). */
-  personCue?: 'to' | 'pay' | 'from';
-  /** V3: the entity spans chosen for this clause and the candidates rejected (provenance, "Kenapa?", trace). */
-  entities?: BoundaryResult;
   /** Name of what is made: a debt, claim, tujuan dana, wish, wallet, category, schedule, plan or note. */
   name?: string;
   wishId?: string;
@@ -83,8 +78,6 @@ export type QuickContext = {
   /** Day of the month the salary comes (Pengaturan › Profil), for "pas gajian". */
   salaryDay?: number;
   budgets?: (Pick<Budget, 'id' | 'name' | 'categoryId' | 'subcategoryId' | 'amount' | 'active'> & { subcategoryIds?: string[]; cycleType?: Budget['cycleType'] })[];
-  /** Places the person confirmed before (local entity memory, lib/catat/memory.ts): supporting evidence only. */
-  merchants?: string[];
 };
 
 const lower = (text: string) => text.toLocaleLowerCase('id-ID');
@@ -312,8 +305,7 @@ export function findAmounts(text: string): Amount[] {
   return found;
 }
 /** The amount meant: one with a unit or "rp" first, otherwise the biggest plain number. */
-/** Two-digit plain numbers count too ("bensin 80"): the preview marks a plain number under 1.000 to check, with the thousands as a one-tap choice. */
-const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a => a.value >= 10).sort((a, b) => b.value - a.value)[0];
+const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a => a.value >= 100).sort((a, b) => b.value - a.value)[0];
 
 const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|tambah saldo)\b/;
 /** Cash in and out of a bank: tarik tunai (bank → cash), setor tunai (cash → bank). Not the fee ("biaya tarik tunai"). */
@@ -354,22 +346,10 @@ const FILLERS = /\b(tadi|td|barusan|hari ini|kemarin|kmrn|kmarin|(?<!makan )(?:p
 /** Words of schedules and plans, taken out of their names. */
 const PLAN_FILLERS = /\b(rencana|rencananya|berencana|planning|ingetin|ingatkan|ingetkan|ingatin|pengingat|reminder|remind|jangan lupa|langganan|mulai|akan|bakal|mau|otomatis|auto|langsung|draf|draft|konfirmasi)\b/g;
 /** Words that are never somebody's name. */
-/** Honorifics: skipped before a name ("kak tio" → Tio), the person themselves when alone ("ke ibu" → Ibu). */
-const HONORIFIC = new Set(['kak', 'kaka', 'mas', 'mbak', 'mba', 'bang', 'abang', 'pak', 'bapak', 'bu', 'ibu', 'om', 'tante', 'bro', 'sis', 'dek', 'adek', 'teh', 'aa', 'neng', 'cak', 'ning', 'mama', 'papa', 'mamah', 'papah', 'ayah', 'bunda', 'nenek', 'kakek', 'paman', 'bibi']);
-const NOT_A_NAME = new Set([...HONORIFIC, 'pagi', 'siang', 'sore', 'malam', 'aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli']);
+const NOT_A_NAME = new Set(['aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli']);
 
 /** Common short names of places. */
 const PLACES: Record<string, string> = { alfa: 'Alfamart', alfamart: 'Alfamart', alfamidi: 'Alfamidi', indo: 'Indomaret', indomaret: 'Indomaret', sbux: 'Starbucks', starbuck: 'Starbucks', starbucks: 'Starbucks', kfc: 'KFC', mcd: "McDonald's", mekdi: "McDonald's", hokben: 'HokBen', janjiw: 'Janji Jiwa', kenangan: 'Kopi Kenangan', tokped: 'Tokopedia', tokopedia: 'Tokopedia', shopee: 'Shopee', grab: 'Grab', gojek: 'Gojek', pertamina: 'Pertamina', spbu: 'SPBU', superindo: 'Superindo', hypermart: 'Hypermart', transmart: 'Transmart' };
-
-/** Places known for this person: the built-in short names, the merchants in their history and the ones they confirmed. */
-export function knownPlaces(ctx: Pick<QuickContext, 'history' | 'merchants'>) {
-  const map = new Map<string, string>();
-  for (const [key, name] of Object.entries(PLACES)) { map.set(key, name); map.set(lower(name), name); }
-  for (const name of [...EXTRA_PLACES, ...(ctx.merchants || []), ...ctx.history.map(t => t.merchant).filter(Boolean)]) if (name && name.length >= 3) map.set(lower(name).replace(/\s+/g, ' ').trim(), name);
-  return map;
-}
-/** Chains and brands people write without "di" ("kopi fore", "roti indomaret"). */
-const EXTRA_PLACES = ['Fore', 'Kopi Kenangan', 'Janji Jiwa', 'Tomoro', 'Point Coffee', 'Chatime', 'Mixue', 'Family Mart', 'Lawson', 'Circle K', 'Burger King', 'Pizza Hut', 'Domino', 'Richeese', 'Gacoan', 'Solaria', 'Hokben', 'Yoshinoya', 'Wingstop', 'Sushi Tei', 'Guardian', 'Watsons', 'Ace Hardware', 'Informa', 'IKEA', 'Uniqlo', 'Gramedia', 'Lotte Mart', 'Giant', 'Carrefour', 'Lion Parcel', 'JNE', 'J&T', 'SiCepat', 'Shell', 'Kimia Farma', 'Apotek K24', 'Century'];
 
 /** Everyday words → words that usually appear in the name of the right category. */
 const HINTS: [RegExp, string[]][] = [
@@ -629,36 +609,11 @@ function hintedCategory(text: string, own: Cat[]) {
 }
 
 /** Somebody's name: the word right after a verb or "dari/ke/sama…", or before the verb when they are the subject. */
-/** Words that follow "ke / bayar / dari" but are not people. */
-const NOT_PERSON = new Set(['rekening', 'rek', 'atm', 'bank', 'tabungan', 'dompet', 'toko', 'warung', 'kantor', 'kos', 'kost', 'kosan', 'rumah', 'sekolah', 'kampus', 'listrik', 'pulsa', 'kuota', 'paket', 'parkir', 'tol', 'ojol', 'ojek', 'admin', 'pajak', 'cicilan', 'tagihan', 'wifi', 'internet', 'air', 'gas', 'asuransi', 'sewa', 'iuran', 'kas', 'arisan', 'zakat', 'sedekah', 'infaq', 'infak', 'donasi', 'sumbangan', 'sana', 'situ', 'sini', 'mana', 'orang', 'online', 'gaji', 'gajian', 'bonus', 'klien', 'client', 'proyek', 'project', 'freelance', 'jualan', 'usaha', 'kerja', 'kerjaan', 'kantin', 'laundry', 'londri', 'bengkel', 'servis', 'service', 'dokter', 'apotek', 'rs', 'rumah sakit', 'spp', 'les', 'kursus', 'langganan', 'netflix', 'spotify', 'youtube', 'utang', 'hutang', 'pinjaman', 'nya', 'tiket', 'makan', 'minum', 'belanja', 'bulanan', 'mingguan', 'harian', 'semua', 'sisa', 'dp', 'uang', 'duit', 'cash', 'tunai', 'saldo']);
-/**
- * The other person of spending or income, when no record names them: "kirim 50rb ke sinta", "transfer ke budi" (to),
- * "bayar budi" (pay), "dapet dari aldi" (from). Never a configured wallet, a known place or an everyday thing.
- */
-function counterpartyIn(text: string, ctx: QuickContext): { word: string; at: number; end: number; cue: 'to' | 'pay' | 'from' } | null {
-  const places = knownPlaces(ctx);
-  const ok = (w: string) => w.length >= 3 && !NOT_A_NAME.has(w) && !NOT_PERSON.has(w) && !/\d/.test(w) && !walletsIn(w, ctx.wallets).length && !places.has(w) && !ctx.categories.some(c => lower(c.name).split(/[^\p{L}]+/u).includes(w)) && !HINTS.some(([re]) => re.test(w));
-  const tries: [RegExp, 'to' | 'pay' | 'from'][] = [
-    [/\b(?:tf|transfer|trf|kirim|ngirim|kasih|ngasih|kirimin|transferin)\b.*?\b(?:ke|kepada|buat|untuk|utk)\s+(\p{L}+)/u, 'to'],
-    [/\b(?:bayar|bayarin|byr)\s+(\p{L}+)/u, 'pay'],
-    [/\b(?:dari|dr)\s+(\p{L}+)/u, 'from'],
-  ];
-  for (const [re, cue] of tries) {
-    const m = re.exec(text); if (!m) continue;
-    let word = m[1], at = (m.index ?? 0) + m[0].length - word.length;
-    // "ke kak dina" → Dina; "ke ibu" → Ibu.
-    if (HONORIFIC.has(word)) { const after = text.slice(at + word.length).match(/^\s+(\p{L}+)/u); if (after && ok(after[1])) { at += word.length + after[0].length - after[1].length; word = after[1]; } else return { word, at, end: at + word.length, cue }; }
-    if (ok(word)) return { word, at, end: at + word.length, cue };
-  }
-  return null;
-}
 function personAfter(text: string, pattern: RegExp) {
   const m = text.match(pattern); if (!m) return '';
   const next = text.slice((m.index ?? 0) + m[0].length).trim().split(/\s+/);
-  // The first word that can be a name, past small words, honorifics and time words ("dari kak tio", "nalangin makan siang tono").
   const word = next.find(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w));
-  if (word && next.slice(0, next.indexOf(word)).every(w => NOT_A_NAME.has(w) || /\d/.test(w))) return word;
-  return HONORIFIC.has(next[0]) ? next[0] : '';
+  return word && next.indexOf(word) <= 1 ? word : '';
 }
 
 /** The type of a new wallet from its name or the words around it. */
@@ -681,12 +636,10 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
 
   // Amount: a number with a unit or "rp" wins; otherwise the biggest plain number that isn't a date or a count.
   const amounts = findAmounts(text);
-  const wallets = walletsIn(text, ctx.wallets);
-  // A plain two-digit number is money only next to a wallet or a paying verb ("bensin 80 krom"), not in a name ("iphone 15").
-  const main = [mainAmount(amounts)].map(m => m && !m.marked && m.value < 100 && !wallets.length && !/\b(beli|bayar|isi|jajan|byr)\b/.test(text) ? mainAmount(amounts.filter(a => a.marked || a.value >= 100)) : m)[0];
+  const main = mainAmount(amounts);
   let amount = main?.value || 0, amountText = main?.text || '';
 
-  const recipient = counterpartyIn(text, ctx);
+  const wallets = walletsIn(text, ctx.wallets);
   const openDebts = (ctx.debts || []).filter(d => d.outstandingAmount > 0);
   const openReceivables = (ctx.receivables || []).filter(r => r.remainingAmount > 0).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const openClaims = (ctx.claims || []).filter(c => c.remainingAmount > 0);
@@ -742,9 +695,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (claim && /\b(cair|dicairkan|diganti|reimburse)\b/.test(text)) return 'claim_payment';
     if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !/\b(biaya|admin|fee)\b/.test(text) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
     if (wallets.length >= 2 && wallets.some(w => /\b(isi|isi saldo|top ?up|topup)\s+$/.test(text.slice(0, w.at)))) return 'transfer';
-    // "transfer 100k dari jago ke budi": Budi is a person, not a wallet → money paid to someone (spending), not a transfer.
-    const toPerson = recipient?.cue === 'to' && !wallets.some(w => /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?)\s+$/.test(text.slice(0, w.at)));
-    if (TRANSFER_WORDS.test(text) && !toPerson && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
+    if (TRANSFER_WORDS.test(text) && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
     // "budi minjemin aku 300rb": somebody lent to me.
     if (LEND_OUT.test(text) && LENT_TO_ME.test(text)) return 'debt_new';
@@ -932,26 +883,16 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (chosen) preset.walletId = chosen.id;
   }
 
-  // What's left once the known parts are taken out is the item / description. V3: the merchant, the wallets and the
-  // amount are found as spans on the clause first (lib/catat/entities.ts), so one cannot slide into another.
-  const spending = flow === 'expense' || flow === 'income';
-  const dateSpans = [...text.matchAll(new RegExp(DATE_PHRASES.source, 'g'))].map(m => ({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
-  const bounds = resolveBoundaries({ text, amount: main && main.text === amountText ? { index: main.index, text: main.text } : null, wallets, dates: dateSpans, flow, knownPlaces: knownPlaces(ctx) });
-  result.entities = bounds;
-  let rest = spending && main && main.text === amountText ? ` ${blankOut(text, bounds.blank)} ` : ` ${text} `.replace(amountText.toLowerCase(), ' ');
-  if (spending && bounds.merchant) {
-    const m = bounds.merchant, key = m.raw.replace(/\s+/g, '');
-    const earlier = m.known ? null : ctx.history.find(t => t.merchant && lower(t.merchant).replace(/\s+/g, '').startsWith(key));
-    preset.merchant = m.known ? m.value : earlier?.merchant || title(m.raw);
+  // What's left once the known parts are taken out is the item / description.
+  let rest = ` ${text} `.replace(amountText.toLowerCase(), ' ');
+  const place = flow === 'expense' || flow === 'income' ? rest.match(/\s(?:di|@|at)\s+([a-z0-9&'.\- ]+?)(?=\s(?:pakai|pake|pk|via|dari|ke|kemarin|kmrn|tadi|tgl|tanggal|seharga|harga|rp|tiap|setiap|besok|lusa|nanti|mulai|\d)\b|\s*$)/) : null;
+  if (place && !wallets.some(w => w.word === place[1].trim())) {
+    const raw = place[1].trim(), key = raw.replace(/\s+/g, '');
+    const earlier = ctx.history.find(t => t.merchant && lower(t.merchant).replace(/\s+/g, '').startsWith(key));
+    preset.merchant = PLACES[key] || earlier?.merchant || title(raw);
+    rest = rest.replace(place[0], ' ');
   }
   for (const w of wallets) rest = rest.replace(new RegExp(`\\b(?:pakai|pake|pk|via|dari|ke|masuk|pakek)?\\s*${escape(w.word)}\\b`), ' ');
-  // Spending to someone / income from someone without a record: who it was (not part of the description).
-  const other = spending && recipient && (recipient.cue !== 'from' || flow === 'income') ? recipient : null;
-  if (other) {
-    result.person = title(other.word); result.personCue = other.cue;
-    rest = rest.replace(/\b(kirim|ngirim|kirimin|transferin|kasih|ngasih)\b/g, ' ');
-    rest = rest.replace(new RegExp(`\\b(?:ke|kepada|buat|untuk|utk|dari|dr)?\\s*${escape(other.word)}\\b`), ' ');
-  }
   const about = flow === 'debt_payment' ? debt : flow === 'receivable_payment' ? receivable : flow === 'claim_payment' ? claim : flow === 'target' ? fund : flow === 'wish' ? wish : flow === 'debt_new' ? debt : flow === 'receivable_new' ? receivable : null;
   const known = about?.words || [];
 
@@ -972,12 +913,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|claim)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
   const item = rest;
 
-  if (flow === 'expense' || flow === 'income') {
-    const verb = /\b(kirim|ngirim|kirimin)\b/.test(text) ? 'Kirim' : /\b(tf|transfer|trf|transferin)\b/.test(text) ? 'Transfer' : 'Bayar';
-    if (item) preset.description = title(item);
-    else if (flow === 'income' && /\bgaji|gajian\b/.test(text)) preset.description = 'Gaji';
-    else if (result.person) preset.description = result.personCue === 'from' ? `Dari ${result.person}` : result.personCue === 'pay' ? `Bayar ${result.person}` : `${verb} ke ${result.person}`;
-  }
+  if (flow === 'expense' || flow === 'income') { if (item) preset.description = title(item); else if (flow === 'income' && /\bgaji|gajian\b/.test(text)) preset.description = 'Gaji'; }
   if (flow === 'debt_new') { result.name = /\bkasbon\b/.test(text) ? title(`kasbon${item ? ` ${item}` : ''}`) : item ? title(item) : result.person ? `Pinjaman ${result.person}` : 'Pinjaman'; }
   if (flow === 'receivable_new' && item) preset.description = title(item);
   if (flow === 'claim_new') result.name = item ? title(item) : 'Klaim kantor';

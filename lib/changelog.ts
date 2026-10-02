@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.0', date: '2 Okt 2026', title: 'Catat otomatis V3: lebih paham bahasa sehari-hari', items: [
+    ['📝', 'Catat otomatis kini memisahkan barang, tempat, dompet, dan nominal dengan tepat: “kemarin beli susu di b1 piot 7,7k krom” jadi Susu · B1 Piot · Rp7.700 · Krom, dan “mie ayam di bedeng 12k” tidak lagi jadi “Mie Ayam Bedeng”.'],
+    ['💡', 'Ada pendapat kedua yang berjalan di HP (tanpa internet): salah ketik nama dompet atau tempat seperti “mandri” atau “famili mart” tetap dikenali sebagai Mandiri dan Family Mart.'],
+    ['✅', 'Sebelum ditampilkan, hasilnya diperiksa ulang: dompet tidak boleh “tertelan” nama tempat, tempat tidak dobel di deskripsi, dan dompet yang disebut tidak terlewat.'],
+    ['💸', 'Kirim uang ke orang (“transfer ke budi 100rb dari jago”) dicatat sebagai pengeluaran ke Budi, dan nama orangnya disimpan sendiri, tidak dicampur ke catatan.'],
+    ['📝', 'Koreksi tempat dan orang ikut dipahami: “di b1, eh di piot”, “bukan budi, aldi”. Ketuk “Kenapa?” untuk melihat alasan tiap bagian dibaca seperti itu.'],
+  ] },
   { version: '3.10', date: '2 Okt 2026', title: 'Buka aplikasi lebih cepat', items: [
     ['💡', 'Aplikasi kini langsung terbuka dari salinan di HP tanpa menunggu internet. Saat sinyal lambat, Beranda siap dalam kurang dari 1 detik (sebelumnya bisa 4 detik).'],
     ['✅', 'Versi baru tetap masuk sendiri: dicek diam-diam saat aplikasi dibuka, lalu dipakai otomatis begitu siap.'],

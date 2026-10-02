@@ -8,7 +8,7 @@ import { Input, Select } from './fields';
 import { Emoji } from './emoji';
 import { AppIcon, brandForName, emojiLibrary, emojiOrFallback } from './visual-identity';
 import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
-import { FIELD_LABELS, FIELD_STATUS, parseQuickPlan, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus } from '@/lib/quick-plan';
+import { FIELD_LABELS, FIELD_STATUS, parseQuickPlan, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
 import { createClaim, createDebt, createReceivable, newTx, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
 import { dateInTimeZone, formatDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
@@ -158,7 +158,18 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
    * still running when the next letter comes is dropped).
    */
   const typed = useDeferredValue(text);
-  const plan = useMemo(() => typed.trim() ? parseQuickPlan(typed, ctx, mode) : null, [typed, mode, ctx]);
+  const grammarPlan = useMemo(() => typed.trim() ? parseQuickPlan(typed, ctx, mode) : null, [typed, mode, ctx]);
+  // Catat otomatis V3: the grammar reading shows at once; NLP.js (loaded only when this box is used, all on the device)
+  // then gives its second opinion and the consensus replaces the plan a moment later, for the same text only.
+  const [refined, setRefined] = useState<{ key: string; plan: QuickParseResult } | null>(null);
+  const planKey = `${mode}\u0000${typed}`;
+  useEffect(() => {
+    if (!typed.trim()) return;
+    let live = true;
+    const timer = setTimeout(() => { void import('@/lib/catat/v3').then(m => m.parseQuickPlanV3(typed, ctx, mode)).then(p => { if (live) setRefined({ key: planKey, plan: p }); }).catch(error => console.warn('Catat otomatis: pendapat kedua (NLP.js) tidak tersedia, hasil tata bahasa dipakai.', error)); }, 180);
+    return () => { live = false; clearTimeout(timer); };
+  }, [typed, mode, ctx, planKey]);
+  const plan = refined?.key === planKey ? refined.plan : grammarPlan;
   const actions = plan?.actions || [];
   const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
   const [moreGroups, setMoreGroups] = useState(false), [allExamples, setAllExamples] = useState(false);
@@ -450,7 +461,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       case 'claim_new': run = () => createClaim(uid, { name: name.trim(), amount, sourceWalletId: walletId, submissionDate: date, expectedPaymentDate: '', paidDate: '', status: 'submitted', description: '', notes: '' }); detail = `${name} · dari ${walletName(walletId)}`; break;
       case 'wish': { const item = data.wishlist.find(w => w.id === linkId)!; run = () => saveWish(uid, { saved: (item.saved || 0) + amount, history: [...(item.history || []), { date, amount }].slice(-60) }, item.id); detail = item.name; break; }
       default: {
-        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: result.preset.time || (date === today ? timeInTimeZone(profile?.timeZone) : '') } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: result.preset.time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
         validateTx(tx);
         run = () => upsertTransaction(uid, tx);
         detail = [tx.description || tx.merchant, category?.name, kind === 'transfer' || kind === 'target' ? `${walletName(walletId)} → ${walletName(destination)}` : walletName(walletId), date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
@@ -475,6 +486,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   switch (kind) {
     case 'expense': case 'income':
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
+      if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
       fact('t', `${dayText(date)}${result.preset.time && !edit.date ? ` · ${result.preset.time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`);
       if (walletId) fact('w', walletName(walletId));

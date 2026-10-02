@@ -23,8 +23,6 @@
  *     as a one-tap choice. Two amounts or two wallets for one entry work the same way;
  *   - the person's history only helps when the text says nothing (a wallet or category named in the text always wins).
  */
-import { catchBugs, type BugWarning } from './catat/bug-catcher.ts';
-import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
 export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name';
@@ -56,11 +54,6 @@ export type ActionCandidate = {
   confidence: number;
   /** The one thing to ask (the first field still open), as a short question with ready answers. */
   ask?: QuickAsk;
-  /** V3: the typed entities of this action with their source spans and the engines' evidence (developer trace, "Kenapa?"). */
-  entities?: EntityNode[];
-  /** V3: candidates the resolver rejected, and what the Bug Catcher found and repaired. */
-  rejected?: RejectedCandidate[];
-  checks?: BugWarning[];
 };
 export type QuickAsk = { field: FieldKey; question: string; /** Wallet ids, record ids or kinds to pick from. */ choices?: string[] };
 /**
@@ -129,29 +122,19 @@ const KIND_WORDS: Record<string, QuickKind[]> = {
   piutang: ['receivable_new', 'receivable_payment'], rencana: ['plan_new'], anggaran: ['budget'], budget: ['budget'], pengingat: ['note_new'], catatan: ['note_new'], rutin: ['recurring_new'],
 };
 /** The kind of value that starts a text: an amount, a date or a wallet. */
-function leadingType(text: string, ctx: QuickContext, left = ''): 'amount' | 'date' | 'wallet' | 'place' | null {
+function leadingType(text: string, ctx: QuickContext, left = ''): 'amount' | 'date' | 'wallet' | null {
   // "parkir 5rb, eh parkirnya 4rb": a word naming the entry before the new value.
   const named = text.trim().match(/^(?:yang\s+)?(\p{L}+?)(?:nya)?\s+(?=(?:rp\.?\s*)?\d)/u);
   const t = named && named[1].length >= 3 && has(left, named[1]) ? text.trim().slice(named[0].length) : text.trim();
   if (/^(?:rp\.?\s*)?\d/.test(t)) return 'amount';
-  // "di b1, eh di piot": a new place.
-  if (/^(?:di|@)\s+\S/.test(t) && /(?:^|\s)(?:di|@)\s+\S/.test(left)) return 'place';
   const date = DATE_ANY().exec(t); if (date && date.index === 0) return 'date';
   const wallet = walletsIn(t, ctx.wallets)[0];
   if (wallet && (wallet.at === 0 || /^(?:pakai|via|dari|lewat|ke)\s/.test(t) && wallet.at <= 7)) return 'wallet';
   return null;
 }
 /** The last value of a type in a text, as [start, end]. */
-/** The last "di X" in a text: from "di" to the next amount, wallet or comma. */
-function lastPlace(text: string, ctx: QuickContext): [number, number] | null {
-  const all = [...text.matchAll(/(?:^|\s)((?:di|@)\s+)/g)]; const m = all.pop(); if (!m) return null;
-  const start = (m.index ?? 0) + m[0].length - m[1].length, after = start + m[1].length;
-  const stops = [text.indexOf(',', after), ...findAmounts(text.slice(after)).map(a => after + a.index), ...walletsIn(text.slice(after), ctx.wallets).map(w => after + w.at)].filter(i => i >= after);
-  return [start, stops.length ? Math.min(...stops) : text.length];
-}
-function lastOf(text: string, type: 'amount' | 'date' | 'wallet' | 'place', ctx: QuickContext): [number, number] | null {
+function lastOf(text: string, type: 'amount' | 'date' | 'wallet', ctx: QuickContext): [number, number] | null {
   if (type === 'amount') { const a = findAmounts(text).pop(); return a ? [a.index, a.index + a.text.length] : null; }
-  if (type === 'place') return lastPlace(text, ctx);
   if (type === 'date') { const all = [...text.matchAll(DATE_ANY())]; const d = all.pop(); return d ? [d.index ?? 0, (d.index ?? 0) + d[0].length] : null; }
   const w = walletsIn(text, ctx.wallets).sort((a, b) => b.at - a.at)[0];
   return w ? [w.at, w.at + w.word.length] : null;
@@ -166,38 +149,15 @@ export function applyCorrections(input: string, ctx: QuickContext) {
     const span = type ? lastOf(left, type, ctx) : null;
     const said = span ? left.slice(span[0], span[1]).trim() : '';
     text = `${span ? left.slice(0, span[0]) + left.slice(span[1]) : left} ${right}`.replace(/\s+/g, ' ').trim();
-    // "talangin budi 40rb eh aldi": one name after the marker replaces the person read before it.
-    if (!type && /^\p{L}{3,}$/u.test(right.trim())) {
-      const person = parseQuickText(left, ctx)?.person?.toLocaleLowerCase('id-ID');
-      if (person && person !== right.trim() && new RegExp(`\\b${esc(person)}\\b`).test(left)) {
-        text = left.replace(new RegExp(`\\b${esc(person)}\\b`), right.trim()).replace(/\s+/g, ' ').trim();
-        notes.push(`dikoreksi: “${person}” → “${right.trim()}”`);
-        continue;
-      }
-    }
     const now = type === 'amount' ? findAmounts(right)[0]?.text : type === 'date' ? DATE_ANY().exec(right)?.[0] : type === 'wallet' ? walletsIn(right, ctx.wallets)[0]?.word : '';
     if (said) notes.push(`dikoreksi: “${said}” → “${(now || right.trim().split(' ')[0]).trim()}”`);
   }
-  // "bukan di b1, di piot": the place after "bukan di" is not the place.
-  text = text.replace(/(?:^|\s*,\s*|\s+)bukan\s+(?:di|@)\s+([^,]+?)\s*,\s*(?:tapi\s+)?(?=(?:di|@)\s)/, (_m, place: string) => { notes.push(`bukan di “${place.trim()}”`); return ' '; }).replace(/\s+/g, ' ').trim();
   // "bukan X": X is dropped when it is a wallet, an amount or a kind of entry.
   for (let guard = 0; guard < 5; guard++) {
     const m = /(?:^|\s*,\s*|\s+)bukan\s+(?:(?:dari|pakai|via|lewat|ke)\s+)?(\S+)(?:\s*,\s*|\s+(?:tapi|melainkan)\s+|\s*$)?/.exec(text); if (!m) break;
     const word = m[1].replace(/[,.]$/, ''), kinds = KIND_WORDS[word];
     const isWallet = walletsIn(word, ctx.wallets).length > 0, isAmount = findAmounts(word).some(a => a.marked || a.value >= 100);
-    if (!kinds && !isWallet && !isAmount) {
-      // "talangin budi 40rb, bukan budi, aldi" → Aldi; "buat budi bukan aldi" → Aldi is simply not meant.
-      if (!/^\p{L}{3,}$/u.test(word)) break;
-      const rest = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').trim();
-      const person = parseQuickText(rest, ctx)?.person?.toLocaleLowerCase('id-ID');
-      const next = text.slice(m.index + m[0].length).match(/^\s*(\p{L}{3,})\b/u)?.[1];
-      if (person === word && next && next !== word) text = rest.replace(new RegExp(`\\b${esc(word)}\\b`), ' ').replace(new RegExp(`\\b${esc(next)}\\b`), next);
-      else if (person && person !== word) text = rest;
-      else break;
-      notes.push(`bukan “${word}”`);
-      text = text.replace(/\s+/g, ' ').trim();
-      continue;
-    }
+    if (!kinds && !isWallet && !isAmount) break;
     kinds?.forEach(k => negated.add(k));
     notes.push(kinds ? `bukan ${word}` : `bukan “${word}”`);
     text = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').replace(/^[,\s]+|[,\s]+$/g, '').trim();
@@ -282,25 +242,6 @@ function clockTime(text: string) {
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
-/** The typed entities of one action, each tied to the words it came from (provenance). */
-function entityGraph(r: QuickResult, text: string, ctx: QuickContext): EntityNode[] {
-  const nodes: EntityNode[] = [...(r.entities?.nodes || [])].map(n => ({ ...n }));
-  const find = (value?: string) => { if (!value) return -1; const v = value.toLocaleLowerCase('id-ID'); return text.indexOf(v); };
-  const add = (value: string | undefined, type: EntityNode['selectedType'], evidence: string, linkedRecord?: string) => {
-    if (!value) return;
-    const at = find(value);
-    nodes.push({ rawText: at >= 0 ? text.slice(at, at + value.length) : value, normalizedText: value, start: at, end: at >= 0 ? at + value.length : -1, candidateTypes: [type], selectedType: type, confidence: at >= 0 ? 0.9 : 0.7, sourceEngineEvidence: [`Financial Grammar: ${evidence}`], ...(linkedRecord ? { linkedRecord } : {}) });
-  };
-  if (r.preset.description && !/^(?:bayar|dibayar|klaim cair|isi|transfer ke|kirim ke|dari) /i.test(r.preset.description)) add(r.preset.description, 'DESCRIPTION', 'kata yang tersisa setelah nominal, tempat, dompet dan tanggal');
-  if (r.person) add(r.person, 'PERSON', r.personCue ? `setelah “${r.personCue === 'to' ? 'ke' : r.personCue === 'pay' ? 'bayar' : 'dari'}”` : 'pihak lain');
-  if (r.preset.debtId) add((ctx.debts || []).find(d => d.id === r.preset.debtId)?.name, 'DEBT_RECORD', 'catatan utang', r.preset.debtId);
-  if (r.preset.receivableId) add((ctx.receivables || []).find(x => x.id === r.preset.receivableId)?.person, 'RECEIVABLE_RECORD', 'catatan piutang', r.preset.receivableId);
-  if (r.preset.claimId) add((ctx.claims || []).find(c => c.id === r.preset.claimId)?.name, 'CLAIM_RECORD', 'catatan klaim', r.preset.claimId);
-  // A transfer's wallets get their direction.
-  if (r.kind === 'transfer') for (const n of nodes) if (n.selectedType === 'WALLET') n.selectedType = n.linkedRecord === r.preset.destinationWalletId ? 'DESTINATION_WALLET' : n.linkedRecord === r.preset.walletId ? 'SOURCE_WALLET' : 'WALLET';
-  return nodes;
-}
-
 type Analyzed = ActionCandidate & { explicit: { wallet: boolean; date: boolean }; assigned: { wallet?: boolean; date?: boolean }; connector: string; dateAtEnd: boolean };
 const DEBT_CUE = /\b(utang|hutang|cicil|cicilan|nyicil|angsuran|angsur|kredit|pinjaman|lunas|lunasin|lunasi|paylater)\b/;
 
@@ -367,13 +308,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     if (alt) { result = alt; kindStatus = 'check'; kindNote = `bukan ${QUICK_LABELS[kind0].toLowerCase()}`; }
   }
   const r = result, kind = r.kind;
-  // V3 Bug Catcher: challenge the parse against the words and the configured entities before anything is shown.
-  const caught = catchBugs({ kind, description: r.preset.description, merchant: r.preset.merchant, walletId: r.preset.walletId, destinationWalletId: r.preset.destinationWalletId, person: r.person }, text, ctx);
-  if (caught.changed) {
-    const p = caught.parse;
-    r.preset.description = p.description; r.preset.merchant = p.merchant; r.person = p.person;
-    if (p.walletId) r.preset.walletId = p.walletId; if (p.destinationWalletId) r.preset.destinationWalletId = p.destinationWalletId;
-  }
 
   // Kind.
   const strongCue = kind === 'transfer' ? /\b(tf|transfer|topup|top up|isi saldo|tarik tunai|setor tunai|pindah)\b/ : kind === 'income' ? /\b(gaji|gajian|terima|dapat|dapet|bonus|jual|thr|masuk)\b/ : kind === 'expense' ? /\b(beli|bayar|jajan|belanja|makan|minum|ngopi|parkir|bensin|isi bensin|servis|pulsa|listrik)\b/
@@ -392,7 +326,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   if (eachPrice && eachCount > 1 && eachCount <= 100) set('amount', 'likely', `${eachCount} × ${rupiah(eachPrice.value)} = ${rupiah(r.amount)} (dihitung)`);
   else if (AMOUNT_KINDS(kind)) {
     const amounts = findAmounts(text).filter(a => !a.monthly), marked = [...new Set(amounts.filter(a => a.marked).map(a => a.value))];
-    const main = amounts.find(a => a.marked) || amounts.filter(a => a.value >= 10).sort((a, b) => b.value - a.value)[0];
+    const main = amounts.find(a => a.marked) || amounts.filter(a => a.value >= 100).sort((a, b) => b.value - a.value)[0];
     if (amountMissing || !r.amount) set('amount', 'missing', 'Nominalnya belum disebut');
     else if (marked.length > 1 && !['fund_new', 'wish_new'].includes(kind)) { set('amount', 'check', `Ada ${marked.length} nominal: ${marked.map(rupiah).join(' dan ')}`); options.amount = marked; }
     else if (!main && r.amount) set('amount', 'likely', kind === 'budget' ? 'dihitung dari anggaran sekarang' : 'seluruh sisanya');
@@ -502,14 +436,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
       set('person', sure ? 'verified' : 'check', sure ? person : `Nama orangnya ${person}? Kata lain: ${others.join(', ')}`);
     } else if (kind === 'receivable_new') set('person', 'missing', 'Siapa yang meminjam?');
   }
-  // Spending to / income from a person without a record (V3): "ke X" after kirim/transfer is a clear cue; "bayar X" and
-  // "dari X" only when X is someone in the records, otherwise it is marked to check (it may be a thing, not a person).
-  if ((kind === 'expense' || kind === 'income') && r.person) {
-    const known = [...(ctx.receivables || []).map(x => x.person), ...(ctx.debts || []).map(d => d.provider)].filter(Boolean).map(n => n.toLocaleLowerCase('id-ID'));
-    const sure = r.personCue === 'to' || known.includes(r.person.toLocaleLowerCase('id-ID')) || unit.text.includes(r.person);
-    set('person', sure ? 'likely' : 'check', sure ? `${r.person} (${r.personCue === 'from' ? 'pengirim' : 'penerima'})` : `${r.person} itu nama orang? Kalau bukan, hapus saja.`);
-    evidence.push(r.personCue === 'from' ? `${r.person} dianggap pengirim karena muncul setelah “dari”.` : r.personCue === 'to' ? `${r.person} dianggap penerima karena muncul setelah “ke”, dan bukan dompet terdaftar.` : `${r.person} dianggap penerima karena muncul setelah “bayar”.`);
-  }
   if (['note_new', 'fund_new', 'wish_new', 'category_new', 'wallet_new', 'recurring_new', 'plan_new'].includes(kind)) set('name', r.name?.trim() ? 'likely' : 'missing', r.name?.trim() ? undefined : 'Namanya belum ada');
   if (kind === 'open' && !r.menu) set('kind', 'check', 'Menu belum dikenali');
 
@@ -542,22 +468,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   for (const [key, f] of Object.entries(fields)) if (f?.note && key !== 'kind' && f.status !== 'missing' && f.status !== 'check') evidence.push(`${FIELD_LABELS[key as FieldKey]}: ${f.note}`);
   if (daypart) evidence.push(`waktu: ${daypart}`);
   const dateAtEnd = new RegExp(`(?:${DATE_ANY().source})\\s*$`).test(text.replace(/[.,!]+$/, ''));
-  // Whatever the Bug Catcher could not repair is a doubt on that field.
-  for (const w of caught.warnings.filter(x => !x.repaired)) {
-    if (w.code === 'UNASSIGNED_KNOWN_WALLET' && fields.wallet && fields.wallet.status !== 'check') set('wallet', 'check', `Ada dompet lain: ${w.detail}`);
-    if (w.code === 'ROLE_COLLISION' && fields.person) set('person', 'check', w.detail);
-  }
-  if (caught.warnings.some(w => w.code === 'KNOWN_WALLET_SWALLOWED_BY_MERCHANT' || w.code === 'WALLET_AS_PERSON')) evidence.push(...caught.warnings.filter(w => w.repaired).map(w => `${w.detail}.`));
-  const graph = entityGraph(r, text, ctx);
-  // "Kenapa?" for the entities, in plain words.
-  for (const n of graph) {
-    if (n.selectedType === 'MERCHANT_OR_PLACE' && r.preset.merchant) evidence.push(`${r.preset.merchant} dianggap tempat transaksi karena ${/setelah/.test(n.sourceEngineEvidence.join(' ')) ? `muncul setelah “${n.sourceEngineEvidence.join(' ').match(/setelah “([^”]+)”/)?.[1] || 'di'}”` : 'cocok dengan nama tempat yang dikenal'}.`);
-    if (/WALLET/.test(n.selectedType) && n.linkedRecord && [r.preset.walletId, r.preset.destinationWalletId].includes(n.linkedRecord)) { const w = ctx.wallets.find(x => x.id === n.linkedRecord); if (w) evidence.push(`${w.name} dikenali sebagai dompet karena cocok dengan dompet ${w.name} yang sudah ada.`); }
-    if (n.selectedType === 'AMOUNT' && r.amount && !/^(?:rp\.?\s*)?[\d.]+$/.test(n.rawText.trim())) evidence.push(`${rupiah(r.amount)} dibaca dari “${n.rawText.trim()}”.`);
-  }
-  // The plain sentences replace the short V2.5 lines that say the same thing.
-  for (const [short, long] of [[/^Nominal: “/, / dibaca dari “/], [/^Dompet: “/, / dikenali sebagai dompet karena/]] as const) if (evidence.some(e => long.test(e))) for (let i = evidence.length - 1; i >= 0; i--) if (short.test(evidence[i])) evidence.splice(i, 1);
-  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd, entities: graph, rejected: r.entities?.rejected || [], checks: caught.warnings };
+  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd };
   return action;
 }
 
@@ -675,13 +586,6 @@ function inherit(actions: Analyzed[], today: string, graph: Graph) {
 /* ------------------------------------------------------------------ Questions */
 
 /** The one question to ask for an action: its first open field, in words that keep what is already known. */
-/** Review flag, confidence and the one question of an action, from its field states (also after V3 consensus). */
-export function refreshAction(a: ActionCandidate, ctx: QuickContext) {
-  const states = Object.values(a.fields).filter(Boolean) as FieldState[];
-  a.review = states.some(f => f.status === 'check' || f.status === 'missing') || a.warnings.length > 0;
-  a.confidence = Math.min(1, ...states.map(f => RANK[f.status]));
-  a.ask = askFor(a, ctx);
-}
 function askFor(a: ActionCandidate, ctx: QuickContext): QuickAsk | undefined {
   const r = a.result, open = (key: FieldKey) => a.fields[key]?.status === 'missing' || a.fields[key]?.status === 'check';
   const walletName = (id?: string | null) => ctx.wallets.find(w => w.id === id)?.name;
@@ -864,9 +768,10 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
 
   // Review flags, confidence and the one question per action.
   for (const a of actions) {
-    refreshAction(a, ctx);
-    for (const x of a.rejected || []) graph.trace.push(`ditolak ${a.id}: ${x.type.toLowerCase()} “${x.text}” — ${x.reason}`);
-    for (const c of a.checks || []) graph.trace.push(`bug catcher ${a.id}: ${c.code}${c.repaired ? ' (diperbaiki)' : ''} — ${c.detail}`);
+    const states = Object.values(a.fields).filter(Boolean) as FieldState[];
+    a.review = states.some(f => f.status === 'check' || f.status === 'missing') || a.warnings.length > 0;
+    a.confidence = Math.min(1, ...states.map(f => RANK[f.status]));
+    a.ask = askFor(a, ctx);
     if (a.ask) graph.trace.push(`tanya ${a.id}: ${a.ask.question}`);
     for (const [key, f] of Object.entries(a.fields)) if (f && (f.status === 'missing')) unresolved.push(`${QUICK_LABELS[a.result.kind]}: ${FIELD_LABELS[key as FieldKey]} ${f.note ? `(${f.note})` : 'perlu dipilih'}`);
     warnings.push(...a.warnings);
