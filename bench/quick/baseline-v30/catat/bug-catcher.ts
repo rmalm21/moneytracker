@@ -22,7 +22,7 @@ import { knownPlaces, walletsIn, type QuickContext } from '../quick-entry.ts';
 export type BugCode =
   | 'KNOWN_WALLET_SWALLOWED_BY_MERCHANT' | 'MERCHANT_DUPLICATED_IN_DESCRIPTION' | 'UNASSIGNED_KNOWN_WALLET' | 'AMOUNT_INSIDE_ENTITY'
   | 'DATE_INSIDE_DESCRIPTION' | 'WALLET_AS_PERSON' | 'ROLE_COLLISION' | 'ENTITY_FRAGMENTATION';
-export type BugWarning = { code: BugCode | TemporalBugCode; detail: string; repaired: boolean };
+export type BugWarning = { code: BugCode; detail: string; repaired: boolean };
 export type CheckedParse = { kind: string; description?: string; merchant?: string; walletId?: string; destinationWalletId?: string | null; person?: string };
 
 const SPENDING = new Set(['expense', 'income', 'plan_new', 'recurring_new']);
@@ -110,40 +110,5 @@ export function catchBugs(input: CheckedParse, text: string, ctx: QuickContext):
     else if (SPENDING.has(parse.kind)) warnings.push({ code: 'UNASSIGNED_KNOWN_WALLET', detail: `dompet ${w.name} juga disebut`, repaired: false });
   }
   const changed = (['description', 'merchant', 'walletId', 'destinationWalletId', 'person'] as const).some(k => (parse[k] || undefined) !== (input[k] || undefined));
-  return { parse, warnings, changed };
-}
-
-/* ---------------------------------------------------------------- V3.1 temporal checks */
-
-export type TemporalBugCode =
-  | 'TEMPORAL_SPAN_LEAKED_INTO_DESCRIPTION' | 'TEMPORAL_SPAN_LEAKED_INTO_MERCHANT' | 'TEMPORAL_SPAN_LEAKED_INTO_PERSON'
-  | 'MONEY_MISCLASSIFIED_AS_TIME' | 'EXPLICIT_TIME_IGNORED' | 'INVALID_CLOCK_TIME';
-export type TemporalWarning = { code: TemporalBugCode; detail: string; repaired: boolean };
-
-/**
- * After the time is resolved: the time and date phrases the text used must live only in the time/date fields, a time
- * needs a time phrase in the words (a bare "12000" is money), and a clock must be a real clock.
- * `phrases` are the time/date source phrases (lower case) found in the clause.
- */
-export function catchTemporalBugs(input: { kind: string; description?: string; merchant?: string; person?: string; time?: string }, phrases: string[], hasTimePhrase: boolean, dated: boolean) {
-  const parse = { ...input }, warnings: TemporalWarning[] = [];
-  const codes = { description: 'TEMPORAL_SPAN_LEAKED_INTO_DESCRIPTION', merchant: 'TEMPORAL_SPAN_LEAKED_INTO_MERCHANT', person: 'TEMPORAL_SPAN_LEAKED_INTO_PERSON' } as const;
-  for (const key of ['description', 'merchant', 'person'] as const) {
-    const value = parse[key]; if (!value) continue;
-    let list = words(value);
-    for (const phrase of phrases) {
-      const p = words(phrase); if (!p.length) continue;
-      for (let i = 0; i + p.length <= list.length; i++) if (list.slice(i, i + p.length).join(' ') === p.join(' ')) {
-        warnings.push({ code: codes[key], detail: `“${phrase}” sudah dibaca sebagai waktu, bukan ${key === 'description' ? 'deskripsi' : key === 'merchant' ? 'tempat' : 'orang'}`, repaired: true });
-        list = [...list.slice(0, i), ...list.slice(i + p.length)]; i--;
-      }
-    }
-    const rebuilt = titleWords(list, value);
-    if (rebuilt !== value) parse[key] = rebuilt || undefined;
-  }
-  if (parse.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(parse.time)) { warnings.push({ code: 'INVALID_CLOCK_TIME', detail: `jam ${parse.time} tidak ada`, repaired: true }); parse.time = undefined; }
-  if (parse.time && !hasTimePhrase) { warnings.push({ code: 'MONEY_MISCLASSIFIED_AS_TIME', detail: 'jam dibaca tanpa kata waktu (angka itu nominal)', repaired: true }); parse.time = undefined; }
-  if (!parse.time && hasTimePhrase && dated) warnings.push({ code: 'EXPLICIT_TIME_IGNORED', detail: 'ada jam di kalimat tapi belum terpakai', repaired: false });
-  const changed = (['description', 'merchant', 'person', 'time'] as const).some(k => (parse[k] || undefined) !== (input[k] || undefined));
   return { parse, warnings, changed };
 }

@@ -49,18 +49,14 @@ export type BoundaryInput = {
   wallets: { id: string; name: string; at: number; word: string }[];
   /** Spans already known to be dates (DATE_PHRASES matches). */
   dates: Span[];
-  /** Time expressions (lib/catat/temporal.ts): owned by the time field, never merchant or description text. */
-  times?: (Span & { raw: string })[];
   flow: string;
   /** Known places, lower case → display name (built-in names, history, confirmed memory). */
   knownPlaces: Map<string, string>;
 };
 export type BoundaryResult = {
   merchant?: { value: string; raw: string; span: Span; opener?: Span; reason: string; confidence: number; known: boolean };
-  /** Spans to take out of the description (amount, dates, times, wallets with their connector, the merchant with its "di"). */
+  /** Spans to take out of the description (amount, wallets with their connector, the merchant with its "di"). */
   blank: Span[];
-  /** The spans consumed by a structured field whatever the kind of entry (amount, date, time): span ownership. */
-  owned: (Span & { role: 'AMOUNT' | 'DATE' | 'TIME' | 'WALLET'; rawText: string })[];
   nodes: EntityNode[];
   rejected: RejectedCandidate[];
 };
@@ -89,7 +85,7 @@ function tokenize(input: BoundaryInput): { tokens: Token[]; walletAt: (Span & { 
     let tag: Tag = 'content';
     if (amount && overlaps(span, amount)) tag = 'amount';
     else if (walletAt.some(w => overlaps(span, w))) tag = 'wallet';
-    else if ((input.times || []).some(d => overlaps(span, d)) || input.dates.some(d => overlaps(span, d)) || DATE_WORDS.test(word) && /^(?:tadi|td|barusan|kemarin|kemaren|kmrn|kmarin|lusa|besok)$/.test(word)) tag = 'date';
+    else if (input.dates.some(d => overlaps(span, d)) || DATE_WORDS.test(word) && /^(?:tadi|td|barusan|kemarin|kemaren|kmrn|kmarin|lusa|besok)$/.test(word)) tag = 'date';
     else if (PLACE_OPEN.has(word)) tag = 'place';
     else if (MARKERS.has(word)) tag = 'marker';
     else if (PREPS.has(word)) tag = 'prep';
@@ -102,14 +98,12 @@ function tokenize(input: BoundaryInput): { tokens: Token[]; walletAt: (Span & { 
 export function resolveBoundaries(input: BoundaryInput): BoundaryResult {
   const { tokens, walletAt } = tokenize(input);
   const nodes: EntityNode[] = [], rejected: RejectedCandidate[] = [], blank: Span[] = [];
-  const owned: BoundaryResult['owned'] = [];
-  const own = (span: Span, role: BoundaryResult['owned'][number]['role']) => { blank.push(span); owned.push({ ...span, role, rawText: input.text.slice(span.start, span.end) }); };
   const node = (start: number, end: number, type: EntityType, confidence: number, evidence: string, candidates: EntityType[] = [type], linkedRecord?: string): EntityNode => {
     const raw = input.text.slice(start, end);
     const n: EntityNode = { rawText: raw, normalizedText: raw.trim(), start, end, candidateTypes: candidates, selectedType: type, confidence, sourceEngineEvidence: [`Financial Grammar: ${evidence}`], ...(linkedRecord ? { linkedRecord } : {}) };
     nodes.push(n); return n;
   };
-  if (input.amount) { const s = input.amount.index; own({ start: s, end: s + input.amount.text.length }, 'AMOUNT'); node(s, s + input.amount.text.length, 'AMOUNT', 1, 'angka dengan satuan/nilai uang'); }
+  if (input.amount) { const s = input.amount.index; blank.push({ start: s, end: s + input.amount.text.length }); node(s, s + input.amount.text.length, 'AMOUNT', 1, 'angka dengan satuan/nilai uang'); }
   for (const w of walletAt) {
     // The connector before a wallet ("pake krom") goes with it.
     const i = tokens.findIndex(t => t.start === w.start);
@@ -117,8 +111,7 @@ export function resolveBoundaries(input: BoundaryInput): BoundaryResult {
     blank.push({ start: before ? before.start : w.start, end: w.end });
     node(w.start, w.end, 'WALLET', 1, before ? `dompet terdaftar setelah “${before.word}”` : 'dompet terdaftar', ['WALLET', 'MERCHANT'], w.id);
   }
-  for (const d of input.dates) { own(d, 'DATE'); node(d.start, d.end, 'DATE', 0.95, 'frasa tanggal'); }
-  for (const t of input.times || []) { own(t, 'TIME'); node(t.start, t.end, 'TIME', 0.95, `frasa jam “${t.raw}”`); }
+  for (const d of input.dates) node(d.start, d.end, 'DATE', 0.95, 'frasa tanggal');
   const hard = (t: Token) => t.tag !== 'content';
   const placeKey = (s: string) => s.replace(/\s+/g, ' ').trim();
   const lookup = (raw: string) => input.knownPlaces.get(placeKey(raw)) || input.knownPlaces.get(raw.replace(/\s+/g, ''));
@@ -164,7 +157,7 @@ export function resolveBoundaries(input: BoundaryInput): BoundaryResult {
     blank.push(merchant.opener ? { start: merchant.opener.start, end: merchant.span.end } : merchant.span);
     node(merchant.span.start, merchant.span.end, 'MERCHANT_OR_PLACE', merchant.confidence, merchant.reason, ['MERCHANT_OR_PLACE', 'DESCRIPTION']);
   }
-  return { merchant, blank, owned, nodes, rejected };
+  return { merchant, blank, nodes, rejected };
 }
 
 /** The text with the spans blanked out (offsets stay valid for whatever is read next). */

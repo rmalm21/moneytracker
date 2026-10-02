@@ -138,7 +138,7 @@ function iconFor(name: string) {
   return words.length ? emojiLibrary.flatMap(group => group.items).find(([, keys]) => words.some(word => keys.split(' ').some(key => key.startsWith(word))))?.[0] : undefined;
 }
 /** Only the fields the text or the person changed; everything else comes from the sentence. */
-type Edit = { amount?: number; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
+type Edit = { time?: string; amount?: number; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
 
 /** What one card saves when it is confirmed, built only when the person presses save. */
 type SaveJob = { run: () => Promise<unknown>; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
@@ -151,7 +151,9 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const { track } = useNotify();
   const [text, setText] = useState(''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
   const today = todayInTimeZone(profile?.timeZone);
-  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay }), [data, today, profile?.salaryCycleStartDay]);
+  // The reference clock for "jam 1" follows the minute the sentence is being written.
+  const typedMinute = text ? Math.floor(Date.now() / 60000) : 0;
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone) }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute]);
   /**
    * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
    * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
@@ -303,6 +305,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const destination = kind === 'target' ? fund?.linkedWalletId || (fund?.walletIds?.length === 1 ? fund.walletIds[0] : '') : presetDestination;
   const person = edit.person ?? result.person ?? '', name = edit.name ?? result.name ?? '', description = edit.description ?? result.preset.description ?? '';
   const date = edit.date ?? result.date ?? today;
+  const time = edit.time ?? result.preset.time ?? '';
   const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
   const category = data.categories.find(c => c.id === (result.preset.subcategoryId || result.preset.categoryId));
   const categoryName = (c?: Pick<Category, 'name' | 'parentId'>) => c ? c.parentId ? `${data.categories.find(p => p.id === c.parentId)?.name || ''} › ${c.name}` : c.name : '';
@@ -351,7 +354,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const committed = edit.committed ?? false;
 
   // What the text left open or contradicted, unless the person already chose it here.
-  const touched: Partial<Record<FieldKey, boolean>> = { amount: edit.amount !== undefined, date: edit.date !== undefined, wallet: edit.walletId !== undefined, to: edit.destinationId !== undefined, link: edit.linkId !== undefined, person: edit.person !== undefined, name: edit.name !== undefined, category: edit.categoryId !== undefined };
+  const touched: Partial<Record<FieldKey, boolean>> = { time: edit.time !== undefined, amount: edit.amount !== undefined, date: edit.date !== undefined, wallet: edit.walletId !== undefined, to: edit.destinationId !== undefined, link: edit.linkId !== undefined, person: edit.person !== undefined, name: edit.name !== undefined, category: edit.categoryId !== undefined };
   // The one question the plan asks for this action ("Rp100.000 ke Jago dari dompet mana?"), until it is answered here.
   const ask = !choice && action.ask && !touched[action.ask.field] && !(action.ask.field === 'kind' && kindOk) ? action.ask : undefined;
   const flags = choice ? [] : (Object.entries(action.fields) as [FieldKey, FieldState][]).filter(([key, f]) => (f.status === 'check' || f.status === 'missing') && !touched[key] && key !== ask?.field && !(key === 'kind' && kindOk));
@@ -385,7 +388,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   })();
 
   function preset(): Partial<LedgerTx> {
-    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}) };
+    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}), ...(time ? { time } : {}) };
     if (kind === 'transfer' && destination) base.destinationWalletId = destination;
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
@@ -461,7 +464,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       case 'claim_new': run = () => createClaim(uid, { name: name.trim(), amount, sourceWalletId: walletId, submissionDate: date, expectedPaymentDate: '', paidDate: '', status: 'submitted', description: '', notes: '' }); detail = `${name} · dari ${walletName(walletId)}`; break;
       case 'wish': { const item = data.wishlist.find(w => w.id === linkId)!; run = () => saveWish(uid, { saved: (item.saved || 0) + amount, history: [...(item.history || []), { date, amount }].slice(-60) }, item.id); detail = item.name; break; }
       default: {
-        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: result.preset.time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
         validateTx(tx);
         run = () => upsertTransaction(uid, tx);
         detail = [tx.description || tx.merchant, category?.name, kind === 'transfer' || kind === 'target' ? `${walletName(walletId)} → ${walletName(destination)}` : walletName(walletId), date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
@@ -488,7 +491,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
       if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
-      fact('t', `${dayText(date)}${result.preset.time && !edit.date ? ` · ${result.preset.time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`);
+      fact('t', `${dayText(date)}${time ? ` · ${time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`, action.fields.time?.status === 'check' && !touched.time ? 'qp-missing' : '');
       if (walletId) fact('w', walletName(walletId));
       break;
     case 'transfer': fact('w', `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}`, walletId && destination && walletId !== destination ? '' : 'qp-missing'); fact('t', dayText(date)); break;
@@ -575,6 +578,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const picks: ReactNode[] = [];
   if (!choice && action.options.amount && !touched.amount) picks.push(<span key="a" className="qp-picks" role="group" aria-label="Pilih nominal">{action.options.amount.map(v => <button type="button" key={v} className="sb-chip" onClick={() => change({ amount: v })}>{rupiah(v)}</button>)}</span>);
   if (!choice && action.options.date && !touched.date) picks.push(<span key="d" className="qp-picks" role="group" aria-label="Pilih tanggal">{action.options.date.map(d => <button type="button" key={d.date} className="sb-chip" onClick={() => change({ date: d.date })}>{dayText(d.date)} <small>“{d.label}”</small></button>)}</span>);
+  if (!choice && action.options.time && action.fields.time?.status === 'check' && !touched.time) picks.push(<span key="j" className="qp-picks" role="group" aria-label="Pilih jam">{[result.preset.time, ...action.options.time].filter((v, i, list): v is string => Boolean(v) && list.indexOf(v) === i).map(v => <button type="button" key={v} className="sb-chip" onClick={() => change({ time: v })}>{v}</button>)}</span>);
   if (!choice && action.options.wallet && !touched.wallet) picks.push(<span key="w" className="qp-picks" role="group" aria-label="Pilih dompet">{action.options.wallet.map(id => <button type="button" key={id} className="sb-chip" onClick={() => change({ walletId: id })}>{walletName(id)}</button>)}</span>);
   const shortLink = (id: string) => (linkOptions.find(o => o.id === id)?.label || '').split(' · ')[0];
   const answers: [string, string, () => void][] = !ask ? [] : ask.field === 'wallet' ? (ask.choices || []).filter(id => choices.some(w => w.id === id)).slice(0, 6).map(id => [id, walletName(id), () => change({ walletId: id })])

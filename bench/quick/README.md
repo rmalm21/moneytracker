@@ -74,3 +74,8 @@ one-tap alternatives and short reasons. The precedence rules are written at the 
 Dual-semantic engine (Financial Grammar + NLP.js, consensus, Bug Catcher). Sets `fixtures-v30dev.mjs` (development)
 and `fixtures-v30heldout.mjs` (first held-out, first result frozen in `heldout-first/`), runner `run-v30.mjs`
 (modes v25 · grammar · nlp · v3), engine-value script `nlp-value.mjs`. Full report: `REPORT-v3.md`.
+
+## Catat otomatis V3.1 (app 4.1)
+
+Temporal Intelligence: `lib/catat/temporal.ts`. Sets `fixtures-v31dev.mjs` and `fixtures-v31heldout.mjs` (first run
+frozen in `heldout-first/`), V3.0 frozen in `baseline-v30/` (`run-v30.mjs v30`). Report: `REPORT-v31.md`.

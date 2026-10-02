@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.1', date: '2 Okt 2026', title: 'Catat otomatis paham jam', items: [
+    ['📝', 'Tulis jamnya seperti biasa: “jam 1”, “jm 7”, “jam 12.10”, “jam 1200”, “jam 12 lewat 10”, “jam set 3 sore”, “jam tiga sore”. Jam itu dipakai sebagai waktu transaksi, bukan jam saat kamu mengetik.'],
+    ['💡', '“jam 1” dibaca pintar: kalau kamu mencatat jam 3 sore, itu berarti 13:00 tadi, bukan jam 1 pagi. Kalau dua-duanya masuk akal (mis. “kemarin jam 8”), kamu tinggal ketuk 08:00 atau 20:00.'],
+    ['📝', '“setengah satu” dibaca 12:30 dan “set 12” dibaca 11:30, sesuai cara orang Indonesia bilang jam.'],
+    ['✅', 'Jam tidak lagi nyasar ke deskripsi: “beli ayam dbesto 12k jam 1” jadi Ayam · D’Besto · Rp12.000 · 13:00.'],
+    ['📝', 'Tanggal yang ditulis cepat juga dikenali: kmrin, kmrn, tgl2, tnggl 2, 2/10, 2 okt. Koreksi seperti “jam 1 eh jam 2” atau “bukan kemarin, hari ini” ikut dipahami.'],
+  ] },
   { version: '4.0', date: '2 Okt 2026', title: 'Catat otomatis V3: lebih paham bahasa sehari-hari', items: [
     ['📝', 'Catat otomatis kini memisahkan barang, tempat, dompet, dan nominal dengan tepat: “kemarin beli susu di b1 piot 7,7k krom” jadi Susu · B1 Piot · Rp7.700 · Krom, dan “mie ayam di bedeng 12k” tidak lagi jadi “Mie Ayam Bedeng”.'],
     ['💡', 'Ada pendapat kedua yang berjalan di HP (tanpa internet): salah ketik nama dompet atau tempat seperti “mandri” atau “famili mart” tetap dikenali sebagai Mandiri dan Family Mart.'],

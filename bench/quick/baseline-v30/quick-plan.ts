@@ -23,8 +23,7 @@
  *     as a one-tap choice. Two amounts or two wallets for one entry work the same way;
  *   - the person's history only helps when the text says nothing (a wallet or category named in the text always wins).
  */
-import { catchBugs, catchTemporalBugs, type BugWarning } from './catat/bug-catcher.ts';
-import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
+import { catchBugs, type BugWarning } from './catat/bug-catcher.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
@@ -48,9 +47,7 @@ export type ActionCandidate = {
   /** Other readings of the same words, ready to use. */
   alternatives: QuickAlternative[];
   /** Values to choose from when the text gave more than one. */
-  options: { amount?: number[]; date?: { date: string; label: string }[]; wallet?: string[]; time?: string[] };
-  /** V3.1: the time expression read and how its timestamp was chosen (provenance, "Kenapa?", developer trace). */
-  temporal?: { expr: TimeExpr; resolution: TemporalResolution; future: boolean; pastCue: boolean; dateLocked: boolean };
+  options: { amount?: number[]; date?: { date: string; label: string }[]; wallet?: string[] };
   daypart?: string;
   warnings: string[];
   /** Something in it needs the person's attention before saving. */
@@ -107,9 +104,7 @@ const SPELLING: Record<string, string> = {
   ingetin: 'ingetin', ingatin: 'ingetin', inget: 'ingetin', tlg: 'tolong', bls: 'balas', bgt: 'banget', gpp: 'tidak apa',
 };
 const PHRASES: [RegExp, string][] = [
-  // Day of month as people type it: "tgl2", "tnggl 2", "tanggal2" → "tgl 2".
-  [/\b(?:tanggal|tangal|tnggal|tnggl|tngl|tgl|tg)\s*(\d{1,2})(?!\d)/g, 'tgl $1'],
-    [/\bgo[\s-]pay\b/g, 'gopay'], [/\bshopee[\s-]pay\b/g, 'shopeepay'], [/\blink[\s-]aja\b/g, 'linkaja'], [/\bsea[\s-]bank\b/g, 'seabank'],
+  [/\bgo[\s-]pay\b/g, 'gopay'], [/\bshopee[\s-]pay\b/g, 'shopeepay'], [/\blink[\s-]aja\b/g, 'linkaja'], [/\bsea[\s-]bank\b/g, 'seabank'],
   [/(\d)\s*(?:rbu|rebu|rbuan|ribuan|rban|rb-an|rbn)\b/g, '$1rb'], [/(\d)\s*(?:jtan|jutaan|jt-an)\b/g, '$1jt'],
   [/\b(?:dua2nya|dua-duanya|dua duanya|duaduanya)\b/g, 'dua-duanya'], [/\bpas\s+gajian\b/g, 'pas gajian'],
   [/\b(?:gak|ga|nggak|enggak|engga|ngga|gk|g)\s*jadi\b|\bgajadi\b/g, 'tidak jadi'], [/\bmasing2\b/g, 'masing-masing'],
@@ -128,16 +123,13 @@ export function normalizeQuick(text: string) {
 /* ------------------------------------------------------------------ Corrections */
 
 const MARKER = /(?:\s*,\s*|\s+)(?:eh+m?|ralat|koreksi|maksudnya|maksudku|maksud (?:saya|aku)|sori|sorry|salah ketik)(?:\s*,\s*|\s+)/;
-const DATE_ANY = () => new RegExp(`${DATE_PHRASES.source}|\\btadi(?:\\s+(?:pagi|siang|sore|malam))?\\b|\\bbarusan\\b|\\btgl \\d{1,2}(?!\\d)(?:\\s*[/-]\\s*\\d{1,2})?`, 'g');
+const DATE_ANY = () => new RegExp(`${DATE_PHRASES.source}|\\btadi(?:\\s+(?:pagi|siang|sore|malam))?\\b|\\bbarusan\\b`, 'g');
 const KIND_WORDS: Record<string, QuickKind[]> = {
   pengeluaran: ['expense'], pemasukan: ['income'], transfer: ['transfer'], utang: ['debt_new', 'debt_payment'], hutang: ['debt_new', 'debt_payment'],
   piutang: ['receivable_new', 'receivable_payment'], rencana: ['plan_new'], anggaran: ['budget'], budget: ['budget'], pengingat: ['note_new'], catatan: ['note_new'], rutin: ['recurring_new'],
 };
 /** The kind of value that starts a text: an amount, a date or a wallet. */
-function leadingType(text: string, ctx: QuickContext, left = ''): 'amount' | 'date' | 'wallet' | 'place' | 'time' | null {
-  // "jam 1 eh jam 2", "jam 3 sore eh jam set 3 sore": a new time (before the number reading below takes "jam" as a name).
-  if (findTimes(text.trim())[0]?.start === 0 && findTimes(left).length) return 'time';
-  { const d = DATE_ANY().exec(text.trim()); if (d && d.index === 0 && DATE_ANY().test(left)) return 'date'; }
+function leadingType(text: string, ctx: QuickContext, left = ''): 'amount' | 'date' | 'wallet' | 'place' | null {
   // "parkir 5rb, eh parkirnya 4rb": a word naming the entry before the new value.
   const named = text.trim().match(/^(?:yang\s+)?(\p{L}+?)(?:nya)?\s+(?=(?:rp\.?\s*)?\d)/u);
   const t = named && named[1].length >= 3 && has(left, named[1]) ? text.trim().slice(named[0].length) : text.trim();
@@ -157,8 +149,7 @@ function lastPlace(text: string, ctx: QuickContext): [number, number] | null {
   const stops = [text.indexOf(',', after), ...findAmounts(text.slice(after)).map(a => after + a.index), ...walletsIn(text.slice(after), ctx.wallets).map(w => after + w.at)].filter(i => i >= after);
   return [start, stops.length ? Math.min(...stops) : text.length];
 }
-function lastOf(text: string, type: 'amount' | 'date' | 'wallet' | 'place' | 'time', ctx: QuickContext): [number, number] | null {
-  if (type === 'time') { const t = findTimes(text).pop(); return t ? [t.start, t.end] : null; }
+function lastOf(text: string, type: 'amount' | 'date' | 'wallet' | 'place', ctx: QuickContext): [number, number] | null {
   if (type === 'amount') { const a = findAmounts(text).pop(); return a ? [a.index, a.index + a.text.length] : null; }
   if (type === 'place') return lastPlace(text, ctx);
   if (type === 'date') { const all = [...text.matchAll(DATE_ANY())]; const d = all.pop(); return d ? [d.index ?? 0, (d.index ?? 0) + d[0].length] : null; }
@@ -184,17 +175,8 @@ export function applyCorrections(input: string, ctx: QuickContext) {
         continue;
       }
     }
-    const now = type === 'amount' ? findAmounts(right)[0]?.text : type === 'date' ? DATE_ANY().exec(right)?.[0] : type === 'wallet' ? walletsIn(right, ctx.wallets)[0]?.word : type === 'time' ? findTimes(right.trim())[0]?.raw : '';
+    const now = type === 'amount' ? findAmounts(right)[0]?.text : type === 'date' ? DATE_ANY().exec(right)?.[0] : type === 'wallet' ? walletsIn(right, ctx.wallets)[0]?.word : '';
     if (said) notes.push(`dikoreksi: “${said}” → “${(now || right.trim().split(' ')[0]).trim()}”`);
-  }
-  // "bukan jam 1, jam 2" / "bukan kemarin, hari ini" / "bukan tgl 2, tgl 3": the negated time or date is dropped.
-  for (let guard = 0; guard < 3; guard++) {
-    const m = /(?:^|\s*,\s*|\s+)bukan\s+/.exec(text); if (!m) break;
-    const after = text.slice(m.index + m[0].length), clock = findTimes(after)[0], date = DATE_ANY().exec(after);
-    const span = clock && clock.start === 0 ? clock.end : date && date.index === 0 ? date[0].length : 0;
-    if (!span) break;
-    notes.push(`bukan “${after.slice(0, span).trim()}”`);
-    text = `${text.slice(0, m.index)} ${after.slice(span).replace(/^\s*,?\s*(?:tapi\s+)?/, ' ')}`.replace(/\s+/g, ' ').trim();
   }
   // "bukan di b1, di piot": the place after "bukan di" is not the place.
   text = text.replace(/(?:^|\s*,\s*|\s+)bukan\s+(?:di|@)\s+([^,]+?)\s*,\s*(?:tapi\s+)?(?=(?:di|@)\s)/, (_m, place: string) => { notes.push(`bukan di “${place.trim()}”`); return ' '; }).replace(/\s+/g, ' ').trim();
@@ -271,9 +253,7 @@ const shortDate = (iso: string) => { const [, m, d] = iso.split('-').map(Number)
 /** Content words of a text that no known part explains ("motor" in "bayar cicilan motor"). */
 function leftoverWords(text: string, ctx: QuickContext, known: string[]) {
   const walletWords = new Set(ctx.wallets.flatMap(w => w.name.toLocaleLowerCase('id-ID').split(/\s+/)));
-  // Time phrases are owned by the time field: their words are not "other words" around a name (span ownership).
-  let owned = text; for (const t of findTimes(text).reverse()) owned = owned.slice(0, t.start) + ' '.repeat(t.end - t.start) + owned.slice(t.end);
-  return owned.replace(DATE_ANY(), ' ').split(/[^\p{L}]+/u).filter(w => w.length >= 2 && !STOP.has(w) && !known.includes(w) && !walletWords.has(w) && !GENERIC.has(w));
+  return text.replace(DATE_ANY(), ' ').split(/[^\p{L}]+/u).filter(w => w.length >= 2 && !STOP.has(w) && !known.includes(w) && !walletWords.has(w) && !GENERIC.has(w));
 }
 /** The record a payment was linked to: by a specific word (sure), by generic words only (unsure), or because it is the only one. */
 function recordCheck(text: string, r: QuickResult, ctx: QuickContext): { status: FieldStatus; note: string; unlink?: boolean; leftover?: string[] } | null {
@@ -291,8 +271,16 @@ function recordCheck(text: string, r: QuickResult, ctx: QuickContext): { status:
   return { status: 'check', note: `${label} dipilih dari kata umum saja; pastikan benar` };
 }
 
-/** A date after today ("besok", "tgl 20" later this month): the event is still to come. */
-const soonDate = (date: string | undefined, today: string) => Boolean(date && date > today);
+function clockTime(text: string) {
+  const m = text.match(/\b(?:jam|pukul|pkl)\s*(\d{1,2})(?:[.:](\d{2}))?\s*(pagi|siang|sore|malam)?\b/);
+  if (!m) return undefined;
+  let h = Number(m[1]); const min = Number(m[2] || 0), part = m[3];
+  if (h > 23 || min > 59) return undefined;
+  if (part === 'pagi' && h === 12) h = 0;
+  if (part === 'siang' && h < 11) h += 12;
+  if ((part === 'sore' || part === 'malam') && h < 12) h = h === 12 ? 0 : h + 12;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
 
 /** The typed entities of one action, each tied to the words it came from (provenance). */
 function entityGraph(r: QuickResult, text: string, ctx: QuickContext): EntityNode[] {
@@ -327,7 +315,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   }
   if (!result) return null;
   const fields: ActionCandidate['fields'] = {}, evidence: string[] = [...unit.notes], warnings: string[] = [], options: ActionCandidate['options'] = {};
-  let temporal: ActionCandidate['temporal'];
   const set = (key: FieldKey, status: FieldStatus, note?: string) => { fields[key] = { status, ...(note ? { note } : {}) }; };
   let kindStatus: FieldStatus = 'likely', kindNote = '';
 
@@ -427,27 +414,8 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     else if (distinct.length > 1) { set('date', 'check', `Ada ${distinct.length} tanggal: ${distinct.map(x => `${x.label} (${shortDate(x.date)})`).join(' dan ')}`); options.date = distinct; }
     else if (explicitDate) set('date', 'verified', `“${phrases[0]}” → ${shortDate(r.date)}`);
     else set('date', 'likely', r.date === ctx.today ? 'hari ini (bawaan)' : undefined);
-    // V3.1 time: the clock the words allow, then the nearest plausible timestamp on the (locked) date.
-    const clocks = findTimes(text);
-    if (clocks.length) {
-      const named = readings.some(x => !/^(?:tadi|barusan)/.test(x.label)) || SALARY_WHEN.test(text);
-      const futureCue = future || /\b(nanti|ntar|entar|besok|lusa|ntr)\b/.test(text) || soonDate(r.date, ctx.today);
-      const pastCue = /\b(tadi|td|barusan|baru aja|baru saja|semalam|kemarin)\b/.test(text);
-      let expr = clocks[clocks.length - 1];
-      // "kemaren sore … jam set 6": a daypart said elsewhere in the clause fixes a clock that has none.
-      if (!expr.daypart && !expr.is24) {
-        const outside = text.slice(0, expr.start) + ' ' + text.slice(expr.end);
-        const parts = [...new Set([...outside.matchAll(/\b(pagi|siang|sore|malam)\b/g)].map(m => m[1]))].filter(p => !/makan (?:pagi|siang|malam)/.test(outside) || !new RegExp(`makan ${p}`).test(outside));
-        if (parts.length === 1) expr = { ...expr, daypart: parts[0] as TimeExpr['daypart'] };
-      }
-      const resolution = resolveTime(expr, { today: ctx.today, now: ctx.now || '12:00', date: r.date || ctx.today, dateLocked: named, future: futureCue, pastCue });
-      temporal = { expr, resolution, future: futureCue, pastCue, dateLocked: named };
-      r.preset.time = resolution.time;
-      if (resolution.date !== (r.date || ctx.today)) { r.date = resolution.date; r.preset.date = resolution.date; set('date', resolution.status === 'check' ? 'check' : 'likely', `jam ${resolution.time} jatuh ${resolution.date < ctx.today ? 'kemarin' : 'besok'}`); }
-      set('time', resolution.status, resolution.reason.replace(/\.$/, ''));
-      if (resolution.alternatives.length) options.time = [...new Set(resolution.alternatives.map(x => x.time))];
-      if (clocks.length > 1 && new Set(clocks.map(c => c.raw)).size > 1) { set('time', 'check', `Ada ${clocks.length} jam: ${clocks.map(c => c.raw).join(' dan ')}`); }
-    }
+    const time = clockTime(text);
+    if (time && DATED.has(kind)) { r.preset.time = time; set('time', 'verified', `jam ${time}`); }
   } else if (kind === 'budget' && phrases.some(p => !/^(?:mulai)/.test(p))) warnings.push('Anggaran berlaku per periode; tanggal di kalimat tidak mengubah periodenya.');
   const daypart = text.match(/\b(?:tadi|kemarin|besok)\s+(pagi|siang|sore|malam)\b/)?.[1];
 
@@ -574,11 +542,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   for (const [key, f] of Object.entries(fields)) if (f?.note && key !== 'kind' && f.status !== 'missing' && f.status !== 'check') evidence.push(`${FIELD_LABELS[key as FieldKey]}: ${f.note}`);
   if (daypart) evidence.push(`waktu: ${daypart}`);
   const dateAtEnd = new RegExp(`(?:${DATE_ANY().source})\\s*$`).test(text.replace(/[.,!]+$/, ''));
-  // V3.1 temporal Bug Catcher: time and date phrases belong to their fields only; a clock needs a time phrase.
-  const temporalPhrases = [...findTimes(text).map(t => t.raw), ...phrases];
-  const tcaught = catchTemporalBugs({ kind, description: r.preset.description, merchant: r.preset.merchant, person: r.person, time: r.preset.time }, temporalPhrases, findTimes(text).length > 0, DATED.has(kind));
-  if (tcaught.changed) { r.preset.description = tcaught.parse.description; r.preset.merchant = tcaught.parse.merchant; r.person = tcaught.parse.person; r.preset.time = tcaught.parse.time; if (!r.preset.time) delete fields.time; }
-  if (tcaught.warnings.some(w => w.code === 'EXPLICIT_TIME_IGNORED') && fields.time?.status !== 'check') set('time', 'check', 'Jam di kalimat belum terbaca');
   // Whatever the Bug Catcher could not repair is a doubt on that field.
   for (const w of caught.warnings.filter(x => !x.repaired)) {
     if (w.code === 'UNASSIGNED_KNOWN_WALLET' && fields.wallet && fields.wallet.status !== 'check') set('wallet', 'check', `Ada dompet lain: ${w.detail}`);
@@ -594,7 +557,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   }
   // The plain sentences replace the short V2.5 lines that say the same thing.
   for (const [short, long] of [[/^Nominal: “/, / dibaca dari “/], [/^Dompet: “/, / dikenali sebagai dompet karena/]] as const) if (evidence.some(e => long.test(e))) for (let i = evidence.length - 1; i >= 0; i--) if (short.test(evidence[i])) evidence.splice(i, 1);
-  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd, entities: graph, rejected: r.entities?.rejected || [], checks: [...caught.warnings, ...tcaught.warnings], temporal };
+  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd, entities: graph, rejected: r.entities?.rejected || [], checks: caught.warnings };
   return action;
 }
 
@@ -678,23 +641,13 @@ function applyModifier(unit: Unit, before: Analyzed[], after: Analyzed[], ctx: Q
 }
 
 /** A value said in one clause, for the clauses that don't say their own. */
-/** A date given to an action after it was read (shared or corrected): its clock is placed again on that date. */
-function retime(a: Analyzed, ctx: QuickContext) {
-  if (!a.temporal) return;
-  const t = a.temporal, resolution = resolveTime(t.expr, { today: ctx.today, now: ctx.now || '12:00', date: a.result.date, dateLocked: true, future: t.future, pastCue: t.pastCue });
-  a.temporal = { ...t, resolution, dateLocked: true };
-  a.result.preset.time = resolution.time;
-  a.fields.time = { status: resolution.status, note: resolution.reason.replace(/\.$/, '') };
-  a.options.time = resolution.alternatives.length ? [...new Set(resolution.alternatives.map(x => x.time))] : undefined;
-}
-
-function inherit(actions: Analyzed[], today: string, graph: Graph, ctx: QuickContext) {
+function inherit(actions: Analyzed[], today: string, graph: Graph) {
   // "makan 25rb sama parkir 5rb kemarin": a date at the very end of a "sama/dan" pair covers both.
   for (let i = actions.length - 1; i > 0; i--) {
     const a = actions[i], prev = actions[i - 1];
     if (a.explicit.date && a.dateAtEnd && /^(sama|dan|&|\+|plus)$/.test(a.connector) && prev.clause === a.clause - 1 && !prev.explicit.date && !prev.assigned.date && DATED.has(prev.result.kind) && DATED.has(a.result.kind) && a.result.date <= today && a.fields.date?.status === 'verified') {
       const label = a.fields.date?.note?.match(/^“(.+?)”/)?.[1] || shortDate(a.result.date);
-      setDate(prev, a.result.date, 'likely', `“${label}” disebut di akhir untuk keduanya`); prev.assigned.date = true; retime(prev, ctx);
+      setDate(prev, a.result.date, 'likely', `“${label}” disebut di akhir untuk keduanya`); prev.assigned.date = true;
       graph.relations.push({ type: 'shared_date', from: a.id, to: prev.id, note: `“${label}” di akhir “${a.connector}”`, confidence: 'likely' });
     }
   }
@@ -704,19 +657,9 @@ function inherit(actions: Analyzed[], today: string, graph: Graph, ctx: QuickCon
     if ((a.explicit.date || a.assigned.date) && DATED.has(a.result.kind) && a.fields.date?.status !== 'missing' && a.fields.date?.status !== 'check') { last = { date: a.result.date, label: a.fields.date?.note?.match(/^“(.+?)”/)?.[1] || shortDate(a.result.date), from: a.id }; continue; }
     if (a.explicit.date) { last = null; continue; }
     if (last && DATED.has(a.result.kind) && !a.assigned.date && last.date <= today && last.date !== a.result.date) {
-      setDate(a, last.date, 'likely', `ikut “${last.label}” dari bagian sebelumnya`); retime(a, ctx);
+      setDate(a, last.date, 'likely', `ikut “${last.label}” dari bagian sebelumnya`);
       graph.relations.push({ type: 'shared_date', from: last.from, to: a.id, note: `ikut “${last.label}”`, confidence: 'likely' });
     }
-  }
-  // A time said first, before what was bought ("jam 8 beli kopi 20k sama roti 10k"), covers the parts joined to it by
-  // "sama / dan"; a part with its own time, or joined by "terus / lalu" (a later event), keeps its own.
-  for (let i = 1; i < actions.length; i++) {
-    const a = actions[i], prev = actions[i - 1], lead = prev.temporal && prev.temporal.expr.start === 0 ? prev : null;
-    if (!lead || a.temporal || a.result.preset.time || !DATED.has(a.result.kind) || !/^(sama|dan|&|\+|plus)$/.test(a.connector) || a.result.date !== lead.result.date) continue;
-    a.result.preset.time = lead.result.preset.time;
-    a.fields.time = { status: 'likely', note: `ikut “${lead.temporal!.expr.raw}” dari bagian sebelumnya` };
-    a.temporal = { ...lead.temporal!, expr: { ...lead.temporal!.expr, start: 0 } };
-    graph.relations.push({ type: 'shared_date', from: lead.id, to: a.id, note: `jam “${lead.temporal!.expr.raw}” untuk keduanya`, confidence: 'likely' });
   }
   // A wallet said once among several spendings (or incomes) counts for the others of the same kind.
   for (const kind of ['expense', 'income'] as const) {
@@ -909,7 +852,7 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   // References and values said on their own ("dua-duanya pakai gopay", "kemarin, …").
   units.forEach((unit, i) => { if (unit.cls === 'modifier') applyModifier(unit, actions.filter(a => a.clause < i), actions.filter(a => a.clause > i), ctx, unresolved, graph); });
   const references = [...unresolved];
-  inherit(actions, ctx.today, graph, ctx);
+  inherit(actions, ctx.today, graph);
 
   // Records and transfers in the graph.
   for (const a of actions) {
@@ -922,7 +865,6 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   // Review flags, confidence and the one question per action.
   for (const a of actions) {
     refreshAction(a, ctx);
-    if (a.temporal) graph.trace.push(...a.temporal.resolution.trace.map(t => `waktu ${a.id}: ${t}`));
     for (const x of a.rejected || []) graph.trace.push(`ditolak ${a.id}: ${x.type.toLowerCase()} “${x.text}” — ${x.reason}`);
     for (const c of a.checks || []) graph.trace.push(`bug catcher ${a.id}: ${c.code}${c.repaired ? ' (diperbaiki)' : ''} — ${c.detail}`);
     if (a.ask) graph.trace.push(`tanya ${a.id}: ${a.ask.question}`);

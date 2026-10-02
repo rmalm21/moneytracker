@@ -1,0 +1,3031 @@
+{
+ "summary": {
+  "Kalimat benar seluruhnya": "40%",
+  "Jumlah aksi benar": "98%",
+  "Tepat: kind": "100% (47/47)",
+  "Tepat: amount": "100% (47/47)",
+  "Tepat: date": "88% (14/16)",
+  "Tepat: time": "49% (20/41)",
+  "Tepat: wallet": "100% (4/4)",
+  "Tepat: to": "100% (1/1)",
+  "Tepat: person": "100% (1/1)",
+  "Tepat: description": "20% (1/5)",
+  "Tepat: merchant": "100% (5/5)",
+  "Batas entitas tepat (kalimat bertanda boundary)": "17%",
+  "To/from tepat (kalimat bertanda to/from)": "–",
+  "Koreksi tepat": "33%",
+  "Rujukan tepat": "–",
+  "Pemisahan tepat": "100%",
+  "Aksi palsu / terlewat": "0 / 1",
+  "Keraguan ditandai": "0%",
+  "Aksi salah tapi yakin": 1,
+  "Entitas salah tapi yakin": 3,
+  "Relasi salah tapi yakin": 0,
+  "Jam salah tapi yakin": 21,
+  "Tanggal salah tapi yakin": 1,
+  "Tepat [ampm]": "18%",
+  "Tepat [half]": "0%",
+  "Tepat [lewat]": "0%",
+  "Tepat [daypart]": "14%",
+  "Tepat [format]": "67%",
+  "Tepat [words]": "0%",
+  "Tepat [date]": "54%",
+  "Tepat [absolute]": "100%",
+  "Tepat [money]": "83%",
+  "Tepat [future]": "0%",
+  "Tepat [midnight]": "0%",
+  "Tepat [context]": "67%",
+  "Pertanyaan tepat": "–",
+  "Tanya yang tidak perlu": 1,
+  "Uang tercatat dobel": 0
+ },
+ "ms": 8.73,
+ "p95": 13.73,
+ "rows": [
+  {
+   "id": "h01",
+   "tags": [
+    "half",
+    "daypart",
+    "date"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h02",
+   "tags": [
+    "date",
+    "lewat",
+    "wallet"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h03",
+   "tags": [
+    "ampm",
+    "wallet"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h04",
+   "tags": [
+    "format",
+    "money"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h05",
+   "tags": [
+    "date",
+    "daypart",
+    "half"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h06",
+   "tags": [
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h07",
+   "tags": [
+    "ampm",
+    "boundary"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    },
+    "description": {
+     "ok": 0,
+     "n": 1
+    },
+    "merchant": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 1,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h08",
+   "tags": [
+    "format"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h09",
+   "tags": [
+    "words",
+    "daypart"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h10",
+   "tags": [
+    "half",
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h11",
+   "tags": [
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h12",
+   "tags": [
+    "ampm"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h13",
+   "tags": [
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h14",
+   "tags": [
+    "lewat",
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h15",
+   "tags": [
+    "daypart"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h16",
+   "tags": [
+    "daypart",
+    "words"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h17",
+   "tags": [
+    "format"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    },
+    "to": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h18",
+   "tags": [
+    "format",
+    "boundary"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    },
+    "description": {
+     "ok": 0,
+     "n": 1
+    },
+    "merchant": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h19",
+   "tags": [
+    "date",
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h20",
+   "tags": [
+    "date",
+    "absolute",
+    "format"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h21",
+   "tags": [
+    "date",
+    "absolute"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h22",
+   "tags": [
+    "date",
+    "absolute"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h23",
+   "tags": [
+    "date",
+    "absolute",
+    "daypart"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h24",
+   "tags": [
+    "money"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h25",
+   "tags": [
+    "money"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h26",
+   "tags": [
+    "money",
+    "quantity"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h27",
+   "tags": [
+    "money",
+    "date"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h28",
+   "tags": [
+    "money"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h29",
+   "tags": [
+    "correction"
+   ],
+   "count": false,
+   "exact": false,
+   "fields": {},
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 1,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h30",
+   "tags": [
+    "correction",
+    "date"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h31",
+   "tags": [
+    "negation"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h32",
+   "tags": [
+    "correction",
+    "date"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h33",
+   "tags": [
+    "context",
+    "segmentation"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "time": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h34",
+   "tags": [
+    "context",
+    "segmentation",
+    "date"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "date": {
+     "ok": 2,
+     "n": 2
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h35",
+   "tags": [
+    "context",
+    "segmentation"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "time": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h36",
+   "tags": [
+    "future"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h37",
+   "tags": [
+    "midnight"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 0,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 1,
+   "wrongAction": 1,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h38",
+   "tags": [
+    "midnight"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h39",
+   "tags": [
+    "boundary",
+    "ampm"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    },
+    "description": {
+     "ok": 0,
+     "n": 1
+    },
+    "merchant": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 1,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h40",
+   "tags": [
+    "boundary",
+    "half"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    },
+    "description": {
+     "ok": 0,
+     "n": 1
+    },
+    "merchant": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 1,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h41",
+   "tags": [
+    "boundary",
+    "date"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "description": {
+     "ok": 1,
+     "n": 1
+    },
+    "merchant": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h42",
+   "tags": [
+    "boundary",
+    "person"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 1,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h43",
+   "tags": [
+    "notime"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h44",
+   "tags": [
+    "half",
+    "daypart"
+   ],
+   "count": true,
+   "exact": false,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 0,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 1,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h45",
+   "tags": [
+    "format",
+    "ampm"
+   ],
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "time": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  }
+ ],
+ "detail": [
+  {
+   "id": "h01",
+   "text": "kmrin kopi 20k jm set 3 sore",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-14",
+     "category": "drink",
+     "description": "Kopi Jm Set 3",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-14",
+     "time": "14:30"
+    }
+   ],
+   "ms": 14.65
+  },
+  {
+   "id": "h02",
+   "text": "tgl2 bensin 80rb krom jam 7 lwt 5",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 80000,
+     "date": "2026-10-02",
+     "wallet": "krom",
+     "category": "fuel",
+     "time": "07:00",
+     "description": "Bensin Jam 7 Lwt 5",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 80000,
+     "date": "2026-10-02",
+     "wallet": "krom",
+     "review": [
+      "time"
+     ]
+    }
+   ],
+   "ms": 11.79
+  },
+  {
+   "id": "h03",
+   "text": "makan jam 1 jago 25k",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "wallet": "jago",
+     "category": "food",
+     "time": "01:00",
+     "description": "Makan Jam 1",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "wallet": "jago",
+     "time": "13:00"
+    }
+   ],
+   "ms": 8.59
+  },
+  {
+   "id": "h04",
+   "text": "kopi 19k jam 1205",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 19000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Kopi Jam 1205",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 19000,
+     "time": "12:05"
+    }
+   ],
+   "ms": 5.28
+  },
+  {
+   "id": "h05",
+   "text": "kemaren sore beli roti 12k jam set 6",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-14",
+     "category": "food",
+     "description": "Roti Jam Set 6",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-14",
+     "time": "17:30"
+    }
+   ],
+   "ms": 11.23
+  },
+  {
+   "id": "h06",
+   "text": "jajan cilok 10rb jam 2",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "02:00",
+     "description": "Cilok Jam 2",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 10000,
+     "time": "14:00"
+    }
+   ],
+   "ms": 5.85
+  },
+  {
+   "id": "h07",
+   "text": "es teh di kantin 5rb jam 11",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 5000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "time": "11:00",
+     "description": "Es Teh Jam 11",
+     "merchant": "Kantin",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 5000,
+     "description": "Es Teh",
+     "merchant": "Kantin",
+     "time": "11:00"
+    }
+   ],
+   "ms": 8.88
+  },
+  {
+   "id": "h08",
+   "text": "parkir 3rb jam 9.45",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 3000,
+     "date": "2026-10-15",
+     "category": "park",
+     "time": "09:45",
+     "description": "Parkir Jam 9.45",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 3000,
+     "time": "09:45"
+    }
+   ],
+   "ms": 11.28
+  },
+  {
+   "id": "h09",
+   "text": "beli nasi uduk 12rb jam enam pagi",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Nasi Uduk Jam Enam",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "time": "06:00"
+    }
+   ],
+   "ms": 8.79
+  },
+  {
+   "id": "h10",
+   "text": "kopi susu 18k jam stengah 2",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Kopi Susu Jam Stengah 2",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "time": "13:30"
+    }
+   ],
+   "ms": 7.8
+  },
+  {
+   "id": "h11",
+   "text": "mie ayam 15k jm 12",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Mie Ayam Jm 12",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "time": "12:00"
+    }
+   ],
+   "ms": 5.84
+  },
+  {
+   "id": "h12",
+   "text": "bensin 50rb jam 8",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "category": "fuel",
+     "time": "08:00",
+     "description": "Bensin Jam 8",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "time": "08:00"
+    }
+   ],
+   "ms": 4.95
+  },
+  {
+   "id": "h13",
+   "text": "nasi goreng 20k jam 9",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "09:00",
+     "description": "Nasi Goreng Jam 9",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "time": "21:00"
+    }
+   ],
+   "ms": 5.41
+  },
+  {
+   "id": "h14",
+   "text": "martabak 35rb jam 8 lewat 15",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 35000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "08:00",
+     "description": "Martabak Jam 8 Lewat 15",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 35000,
+     "time": "20:15"
+    }
+   ],
+   "ms": 7.77
+  },
+  {
+   "id": "h15",
+   "text": "gofood 45rb jam 7 malem",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 45000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "07:00",
+     "description": "Gofood Jam 7 Malem",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 45000,
+     "time": "19:00"
+    }
+   ],
+   "ms": 6.02
+  },
+  {
+   "id": "h16",
+   "text": "kopi 15rb jam sepuluh pagi",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Kopi Jam Sepuluh",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "time": "10:00"
+    }
+   ],
+   "ms": 5.74
+  },
+  {
+   "id": "h17",
+   "text": "top up gopay 100rb dari jago jam 13:15",
+   "exact": true,
+   "got": [
+    {
+     "kind": "transfer",
+     "amount": 100000,
+     "date": "2026-10-15",
+     "wallet": "jago",
+     "to": "gopay",
+     "time": "13:15",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "transfer",
+     "amount": 100000,
+     "wallet": "jago",
+     "to": "gopay",
+     "time": "13:15"
+    }
+   ],
+   "ms": 11.87
+  },
+  {
+   "id": "h18",
+   "text": "beli obat di apotek k24 35k pukul 14.20",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 35000,
+     "date": "2026-10-15",
+     "time": "14:20",
+     "description": "Obat Pukul 14.20",
+     "merchant": "Apotek K24",
+     "flagged": [
+      "category"
+     ],
+     "confident": false
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 35000,
+     "description": "Obat",
+     "merchant": "Apotek K24",
+     "time": "14:20"
+    }
+   ],
+   "ms": 10.53
+  },
+  {
+   "id": "h19",
+   "text": "kemarin makan siang 30k jam 1",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "date": "2026-10-14",
+     "category": "food",
+     "time": "01:00",
+     "description": "Makan Siang Jam 1",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "date": "2026-10-14",
+     "time": "13:00"
+    }
+   ],
+   "ms": 8.88
+  },
+  {
+   "id": "h20",
+   "text": "tgl 10 servis motor 150rb jam 10.30",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 150000,
+     "date": "2026-10-10",
+     "category": "trans",
+     "time": "10:30",
+     "description": "Servis Motor Jam 10.30",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 150000,
+     "date": "2026-10-10",
+     "time": "10:30"
+    }
+   ],
+   "ms": 8.65
+  },
+  {
+   "id": "h21",
+   "text": "tanggal 3 bayar listrik 300rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 300000,
+     "date": "2026-10-03",
+     "category": "bills",
+     "description": "Listrik",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 300000,
+     "date": "2026-10-03",
+     "time": null
+    }
+   ],
+   "ms": 6.01
+  },
+  {
+   "id": "h22",
+   "text": "12/10 beli sepatu 250rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 250000,
+     "date": "2026-10-12",
+     "category": "shop",
+     "description": "Sepatu",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 250000,
+     "date": "2026-10-12",
+     "time": null
+    }
+   ],
+   "ms": 9.59
+  },
+  {
+   "id": "h23",
+   "text": "5 okt nonton 50rb jam 7 malam",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-05",
+     "time": "19:00",
+     "description": "Nonton Jam 7",
+     "flagged": [
+      "category"
+     ],
+     "confident": false
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-05",
+     "time": "19:00"
+    }
+   ],
+   "ms": 10.71
+  },
+  {
+   "id": "h24",
+   "text": "beli air mineral 3500",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 3500,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Air Mineral",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 3500,
+     "time": null
+    }
+   ],
+   "ms": 7.85
+  },
+  {
+   "id": "h25",
+   "text": "pulsa 25000 jago",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "wallet": "jago",
+     "category": "bills",
+     "description": "Pulsa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "wallet": "jago",
+     "time": null
+    }
+   ],
+   "ms": 6.36
+  },
+  {
+   "id": "h26",
+   "text": "beli 3 roti 15rb jam 9",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "09:00",
+     "description": "3 Roti Jam 9",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "time": "09:00"
+    }
+   ],
+   "ms": 11.74
+  },
+  {
+   "id": "h27",
+   "text": "tgl 7 beli susu 8rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 8000,
+     "date": "2026-10-07",
+     "category": "drink",
+     "description": "Susu",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 8000,
+     "date": "2026-10-07"
+    }
+   ],
+   "ms": 6.3
+  },
+  {
+   "id": "h28",
+   "text": "jam dinding 75rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 75000,
+     "date": "2026-10-15",
+     "description": "Jam Dinding",
+     "flagged": [
+      "category"
+     ],
+     "confident": false
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 75000,
+     "time": null
+    }
+   ],
+   "ms": 3.11
+  },
+  {
+   "id": "h29",
+   "text": "kopi 20k jam 2 eh jam 3",
+   "exact": false,
+   "got": [],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "time": "15:00"
+    }
+   ],
+   "ms": 4.04
+  },
+  {
+   "id": "h30",
+   "text": "kemarin bensin 40rb eh hari ini",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 40000,
+     "date": "2026-10-15",
+     "category": "fuel",
+     "description": "Bensin",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 40000,
+     "date": "2026-10-15"
+    }
+   ],
+   "ms": 6.68
+  },
+  {
+   "id": "h31",
+   "text": "makan 25k bukan jam 12, jam 1",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "12:00",
+     "description": "Makan Bukan Jam 12, Jam 1",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "time": "13:00"
+    }
+   ],
+   "ms": 12.65
+  },
+  {
+   "id": "h32",
+   "text": "tgl 5 eh tgl 6 beli gas 25rb",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-05",
+     "category": "bills",
+     "description": "Gas",
+     "flagged": [
+      "date"
+     ],
+     "confident": false,
+     "ask": "date"
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-06"
+    }
+   ],
+   "ms": 11.78
+  },
+  {
+   "id": "h33",
+   "text": "sarapan 15rb jam 7 terus makan siang 25rb jam 12",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "07:00",
+     "description": "Sarapan Jam 7",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "12:00",
+     "description": "Makan Siang Jam 12",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "time": "07:00"
+    },
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "time": "12:00"
+    }
+   ],
+   "ms": 13.73
+  },
+  {
+   "id": "h34",
+   "text": "kemarin parkir 2rb jam 10 terus bensin 50rb jam 2",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 2000,
+     "date": "2026-10-14",
+     "category": "park",
+     "time": "10:00",
+     "description": "Parkir Jam 10",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-14",
+     "category": "fuel",
+     "time": "02:00",
+     "description": "Bensin Jam 2",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 2000,
+     "date": "2026-10-14",
+     "review": [
+      "time"
+     ]
+    },
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-14",
+     "time": "14:00"
+    }
+   ],
+   "ms": 14.28
+  },
+  {
+   "id": "h35",
+   "text": "kopi 18k jam 9 terus roti 12k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "time": "09:00",
+     "description": "Kopi Jam 9",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Roti",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "time": "09:00"
+    },
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "time": null
+    }
+   ],
+   "ms": 9.91
+  },
+  {
+   "id": "h36",
+   "text": "ntar bayar arisan 100rb jam 8",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 100000,
+     "date": "2026-10-15",
+     "time": "08:00",
+     "description": "Arisan Jam 8",
+     "flagged": [
+      "category"
+     ],
+     "confident": false
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 100000,
+     "time": "20:00"
+    }
+   ],
+   "ms": 7.3
+  },
+  {
+   "id": "h37",
+   "text": "tadi beli nasi goreng 20k jam 10",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "10:00",
+     "description": "Nasi Goreng Jam 10",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-14",
+     "time": "22:00"
+    }
+   ],
+   "ms": 8.72
+  },
+  {
+   "id": "h38",
+   "text": "barusan beli kopi 15k jam 12 lewat 10",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "time": "12:00",
+     "description": "Kopi Jam 12 Lewat 10",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "time": "00:10"
+    }
+   ],
+   "ms": 11.44
+  },
+  {
+   "id": "h39",
+   "text": "ayam geprek di bensu 22k jam 1",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 22000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "01:00",
+     "description": "Ayam Geprek Jam 1",
+     "merchant": "Bensu",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 22000,
+     "description": "Ayam Geprek",
+     "merchant": "Bensu",
+     "time": "13:00"
+    }
+   ],
+   "ms": 10.69
+  },
+  {
+   "id": "h40",
+   "text": "teh tarik janji jiwa 18k jam setengah 2",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Teh Tarik Jam Setengah 2",
+     "merchant": "Janji Jiwa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "description": "Teh Tarik",
+     "merchant": "Janji Jiwa",
+     "time": "13:30"
+    }
+   ],
+   "ms": 11.51
+  },
+  {
+   "id": "h41",
+   "text": "kmrn makan bakso di pak min 20k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-14",
+     "category": "food",
+     "description": "Makan Bakso",
+     "merchant": "Pak Min",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-14",
+     "description": "Makan Bakso",
+     "merchant": "Pak Min"
+    }
+   ],
+   "ms": 13.18
+  },
+  {
+   "id": "h42",
+   "text": "pinjemin dina 50rb jam 4",
+   "exact": false,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "time": "04:00",
+     "person": "Dina",
+     "description": "Jam 4",
+     "flagged": [
+      "person"
+     ],
+     "confident": false,
+     "ask": "person"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "person": "Dina",
+     "time": "04:00",
+     "review": [
+      "time"
+     ]
+    }
+   ],
+   "ms": 6.78
+  },
+  {
+   "id": "h43",
+   "text": "beli sabun 12rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-15",
+     "category": "shop",
+     "description": "Sabun",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "time": null
+    }
+   ],
+   "ms": 3.77
+  },
+  {
+   "id": "h44",
+   "text": "roti bakar 20k jam set 9 malam",
+   "exact": false,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Roti Bakar Jam Set 9",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "time": "20:30"
+    }
+   ],
+   "ms": 9.29
+  },
+  {
+   "id": "h45",
+   "text": "makan 30k jam 7:30",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "date": "2026-10-15",
+     "category": "food",
+     "time": "07:30",
+     "description": "Makan Jam 7:30",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "time": "07:30"
+    }
+   ],
+   "ms": 5.76
+  }
+ ]
+}

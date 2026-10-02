@@ -19,9 +19,10 @@ const { cases, ctx } = await import(SET ? `./fixtures-${SET}.mjs` : './fixtures.
 const here = dirname(fileURLToPath(import.meta.url)), out = resolve(here, 'out'), root = resolve(here, '../..');
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const [label] = args;
+// v30 = Catat otomatis V3.0 as frozen in bench/quick/baseline-v30 (for the V3.1 comparison).
 const file = l => resolve(out, `v30-${SET || 'orig'}-${l}.json`);
 
-export const FIELDS = ['kind', 'amount', 'date', 'wallet', 'to', 'link', 'category', 'person', 'description', 'merchant'];
+export const FIELDS = ['kind', 'amount', 'date', 'time', 'wallet', 'to', 'link', 'category', 'person', 'description', 'merchant'];
 const ENTITY = new Set(['person', 'description', 'merchant']);
 const empty = v => v === undefined || v === null || v === '';
 const norm = v => String(v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -42,10 +43,10 @@ function align(truth, pred) {
 function scoreCase(c, pred) {
   const { pairs, extra } = align(c.actions, pred);
   const fields = {}, review = { need: 0, flagged: 0 };
-  let wrongAction = 0, wrongEntity = 0, wrongRelation = 0, exact = pred.length === c.actions.length, unneeded = 0, askOk = 0, askNeed = 0;
+  let wrongTime = 0, wrongDate = 0, wrongAction = 0, wrongEntity = 0, wrongRelation = 0, exact = pred.length === c.actions.length, unneeded = 0, askOk = 0, askNeed = 0;
   for (const [t, p] of pairs) {
     if (!p) { exact = false; continue; }
-    let wrong = false, entity = false, relation = false;
+    let wrong = false, entity = false, relation = false, wTime = false, wDate = false;
     for (const f of FIELDS) {
       if (!(f in t)) continue;
       const ok = same(f, t[f], p[f]);
@@ -53,25 +54,26 @@ function scoreCase(c, pred) {
       if (!ok) {
         exact = false;
         const flagged = p.flagged.has(f) || (f === 'description' || f === 'merchant') && p.flagged.has('name');
-        if (f !== 'category' && !flagged) { if (ENTITY.has(f)) entity = true; else wrong = true; if (['to', 'link', 'person', 'wallet'].includes(f)) relation = true; }
+        if (f !== 'category' && !flagged) { if (f === 'time') wTime = true; if (f === 'date') wDate = true; if (ENTITY.has(f)) entity = true; else if (f !== 'time') wrong = true; if (['to', 'link', 'person', 'wallet'].includes(f)) relation = true; }
       }
     }
     for (const f of t.review || []) { review.need++; if (p.flagged.has(f)) review.flagged++; else exact = false; }
     for (const f of p.flagged) if (f !== 'category' && !(t.review || []).includes(f) && f in t && same(f, t[f], p[f]) && t[f] !== null) unneeded++;
     if (t.ask) { askNeed++; if (p.ask === t.ask) askOk++; else exact = false; }
+    if (wTime && !p.flagged.has('time')) wrongTime++; if (wDate && !p.flagged.has('date')) wrongDate++;
     if (p.confident) { if (wrong) wrongAction++; if (entity) wrongEntity++; if (relation) wrongRelation++; }
   }
   wrongAction += extra.filter(p => p.confident).length;
   const dupMoney = pred.filter((p, i) => p.amount && pred.findIndex(q => q.amount === p.amount) !== i).length - c.actions.filter((t, i) => t.amount && c.actions.findIndex(q => q.amount === t.amount) !== i).length;
-  return { id: c.id, tags: c.tags, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongAction, wrongEntity, wrongRelation, unneeded, askOk, askNeed, dupMoney: Math.max(0, dupMoney) };
+  return { id: c.id, tags: c.tags, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongTime, wrongDate, wrongAction, wrongEntity, wrongRelation, unneeded, askOk, askNeed, dupMoney: Math.max(0, dupMoney) };
 }
 
 const pct = (a, b) => b ? `${Math.round(a / b * 100)}%` : '–';
 function summarize(rows) {
-  const s = { exact: 0, count: 0, extra: 0, missed: 0, wrongAction: 0, wrongEntity: 0, wrongRelation: 0, unneeded: 0, askOk: 0, askNeed: 0, dupMoney: 0, review: { need: 0, flagged: 0 }, fields: {} };
+  const s = { exact: 0, count: 0, extra: 0, missed: 0, wrongTime: 0, wrongDate: 0, wrongAction: 0, wrongEntity: 0, wrongRelation: 0, unneeded: 0, askOk: 0, askNeed: 0, dupMoney: 0, review: { need: 0, flagged: 0 }, fields: {} };
   for (const r of rows) {
     if (r.exact) s.exact++; if (r.count) s.count++;
-    for (const k of ['extra', 'missed', 'wrongAction', 'wrongEntity', 'wrongRelation', 'unneeded', 'askOk', 'askNeed', 'dupMoney']) s[k] += r[k] || 0;
+    for (const k of ['extra', 'missed', 'wrongTime', 'wrongDate', 'wrongAction', 'wrongEntity', 'wrongRelation', 'unneeded', 'askOk', 'askNeed', 'dupMoney']) s[k] += r[k] || 0;
     s.review.need += r.review.need; s.review.flagged += r.review.flagged;
     for (const [f, v] of Object.entries(r.fields)) { const x = (s.fields[f] ||= { ok: 0, n: 0 }); x.ok += v.ok; x.n += v.n; }
   }
@@ -90,6 +92,9 @@ function summarize(rows) {
     'Aksi salah tapi yakin': s.wrongAction,
     'Entitas salah tapi yakin': s.wrongEntity,
     'Relasi salah tapi yakin': s.wrongRelation,
+    'Jam salah tapi yakin': s.wrongTime,
+    'Tanggal salah tapi yakin': s.wrongDate,
+    ...Object.fromEntries(['ampm', 'half', 'lewat', 'daypart', 'format', 'words', 'date', 'absolute', 'money', 'future', 'midnight', 'context'].filter(t => tag(t).length).map(t => [`Tepat [${t}]`, exactOf(tag(t))])),
     'Pertanyaan tepat': pct(s.askOk, s.askNeed),
     'Tanya yang tidak perlu': s.unneeded,
     'Uang tercatat dobel': s.dupMoney,
@@ -100,7 +105,7 @@ const linkOf = r => r.preset.debtId || r.preset.receivableId || r.preset.claimId
 const categoryOf = r => r.budget ? r.budget.subcategoryIds[0] || r.budget.categoryId : r.preset.subcategoryId || r.preset.categoryId || undefined;
 const toActions = plan => plan.actions.map(action => {
   const r = action.result, flagged = new Set(Object.entries(action.fields).filter(([, f]) => f.status === 'check' || f.status === 'missing').map(([k]) => k));
-  return { kind: r.kind, amount: r.amount || undefined, date: r.preset.date || r.date, wallet: r.preset.walletId, to: r.preset.destinationWalletId, link: linkOf(r), category: categoryOf(r), person: r.person || r.preset.counterparty || undefined, description: r.preset.description, merchant: r.preset.merchant, flagged, confident: !action.review, ask: action.ask?.field };
+  return { kind: r.kind, amount: r.amount || undefined, date: r.preset.date || r.date, wallet: r.preset.walletId, to: r.preset.destinationWalletId, link: linkOf(r), category: categoryOf(r), time: r.preset.time || undefined, person: r.person || r.preset.counterparty || undefined, description: r.preset.description, merchant: r.preset.merchant, flagged, confident: !action.review, ask: action.ask?.field };
 });
 
 function table(summaries) {
@@ -119,6 +124,7 @@ if (label === '--compare' || process.argv.includes('--compare')) {
 let run;
 if (label === 'v25') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v25/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
 else if (label === 'grammar') { const mod = await import(pathToFileURL(resolve(root, 'lib/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
+else if (label === 'v30') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v30/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v3') { const mod = await import(pathToFileURL(resolve(root, 'lib/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'nlp') { const mod = await import(pathToFileURL(resolve(root, 'lib/catat/nlp-engine.ts')).href); run = async (t, c) => mod.nlpOnlyActions(t, c); }
 else { console.error('label: v25 | grammar | nlp | v3'); process.exit(1); }
@@ -126,7 +132,7 @@ else { console.error('label: v25 | grammar | nlp | v3'); process.exit(1); }
 const rows = [], detail = [], times = [];
 for (const c of cases) {
   const context = { ...ctx, ...(c.ctx || {}) };
-  if (label === 'v3' || label === 'nlp') await run(c.text, context); // warm the model once per case shape
+  if (label === 'v3' || label === 'v30' || label === 'nlp') await run(c.text, context); // warm the model once per case shape
   const t0 = performance.now(), pred = await run(c.text, context), ms1 = performance.now() - t0;
   times.push(ms1);
   const row = scoreCase(c, pred);

@@ -28,7 +28,6 @@
 import type { Budget, Category, Claim, Debt, Fund, LedgerTx, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
 import { flowOf, suggestCategory } from './categorize.ts';
 import { blankOut, resolveBoundaries, type BoundaryResult } from './catat/entities.ts';
-import { findTimes, timeSpans } from './catat/temporal.ts';
 
 export type QuickKind = 'expense' | 'income' | 'transfer' | 'debt_new' | 'debt_payment' | 'receivable_new' | 'receivable_payment' | 'claim_new' | 'claim_payment' | 'target' | 'wish'
   | 'fund_new' | 'wish_new' | 'budget' | 'wallet_new' | 'balance' | 'category_new' | 'recurring_new' | 'plan_new' | 'note_new' | 'open';
@@ -84,8 +83,6 @@ export type QuickContext = {
   /** Day of the month the salary comes (Pengaturan › Profil), for "pas gajian". */
   salaryDay?: number;
   budgets?: (Pick<Budget, 'id' | 'name' | 'categoryId' | 'subcategoryId' | 'amount' | 'active'> & { subcategoryIds?: string[]; cycleType?: Budget['cycleType'] })[];
-  /** Local time the sentence is written, "HH:MM" in the person's time zone: the reference clock for "jam 1" (V3.1). */
-  now?: string;
   /** Places the person confirmed before (local entity memory, lib/catat/memory.ts): supporting evidence only. */
   merchants?: string[];
 };
@@ -300,11 +297,8 @@ const COUNTS = `(?:hari|minggu|pekan|bulan|bln|tahun|thn|x|kali|jam|menit|orang|
 /** Every amount in the text, leaving out dates ("tgl 5", "17 agustus", "2027"), counts ("3 hari", "2 porsi") and model numbers ("ps5"). */
 export function findAmounts(text: string): Amount[] {
   const found: Amount[] = [];
-  // Numbers owned by a time expression ("jam 1200", "jam 7 lwt 5", "jam set 3") are never money.
-  const clocks = timeSpans(text);
   for (const m of text.matchAll(AMOUNT)) {
     const index = m.index ?? 0, before = text.slice(0, index), after = text.slice(index + m[0].length);
-    if (clocks.some(c => index < c.end && c.start < index + m[0].length)) continue;
     const marked = Boolean(m[2]) || /rp/.test(m[0]);
     if (/\b(tgl|tanggal)\s*$/.test(before)) continue;
     // A clock time, a table, a room or an account number is not money ("jam 7", "meja 12", "kamar 205", "rekening 1234567890").
@@ -371,14 +365,11 @@ const PLACES: Record<string, string> = { alfa: 'Alfamart', alfamart: 'Alfamart',
 export function knownPlaces(ctx: Pick<QuickContext, 'history' | 'merchants'>) {
   const map = new Map<string, string>();
   for (const [key, name] of Object.entries(PLACES)) { map.set(key, name); map.set(lower(name), name); }
-  for (const [alias, name] of Object.entries(PLACE_ALIASES)) map.set(alias, name);
   for (const name of [...EXTRA_PLACES, ...(ctx.merchants || []), ...ctx.history.map(t => t.merchant).filter(Boolean)]) if (name && name.length >= 3) map.set(lower(name).replace(/\s+/g, ' ').trim(), name);
   return map;
 }
-/** How people write some chains without punctuation or in short. */
-const PLACE_ALIASES: Record<string, string> = { dbesto: 'D\'Besto', 'd besto': 'D\'Besto', cotti: 'Cotti Coffee', 'cotti kopi': 'Cotti Coffee' };
 /** Chains and brands people write without "di" ("kopi fore", "roti indomaret"). */
-const EXTRA_PLACES = ['D\'Besto', 'Cotti Coffee', 'Fore', 'Kopi Kenangan', 'Janji Jiwa', 'Tomoro', 'Point Coffee', 'Chatime', 'Mixue', 'Family Mart', 'Lawson', 'Circle K', 'Burger King', 'Pizza Hut', 'Domino', 'Richeese', 'Gacoan', 'Solaria', 'Hokben', 'Yoshinoya', 'Wingstop', 'Sushi Tei', 'Guardian', 'Watsons', 'Ace Hardware', 'Informa', 'IKEA', 'Uniqlo', 'Gramedia', 'Lotte Mart', 'Giant', 'Carrefour', 'Lion Parcel', 'JNE', 'J&T', 'SiCepat', 'Shell', 'Kimia Farma', 'Apotek K24', 'Century'];
+const EXTRA_PLACES = ['Fore', 'Kopi Kenangan', 'Janji Jiwa', 'Tomoro', 'Point Coffee', 'Chatime', 'Mixue', 'Family Mart', 'Lawson', 'Circle K', 'Burger King', 'Pizza Hut', 'Domino', 'Richeese', 'Gacoan', 'Solaria', 'Hokben', 'Yoshinoya', 'Wingstop', 'Sushi Tei', 'Guardian', 'Watsons', 'Ace Hardware', 'Informa', 'IKEA', 'Uniqlo', 'Gramedia', 'Lotte Mart', 'Giant', 'Carrefour', 'Lion Parcel', 'JNE', 'J&T', 'SiCepat', 'Shell', 'Kimia Farma', 'Apotek K24', 'Century'];
 
 /** Everyday words → words that usually appear in the name of the right category. */
 const HINTS: [RegExp, string[]][] = [
@@ -944,13 +935,10 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   // What's left once the known parts are taken out is the item / description. V3: the merchant, the wallets and the
   // amount are found as spans on the clause first (lib/catat/entities.ts), so one cannot slide into another.
   const spending = flow === 'expense' || flow === 'income';
-  // Dates and times are owned by their fields: protected boundaries for the merchant, blanked out of the description.
   const dateSpans = [...text.matchAll(new RegExp(DATE_PHRASES.source, 'g'))].map(m => ({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
-  const times = findTimes(text).map(t => ({ start: t.start, end: t.end, raw: t.raw }));
-  const bounds = resolveBoundaries({ text, amount: main && main.text === amountText ? { index: main.index, text: main.text } : null, wallets, dates: dateSpans, times, flow, knownPlaces: knownPlaces(ctx) });
+  const bounds = resolveBoundaries({ text, amount: main && main.text === amountText ? { index: main.index, text: main.text } : null, wallets, dates: dateSpans, flow, knownPlaces: knownPlaces(ctx) });
   result.entities = bounds;
-  let rest = ` ${blankOut(text, spending ? bounds.blank : bounds.blank.filter(b => bounds.owned.some(o => o.start === b.start && o.end === b.end)))} `;
-  if (!(main && main.text === amountText)) rest = rest.replace(amountText.toLowerCase(), ' ');
+  let rest = spending && main && main.text === amountText ? ` ${blankOut(text, bounds.blank)} ` : ` ${text} `.replace(amountText.toLowerCase(), ' ');
   if (spending && bounds.merchant) {
     const m = bounds.merchant, key = m.raw.replace(/\s+/g, '');
     const earlier = m.known ? null : ctx.history.find(t => t.merchant && lower(t.merchant).replace(/\s+/g, '').startsWith(key));
