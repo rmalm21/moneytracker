@@ -7000,7 +7000,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .home-dash [data-w='wallets'], .home-dash [data-w='free'] { --w-accent: #1f9d8b; }
 .home-dash [data-w='recent'] { --w-accent: #5b6ee1; }
 .home-dash [data-w='incomeExpense'], .home-dash [data-w='income'] { --w-accent: #2f8f5b; }
-.home-dash [data-w='expenses'], .home-dash [data-w='avgDaily'], .home-dash [data-w='categoryDonut'], .home-dash [data-w='topCategories'] { --w-accent: #d1495b; }
+.home-dash [data-w='expenses'], .home-dash [data-w='avgDaily'], .home-dash [data-w='categoryDonut'], .home-dash [data-w='topCategories'] { --w-accent: #6b7a89; } /* neutral slate: spending is not an alarm */
 .home-dash [data-w='forecast'], .home-dash [data-w='expenseTrend'] { --w-accent: #7c5cd6; }
 .home-dash [data-w='upcoming'], .home-dash [data-w='cashFlow'] { --w-accent: #2a86c7; }
 .home-dash [data-w='inbox'], .home-dash [data-w='claims'] { --w-accent: #d99a1e; }
