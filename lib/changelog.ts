@@ -3,6 +3,7 @@ export type Release = { version: string; date: string; title: string; items: [em
 
 export const releases: Release[] = [
   { version: '3.6', date: '2 Okt 2026', title: 'Beranda baru yang lebih segar', items: [
+    ['💡', 'Kartu atas Beranda baru: sapaan dengan hari dan tanggal, angka utama lebih besar, dan lingkaran hitung mundur ke gajian.'],
     ['💡', 'Beranda dirombak: tiap kartu punya warna sendiri, angka ringkas bisa digeser di HP, dan pemilih periode jadi tombol kecil.'],
     ['📝', 'Catat cepat kini berupa ikon bulat kecil berwarna, dan Transaksi Terbaru menampilkan 5 transaksi terakhir dengan ringkas.'],
     ['💰', 'Anggaran tampil sebagai ubin dengan lingkaran pemakaian, dan Saldo Dompet sebagai kartu berwarna yang bisa digeser.'],

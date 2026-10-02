@@ -7106,3 +7106,33 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .wcc-icon { width: 24px; height: 24px; border-radius: 8px; font-size: .85rem; }
 .home-dash .quick-strip .quick-action { flex-basis: 72px; }
 .home-dash .quick-strip .quick-action span { max-width: 70px; font-size: .64rem; letter-spacing: -.01em; }
+
+/* 144. Beranda header (hero) redesign */
+.home-hero.hh { gap: 14px; padding: 16px 18px 16px; border-radius: 26px; background: radial-gradient(280px 200px at 100% 0%, color-mix(in srgb, var(--accent) 55%, #7ee2c8) 0%, transparent 70%), radial-gradient(260px 220px at 0% 100%, color-mix(in srgb, var(--accent) 40%, #2b4c9b) 0%, transparent 70%), linear-gradient(150deg, color-mix(in srgb, var(--accent) 88%, #000), color-mix(in srgb, var(--accent) 45%, var(--deep))); }
+.home-hero.hh::before, .home-hero.hh::after { display: none; }
+.hh-top { display: flex; align-items: center; gap: 10px; }
+.hh-avatar { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, .2); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28); font: 800 .95rem/1 var(--font-head); }
+.hh-hello { display: grid; flex: 1; min-width: 0; gap: 1px; }
+.hh-hello strong { font: 700 .95rem/1.25 var(--font-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hh-hello small { font-size: .74rem; color: rgba(255, 255, 255, .78); }
+.hh .home-hero-edit { width: 36px; min-width: 36px; height: 36px; padding: 0; border-radius: 12px; background: rgba(255, 255, 255, .16); }
+.hh .home-hero-edit.active { width: auto; padding: 0 10px; }
+.hh-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.hh-figure { display: grid; gap: 4px; min-width: 0; justify-items: start; }
+.hh-figure > small { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 255, 255, .78); }
+.hh .home-hero-amount { font-size: clamp(1.75rem, 8.4vw, 2.5rem); line-height: 1.05; overflow-wrap: anywhere; text-align: left; }
+.hh .home-hero-delta { margin-top: 2px; }
+.hh-payday { position: relative; display: grid; justify-items: center; gap: 4px; }
+.hh-ring { width: 74px; height: 74px; border-radius: 50%; background: conic-gradient(#fff var(--pct), rgba(255, 255, 255, .2) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px)); mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px)); }
+.hh-days { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: grid; place-items: center; align-content: center; width: 74px; height: 74px; line-height: 1; }
+.hh-days strong { font: 800 1.35rem/1 var(--font-head); }
+.hh-days small { font-size: .62rem; font-weight: 700; color: rgba(255, 255, 255, .8); margin-top: 2px; }
+.hh-payday-label { display: inline-flex; align-items: center; gap: 4px; font-size: .66rem; font-weight: 700; color: rgba(255, 255, 255, .85); white-space: nowrap; }
+.hh .home-hero-chips { gap: 8px; margin-top: 0; }
+.hh .home-hero-chips button { padding: 9px 12px; border-radius: 14px; background: rgba(255, 255, 255, .13); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); backdrop-filter: blur(6px); }
+@media (min-width: 900px) { .home-hero.hh { padding: 22px 26px; } .hh .home-hero-amount { font-size: 2.9rem; } .hh-ring, .hh-days { width: 92px; height: 92px; } .hh-days strong { font-size: 1.7rem; } }
+.hh .home-hero-amount { font-size: clamp(1.4rem, 7vw, 2.4rem); white-space: nowrap; overflow-wrap: normal; letter-spacing: -.035em; }
+.hh-ring, .hh-days { width: 64px; height: 64px; }
+.hh-days strong { font-size: 1.2rem; }
+@media (min-width: 900px) { .hh .home-hero-amount { font-size: 2.9rem; } .hh-ring, .hh-days { width: 88px; height: 88px; } .hh-days strong { font-size: 1.6rem; } }
+@media (max-width: 340px) { .hh .home-hero-amount { font-size: 1.3rem; } }
