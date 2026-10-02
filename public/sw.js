@@ -1,5 +1,5 @@
 // Dompet Ajaib service worker: fast app shell, offline fallback, and user-approved updates.
-const VERSION = 'v14';
+const VERSION = 'v15';
 const STATE = 'dompet-ajaib-state';
 const SHELL = `dompet-ajaib-shell-${VERSION}`;
 const RUNTIME = `dompet-ajaib-runtime-${VERSION}`;
@@ -11,23 +11,39 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== SHELL && key !== RUNTIME && key !== STATE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
-self.addEventListener('message', event => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });
+// The page asks, once it is up, whether the background check (below) found a newer build.
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  else if (event.data === 'PAGE_CHANGED?' && event.source) event.waitUntil(refreshing.then(changed => event.source.postMessage({ type: 'PAGE_CHANGED', changed })));
+});
 
-const timeout = (ms, promise) => new Promise((resolve, reject) => { const id = setTimeout(() => reject(new Error('timeout')), ms); promise.then(value => { clearTimeout(id); resolve(value); }, error => { clearTimeout(id); reject(error); }); });
+let refreshing = Promise.resolve(false);
 
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // Pages: try the network briefly, then fall back to the cached shell so the app opens offline.
-  if (request.mode === 'navigate') {
-    event.respondWith(timeout(4000, fetch(request)).then(response => {
-      if (response.ok) { const copy = response.clone(); caches.open(SHELL).then(cache => cache.put(url.pathname.startsWith('/login') ? '/login/' : '/', copy)); }
-      return response;
-    }).catch(() => caches.match(url.pathname.startsWith('/login') ? '/login/' : '/').then(page => page || caches.match('/'))));
+  // Pages: open at once from the saved copy (no waiting on the network), and fetch the page in the background. When
+  // that copy differs (a new build was deployed), it is saved for the next opening and the page is told, so it can
+  // switch over right away. With nothing saved yet (first visit), the network is used.
+  if (request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html' || url.pathname.startsWith('/login'))) {
+    const key = url.pathname.startsWith('/login') ? '/login/' : '/';
+    const fresh = fetch(request, { cache: 'no-cache' }).then(response => (response.ok && !response.redirected ? { page: response, copy: response.clone() } : null)).catch(() => null);
+    const update = Promise.all([fresh, caches.match(key)]).then(async ([got, saved]) => {
+      if (!got) return false;
+      const text = await got.copy.clone().text();
+      const changed = Boolean(saved) && (await saved.text()) !== text;
+      await caches.open(SHELL).then(cache => cache.put(key, got.copy));
+      return changed;
+    }).catch(() => false);
+    refreshing = update;
+    event.waitUntil(update);
+    event.respondWith(caches.match(key).then(saved => saved || fresh.then(got => got ? got.page : caches.match('/'))).then(response => response || Response.error()));
     return;
   }
+  // Other pages (the receipt benchmark): the network, or the saved app if offline.
+  if (request.mode === 'navigate') { event.respondWith(fetch(request).catch(() => caches.match('/').then(page => page || Response.error()))); return; }
   // Hashed build files never change, and the receipt readers' models and runtime (/ocr: Tesseract, PP-OCRv6, ONNX
   // Runtime) only change with a new app version: serve from cache first, download once.
   // The page is cross-origin isolated (for the receipt reader's threads), and the browser then only starts a worker whose

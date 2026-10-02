@@ -19,9 +19,24 @@ function start() {
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installEvent = event as InstallEvent; set({ canInstall: true }); });
   window.addEventListener('appinstalled', () => { installEvent = null; set({ canInstall: false, installed: true }); });
   if (!('serviceWorker' in navigator) || process.env.NODE_ENV !== 'production') return;
-  let reloading = false, openedAt = Date.now();
+  let reloading = false, openedAt = performance.timeOrigin || Date.now();
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') openedAt = Date.now(); });
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading) return; reloading = true; window.location.reload(); });
+  // The app opens from the saved page; the service worker fetches the page meanwhile and says whether a new build came
+  // with it. Just opened and nothing being edited: switch now. Otherwise the update notice offers it.
+  const fresh = () => !document.querySelector('[role="dialog"]') && Date.now() - openedAt < 20000;
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type !== 'PAGE_CHANGED' || !event.data.changed) return;
+    if (fresh() && !reloading) { reloading = true; window.location.reload(); } else set({ updateReady: true });
+  });
+  navigator.serviceWorker.controller?.postMessage('PAGE_CHANGED?');
+  // A screen not opened yet on this device may belong to a build that is no longer online (the saved page is one build
+  // behind for a moment after a deploy): load the current page once instead of showing an error.
+  const stale = (text: string) => /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed/i.test(text);
+  const recover = (text: string) => { if (!stale(text)) return; try { if (sessionStorage.getItem('dompet-ajaib:chunk-reload')) return; sessionStorage.setItem('dompet-ajaib:chunk-reload', '1'); } catch { return; } window.location.reload(); };
+  window.addEventListener('error', event => recover(String(event.message || event.error?.name || '')));
+  window.addEventListener('unhandledrejection', event => recover(String((event.reason as Error)?.name || '') + ' ' + String((event.reason as Error)?.message || event.reason || '')));
+  window.setTimeout(() => { try { sessionStorage.removeItem('dompet-ajaib:chunk-reload'); } catch { /* ignore */ } }, 30000);
   navigator.serviceWorker.register('/sw.js').then(registration => {
     const track = (worker: ServiceWorker | null) => {
       if (!worker) return;

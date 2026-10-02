@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.10', date: '2 Okt 2026', title: 'Buka aplikasi lebih cepat', items: [
+    ['💡', 'Aplikasi kini langsung terbuka dari salinan di HP tanpa menunggu internet. Saat sinyal lambat, Beranda siap dalam kurang dari 1 detik (sebelumnya bisa 4 detik).'],
+    ['✅', 'Versi baru tetap masuk sendiri: dicek diam-diam saat aplikasi dibuka, lalu dipakai otomatis begitu siap.'],
+  ] },
   { version: '3.9', date: '2 Okt 2026', title: 'Transaksi Terbaru lebih tegas', items: [
     ['💡', 'Transaksi Terbaru di Beranda kini seragam: kiri berisi nama, kategori, dan dompet; kanan berisi nominal dan tanggal. Tidak ada lagi label berwarna yang bikin ramai, dan semua nominal sejajar.'],
   ] },
