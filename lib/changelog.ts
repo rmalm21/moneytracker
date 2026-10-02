@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.2', date: '2 Okt 2026', title: 'Catat otomatis paham siapa berutang ke siapa', items: [
+    ['📝', '“atuy ngutang 12k” dicatat sebagai piutang Atuy (Atuy berutang ke kamu), sedangkan “gue ngutang 12k ke aldi” atau “ngutang 12k ke aldi” dicatat sebagai utangmu ke Aldi.'],
+    ['💡', 'Keperluannya dicatat terpisah: “atuy ngutang 12k buat ngedate” jadi Piutang Atuy Rp12.000 · Untuk: Ngedate. Kata setelah “buat/untuk” tidak lagi dianggap nama orang.'],
+    ['💰', '“atuy bayar utang 12k” dicatat sebagai pembayaran piutang, bukan utang baru. Kalau orang itu punya lebih dari satu piutang, kamu ditanya yang mana.'],
+    ['🧾', 'Beberapa transaksi dalam satu kalimat tanpa koma tetap dipisah: “ayam dbesto 13k kmrin parkir 2k di kantor hri ini atuy bayar utang 12k” jadi 3 catatan dengan tanggalnya masing-masing.'],
+    ['✅', 'Utang antara dua orang lain (“atuy ngutang 12k ke aldi”) tidak dicatat sebagai utang atau piutangmu, dan kamu diberi tahu alasannya.'],
+  ] },
   { version: '4.1', date: '2 Okt 2026', title: 'Catat otomatis paham jam', items: [
     ['📝', 'Tulis jamnya seperti biasa: “jam 1”, “jm 7”, “jam 12.10”, “jam 1200”, “jam 12 lewat 10”, “jam set 3 sore”, “jam tiga sore”. Jam itu dipakai sebagai waktu transaksi, bukan jam saat kamu mengetik.'],
     ['💡', '“jam 1” dibaca pintar: kalau kamu mencatat jam 3 sore, itu berarti 13:00 tadi, bukan jam 1 pagi. Kalau dua-duanya masuk akal (mis. “kemarin jam 8”), kamu tinggal ketuk 08:00 atau 20:00.'],

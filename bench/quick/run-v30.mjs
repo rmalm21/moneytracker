@@ -22,11 +22,15 @@ const [label] = args;
 // v30 = Catat otomatis V3.0 as frozen in bench/quick/baseline-v30 (for the V3.1 comparison).
 const file = l => resolve(out, `v30-${SET || 'orig'}-${l}.json`);
 
-export const FIELDS = ['kind', 'amount', 'date', 'time', 'wallet', 'to', 'link', 'category', 'person', 'description', 'merchant'];
-const ENTITY = new Set(['person', 'description', 'merchant']);
+export const FIELDS = ['kind', 'amount', 'date', 'time', 'wallet', 'to', 'link', 'category', 'person', 'description', 'merchant', 'purpose', 'subject'];
+const ENTITY = new Set(['person', 'description', 'merchant', 'purpose']);
+const LOAN = new Set(['debt_new', 'receivable_new', 'debt_payment', 'receivable_payment']);
+const side = k => k?.startsWith('debt') ? 'debt' : k?.startsWith('receivable') ? 'receivable' : '';
+/** V3.2: debtor and creditor from the user's side ('user' or the other person). */
+const roles = x => side(x.kind) === 'debt' ? [ 'user', norm(x.person) ] : [ norm(x.person), 'user' ];
 const empty = v => v === undefined || v === null || v === '';
 const norm = v => String(v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-const same = (f, t, g) => t === null ? empty(g) : ['person', 'description', 'merchant'].includes(f) ? norm(t) === norm(g) : g === t;
+const same = (f, t, g) => t === null ? empty(g) : ['person', 'description', 'merchant', 'purpose', 'subject'].includes(f) ? norm(t) === norm(g) : g === t;
 
 function align(truth, pred) {
   const used = new Set(), pairs = [];
@@ -43,6 +47,7 @@ function align(truth, pred) {
 function scoreCase(c, pred) {
   const { pairs, extra } = align(c.actions, pred);
   const fields = {}, review = { need: 0, flagged: 0 };
+  const rel = { n: 0, debtor: 0, creditor: 0, direction: 0, repayN: 0, repay: 0, exact: 0, wrong: 0, multiN: 0, dateOk: 0, personN: 0, personOk: 0 };
   let wrongTime = 0, wrongDate = 0, wrongAction = 0, wrongEntity = 0, wrongRelation = 0, exact = pred.length === c.actions.length, unneeded = 0, askOk = 0, askNeed = 0;
   for (const [t, p] of pairs) {
     if (!p) { exact = false; continue; }
@@ -60,12 +65,24 @@ function scoreCase(c, pred) {
     for (const f of t.review || []) { review.need++; if (p.flagged.has(f)) review.flagged++; else exact = false; }
     for (const f of p.flagged) if (f !== 'category' && !(t.review || []).includes(f) && f in t && same(f, t[f], p[f]) && t[f] !== null) unneeded++;
     if (t.ask) { askNeed++; if (p.ask === t.ask) askOk++; else exact = false; }
+    if (LOAN.has(t.kind)) {
+      const [td, tc] = roles(t), [pd, pc] = LOAN.has(p.kind) ? roles(p) : ['?', '?'], personKnown = 'person' in t;
+      rel.n++; if (!personKnown || td === pd) rel.debtor++; if (!personKnown || tc === pc) rel.creditor++;
+      const dirOk = side(t.kind) === side(p.kind); if (dirOk) rel.direction++;
+      if (t.kind.endsWith('_payment')) { rel.repayN++; if (p.kind === t.kind) rel.repay++; }
+      const ok = p.kind === t.kind && (!personKnown || same('person', t.person, p.person)) && (!('purpose' in t) || same('purpose', t.purpose, p.purpose));
+      if (ok) rel.exact++;
+      if (!ok && p.confident && !(p.kind === t.kind && p.flagged.has('person'))) rel.wrong++;
+    }
+    if (c.actions.length > 1) { rel.multiN++; if (!('date' in t) || same('date', t.date, p.date)) rel.dateOk++; if ('person' in t) { rel.personN++; if (same('person', t.person, p.person)) rel.personOk++; } }
     if (wTime && !p.flagged.has('time')) wrongTime++; if (wDate && !p.flagged.has('date')) wrongDate++;
     if (p.confident) { if (wrong) wrongAction++; if (entity) wrongEntity++; if (relation) wrongRelation++; }
   }
   wrongAction += extra.filter(p => p.confident).length;
   const dupMoney = pred.filter((p, i) => p.amount && pred.findIndex(q => q.amount === p.amount) !== i).length - c.actions.filter((t, i) => t.amount && c.actions.findIndex(q => q.amount === t.amount) !== i).length;
-  return { id: c.id, tags: c.tags, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongTime, wrongDate, wrongAction, wrongEntity, wrongRelation, unneeded, askOk, askNeed, dupMoney: Math.max(0, dupMoney) };
+  const segWrong = pred.length !== c.actions.length && pred.length > 0 && pred.every(p => p.confident) ? 1 : 0;
+  rel.missedLoan = c.actions.filter(t => LOAN.has(t.kind)).length && !pred.length ? 1 : 0;
+  return { id: c.id, tags: c.tags, rel, segWrong, count: pred.length === c.actions.length, exact, fields, review, extra: extra.length, missed: pairs.filter(([, p]) => !p).length, wrongTime, wrongDate, wrongAction, wrongEntity, wrongRelation, unneeded, askOk, askNeed, dupMoney: Math.max(0, dupMoney) };
 }
 
 const pct = (a, b) => b ? `${Math.round(a / b * 100)}%` : '–';
@@ -77,6 +94,8 @@ function summarize(rows) {
     s.review.need += r.review.need; s.review.flagged += r.review.flagged;
     for (const [f, v] of Object.entries(r.fields)) { const x = (s.fields[f] ||= { ok: 0, n: 0 }); x.ok += v.ok; x.n += v.n; }
   }
+  const R = { n: 0, debtor: 0, creditor: 0, direction: 0, repayN: 0, repay: 0, exact: 0, wrong: 0, multiN: 0, dateOk: 0, personN: 0, personOk: 0 }; let segWrong = 0;
+  for (const r of rows) { for (const k of Object.keys(R)) R[k] += r.rel?.[k] || 0; segWrong += r.segWrong || 0; }
   const tag = t => rows.filter(r => r.tags.includes(t)), exactOf = list => pct(list.filter(r => r.exact).length, list.length);
   return {
     'Kalimat benar seluruhnya': pct(s.exact, rows.length),
@@ -95,6 +114,16 @@ function summarize(rows) {
     'Jam salah tapi yakin': s.wrongTime,
     'Tanggal salah tapi yakin': s.wrongDate,
     ...Object.fromEntries(['ampm', 'half', 'lewat', 'daypart', 'format', 'words', 'date', 'absolute', 'money', 'future', 'midnight', 'context'].filter(t => tag(t).length).map(t => [`Tepat [${t}]`, exactOf(tag(t))])),
+    ...(R.n ? {
+      'Debitur (yang berutang) tepat': pct(R.debtor, R.n), 'Kreditur (pemberi pinjaman) tepat': pct(R.creditor, R.n),
+      'Arah dari sudut pandang kamu tepat': pct(R.direction, R.n), 'Arah pembayaran utang/piutang tepat': pct(R.repay, R.repayN),
+      'Relasi tepat (jenis + orang + keperluan)': pct(R.exact, R.n), 'Relasi utang/piutang salah tapi yakin': R.wrong,
+    } : {}),
+    ...(tag('segmentation').length ? {
+      'Batas aksi tepat (bertanda segmentation)': exactOf(tag('segmentation')), 'Jumlah aksi tanpa kata sambung tepat': pct(tag('implicit').filter(r => r.count).length, tag('implicit').length),
+      'Tanggal per aksi tepat': pct(R.dateOk, R.multiN), 'Orang per aksi tepat': pct(R.personOk, R.personN), 'Segmentasi salah tapi yakin': segWrong,
+    } : {}),
+    ...Object.fromEntries(['relation', 'purpose', 'repayment', 'possession', 'third', 'pronoun', 'negation'].filter(t => tag(t).length).map(t => [`Tepat [${t}]`, exactOf(tag(t))])),
     'Pertanyaan tepat': pct(s.askOk, s.askNeed),
     'Tanya yang tidak perlu': s.unneeded,
     'Uang tercatat dobel': s.dupMoney,
@@ -105,7 +134,7 @@ const linkOf = r => r.preset.debtId || r.preset.receivableId || r.preset.claimId
 const categoryOf = r => r.budget ? r.budget.subcategoryIds[0] || r.budget.categoryId : r.preset.subcategoryId || r.preset.categoryId || undefined;
 const toActions = plan => plan.actions.map(action => {
   const r = action.result, flagged = new Set(Object.entries(action.fields).filter(([, f]) => f.status === 'check' || f.status === 'missing').map(([k]) => k));
-  return { kind: r.kind, amount: r.amount || undefined, date: r.preset.date || r.date, wallet: r.preset.walletId, to: r.preset.destinationWalletId, link: linkOf(r), category: categoryOf(r), time: r.preset.time || undefined, person: r.person || r.preset.counterparty || undefined, description: r.preset.description, merchant: r.preset.merchant, flagged, confident: !action.review, ask: action.ask?.field };
+  return { kind: r.kind, amount: r.amount || undefined, date: r.preset.date || r.date, wallet: r.preset.walletId, to: r.preset.destinationWalletId, link: linkOf(r), category: categoryOf(r), time: r.preset.time || undefined, person: r.person || r.preset.counterparty || undefined, description: r.preset.description, merchant: r.preset.merchant, purpose: r.purpose, subject: action.relation ? (action.relation.subject.party === 'user' ? 'user' : action.relation.subject.party) : undefined, flagged, confident: !action.review, ask: action.ask?.field };
 });
 
 function table(summaries) {
@@ -124,6 +153,7 @@ if (label === '--compare' || process.argv.includes('--compare')) {
 let run;
 if (label === 'v25') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v25/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
 else if (label === 'grammar') { const mod = await import(pathToFileURL(resolve(root, 'lib/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
+else if (label === 'v31') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v31/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v30') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v30/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v3') { const mod = await import(pathToFileURL(resolve(root, 'lib/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'nlp') { const mod = await import(pathToFileURL(resolve(root, 'lib/catat/nlp-engine.ts')).href); run = async (t, c) => mod.nlpOnlyActions(t, c); }

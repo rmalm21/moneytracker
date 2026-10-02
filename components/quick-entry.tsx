@@ -519,6 +519,12 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       fact('n', name.trim() || 'Judul belum ada', name.trim() ? 'qp-cat' : 'qp-missing'); fact('t', date ? dayText(date) : 'Tanggal?', date ? '' : 'qp-missing'); if (flowCategoryRecord) fact('c', flowCategoryRecord.name); if (walletId) fact('w', walletName(walletId));
       fact('s', 'Saldo belum berubah', 'qp-soft'); break;
     case 'note_new': fact('t', dayText(date)); if (amount) fact('a', rupiah(amount)); break;
+    // V3.2: who owes whom, in words, and what it was for.
+    case 'receivable_new': case 'debt_new': case 'receivable_payment': case 'debt_payment':
+      if (person.trim()) fact('p', kind === 'receivable_new' ? `${person.trim()} berutang ke kamu` : kind === 'debt_new' ? `Kamu berutang ke ${person.trim()}` : kind === 'receivable_payment' ? `Dibayar ${person.trim()}` : `Bayar ke ${person.trim()}`, 'qp-cat');
+      else if (kind === 'receivable_new') fact('p', 'Siapa yang meminjam?', 'qp-missing');
+      if (result.purpose) fact('u', `Untuk: ${kind === 'receivable_new' ? description.trim() || result.purpose : result.purpose}`);
+      fact('t', dayText(date)); if (walletId) fact('w', walletName(walletId)); break;
     default: fact('t', dayText(date));
   }
 

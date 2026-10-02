@@ -46,8 +46,6 @@ export type QuickResult = {
   preset: Partial<LedgerTx>;
   /** New debt: who lent the money. New receivable: who owes it. Spending/income: who was paid or paid (no record). */
   person?: string;
-  /** V3.2: what a loan or repayment is for ("buat ngedate" → "Ngedate"): its own field, never the person or a second action. */
-  purpose?: string;
   /** Spending/income: how the person was read — after "kirim/transfer ke" (to), after "bayar" (pay), after "dari" (from). */
   personCue?: 'to' | 'pay' | 'from';
   /** V3: the entity spans chosen for this clause and the candidates rejected (provenance, "Kenapa?", trace). */
@@ -663,12 +661,6 @@ function counterpartyIn(text: string, ctx: QuickContext): { word: string; at: nu
   }
   return null;
 }
-/** V3.2: a word that can be somebody's name (not a small word, a wallet, a known place, a category or an everyday thing). */
-export function nameLike(word: string, ctx: QuickContext) {
-  const places = knownPlaces(ctx), w = lower(word);
-  return w.length >= 3 && /^\p{L}+$/u.test(w) && !NOT_A_NAME.has(w) && !NOT_PERSON.has(w) && !walletsIn(w, ctx.wallets).length && !places.has(w) && !ctx.categories.some(c => lower(c.name).split(/[^\p{L}]+/u).includes(w)) && !HINTS.some(([re]) => re.test(w));
-}
-export const isHonorific = (word: string) => HONORIFIC.has(lower(word));
 function personAfter(text: string, pattern: RegExp) {
   const m = text.match(pattern); if (!m) return '';
   const next = text.slice((m.index ?? 0) + m[0].length).trim().split(/\s+/);

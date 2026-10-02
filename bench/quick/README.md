@@ -79,3 +79,9 @@ and `fixtures-v30heldout.mjs` (first held-out, first result frozen in `heldout-f
 
 Temporal Intelligence: `lib/catat/temporal.ts`. Sets `fixtures-v31dev.mjs` and `fixtures-v31heldout.mjs` (first run
 frozen in `heldout-first/`), V3.0 frozen in `baseline-v30/` (`run-v30.mjs v30`). Report: `REPORT-v31.md`.
+
+## Catat otomatis V3.2 (app 4.2)
+
+Relationship, direction and multi-action: `lib/catat/relations.ts` (verb roles, user perspective, purpose) and
+`lib/catat/segment.ts` (anchor segmentation). Sets `fixtures-v32dev.mjs` and `fixtures-v32heldout.mjs` (first run frozen
+in `heldout-first/`), V3.1 frozen in `baseline-v31/` (`run-v30.mjs v31`). Report: `REPORT-v32.md`.

@@ -23,17 +23,15 @@
  *     as a one-tap choice. Two amounts or two wallets for one entry work the same way;
  *   - the person's history only helps when the text says nothing (a wallet or category named in the text always wins).
  */
-import { catchBugs, catchRelationBugs, catchSegmentBugs, catchTemporalBugs, type BugWarning } from './catat/bug-catcher.ts';
-import { readRelation, withoutPurpose, type RelationReading } from './catat/relations.ts';
-import { segmentPiece } from './catat/segment.ts';
+import { catchBugs, catchTemporalBugs, type BugWarning } from './catat/bug-catcher.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
-export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name' | 'purpose';
+export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name';
 export type FieldStatus = 'verified' | 'likely' | 'check' | 'missing';
 export const FIELD_STATUS: Record<FieldStatus, string> = { verified: 'Terverifikasi', likely: 'Kemungkinan benar', check: 'Perlu dicek', missing: 'Belum terbaca' };
-export const FIELD_LABELS: Record<FieldKey, string> = { kind: 'Jenis', amount: 'Nominal', date: 'Tanggal', time: 'Jam', wallet: 'Dompet', to: 'Dompet tujuan', link: 'Catatan terkait', category: 'Kategori', person: 'Orang', name: 'Nama', purpose: 'Untuk' };
+export const FIELD_LABELS: Record<FieldKey, string> = { kind: 'Jenis', amount: 'Nominal', date: 'Tanggal', time: 'Jam', wallet: 'Dompet', to: 'Dompet tujuan', link: 'Catatan terkait', category: 'Kategori', person: 'Orang', name: 'Nama' };
 export type FieldState = { status: FieldStatus; note?: string };
 export type QuickEntity = { type: 'amount' | 'date' | 'time' | 'wallet' | 'person' | 'place' | 'record' | 'reference' | 'correction'; text: string; value?: string | number; clause: number };
 export type QuickClause = { index: number; text: string; source: [number, number]; normalized: string; role: 'action' | 'modifier' | 'extra-amount' | 'ignored' | 'cancel' };
@@ -50,7 +48,7 @@ export type ActionCandidate = {
   /** Other readings of the same words, ready to use. */
   alternatives: QuickAlternative[];
   /** Values to choose from when the text gave more than one. */
-  options: { amount?: number[]; date?: { date: string; label: string }[]; wallet?: string[]; time?: string[]; /** V3.2: the records a repayment may belong to. */ link?: string[] };
+  options: { amount?: number[]; date?: { date: string; label: string }[]; wallet?: string[]; time?: string[] };
   /** V3.1: the time expression read and how its timestamp was chosen (provenance, "Kenapa?", developer trace). */
   temporal?: { expr: TimeExpr; resolution: TemporalResolution; future: boolean; pastCue: boolean; dateLocked: boolean };
   daypart?: string;
@@ -66,8 +64,6 @@ export type ActionCandidate = {
   /** V3: candidates the resolver rejected, and what the Bug Catcher found and repaired. */
   rejected?: RejectedCandidate[];
   checks?: BugWarning[];
-  /** V3.2: who owes whom in this action, from the user's side, with the reasons ("Kenapa?", developer trace). */
-  relation?: RelationReading;
 };
 export type QuickAsk = { field: FieldKey; question: string; /** Wallet ids, record ids or kinds to pick from. */ choices?: string[] };
 /**
@@ -76,7 +72,7 @@ export type QuickAsk = { field: FieldKey; question: string; /** Wallet ids, reco
  * `from` / `to` are action ids ("a0") or clause numbers ("c2").
  */
 export type QuickRelation = {
-  type: 'third_party' | 'shared_date' | 'shared_wallet' | 'refers_to' | 'correction_of' | 'negates' | 'consequence_of' | 'repayment_of' | 'claim_for' | 'transfer_between';
+  type: 'shared_date' | 'shared_wallet' | 'refers_to' | 'correction_of' | 'negates' | 'consequence_of' | 'repayment_of' | 'claim_for' | 'transfer_between';
   from: string; to?: string; note: string; confidence: FieldStatus;
 };
 export type QuickParseResult = {
@@ -100,14 +96,14 @@ export type QuickParseResult = {
 
 /** Chat spellings → the words the reader knows. Only whole words; names of the person's wallets are left alone. */
 const SPELLING: Record<string, string> = {
-  kemaren: 'kemarin', kmaren: 'kemarin', hri: 'hari', hr: 'hari', kmrin: 'kemarin', kmren: 'kemarin', kmrn: 'kemarin', td: 'tadi', tdi: 'tadi', tdk: 'tidak',
+  kemaren: 'kemarin', kmaren: 'kemarin', kmrin: 'kemarin', kmren: 'kemarin', kmrn: 'kemarin', td: 'tadi', tdi: 'tadi', tdk: 'tidak',
   skrg: 'sekarang', skg: 'sekarang', skrang: 'sekarang', skrng: 'sekarang', byr: 'bayar', bayr: 'bayar', bayarr: 'bayar',
   trf: 'transfer', trnsfer: 'transfer', transfr: 'transfer', trasfer: 'transfer', tranfer: 'transfer', trsf: 'transfer',
   pake: 'pakai', pakek: 'pakai', pk: 'pakai', dr: 'dari', gw: 'aku', gue: 'aku', gua: 'aku', w: 'aku',
   mkn: 'makan', mkan: 'makan', maem: 'makan', mam: 'makan', mnm: 'minum', minm: 'minum', maksi: 'makan siang', makmal: 'makan malam',
   blnj: 'belanja', blanja: 'belanja', bensn: 'bensin', bnsin: 'bensin', bensi: 'bensin', prkir: 'parkir', parkr: 'parkir', pkir: 'parkir',
   ntar: 'nanti', ntr: 'nanti', udh: 'sudah', udah: 'sudah', sdh: 'sudah', blm: 'belum', dgn: 'dengan', dg: 'dengan', jg: 'juga',
-  pg: 'pagi', mlm: 'malam', malem: 'malam', mlem: 'malam', trs: 'terus', trus: 'terus', krn: 'karena', lsg: 'langsung', tp: 'tapi', lg: 'lagi', sy: 'saya',
+  pg: 'pagi', mlm: 'malam', trs: 'terus', trus: 'terus', krn: 'karena', lsg: 'langsung', tp: 'tapi', lg: 'lagi', sy: 'saya',
   ingetin: 'ingetin', ingatin: 'ingetin', inget: 'ingetin', tlg: 'tolong', bls: 'balas', bgt: 'banget', gpp: 'tidak apa',
 };
 const PHRASES: [RegExp, string][] = [
@@ -179,12 +175,6 @@ export function applyCorrections(input: string, ctx: QuickContext) {
     const span = type ? lastOf(left, type, ctx) : null;
     const said = span ? left.slice(span[0], span[1]).trim() : '';
     text = `${span ? left.slice(0, span[0]) + left.slice(span[1]) : left} ${right}`.replace(/\s+/g, ' ').trim();
-    // "gue ngutang ke aldi eh ke budi 20k": "ke / sama / dari + a name" after the marker replaces the name after the same word.
-    const prepFix = right.trim().match(/^(ke|sama|ama|dari|buat|untuk)\s+(\p{L}{3,})\b\s*(.*)$/u);
-    if (!type && prepFix) {
-      const re = new RegExp(`\\b${prepFix[1]}\\s+(\\p{L}{3,})\\b`, 'u'), old = left.match(re);
-      if (old && old[1] !== prepFix[2]) { text = `${left.replace(re, `${prepFix[1]} ${prepFix[2]}`)} ${prepFix[3]}`.replace(/\s+/g, ' ').trim(); notes.push(`dikoreksi: “${old[1]}” → “${prepFix[2]}”`); continue; }
-    }
     // "talangin budi 40rb eh aldi": one name after the marker replaces the person read before it.
     if (!type && /^\p{L}{3,}$/u.test(right.trim())) {
       const person = parseQuickText(left, ctx)?.person?.toLocaleLowerCase('id-ID');
@@ -213,13 +203,6 @@ export function applyCorrections(input: string, ctx: QuickContext) {
     const m = /(?:^|\s*,\s*|\s+)bukan\s+(?:(?:dari|pakai|via|lewat|ke)\s+)?(\S+)(?:\s*,\s*|\s+(?:tapi|melainkan)\s+|\s*$)?/.exec(text); if (!m) break;
     const word = m[1].replace(/[,.]$/, ''), kinds = KIND_WORDS[word];
     const isWallet = walletsIn(word, ctx.wallets).length > 0, isAmount = findAmounts(word).some(a => a.marked || a.value >= 100);
-    // "atuy bukan ngutang, dia bayar utang 12k": a loan verb taken back in favour of the verb that follows.
-    const LOAN_VERB = /\b(ngutang|utang|hutang|pinjam|minjem|pinjem|minjemin|pinjemin|bayar|balikin|nyicil|dibayar|lunasin)\b/;
-    if (!kinds && LOAN_VERB.test(word) && LOAN_VERB.test(text.slice(m.index + m[0].length))) {
-      notes.push(`bukan “${word}”`);
-      text = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').trim();
-      continue;
-    }
     if (!kinds && !isWallet && !isAmount) {
       // "talangin budi 40rb, bukan budi, aldi" → Aldi; "buat budi bukan aldi" → Aldi is simply not meant.
       if (!/^\p{L}{3,}$/u.test(word)) break;
@@ -244,14 +227,14 @@ export function applyCorrections(input: string, ctx: QuickContext) {
 
 const CONNECT = 'lalu|terus|kemudian|habis itu|abis itu|abis tu|habis tu|setelah itu|sama|dan|tapi|sedangkan|plus|\\+';
 const BOUNDARY = new RegExp(`\\s*(?:\\n|;|,(?!\\d)|\\.(?=\\s))\\s*(?:(?:${CONNECT}|trus|trs|tp)\\s+)?|\\s+(?:${CONNECT}|trus|trs|tp)\\s+`, 'gi');
-const TX_CUE = /\b(ngutang|utang|hutang|minjemin|pinjamin|ngutangin|talangin|nalangin|bayarin|balikin|ngembaliin|dibayar|beli|bayar|tf|transfer|topup|top up|isi saldo|tarik tunai|setor tunai|terima|pinjam|pinjem|minjem|pinjemin|nabung|sisihkan|klaim|reimburse|kirim|gaji|gajian|lunasin|lunasi|jual)\b/;
+const TX_CUE = /\b(beli|bayar|tf|transfer|topup|top up|isi saldo|tarik tunai|setor tunai|terima|pinjam|pinjem|minjem|pinjemin|nabung|sisihkan|klaim|reimburse|kirim|gaji|gajian|lunasin|lunasi|jual)\b/;
 const VERB_START = /^(beli|bayar|tf|transfer|topup|top up|terima|pinjam|pinjem|pinjemin|nabung|klaim|isi|tarik|setor|ingetin|ingatkan|budget|anggaran|gaji|gajian|buka|catat|kirim|jual)\b/;
 const OWN_KIND = /\b(beli|bayar|tf|transfer|topup|terima|pinjam|pinjem|pinjemin|nabung|klaim|gaji|gajian|kirim|ingetin|ingatkan|rencana|target|buka|jual|dapat|dapet|saldo|langganan)\b/;
 const CORRECTION_START = /^(?:eh+m?|ralat|koreksi|maksudnya|maksud\b|bukan\b|sori|sorry)/;
 const REFERENCE = /\b(?:dua-duanya|keduanya|semuanya|semua|sisanya|yang lain(?:nya)?|lainnya|yang\s+(?:ke-?\d+|\p{L}+))\b/u;
 const NO_AMOUNT = new Set<QuickKind>(['note_new', 'open', 'category_new', 'wallet_new']);
 type Piece = { start: number; end: number; connector: string };
-type Unit = Piece & { index: number; text: string; norm: string; cls: 'action' | 'modifier' | 'amountOnly' | 'ignored' | 'cancel'; notes: string[]; negated: Set<QuickKind>; noAmount?: boolean; /** V3.2: the relationship read from the clause. */ rel?: RelationReading | null; /** A reference read from the words ("tapi makan cash" → "yang makan"). */ ref?: string };
+type Unit = Piece & { index: number; text: string; norm: string; cls: 'action' | 'modifier' | 'amountOnly' | 'ignored' | 'cancel'; notes: string[]; negated: Set<QuickKind>; noAmount?: boolean; /** A reference read from the words ("tapi makan cash" → "yang makan"). */ ref?: string };
 
 function pieces(source: string): Piece[] {
   const out: Piece[] = []; let at = 0, connector = '';
@@ -343,47 +326,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     if (result) { amountMissing = true; result.amount = 0; if (result.preset.amount) result.preset.amount = 0; }
   }
   if (!result) return null;
-  // V3.2 relationship: who owes whom, read from the verb's roles and turned to the user's side (lib/catat/relations.ts).
-  // Only over a money movement reading: a claim ("talangin … nanti diklaim"), a plan or a note keeps its own kind.
-  const relation = forceText === undefined && mode === 'auto' && unit.rel?.kind && ['debt_new', 'receivable_new', 'debt_payment', 'receivable_payment', 'expense', 'income'].includes(result.kind) ? unit.rel : null;
-  let relLink: { status: FieldStatus; note: string; choices?: string[] } | null = null;
-  const relChecks: BugWarning[] = [];
-  if (relation) {
-    const want = relation.kind!, cp = relation.counterparty, low = (t?: string) => (t || '').toLocaleLowerCase('id-ID');
-    const before = { kind: result.kind, person: result.person, description: result.preset.description };
-    const plain = withoutPurpose(text, relation);
-    if (result.kind !== want || relation.purpose) {
-      const again = parseQuickText(amountMissing ? `${plain} 1rb` : plain, ctx, want);
-      if (again) { result = again; if (amountMissing) { result.amount = 0; if (result.preset.amount) result.preset.amount = 0; } }
-    }
-    relChecks.push(...catchRelationBugs(before, relation));
-    const purposeWords = low(relation.purpose?.text).split(/\s+/);
-    result.person = cp || (result.person && !/^(aku|saya|gue|gw|ane|dia|doi)$/.test(low(result.person)) && !purposeWords.includes(low(result.person)) && !relation.subject.pronoun ? result.person : '');
-    if (relation.purpose) { result.purpose = relation.purpose.text.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' '); }
-    if (relation.wallet && !result.preset.walletId) result.preset.walletId = relation.wallet;
-    // A description that only repeats the people ("Atuy", "Ke Aku") says nothing: the purpose, or nothing.
-    const people = new Set([low(cp), relation.subject.word, 'aku', 'saya', 'ke', 'sama', 'dari', 'dia', 'doi', 'buat', 'untuk'].filter(Boolean));
-    const desc = low(result.preset.description);
-    if (desc && desc.split(/\s+/).every(w => people.has(w) || purposeWords.includes(w))) delete result.preset.description;
-    if (want === 'receivable_new' && result.purpose) result.preset.description = result.purpose;
-    // A new debt keeps its purpose in its name ("Pinjaman Aldi untuk Beli Bensin"); its notes stay the person's own.
-    if (want === 'debt_new' && result.purpose) result.name = `${cp ? `Pinjaman ${cp}` : 'Pinjaman'} untuk ${result.purpose}`;
-    if (cp && (want === 'receivable_payment' || want === 'debt_payment')) {
-      // Linked only when exactly one open record of that person exists; several → asked; none → said so.
-      const owns = (names: (string | undefined)[]) => names.some(n => low(n).split(/[^\p{L}]+/u).includes(low(cp)));
-      const cands = want === 'receivable_payment' ? (ctx.receivables || []).filter(x => x.remainingAmount > 0 && owns([x.person])).map(x => ({ id: x.id, label: x.description ? `${x.person} (${x.description})` : x.person }))
-        : (ctx.debts || []).filter(d => d.outstandingAmount > 0 && owns([d.provider, d.name])).map(d => ({ id: d.id, label: d.name }));
-      delete result.preset.receivableId; delete result.preset.debtId;
-      const noun = want === 'receivable_payment' ? 'piutang' : 'utang';
-      if (cands.length === 1) {
-        if (want === 'receivable_payment') { result.preset.receivableId = cands[0].id; result.preset.description = `Dibayar ${cp}`; } else { result.preset.debtId = cands[0].id; result.preset.description = `Bayar ${cands[0].label}`; }
-        relLink = { status: 'verified', note: `satu-satunya ${noun} ${cp} yang masih terbuka` };
-      } else {
-        result.preset.description = want === 'receivable_payment' ? `Dibayar ${cp}` : `Bayar utang ke ${cp}`;
-        relLink = cands.length ? { status: 'check', note: `Ada ${cands.length} ${noun} ${cp}: ${cands.map(c => c.label).join(' atau ')}`, choices: cands.map(c => c.id) } : { status: 'missing', note: `Belum ada ${noun} ${cp} yang tercatat`, choices: [] };
-      }
-    }
-  }
   const fields: ActionCandidate['fields'] = {}, evidence: string[] = [...unit.notes], warnings: string[] = [], options: ActionCandidate['options'] = {};
   let temporal: ActionCandidate['temporal'];
   const set = (key: FieldKey, status: FieldStatus, note?: string) => { fields[key] = { status, ...(note ? { note } : {}) }; };
@@ -603,18 +545,6 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   if (['note_new', 'fund_new', 'wish_new', 'category_new', 'wallet_new', 'recurring_new', 'plan_new'].includes(kind)) set('name', r.name?.trim() ? 'likely' : 'missing', r.name?.trim() ? undefined : 'Namanya belum ada');
   if (kind === 'open' && !r.menu) set('kind', 'check', 'Menu belum dikenali');
 
-  // V3.2: the relationship's own confidence, person, record and purpose.
-  if (relation) {
-    const cp = relation.counterparty, k = fields.kind?.status || 'likely';
-    if (RANK[relation.confidence] < RANK[k]) set('kind', relation.confidence, fields.kind?.note);
-    const role = kind === 'receivable_new' ? 'yang berutang' : kind === 'debt_new' ? 'pemberi pinjaman' : kind === 'receivable_payment' ? 'yang membayar' : 'yang dibayar';
-    if (cp) set('person', relation.confidence === 'check' ? 'check' : 'verified', `${cp} (${role})`);
-    else if (relation.subject.pronoun) set('person', 'missing', `Siapa “${relation.subject.word}”?`);
-    if (relLink) { set('link', relLink.status, relLink.note); if (relLink.choices) options.link = relLink.choices; }
-    if (r.purpose) set('purpose', 'likely', r.purpose);
-    evidence.push(...relation.why);
-  }
-
   // Other readings.
   const alternatives: QuickAlternative[] = [];
   const tried = new Set<QuickKind>([kind]);
@@ -664,11 +594,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   }
   // The plain sentences replace the short V2.5 lines that say the same thing.
   for (const [short, long] of [[/^Nominal: “/, / dibaca dari “/], [/^Dompet: “/, / dikenali sebagai dompet karena/]] as const) if (evidence.some(e => long.test(e))) for (let i = evidence.length - 1; i >= 0; i--) if (short.test(evidence[i])) evidence.splice(i, 1);
-  // V3.2 Bug Catcher: an action still holding two money amounts that each have their own item or verb.
-  const moneyAnchors = findAmounts(text).filter(a => (a.marked || a.value >= 1000) && !a.monthly);
-  const heads = moneyAnchors.filter(a => { const w = text.slice(0, a.index).trim().split(/\s+/).pop() || ''; return /^\p{L}{3,}$/u.test(w) && !/^(pajak|ppn|tax|service|servis|ongkir|ongkos|admin|biaya|fee|tip|diskon|potongan|cashback|kembalian|total|sisa|dp|untung|rugi|modal|rp|masing-masing)$/.test(w) && !walletsIn(w, ctx.wallets).length; }).length;
-  relChecks.push(...catchSegmentBugs(text, r.preset.description, moneyAnchors.length, heads));
-  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd, entities: graph, rejected: r.entities?.rejected || [], checks: [...caught.warnings, ...tcaught.warnings, ...relChecks], temporal, ...(relation ? { relation } : {}) };
+  const action: Analyzed = { id: `a${index}`, clause: index, text: unit.text, result: r, fields, evidence: [...new Set(evidence)], alternatives, options, daypart, warnings, review: false, confidence: 1, explicit: { wallet: explicitWallet, date: explicitDate }, assigned: {}, connector: unit.connector, dateAtEnd, entities: graph, rejected: r.entities?.rejected || [], checks: [...caught.warnings, ...tcaught.warnings], temporal };
   return action;
 }
 
@@ -826,8 +752,6 @@ function askFor(a: ActionCandidate, ctx: QuickContext): QuickAsk | undefined {
   if (open('link')) {
     const list = r.kind === 'debt_payment' ? (ctx.debts || []).filter(d => d.outstandingAmount > 0).map(d => [d.id, d.name]) : r.kind === 'receivable_payment' ? (ctx.receivables || []).filter(x => x.remainingAmount > 0).map(x => [x.id, x.person]) : r.kind === 'claim_payment' ? (ctx.claims || []).filter(c => c.remainingAmount > 0).map(c => [c.id, c.name]) : r.kind === 'target' ? (ctx.funds || []).filter(f => !f.isArchived).map(f => [f.id, f.name]) : [];
     const noun = r.kind === 'debt_payment' ? 'Utang' : r.kind === 'receivable_payment' ? 'Piutang' : r.kind === 'claim_payment' ? 'Klaim' : r.kind === 'target' ? 'Tujuan dana' : 'Catatan';
-    if (a.options.link && !a.options.link.length) return { field: 'link', question: `${a.fields.link?.note || `${noun} belum tercatat`}. Pilih “${r.kind === 'receivable_payment' ? 'Pemasukan' : 'Pengeluaran'}” di bawah, atau catat dulu ${noun.toLowerCase()}nya.`, choices: [] };
-    if (a.options.link?.length) { const picked = list.filter(x => a.options.link!.includes(x[0])).map(x => { const rec = ctx.receivables?.find(v => v.id === x[0]); return rec?.description ? [x[0], `${rec.person} (${rec.description})`] : x; }); return { field: 'link', question: `${noun} yang mana: ${picked.map(x => x[1]).join(' atau ')}?`, choices: picked.map(x => x[0]) }; }
     return { field: 'link', question: list.length && list.length <= 3 ? `${noun} yang mana: ${list.map(x => x[1]).join(' atau ')}?` : `${noun} yang mana?`, choices: list.map(x => x[0]) };
   }
   if (open('person')) return { field: 'person', question: r.kind === 'receivable_new' ? 'Siapa yang meminjam?' : 'Siapa orangnya?' };
@@ -883,17 +807,7 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   const make = (p: Piece, cls: Unit['cls'], extra: Partial<Unit> = {}): Unit => { const text = sourceText.slice(p.start, p.end).trim(), c = prep(text); return { ...p, text, norm: c.text, notes: c.notes, negated: c.negated, cls, index: 0, ...extra }; };
   const join = (a: Piece, b: Piece): Piece => ({ start: a.start, end: b.end, connector: a.connector });
   const kindFixed = (u?: Unit) => Boolean(u && u.negated.size);
-  // V3.2: a piece with several money anchors and no joining word ("kopi 20k jago bensin 80k krom") is cut where the
-  // next action starts (lib/catat/segment.ts); each part then goes through the same clause logic.
-  const anchored = pieces(sourceText).flatMap(p => {
-    if (mode !== 'auto') return [p];
-    const seg = segmentPiece(sourceText, p.start, p.end, ctx, { prep: t => prep(t).text, dateRe: DATE_ANY, read: n => { const r = parseQuickText(n, ctx, mode); return r ? { kind: r.kind, amount: r.amount } : null; } });
-    graph.trace.push(...seg.trace);
-    if (!seg.cuts.length) return [p];
-    const bounds = [p.start, ...seg.cuts, p.end];
-    return bounds.slice(0, -1).map((b, i) => ({ start: b, end: bounds[i + 1], connector: i ? '' : p.connector })).filter(x => sourceText.slice(x.start, x.end).trim());
-  });
-  for (const piece of anchored) {
+  for (const piece of pieces(sourceText)) {
     const alone = prep(sourceText.slice(piece.start, piece.end)).text, said = prep(sourceText.slice(0, piece.start)).text;
     if (CANCEL.test(alone) && !pending) { units.push(make(piece, 'cancel')); continue; }
     const lastUnit = units[units.length - 1];
@@ -934,25 +848,12 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
 
   // One reading per action clause.
   const actions: Analyzed[] = [], unresolved: string[] = [], warnings: string[] = [], cancelled: string[] = [];
-  const people: { name: string; loan: boolean }[] = [];
   units.forEach((unit, i) => {
     if (unit.cls !== 'action') return;
-    // V3.2: the relationship of the clause, with "dia / doi" resolved to the one person already named in the message.
-    const names = [...new Set(people.map(p => p.name))];
-    const active = names.length === 1 ? { name: names[0], loan: people.some(p => p.loan) } : undefined;
-    unit.rel = mode === 'auto' ? readRelation(unit.norm, ctx, active) : null;
-    if (unit.rel) graph.trace.push(...unit.rel.trace.map(t => `relasi klausa ${i}: ${t}`));
-    if (unit.rel?.thirdParty) {
-      const n = unit.rel.node, msg = `“${unit.text}”: ini utang ${n.debtor} ke ${n.creditor}, bukan utang atau piutangmu, jadi tidak dicatat.`;
-      warnings.push(msg); unresolved.push(msg); unit.cls = 'ignored';
-      graph.relations.push({ type: 'third_party', from: `c${i}`, note: msg, confidence: 'verified' });
-      return;
-    }
     let a = analyze(unit, i, ctx, mode);
     // "budget makan 2jt, transport 800rb": "budget" said first covers the clauses after it that name no other action.
     const prev = actions[actions.length - 1];
     if (a && prev?.result.kind === 'budget' && ['expense', 'income'].includes(a.result.kind) && !OWN_KIND.test(unit.norm) && mode === 'auto') a = analyze(unit, i, ctx, mode, `budget ${unit.norm}`) || a;
-    if (a?.result.person) people.push({ name: a.result.person, loan: ['debt_new', 'receivable_new', 'debt_payment', 'receivable_payment'].includes(a.result.kind) });
     if (a) { actions.push(a); graph.trace.push(`aksi ${a.id}: ${a.result.kind} ${a.result.amount ? rupiah(a.result.amount) : '-'} dari “${unit.text}”`); } else unit.cls = 'ignored';
   });
   for (const unit of units) for (const n of unit.notes) { const a = actions.find(x => x.clause === unit.index); if (a && /^dikoreksi/.test(n)) graph.relations.push({ type: 'correction_of', from: `c${unit.index}`, to: a.id, note: n.replace(/^dikoreksi:\s*/, ''), confidence: 'verified' }); }

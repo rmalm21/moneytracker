@@ -1,0 +1,3843 @@
+{
+ "summary": {
+  "Kalimat benar seluruhnya": "100%",
+  "Jumlah aksi benar": "100%",
+  "Tepat: kind": "100% (56/56)",
+  "Tepat: amount": "100% (55/55)",
+  "Tepat: date": "100% (11/11)",
+  "Tepat: wallet": "100% (7/7)",
+  "Tepat: link": "100% (4/4)",
+  "Tepat: person": "100% (39/39)",
+  "Tepat: description": "100% (2/2)",
+  "Tepat: purpose": "100% (5/5)",
+  "Batas entitas tepat (kalimat bertanda boundary)": "–",
+  "To/from tepat (kalimat bertanda to/from)": "–",
+  "Koreksi tepat": "100%",
+  "Rujukan tepat": "–",
+  "Pemisahan tepat": "100%",
+  "Aksi palsu / terlewat": "0 / 0",
+  "Keraguan ditandai": "100%",
+  "Aksi salah tapi yakin": 0,
+  "Entitas salah tapi yakin": 0,
+  "Relasi salah tapi yakin": 0,
+  "Jam salah tapi yakin": 0,
+  "Tanggal salah tapi yakin": 0,
+  "Tepat [date]": "100%",
+  "Debitur (yang berutang) tepat": "100%",
+  "Kreditur (pemberi pinjaman) tepat": "100%",
+  "Arah dari sudut pandang kamu tepat": "100%",
+  "Arah pembayaran utang/piutang tepat": "100%",
+  "Relasi tepat (jenis + orang + keperluan)": "100%",
+  "Relasi utang/piutang salah tapi yakin": 0,
+  "Batas aksi tepat (bertanda segmentation)": "100%",
+  "Jumlah aksi tanpa kata sambung tepat": "100%",
+  "Tanggal per aksi tepat": "100%",
+  "Orang per aksi tepat": "100%",
+  "Segmentasi salah tapi yakin": 0,
+  "Tepat [relation]": "100%",
+  "Tepat [purpose]": "100%",
+  "Tepat [repayment]": "100%",
+  "Tepat [possession]": "100%",
+  "Tepat [third]": "100%",
+  "Tepat [pronoun]": "100%",
+  "Tepat [negation]": "100%",
+  "Pertanyaan tepat": "100%",
+  "Tanya yang tidak perlu": 0,
+  "Uang tercatat dobel": 0
+ },
+ "ms": 9.55,
+ "p95": 22.14,
+ "rows": [
+  {
+   "id": "h01",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h02",
+   "tags": [
+    "relation",
+    "purpose"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    },
+    "purpose": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h03",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h04",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h05",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h06",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h07",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h08",
+   "tags": [
+    "relation",
+    "third"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {},
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h09",
+   "tags": [
+    "relation",
+    "possession"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h10",
+   "tags": [
+    "relation",
+    "possession"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h11",
+   "tags": [
+    "relation",
+    "date"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h12",
+   "tags": [
+    "relation",
+    "purpose",
+    "date"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    },
+    "purpose": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h13",
+   "tags": [
+    "relation",
+    "wallet"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h14",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h15",
+   "tags": [
+    "relation",
+    "purpose"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    },
+    "purpose": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h16",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h17",
+   "tags": [
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h18",
+   "tags": [
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    },
+    "link": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h19",
+   "tags": [
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "link": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h20",
+   "tags": [
+    "repayment",
+    "ambiguous"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 1,
+   "askNeed": 1,
+   "dupMoney": 0
+  },
+  {
+   "id": "h21",
+   "tags": [
+    "repayment",
+    "date"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "link": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h22",
+   "tags": [
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "link": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h23",
+   "tags": [
+    "segmentation",
+    "implicit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "wallet": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h24",
+   "tags": [
+    "segmentation",
+    "implicit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "description": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h25",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "relation"
+   ],
+   "rel": {
+    "n": 2,
+    "debtor": 2,
+    "creditor": 2,
+    "direction": 2,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 2,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 2,
+    "personOk": 2,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "person": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h26",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "repayment"
+   ],
+   "rel": {
+    "n": 2,
+    "debtor": 2,
+    "creditor": 2,
+    "direction": 2,
+    "repayN": 2,
+    "repay": 2,
+    "exact": 2,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 2,
+    "personOk": 2,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "person": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 2,
+    "flagged": 2
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h27",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "date"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "date": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h28",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "date",
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 3,
+    "dateOk": 3,
+    "personN": 1,
+    "personOk": 1,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 3,
+     "n": 3
+    },
+    "amount": {
+     "ok": 3,
+     "n": 3
+    },
+    "date": {
+     "ok": 3,
+     "n": 3
+    },
+    "wallet": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h29",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 1,
+    "personOk": 1,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h30",
+   "tags": [
+    "segmentation",
+    "nosplit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h31",
+   "tags": [
+    "segmentation",
+    "nosplit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h32",
+   "tags": [
+    "segmentation",
+    "nosplit",
+    "purpose"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    },
+    "purpose": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h33",
+   "tags": [
+    "segmentation",
+    "implicit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "wallet": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h34",
+   "tags": [
+    "segmentation",
+    "implicit",
+    "date"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "date": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h35",
+   "tags": [
+    "segmentation",
+    "implicit"
+   ],
+   "rel": {
+    "n": 0,
+    "debtor": 0,
+    "creditor": 0,
+    "direction": 0,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 0,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h36",
+   "tags": [
+    "pronoun",
+    "segmentation"
+   ],
+   "rel": {
+    "n": 2,
+    "debtor": 2,
+    "creditor": 2,
+    "direction": 2,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 2,
+    "wrong": 0,
+    "multiN": 2,
+    "dateOk": 2,
+    "personN": 2,
+    "personOk": 2,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 2,
+     "n": 2
+    },
+    "amount": {
+     "ok": 2,
+     "n": 2
+    },
+    "person": {
+     "ok": 2,
+     "n": 2
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h37",
+   "tags": [
+    "correction",
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h38",
+   "tags": [
+    "correction",
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h39",
+   "tags": [
+    "correction",
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h40",
+   "tags": [
+    "negation",
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h41",
+   "tags": [
+    "relation",
+    "purpose"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    },
+    "purpose": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h42",
+   "tags": [
+    "relation"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h43",
+   "tags": [
+    "repayment"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 1,
+    "repay": 1,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 1,
+    "flagged": 1
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h44",
+   "tags": [
+    "keep"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  },
+  {
+   "id": "h45",
+   "tags": [
+    "relation",
+    "date"
+   ],
+   "rel": {
+    "n": 1,
+    "debtor": 1,
+    "creditor": 1,
+    "direction": 1,
+    "repayN": 0,
+    "repay": 0,
+    "exact": 1,
+    "wrong": 0,
+    "multiN": 0,
+    "dateOk": 0,
+    "personN": 0,
+    "personOk": 0,
+    "missedLoan": 0
+   },
+   "segWrong": 0,
+   "count": true,
+   "exact": true,
+   "fields": {
+    "kind": {
+     "ok": 1,
+     "n": 1
+    },
+    "amount": {
+     "ok": 1,
+     "n": 1
+    },
+    "date": {
+     "ok": 1,
+     "n": 1
+    },
+    "person": {
+     "ok": 1,
+     "n": 1
+    }
+   },
+   "review": {
+    "need": 0,
+    "flagged": 0
+   },
+   "extra": 0,
+   "missed": 0,
+   "wrongTime": 0,
+   "wrongDate": 0,
+   "wrongAction": 0,
+   "wrongEntity": 0,
+   "wrongRelation": 0,
+   "unneeded": 0,
+   "askOk": 0,
+   "askNeed": 0,
+   "dupMoney": 0
+  }
+ ],
+ "detail": [
+  {
+   "id": "h01",
+   "text": "rian ngutang 30rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 31.38
+  },
+  {
+   "id": "h02",
+   "text": "rian ngutang 30rb buat beli pulsa",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Beli Pulsa",
+     "purpose": "Beli Pulsa",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "person": "Rian",
+     "purpose": "Beli Pulsa"
+    }
+   ],
+   "ms": 22.14
+  },
+  {
+   "id": "h03",
+   "text": "gw ngutang 40k ke rian",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 40000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 40000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 12.55
+  },
+  {
+   "id": "h04",
+   "text": "minjem 100rb dari kak nisa",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 100000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 100000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 11.22
+  },
+  {
+   "id": "h05",
+   "text": "nisa minjem 60rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 60000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "Nisa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 60000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 6.82
+  },
+  {
+   "id": "h06",
+   "text": "aku minjemin rian 25rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 25000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 7.62
+  },
+  {
+   "id": "h07",
+   "text": "rian minjemin aku 80rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 80000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 80000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 5.76
+  },
+  {
+   "id": "h08",
+   "text": "rian ngutang 50rb ke nisa",
+   "exact": true,
+   "got": [],
+   "want": [],
+   "ms": 3.41
+  },
+  {
+   "id": "h09",
+   "text": "utang aku ke nisa 45rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 45000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 45000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 6.2
+  },
+  {
+   "id": "h10",
+   "text": "utang rian ke aku 20rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 6.97
+  },
+  {
+   "id": "h11",
+   "text": "kemarin rian ngutang 15rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 15000,
+     "date": "2026-10-14",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 15000,
+     "person": "Rian",
+     "date": "2026-10-14"
+    }
+   ],
+   "ms": 5.67
+  },
+  {
+   "id": "h12",
+   "text": "nisa ngutang 35k buat ongkos pulang kmrn",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 35000,
+     "date": "2026-10-14",
+     "person": "Nisa",
+     "description": "Ongkos Pulang",
+     "purpose": "Ongkos Pulang",
+     "subject": "Nisa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 35000,
+     "person": "Nisa",
+     "purpose": "Ongkos Pulang",
+     "date": "2026-10-14"
+    }
+   ],
+   "ms": 10.73
+  },
+  {
+   "id": "h13",
+   "text": "rian minjem 50rb dari gopay",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "wallet": "gopay",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "person": "Rian",
+     "wallet": "gopay"
+    }
+   ],
+   "ms": 7.8
+  },
+  {
+   "id": "h14",
+   "text": "ngutang 25rb sama nisa",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 25000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 8.25
+  },
+  {
+   "id": "h15",
+   "text": "pinjemin nisa 100rb untuk bayar listrik",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 100000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "description": "Bayar Listrik",
+     "purpose": "Bayar Listrik",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 100000,
+     "person": "Nisa",
+     "purpose": "Bayar Listrik"
+    }
+   ],
+   "ms": 12.83
+  },
+  {
+   "id": "h16",
+   "text": "saya pinjam uang 300rb ke mas dodi",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 300000,
+     "date": "2026-10-15",
+     "person": "Dodi",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 300000,
+     "person": "Dodi"
+    }
+   ],
+   "ms": 9.16
+  },
+  {
+   "id": "h17",
+   "text": "rian bayar utang 30rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 30000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Dibayar Rian",
+     "subject": "Rian",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 30000,
+     "person": "Rian",
+     "review": [
+      "link"
+     ]
+    }
+   ],
+   "ms": 5.98
+  },
+  {
+   "id": "h18",
+   "text": "sinta bayar utang 100rb ke jago",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 100000,
+     "date": "2026-10-15",
+     "wallet": "jago",
+     "link": "r1",
+     "person": "Sinta",
+     "description": "Dibayar Sinta",
+     "subject": "Sinta",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 100000,
+     "person": "Sinta",
+     "link": "r1",
+     "wallet": "jago"
+    }
+   ],
+   "ms": 7.76
+  },
+  {
+   "id": "h19",
+   "text": "aku bayar utang ke aldi 20rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_payment",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "link": "d2",
+     "person": "Aldi",
+     "description": "Bayar Pinjaman Aldi",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_payment",
+     "amount": 20000,
+     "person": "Aldi",
+     "link": "d2"
+    }
+   ],
+   "ms": 8.48
+  },
+  {
+   "id": "h20",
+   "text": "dina balikin 10rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "person": "Dina",
+     "description": "Dibayar Dina",
+     "subject": "Dina",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "person": "Dina",
+     "review": [
+      "link"
+     ],
+     "ask": "link"
+    }
+   ],
+   "ms": 4.27
+  },
+  {
+   "id": "h21",
+   "text": "kmrn sinta bayar utang 50rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 50000,
+     "date": "2026-10-14",
+     "link": "r1",
+     "person": "Sinta",
+     "description": "Dibayar Sinta",
+     "subject": "Sinta",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 50000,
+     "person": "Sinta",
+     "link": "r1",
+     "date": "2026-10-14"
+    }
+   ],
+   "ms": 11.63
+  },
+  {
+   "id": "h22",
+   "text": "gue lunasin utang ke rudi 400rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_payment",
+     "amount": 400000,
+     "date": "2026-10-15",
+     "link": "d1",
+     "person": "Rudi",
+     "description": "Bayar Pinjaman Rudi",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_payment",
+     "amount": 400000,
+     "person": "Rudi",
+     "link": "d1"
+    }
+   ],
+   "ms": 12.8
+  },
+  {
+   "id": "h23",
+   "text": "teh 5k gopay roti 12k jago",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 5000,
+     "date": "2026-10-15",
+     "wallet": "gopay",
+     "category": "drink",
+     "description": "Teh",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-15",
+     "wallet": "jago",
+     "category": "food",
+     "description": "Roti",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 5000,
+     "wallet": "gopay"
+    },
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "wallet": "jago"
+    }
+   ],
+   "ms": 11.33
+  },
+  {
+   "id": "h24",
+   "text": "bakso 15k es jeruk 7k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Bakso",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 7000,
+     "date": "2026-10-15",
+     "category": "drink",
+     "description": "Es Jeruk",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "description": "Bakso"
+    },
+    {
+     "kind": "expense",
+     "amount": 7000,
+     "description": "Es Jeruk"
+    }
+   ],
+   "ms": 7.76
+  },
+  {
+   "id": "h25",
+   "text": "rian ngutang 10k nisa ngutang 15k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "receivable_new",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "Nisa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 10000,
+     "person": "Rian"
+    },
+    {
+     "kind": "receivable_new",
+     "amount": 15000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 9.86
+  },
+  {
+   "id": "h26",
+   "text": "rian bayar utang 10k nisa bayar utang 5k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Dibayar Rian",
+     "subject": "Rian",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 5000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "description": "Dibayar Nisa",
+     "subject": "Nisa",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "person": "Rian",
+     "review": [
+      "link"
+     ]
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 5000,
+     "person": "Nisa",
+     "review": [
+      "link"
+     ]
+    }
+   ],
+   "ms": 11.62
+  },
+  {
+   "id": "h27",
+   "text": "kemarin bakso 15k hari ini parkir 3k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-14",
+     "category": "food",
+     "description": "Bakso",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 3000,
+     "date": "2026-10-15",
+     "category": "park",
+     "description": "Parkir",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-14"
+    },
+    {
+     "kind": "expense",
+     "amount": 3000,
+     "date": "2026-10-15"
+    }
+   ],
+   "ms": 11.89
+  },
+  {
+   "id": "h28",
+   "text": "mie ayam 12k kemarin bensin 20k krom hari ini rian bayar utang 10k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-14",
+     "wallet": "krom",
+     "category": "food",
+     "description": "Mie Ayam",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "wallet": "krom",
+     "category": "fuel",
+     "description": "Bensin",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Dibayar Rian",
+     "subject": "Rian",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 12000,
+     "date": "2026-10-14"
+    },
+    {
+     "kind": "expense",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "wallet": "krom"
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "person": "Rian",
+     "date": "2026-10-15",
+     "review": [
+      "link"
+     ]
+    }
+   ],
+   "ms": 24.6
+  },
+  {
+   "id": "h29",
+   "text": "parkir 2rb rian minjem 20rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 2000,
+     "date": "2026-10-15",
+     "category": "park",
+     "description": "Parkir",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 2000
+    },
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 13.25
+  },
+  {
+   "id": "h30",
+   "text": "makan 50k service 5k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Makan Service",
+     "flagged": [
+      "amount"
+     ],
+     "confident": false,
+     "ask": "amount"
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "review": [
+      "amount"
+     ]
+    }
+   ],
+   "ms": 5.9
+  },
+  {
+   "id": "h31",
+   "text": "beli 3 donat 15k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "3 Donat",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000
+    }
+   ],
+   "ms": 5.74
+  },
+  {
+   "id": "h32",
+   "text": "rian minjem 50rb buat beli bensin",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Beli Bensin",
+     "purpose": "Beli Bensin",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 50000,
+     "person": "Rian",
+     "purpose": "Beli Bensin"
+    }
+   ],
+   "ms": 10
+  },
+  {
+   "id": "h33",
+   "text": "pulsa 25k jenius kopi 18k gopay",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "wallet": "jenius",
+     "category": "bills",
+     "description": "Pulsa",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "date": "2026-10-15",
+     "wallet": "gopay",
+     "category": "drink",
+     "description": "Kopi",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 25000,
+     "wallet": "jenius"
+    },
+    {
+     "kind": "expense",
+     "amount": 18000,
+     "wallet": "gopay"
+    }
+   ],
+   "ms": 10.73
+  },
+  {
+   "id": "h34",
+   "text": "tadi sarapan 15k terus kmrn malem martabak 30k",
+   "exact": true,
+   "got": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "category": "food",
+     "description": "Sarapan",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "date": "2026-10-14",
+     "category": "food",
+     "description": "Malem Martabak",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "expense",
+     "amount": 15000,
+     "date": "2026-10-15"
+    },
+    {
+     "kind": "expense",
+     "amount": 30000,
+     "date": "2026-10-14"
+    }
+   ],
+   "ms": 10.23
+  },
+  {
+   "id": "h35",
+   "text": "gaji 5jt bonus 1jt",
+   "exact": true,
+   "got": [
+    {
+     "kind": "income",
+     "amount": 5000000,
+     "date": "2026-10-15",
+     "category": "salary",
+     "description": "Gaji",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "income",
+     "amount": 1000000,
+     "date": "2026-10-15",
+     "category": "salary",
+     "description": "Bonus",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "income",
+     "amount": 5000000
+    },
+    {
+     "kind": "income",
+     "amount": 1000000
+    }
+   ],
+   "ms": 5.82
+  },
+  {
+   "id": "h36",
+   "text": "rian ngutang 20rb terus doi bayar 10rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Dibayar Rian",
+     "subject": "Rian",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "person": "Rian"
+    },
+    {
+     "kind": "receivable_payment",
+     "amount": 10000,
+     "person": "Rian",
+     "review": [
+      "link"
+     ]
+    }
+   ],
+   "ms": 10.36
+  },
+  {
+   "id": "h37",
+   "text": "rian ngutang 20rb eh 25rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 25000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 25000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 6.63
+  },
+  {
+   "id": "h38",
+   "text": "nisa ngutang 30rb eh rian",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 30000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 6.82
+  },
+  {
+   "id": "h39",
+   "text": "aku ngutang ke nisa eh ke rian 50rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 50000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 50000,
+     "person": "Rian"
+    }
+   ],
+   "ms": 8.69
+  },
+  {
+   "id": "h40",
+   "text": "bukan rian, nisa ngutang 20rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "Nisa",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 20000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 6.33
+  },
+  {
+   "id": "h41",
+   "text": "dodi minjem 200rb buat modal usaha",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 200000,
+     "date": "2026-10-15",
+     "person": "Dodi",
+     "description": "Modal Usaha",
+     "purpose": "Modal Usaha",
+     "subject": "Dodi",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 200000,
+     "person": "Dodi",
+     "purpose": "Modal Usaha"
+    }
+   ],
+   "ms": 9.27
+  },
+  {
+   "id": "h42",
+   "text": "dipinjemin nisa 70rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "debt_new",
+     "amount": 70000,
+     "date": "2026-10-15",
+     "person": "Nisa",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "debt_new",
+     "amount": 70000,
+     "person": "Nisa"
+    }
+   ],
+   "ms": 4.17
+  },
+  {
+   "id": "h43",
+   "text": "dibayar rian 15rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_payment",
+     "amount": 15000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "description": "Dibayar Rian",
+     "subject": "user",
+     "flagged": [
+      "link"
+     ],
+     "confident": false,
+     "ask": "link"
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_payment",
+     "amount": 15000,
+     "person": "Rian",
+     "review": [
+      "link"
+     ]
+    }
+   ],
+   "ms": 6.26
+  },
+  {
+   "id": "h44",
+   "text": "bayarin dina parkir 5rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 5000,
+     "date": "2026-10-15",
+     "person": "Dina",
+     "description": "Parkir",
+     "subject": "user",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 5000,
+     "person": "Dina"
+    }
+   ],
+   "ms": 6.34
+  },
+  {
+   "id": "h45",
+   "text": "rian tadi pagi ngutang 12rb",
+   "exact": true,
+   "got": [
+    {
+     "kind": "receivable_new",
+     "amount": 12000,
+     "date": "2026-10-15",
+     "person": "Rian",
+     "subject": "Rian",
+     "flagged": [],
+     "confident": true
+    }
+   ],
+   "want": [
+    {
+     "kind": "receivable_new",
+     "amount": 12000,
+     "person": "Rian",
+     "date": "2026-10-15"
+    }
+   ],
+   "ms": 6.85
+  }
+ ]
+}
