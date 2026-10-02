@@ -1,0 +1,380 @@
+{
+ "frozenAt": "2026-10-02T14:30:56.703Z",
+ "pass": 10,
+ "total": 12,
+ "results": [
+  {
+   "id": "h01-fuel-price",
+   "tags": [
+    "ticket"
+   ],
+   "checks": {
+    "found": false,
+    "mech": false
+   },
+   "pass": false,
+   "found": null,
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "odd-x444",
+    "odd-x445",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-cgv",
+    "repeat-internet",
+    "repeat-tokopedia"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h02-ride-often",
+   "tags": [
+    "frequency"
+   ],
+   "checks": {
+    "found": true,
+    "mech": true
+   },
+   "pass": true,
+   "found": "spending:category:trans",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-tokopedia",
+    "repeat-cgv",
+    "repeat-internet"
+   ],
+   "changed": [
+    "spending:category:trans"
+   ]
+  },
+  {
+   "id": "h03-groceries-down",
+   "tags": [
+    "positive"
+   ],
+   "checks": {
+    "found": false,
+    "positive": false
+   },
+   "pass": false,
+   "found": null,
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "new-shop",
+    "new-home",
+    "new-food",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-tokopedia",
+    "repeat-internet",
+    "repeat-cgv"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h04-fresh-claims",
+   "tags": [
+    "claims"
+   ],
+   "checks": {
+    "found": true,
+    "quiet": true
+   },
+   "pass": true,
+   "found": "claims:outstanding",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-tokopedia",
+    "repeat-cgv",
+    "repeat-token listrik",
+    "repeat-internet"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h05-new-loan",
+   "tags": [
+    "debt"
+   ],
+   "checks": {
+    "found": true,
+    "type": true
+   },
+   "pass": true,
+   "found": "debt:trajectory",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "new-shop",
+    "new-home",
+    "new-food",
+    "cut-shop",
+    "debt",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-cgv",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-internet",
+    "repeat-tokopedia"
+   ],
+   "changed": [
+    "debt:trajectory"
+   ]
+  },
+  {
+   "id": "h06-stable-day1",
+   "tags": [
+    "false-alarm"
+   ],
+   "checks": {
+    "found": true,
+    "quiet": true
+   },
+   "pass": true,
+   "found": null,
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-tokopedia",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-internet",
+    "repeat-cgv"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h07-stable-day10",
+   "tags": [
+    "false-alarm"
+   ],
+   "checks": {
+    "found": true,
+    "quiet": true
+   },
+   "pass": true,
+   "found": null,
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "new-shop",
+    "new-home",
+    "new-food",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-tokopedia",
+    "repeat-internet",
+    "repeat-cgv"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h08-surge-uncategorized",
+   "tags": [
+    "data-quality",
+    "frequency"
+   ],
+   "checks": {
+    "found": true,
+    "caveat": true
+   },
+   "pass": true,
+   "found": "spending:category:food",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "uncategorized",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-internet",
+    "repeat-cgv",
+    "repeat-tokopedia"
+   ],
+   "changed": [
+    "spending:category:food"
+   ]
+  },
+  {
+   "id": "h09-internet-cheaper",
+   "tags": [
+    "recurring"
+   ],
+   "checks": {
+    "found": true,
+    "tone": true
+   },
+   "pass": true,
+   "found": "recurring:drift:r:r-net",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-internet",
+    "repeat-tokopedia",
+    "repeat-cgv"
+   ],
+   "changed": [
+    "recurring:drift:r:r-net"
+   ]
+  },
+  {
+   "id": "h10-one-person",
+   "tags": [
+    "receivable"
+   ],
+   "checks": {
+    "found": true
+   },
+   "pass": true,
+   "found": "receivable:outstanding",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-token listrik",
+    "repeat-internet",
+    "repeat-cgv",
+    "repeat-tokopedia"
+   ],
+   "changed": []
+  },
+  {
+   "id": "h11-warteg-feast",
+   "tags": [
+    "anomaly"
+   ],
+   "checks": {
+    "found": true
+   },
+   "pass": true,
+   "found": "behavior:unusual:w1",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "leak-food-coffee",
+    "new-shop",
+    "new-home",
+    "cut-shop",
+    "odd-w1",
+    "emergency",
+    "fixed",
+    "repeat-sewa kos",
+    "repeat-sedekah",
+    "repeat-tokopedia",
+    "repeat-token listrik",
+    "repeat-cgv",
+    "repeat-internet"
+   ],
+   "changed": [
+    "spending:category:food",
+    "behavior:unusual:w1"
+   ]
+  },
+  {
+   "id": "h12-two-cycles-surge",
+   "tags": [
+    "learning",
+    "confidence"
+   ],
+   "checks": {
+    "found": true,
+    "notHigh": true
+   },
+   "pass": true,
+   "found": "spending:category:food",
+   "advisorCards": [
+    "emergency",
+    "idle-operational",
+    "cut-shop",
+    "new-shop",
+    "new-home",
+    "new-food",
+    "cut-shop",
+    "emergency",
+    "fixed"
+   ],
+   "changed": [
+    "spending:category:food",
+    "spending:category:trans"
+   ]
+  }
+ ]
+}

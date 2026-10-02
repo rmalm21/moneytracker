@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.4', date: '2 Okt 2026', title: 'Insight bisa menjelaskan “kenapa”', items: [
+    ['💡', 'Bagian baru “Yang berubah”: perubahan paling berarti dibanding pola biasamu di hari siklus yang sama, termasuk kabar baik. Ketuk “Kenapa?” untuk melihat penyebabnya: Makan & Minum → Pesan Antar → GrabFood, karena lebih sering atau lebih mahal per transaksi.'],
+    ['✅', 'Setiap saran punya tingkat keyakinan (“Keyakinan tinggi”, “Cukup yakin”, “Data terbatas”) beserta alasannya. Kalau banyak pengeluaran belum berkategori, Insight bilang terus terang.'],
+    ['💰', 'Skor kesehatan menunjukkan naik atau turun sejak terakhir dilihat, dengan rincian “Kenapa naik 6?” per indikator. Ada juga Ringkasan 2–4 kalimat, Prioritas sekarang (3 teratas), Kemajuan, dan Riwayat Insight.'],
+    ['🧾', 'Insight kini membaca klaim kantor (umur dan lama cair biasanya), piutang yang lewat janji, utang yang turun lengkap dengan perkiraan lunas, target dana yang melebihi sisa uang, harga langganan yang berubah, transaksi tidak biasa, dan harga barang dari struk yang kamu pindai.'],
+    ['🔒', 'Saran bisa diabaikan atau ditunda seminggu, dan tersimpan di akunmu. Saran yang diabaikan muncul lagi hanya kalau memburuk. Insight tidak pernah memindahkan uang atau mengubah catatan sendiri. Bayar utang tidak lagi disarankan untuk “dikurangi”.'],
+  ] },
   { version: '4.3', date: '2 Okt 2026', title: 'Catat otomatis paham catatan yang sudah ada', items: [
     ['💰', '“atuy bayar 5k” mengurangi piutang Atuy yang sudah ada: Rp12.000 → Rp7.000. Kalau bayarnya lebih dari sisanya, kamu diberi tahu dan tidak ada saldo minus. “sisanya besok” langsung jadi rencana untuk sisa yang benar.'],
     ['📝', 'Ubah atau hapus transaksi dengan kalimat biasa: “ubah kopi cotti tadi jadi 25k”, “hapus parkir tadi”, “yang kemarin harusnya 25 bukan 20”. Kalau ada dua yang mirip, kamu yang memilih. Hapus selalu minta konfirmasi.'],

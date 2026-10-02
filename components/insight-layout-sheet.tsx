@@ -1,19 +1,38 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, BrainCircuit, Gauge, HandCoins, HeartPulse, Lightbulb, PinOff, RotateCcw, Sprout, UserRound, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, BrainCircuit, CircleCheck, Clock3, Gauge, HandCoins, HeartPulse, Lightbulb, PinOff, RotateCcw, Sparkles, Sprout, UserRound, type LucideIcon } from 'lucide-react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 
 /** Sections of the Insight page that can be reordered or hidden (the score card always stays on top). */
 export const defaultSections: { key: string; label: string; hint: string; icon: LucideIcon }[] = [
+  { key: 'brief', label: 'Ringkasan', hint: '2–4 kalimat tentang keadaan keuanganmu', icon: Sparkles },
+  { key: 'changed', label: 'Yang berubah', hint: 'Perubahan paling berarti dan penyebabnya', icon: ArrowUpRight },
   { key: 'profile', label: 'Profil Insight', hint: 'Profil risiko, target, prioritas', icon: UserRound },
+  { key: 'actions', label: 'Prioritas sekarang', hint: '3 hal terpenting + yang kamu sematkan', icon: Lightbulb },
+  { key: 'progress', label: 'Kemajuan', hint: 'Yang membaik dan sudah teratasi', icon: CircleCheck },
   { key: 'health', label: 'Indikator kesehatan', hint: '6 indikator: menabung, dana darurat, cicilan…', icon: HeartPulse },
-  { key: 'actions', label: 'Rencana aksi', hint: 'Langkah paling berdampak + yang kamu sematkan', icon: Lightbulb },
   { key: 'wealth', label: 'Uang menganggur & investasi', hint: 'Dana idle, urutan penyaluran, rencana investasi', icon: Sprout },
   { key: 'paycheck', label: 'Rencana gajian berikutnya', hint: 'Pembagian gaji per pos', icon: HandCoins },
   { key: 'charts', label: 'Grafik siklus & porsi', hint: 'Pola per siklus dan porsi kebutuhan/keinginan', icon: Gauge },
-  { key: 'details', label: 'Rincian analisis', hint: 'Tab Penting, Investasi, Anggaran, dll.', icon: BrainCircuit },
+  { key: 'details', label: 'Rincian analisis', hint: 'Pengeluaran, cashflow, kewajiban, target, kekayaan, kebiasaan, harga', icon: BrainCircuit },
+  { key: 'timeline', label: 'Riwayat Insight', hint: 'Perubahan penting dari waktu ke waktu', icon: Clock3 },
 ];
+/**
+ * Saved order with sections added in later versions put at their default place (after the section that comes
+ * before them by default), so an existing layout keeps its order and new sections do not all land at the bottom.
+ */
+export function mergeOrder(saved: string[] | undefined) {
+  const keys = defaultSections.map(d => d.key);
+  const out = (saved || []).filter(k => keys.includes(k));
+  if (!out.length) return keys;
+  keys.forEach((key, i) => {
+    if (out.includes(key)) return;
+    const before = keys.slice(0, i).reverse().find(k => out.includes(k));
+    out.splice(before ? out.indexOf(before) + 1 : 0, 0, key);
+  });
+  return out;
+}
 
 /** Sheet to reorder and show/hide Insight sections. */
 export function InsightLayoutSheet({ open, onOpenChange, order, hidden, pinnedCount, onSave, onClearPins }: { open: boolean; onOpenChange: (open: boolean) => void; order: string[]; hidden: string[]; pinnedCount: number; onSave: (order: string[], hidden: string[]) => void; onClearPins: () => void }) {

@@ -1,15 +1,16 @@
+// Frozen copy of lib/advisor.ts at app 4.3 (commit dce70b5): the "current Advisor" Insight V2.5 is compared with.
 /**
  * Financial advisor: reads several salary cycles of history and turns them into a health
  * score, findings and a prioritised action plan. Pure and local — nothing leaves the device.
  */
-import { budgetCurrent, budgetIconCategoryId, budgetMonthly, budgetSpent, budgetSubcategories, budgetWindow, countedBudgets, salaryCycle, transactionExpense } from './accounting.ts';
-import { categoryBreakdown } from './category-analytics.ts';
-import { savingsPlan } from './savings.ts';
-import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
-import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from './invest-plan.ts';
-import { walletGroup } from './wallet-groups.ts';
-import { emergencyPockets, isEmergencyFund, isKantong, kantongWalletIds, kantongWallets, resolveFunds } from './pockets.ts';
-import type { Budget, Category, Data, LedgerTx } from './types';
+import { budgetCurrent, budgetIconCategoryId, budgetMonthly, budgetSpent, budgetSubcategories, budgetWindow, countedBudgets, salaryCycle, transactionExpense } from '../../../lib/accounting.ts';
+import { categoryBreakdown } from '../../../lib/category-analytics.ts';
+import { savingsPlan } from '../../../lib/savings.ts';
+import { resolveInsightProfile, riskLabels, type InsightProfile } from '../../../lib/insight-profile.ts';
+import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from '../../../lib/invest-plan.ts';
+import { walletGroup } from '../../../lib/wallet-groups.ts';
+import { emergencyPockets, isEmergencyFund, isKantong, kantongWalletIds, kantongWallets, resolveFunds } from '../../../lib/pockets.ts';
+import type { Budget, Category, Data, LedgerTx } from '../../../lib/types';
 
 export type Range = { start: string; end: string };
 export type Tone = 'good' | 'warn' | 'bad' | 'info';
@@ -85,19 +86,6 @@ export function pastCycles(current: Range, count: number, salaryDay: number): Ra
   for (let i = 0; i < count; i++) { const before = parse(cursor); before.setDate(before.getDate() - 1); const cycle = salaryCycle(before, salaryDay); list.unshift({ start: cycle.start, end: cycle.end }); cursor = cycle.start; }
   return list;
 }
-/**
- * The past salary cycles (up to `count`, oldest first) that the ledger really covers: cycles without any record are
- * left out, and so is the oldest one when recording only started more than a week into it. Shared with Insight V2.5.
- */
-export function coveredCycles(history: LedgerTx[], current: Range, today: string, salaryDay: number, count = 6) {
-  const cycles = pastCycles(current, count, salaryDay);
-  const earliest = history.reduce((min, tx) => tx.date < min ? tx.date : min, today);
-  // Only cycles the ledger actually covers count as history.
-  const recorded = cycles.filter(cycle => cycle.end > earliest && history.some(tx => inRange(tx.date, cycle)));
-  // A cycle in which recording only started halfway would pull every average down: leave it out when later cycles exist.
-  const startedLate = recorded.length > 1 && earliest > iso(new Date(parse(recorded[0].start).getTime() + 7 * DAY));
-  return { earliest, startedLate, covered: startedLate ? recorded.slice(1) : recorded, all: cycles };
-}
 function budgetWindows(budget: Budget, today: string, salaryDay: number, count: number) {
   const current = budgetWindow(budget, parse(today), salaryDay); const list: Range[] = []; let cursor = current.start;
   for (let i = 0; i < count; i++) { const before = parse(cursor); before.setDate(before.getDate() - 1); const w = budgetWindow(budget, before, salaryDay); list.unshift({ start: w.start, end: w.end }); cursor = w.start; }
@@ -172,7 +160,13 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const limits = { needs: me.needsLimit || (me.household === 'family' || me.dependants > 0 ? .6 : .5), wants: me.wantsLimit || (me.budgetStyle === 'strict' ? .2 : me.budgetStyle === 'relaxed' ? .35 : .3), savings: me.savingsTarget };
   const categories: Category[] = data.categories;
   const currentCycle = salaryCycle(parse(today), salaryDay); const current: Range = { start: currentCycle.start, end: currentCycle.end };
-  const { earliest, covered } = coveredCycles(history, current, today, salaryDay);
+  const cycles = pastCycles(current, 6, salaryDay);
+  const earliest = history.reduce((min, tx) => tx.date < min ? tx.date : min, today);
+  // Only cycles the ledger actually covers count as history.
+  const recorded = cycles.filter(cycle => cycle.end > earliest && history.some(tx => inRange(tx.date, cycle)));
+  // A cycle in which recording only started halfway would pull every average down: leave it out when later cycles exist.
+  const startedLate = recorded.length > 1 && earliest > iso(new Date(parse(recorded[0].start).getTime() + 7 * DAY));
+  const covered = startedLate ? recorded.slice(1) : recorded;
   const cycleItems = covered.map(cycle => history.filter(tx => inRange(tx.date, cycle)));
   const currentItems = history.filter(tx => inRange(tx.date, current));
   const incomeOf = (items: LedgerTx[]) => sum(items.filter(tx => tx.type === 'income').map(tx => tx.amount));
@@ -196,14 +190,13 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const ids = new Set<string>([...perCycle.flatMap(map => [...map.keys()]), ...currentSlices.keys()]);
   const categoryStats: CategoryStat[] = [...ids].filter(id => id !== 'none' && id !== 'other' && id !== 'uncategorized').map(id => {
     const cat = categories.find(c => c.id === id);
-    // Paying off debt is never something to "cut": the "Bayar utang" group counts as a need.
     const series = perCycle.map(map => map.get(id)?.amount || 0);
     const cur = currentSlices.get(id)?.amount || 0;
     const avg = mean(series), median = quantile(series, .5), p75 = quantile(series, .75);
     const recent = mean(series.slice(-2)), earlier = mean(series.slice(0, -2));
     const trend = series.length >= 3 && earlier > 0 ? (recent - earlier) / earlier : 0;
     const projected = progress >= .2 ? cur / progress : Math.max(cur, avg);
-    return { id, name: cat?.name || currentSlices.get(id)?.name || perCycle.find(m => m.get(id))?.get(id)?.name || 'Kategori', icon: cat?.icon, color: cat?.color, kind: id === 'debt-payment' ? 'need' : kindOf(cat, categories), history: series, avg, median, p75, current: cur, projected, trend, share: avgExpense ? avg / avgExpense : 0 };
+    return { id, name: cat?.name || currentSlices.get(id)?.name || perCycle.find(m => m.get(id))?.get(id)?.name || 'Kategori', icon: cat?.icon, color: cat?.color, kind: kindOf(cat, categories), history: series, avg, median, p75, current: cur, projected, trend, share: avgExpense ? avg / avgExpense : 0 };
   }).filter(c => c.avg > 0 || c.current > 0).sort((a, b) => b.avg - a.avg || b.current - a.current);
 
   // Budgets: how full each window was, and a data-driven amount.
