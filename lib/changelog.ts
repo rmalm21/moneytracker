@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '3.8', date: '2 Okt 2026', title: 'Beranda lebih rapi', items: [
+    ['💡', 'Transaksi Terbaru di Beranda lebih lega dan tegas: judul satu baris, nominal jelas di kanan, dan tanda “Belum dicek” untuk bunga pindah ke bawah nominal.'],
+    ['💡', 'Kartu angka seperti Jatah aman per hari kembali tersusun rapi di tempatnya, tidak perlu digeser lagi.'],
+    ['💰', 'Saldo Dompet di Beranda kembali jadi daftar ke bawah per kelompok (Operasional, Tabungan, Investasi), lengkap dengan totalnya.'],
+  ] },
   { version: '3.7', date: '2 Okt 2026', title: 'Bunga bisa dihapus', items: [
     ['💰', 'Bunga yang salah kini bisa dihapus (dari detailnya atau geser barisnya). Saldo dompet ikut turun, dan bunga untuk tanggal itu tidak dibuat lagi.'],
   ] },
