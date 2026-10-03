@@ -153,6 +153,7 @@ if (label === '--compare' || process.argv.includes('--compare')) {
 let run;
 if (label === 'v25') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v25/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
 else if (label === 'grammar') { const mod = await import(pathToFileURL(resolve(root, 'lib/quick-plan.ts')).href); run = (t, c) => toActions(mod.parseQuickPlan(t, c)); }
+else if (label === 'v33base') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v33/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v32') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v32/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v31') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v31/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }
 else if (label === 'v30') { const mod = await import(pathToFileURL(resolve(here, 'baseline-v30/catat/v3.ts')).href); run = async (t, c) => toActions(await mod.parseQuickPlanV3(t, c)); }

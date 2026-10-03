@@ -111,10 +111,6 @@ export type QuickContext = {
   recurring?: (Pick<Recurring, 'id' | 'name' | 'type' | 'amount' | 'walletId' | 'categoryId' | 'frequency' | 'nextDate' | 'active'> & Partial<Pick<Recurring, 'anchorDay' | 'time' | 'endDate'>>)[];
   /** The moment the sentence is written (epoch ms): recency for "barusan dicatat" duplicate warnings. */
   nowMs?: number;
-  /** V3.4: people known by name (Split Bill contacts, Kamus Pribadi), so a name of two or three words is read whole. */
-  people?: string[];
-  /** V3.4 short session: ids of the entries saved from this box in the last minutes, newest first ("yang tadi"). */
-  sessionTxIds?: string[];
 };
 /** A recent ledger entry as the V3.3 resolver sees it (no notes, no receipt). */
 export type RecentTx = Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'categoryId' | 'subcategoryId' | 'merchant' | 'description'> & Partial<Pick<LedgerTx, 'time' | 'receivableId' | 'debtId' | 'claimId' | 'plannedId' | 'splitBillId' | 'counterparty'>> & { createdMs?: number };

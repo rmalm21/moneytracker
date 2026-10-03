@@ -1,6 +1,6 @@
 'use client';
 import { Fragment, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AlertTriangle, PencilLine, Trash2, MessageCircleQuestion, HelpCircle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, BookOpenText, PencilLine, Trash2, MessageCircleQuestion, HelpCircle, ArrowLeftRight, ArrowRight, Check, ListChecks, RotateCcw, X, ArrowUpLeft, CalendarClock, ChartPie, Compass, CreditCard, FolderPlus, Gift, HandCoins, Repeat, Scale, ShieldCheck, Sparkles, StickyNote, Target, TrendingDown, TrendingUp, WalletCards, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
@@ -9,9 +9,11 @@ import { Emoji } from './emoji';
 import { AppIcon, brandForName, emojiLibrary, emojiOrFallback } from './visual-identity';
 import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickContext, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
 import { compositionReceipt } from '@/lib/catat/composition';
+import { aliasKey, learnFromChoice, learnFromSave, learnOverrides, personalize, readTeach, teach, TYPE_LABEL, type AliasType, type Contact, type PersonalAction, type PersonalAlias, type PersonalAsk, type PersonalInput, type PersonalPlan, type SavedFacts } from '@/lib/catat/personal';
+import { rememberSaved, sessionView } from '@/lib/catat/session';
 import { planMutation } from '@/lib/catat/mutation';
-import { FIELD_LABELS, FIELD_STATUS, parseQuickPlan, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
-import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
+import { FIELD_LABELS, FIELD_STATUS, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
+import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveLexicon, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
 import { dateInTimeZone, formatDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import { presetHex } from '@/lib/category-templates';
@@ -140,11 +142,12 @@ function iconFor(name: string) {
   return words.length ? emojiLibrary.flatMap(group => group.items).find(([, keys]) => words.some(word => keys.split(' ').some(key => key.startsWith(word))))?.[0] : undefined;
 }
 /** Only the fields the text or the person changed; everything else comes from the sentence. */
-type Edit = { time?: string; amount?: number; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
+type Edit = { time?: string; amount?: number; /** V3.4: the place, corrected by hand (feeds the Kamus Pribadi quietly). */ merchant?: string; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
 
 /** What one card saves when it is confirmed, built only when the person presses save. */
 type SaveJob = { /** V3.3: `linked` is the id of the record made by the action this one waits for (`after`). */ run: (linked?: string) => Promise<unknown>; after?: string; id?: string; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
-type CardEntry = { missing: string; build: () => SaveJob; openForm?: () => void; kind: QuickKind; amount: number };
+type CardEntry = { missing: string; build: () => SaveJob; openForm?: () => void; kind: QuickKind; amount: number; /** V3.4: what the saved card teaches the Kamus Pribadi and the short session. */ learn?: { facts: SavedFacts; session: (id?: string) => SessionItem } };
+type SessionItem = Parameters<typeof rememberSaved>[1][number];
 type Register = (id: string, entry: CardEntry | null) => void;
 const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈', check: '!', missing: '?' };
 
@@ -163,26 +166,61 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     return data.transactions.filter(t => t.date >= since).sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 200)
       .map(t => ({ id: t.id, type: t.type, amount: t.amount, date: t.date, time: t.time, walletId: t.walletId, destinationWalletId: t.destinationWalletId, categoryId: t.categoryId, subcategoryId: t.subcategoryId, merchant: t.merchant, description: t.description, receivableId: t.receivableId, debtId: t.debtId, claimId: t.claimId, plannedId: t.plannedId, splitBillId: t.splitBillId, counterparty: t.counterparty, createdMs: ms(t) }));
   }, [data.transactions, today]);
-  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now() }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent]);
+  // V3.4: Split Bill contacts (people known by name) and the Kamus Pribadi of this account only.
+  const lexicon = profile?.personalLexicon;
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  useEffect(() => { if (!user) { setContacts([]); return; } let off: (() => void) | undefined, live = true; void import('@/lib/split-bill-store').then(m => { if (live) off = m.subscribeSplitContacts(user.uid, v => setContacts(v.people.map(p => ({ id: p.id, name: p.name }))), () => {}); }); return () => { live = false; off?.(); }; }, [user]);
+  const people = useMemo(() => [...contacts.map(c => c.name), ...(lexicon?.on === false ? [] : Object.values(lexicon?.aliases || {}).filter(a => a.type === 'person' && (a.status === 'learned' || a.status === 'provisional')).map(a => a.label))], [contacts, lexicon]);
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), people }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent, people]);
   /**
    * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
    * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
    * still running when the next letter comes is dropped).
    */
   const typed = useDeferredValue(text);
-  const grammarPlan = useMemo(() => typed.trim() ? parseQuickPlan(typed, ctx, mode) : null, [typed, mode, ctx]);
+  // V3.4: answers to "“besto” maksudnya …?" for this sentence, and the short session (what was just saved here).
+  const [choose, setChoose] = useState<Record<string, string>>({}), [sessionTick, setSessionTick] = useState(0);
+  useEffect(() => { setChoose(c => Object.keys(c).length ? {} : c); }, [typed, mode]);
+  const session = useMemo(() => sessionView(user?.uid), [user?.uid, typed, sessionTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const personal = useMemo<PersonalInput>(() => ({ lexicon, contacts, session, choose }), [lexicon, contacts, session, choose]);
+  const grammarPlan = useMemo(() => typed.trim() ? personalize(typed, ctx, mode, personal).plan : null, [typed, mode, ctx, personal]);
   // Catat otomatis V3: the grammar reading shows at once; NLP.js (loaded only when this box is used, all on the device)
   // then gives its second opinion and the consensus replaces the plan a moment later, for the same text only.
   const [refined, setRefined] = useState<{ key: string; plan: QuickParseResult } | null>(null);
-  const planKey = `${mode}\u0000${typed}`;
+  const planKey = `${mode}\u0000${typed}\u0000${JSON.stringify(choose)}\u0000${sessionTick}`;
   useEffect(() => {
     if (!typed.trim()) return;
     let live = true;
-    const timer = setTimeout(() => { void import('@/lib/catat/v3').then(m => m.parseQuickPlanV3(typed, ctx, mode)).then(p => { if (live) setRefined({ key: planKey, plan: p }); }).catch(error => console.warn('Catat otomatis: pendapat kedua (NLP.js) tidak tersedia, hasil tata bahasa dipakai.', error)); }, 180);
+    const timer = setTimeout(() => { void import('@/lib/catat/v3').then(m => m.parseQuickPlanV3(typed, ctx, mode, personal)).then(p => { if (live) setRefined({ key: planKey, plan: p }); }).catch(error => console.warn('Catat otomatis: pendapat kedua (NLP.js) tidak tersedia, hasil tata bahasa dipakai.', error)); }, 180);
     return () => { live = false; clearTimeout(timer); };
-  }, [typed, mode, ctx, planKey]);
-  const plan = refined?.key === planKey ? refined.plan : grammarPlan;
+  }, [typed, mode, ctx, planKey, personal]);
+  const plan = (refined?.key === planKey ? refined.plan : grammarPlan) as PersonalPlan | null;
   const actions = plan?.actions || [];
+  // V3.4: one short question when a word has two meanings or "dia" could be two people (nothing saved until answered).
+  const pAsks: PersonalAsk[] = plan?.personal?.asks || [];
+  function pickPersonal(a: PersonalAsk, id: string) {
+    setChoose(c => ({ ...c, [aliasKey(a.raw)]: id })); setError('');
+    if (user && lexicon && a.kind === 'alias' && id !== 'none') { const changes = learnFromChoice(lexicon, a, id); if (Object.keys(changes).length) void saveLexicon(user.uid, changes).catch(() => {}); }
+  }
+  // "ingat besto itu D'Besto": a sentence that teaches a word, saved to the Kamus Pribadi (never a transaction).
+  const teachRead = useMemo(() => typed.trim() && lexicon?.on !== false ? readTeach(typed, ctx, contacts) : null, [typed, ctx, contacts, lexicon?.on]);
+  const teaching = Boolean(teachRead) && !actions.some(a => a.result.amount);
+  const [teachType, setTeachType] = useState<AliasType | null>(null);
+  useEffect(() => { setTeachType(null); }, [typed]);
+  function saveTeach() {
+    if (!user || !teachRead) return;
+    const type = teachType || teachRead.type;
+    const label = teachRead.label;
+    const targetId = type === teachRead.type ? teachRead.targetId
+      : type === 'wallet' ? data.wallets.find(w => !w.isArchived && aliasKey(w.name) === aliasKey(label))?.id
+      : type === 'category' ? data.categories.find(c => !c.isArchived && aliasKey(c.name) === aliasKey(label))?.id
+      : type === 'person' ? (() => { const c = contacts.find(x => aliasKey(x.name) === aliasKey(label)); return c ? `sp:${c.id}` : undefined; })() : undefined;
+    if ((type === 'wallet' || type === 'category') && !targetId) { setError(`${TYPE_LABEL[type]} “${label}” tidak ditemukan. Tulis namanya persis seperti di aplikasi.`); return; }
+    const r = teach(lexicon || {}, teachRead.raw, label, type, targetId, ctx);
+    if (r.problem) { setError(r.problem); return; }
+    track(saveLexicon(user.uid, r.changes, lexicon?.on === undefined ? { on: true } : {}), { pending: 'Menyimpan ke Kamus Pribadi…', success: `“${teachRead.raw}” = ${label}`, detail: 'Tersimpan di Kamus Pribadi. Ubah atau hapus di Pengaturan › Bahasa Saya.', failure: 'Kamus Pribadi belum tersimpan' });
+    reset();
+  }
   const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
   const [moreGroups, setMoreGroups] = useState(false), [allExamples, setAllExamples] = useState(false);
   useEffect(() => { setSkipped(list => list.length ? [] : list); setOpen(list => list.length ? [] : list); setError(''); }, [typed, mode]);
@@ -204,6 +242,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   /** Saves the chosen cards the way their own menus do, with one progress message. */
   function commit(ids: string[]) {
     if (!user || !ids.length) return;
+    if (pAsks.length) { setError('Jawab dulu pertanyaan di atas, supaya tidak salah catat.'); return; }
     const entries = ids.map(id => [id, registry.current.get(id)] as const);
     const blocked = entries.filter(([, e]) => !e || e.missing);
     if (blocked.length) {
@@ -218,13 +257,23 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     if (orphan) { setError('Pembayaran ini untuk catatan yang ikut dilewati. Pakai lagi catatan itu, atau lewati pembayarannya juga.'); return; }
     const nav = jobs.find(j => j.navigate)?.navigate, work = jobs.filter(j => !j.navigate);
     const made = new Map<string, Promise<unknown>>();
-    const start = (j: SaveJob) => { const p = j.after && made.has(j.after) ? made.get(j.after)!.then(id => j.run(typeof id === 'string' ? id : undefined)) : j.run(); if (j.id) made.set(j.id, p); return p; };
+    // V3.4: each saved card feeds the short session (with the real id) and, quietly, the Kamus Pribadi.
+    const learnOf = new Map(entries.map(([id, e]) => [id, e?.learn])), started: Promise<unknown>[] = [], uid = user.uid;
+    const start = (j: SaveJob) => {
+      const p = j.after && made.has(j.after) ? made.get(j.after)!.then(id => j.run(typeof id === 'string' ? id : undefined)) : j.run(); if (j.id) made.set(j.id, p);
+      started.push(p);
+      p.then(id => { const l = j.id ? learnOf.get(j.id) : undefined; if (l) { rememberSaved(uid, [l.session(typeof id === 'string' ? id : undefined)]); setSessionTick(n => n + 1); } }, () => {});
+      return p;
+    };
+    const facts = [...learnOf.values()].filter(Boolean).map(l => l!.facts), overrides = plan?.personal?.overrides || [], lex = lexicon || {};
+    const learnLexicon = () => { if (lex.on === false) return; const changes: Record<string, PersonalAlias | null> = { ...learnFromSave(lex, facts, ctx, contacts), ...learnOverrides(lex, overrides, ctx) }; if (Object.keys(changes).length) void saveLexicon(uid, changes).catch(() => {}); };
     if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry }); }
     else if (work.length) {
       // Started in order in one go, like the forms: queued writes keep their order offline too.
       const spent = entries.filter(([, e]) => e!.kind === 'expense').reduce((n, [, e]) => n + e!.amount, 0);
       track(Promise.all(work.map(start)), { pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
+    void Promise.all(started).then(learnLexicon, () => {});
     reset(); onDone?.();
     if (nav) onNavigate?.(nav.key, nav.target);
   }
@@ -234,6 +283,8 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   function submit(event: FormEvent) {
     event.preventDefault();
     if (typed !== text) { pendingSubmit.current = true; return; }
+    if (teaching) { saveTeach(); return; }
+    if (pAsks.length) { setError('Jawab dulu pertanyaan di atas, supaya tidak salah catat.'); return; }
     if (!actions.length && plan?.cancelled.length) { reset(); return; }
     if (!actions.length) { if (text.trim()) setError(plan?.references[0] || 'Sebutkan nominalnya, misalnya "beli pocari 8rb di alfa".'); return; }
     if (actions.length === 1) {
@@ -262,10 +313,18 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     </form>
     <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>
     {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
-    {text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
+    {teaching && teachRead && <div className="quick-preview qp-teach" aria-label="Simpan ke Kamus Pribadi">
+      <div className="qp-head"><span className="qp-icon" aria-hidden="true"><BookOpenText size={18}/></span><span className="qp-title"><small>Kamus Pribadi</small><strong>“{teachRead.raw}” = {teachRead.label}</strong></span></div>
+      <div className="qp-picks" role="radiogroup" aria-label="Jenis kata">{(['merchant', 'person', 'place', 'wallet', 'category', 'abbr'] as AliasType[]).map(t => <button type="button" key={t} role="radio" aria-checked={(teachType || teachRead.type) === t} className={`sb-chip ${(teachType || teachRead.type) === t ? 'is-on' : ''}`} onClick={() => { setTeachType(t); setError(''); }}>{TYPE_LABEL[t]}</button>)}</div>
+      {(error || teachRead.problem) && <small className="qp-warn" role="alert">{error || teachRead.problem}</small>}
+      <small className="qp-note">Hanya kata yang diingat. Nominal, dompet, tanggal, dan arah utang tetap dibaca dari kalimatmu.</small>
+      <div className="qp-actions"><Button type="button" onClick={saveTeach} disabled={Boolean(teachRead.problem)}><Check size={15}/> Simpan ke Kamus Pribadi</Button></div>
+    </div>}
+    {!teaching && pAsks.map(a => <div key={a.raw + a.kind} className="qp-ask qp-personal-ask" role="group" aria-label={a.question}><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>{a.question}</span><span className="qp-picks">{a.choices.map(c => <button type="button" key={c.id} className="sb-chip" onClick={() => pickPersonal(a, c.id)}>{c.label}</button>)}<button type="button" className="sb-chip" onClick={() => pickPersonal(a, 'none')}>{a.kind === 'pronoun' ? 'Orang lain' : 'Bukan keduanya'}</button></span></div>)}
+    {!teaching && text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
     {text.trim() && typed.trim() && !actions.length && (plan?.cancelled.length || 0) > 0 && <small className="qp-cancelled">Dibatalkan: {plan!.cancelled.map(c => `“${c}”`).join(', ')}. Tidak ada yang disimpan.</small>}
-    {actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
-    {actions.length > 1 && <div className="quick-preview quick-batch">
+    {!teaching && actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
+    {!teaching && actions.length > 1 && <div className="quick-preview quick-batch">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{kept.length} aksi{needs ? ` · ${kept.length - needs} siap · ${needs} perlu dicek` : ' · semua siap'}</small><strong>{entries.length && entries.every(e => e.kind === 'expense') ? <>{rupiah(out)}<em> keluar</em></> : entries.length && entries.every(e => e.kind === 'income') ? <>{rupiah(income)}<em> masuk</em></> : entries.length && entries.every(e => e.kind === 'budget') ? <>{rupiah(budgets)}<em> anggaran</em></> : <>{kept.length}<em> catatan</em></>}</strong></span></div>
       {plan?.references.map(u => <small key={u} className="qp-flag is-check"><b>! Perlu dicek</b> · {u}</small>)}
       {plan?.cancelled.map(c => <small key={c} className="qp-cancelled">Dibatalkan: “{c}”</small>)}
@@ -384,6 +443,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const fund = kind === 'target' ? data.funds.find(f => f.id === linkId) : undefined;
   const destination = kind === 'target' ? fund?.linkedWalletId || (fund?.walletIds?.length === 1 ? fund.walletIds[0] : '') : presetDestination;
   const person = edit.person ?? result.person ?? '', name = edit.name ?? result.name ?? '', description = edit.description ?? result.preset.description ?? '';
+  const merchant = edit.merchant ?? result.preset.merchant ?? '';
   const date = edit.date ?? result.date ?? today;
   const time = edit.time ?? result.preset.time ?? '';
   const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
@@ -468,7 +528,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   })();
 
   function preset(): Partial<LedgerTx> {
-    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}), ...(time ? { time } : {}) };
+    const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}), ...(time ? { time } : {}), ...(edit.merchant !== undefined ? { merchant: edit.merchant.trim() } : {}) };
     if (kind === 'transfer' && destination) base.destinationWalletId = destination;
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
@@ -571,7 +631,16 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     return { run, pending: `Menyimpan ${label.toLowerCase()}…`, success, detail, failure: `${label} belum tersimpan`, retry: txKinds.has(kind) ? { label: 'Buka formulir', run: () => onOpenForm(retryPreset) } : undefined };
   }
   const openForm = txKinds.has(kind) ? () => onOpenForm(preset()) : undefined;
-  useEffect(() => { register(action.id, { missing, build, openForm, kind, amount }); });
+  const learn = {
+    facts: { text: action.text, kind, parsed: { merchant: action.result.preset.merchant, person: action.result.person, walletId: action.result.preset.walletId }, saved: { ...(kind === 'expense' || kind === 'income' ? { merchant: merchant.trim() } : {}), ...(person.trim() || action.result.person ? { person: person.trim() } : {}), walletId: walletId || undefined }, used: (action as PersonalAction).personal } as SavedFacts,
+    session: (id?: string): SessionItem => {
+      const who = kind === 'receivable_payment' ? data.receivables.find(r => r.id === linkId)?.person || person : kind === 'debt_payment' ? data.debts.find(d => d.id === linkId)?.provider || person : person;
+      if (kind === 'receivable_new' || kind === 'debt_new') return { person: who, relation: { kind: kind === 'receivable_new' ? 'receivable' : 'debt', id, person: who } };
+      if (kind === 'receivable_payment' || kind === 'debt_payment') return { txId: id, person: who, relation: { kind: kind === 'receivable_payment' ? 'receivable' : 'debt', id: linkId || undefined, person: who } };
+      return { txId: txKinds.has(kind) ? id : undefined, ...(who.trim() ? { person: who.trim() } : {}) };
+    },
+  };
+  useEffect(() => { register(action.id, { missing, build, openForm, kind, amount, learn }); });
   useEffect(() => () => register(action.id, null), [action.id, register]);
 
   const tone = toneOf(kind, flow);
@@ -585,7 +654,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const fact = (key: string, content: ReactNode, className = '') => facts.push(<span key={key} className={className}>{content}</span>);
   switch (kind) {
     case 'expense': case 'income':
-      if (result.preset.description) fact('d', result.preset.description); if (result.preset.merchant) fact('m', result.preset.merchant);
+      if (result.preset.description) fact('d', result.preset.description); if (merchant.trim()) fact('m', merchant.trim());
       if (result.split?.strong) fact('s', `Bagi rata ${result.split.participants.length} orang`, 'qp-cat');
       if (result.quantity && amount === result.quantity.total) fact('q', `${result.quantity.qty} × ${rupiah(result.quantity.unit)}`);
       if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);
@@ -670,6 +739,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     case 'note_new': fields.push(nameField('Isi', 'Mis. Perpanjang STNK'), field('Tanggal', <Input type="date" value={date} onChange={e => change({ date: e.target.value })}/>)); break;
     case 'open': break;
     default:
+      if (kind === 'expense' || kind === 'income') fields.push(field('Tempat', <Input value={merchant} onChange={e => change({ merchant: e.target.value })} placeholder="Opsional, mis. D'Besto"/>));
       if (kind === 'debt_new' || kind === 'receivable_new') fields.push(field(kind === 'debt_new' ? 'Dipinjam dari' : 'Dipinjam oleh', <Input value={person} onChange={e => change({ person: e.target.value })} placeholder="Nama orang"/>));
       if (kind === 'debt_new' || kind === 'claim_new') fields.push(nameField(kind === 'debt_new' ? 'Nama utang' : 'Nama klaim'));
       if (kind === 'receivable_new') fields.push(field('Keperluan', <Input value={description} onChange={e => change({ description: e.target.value })} placeholder="Opsional, mis. makan siang"/>));

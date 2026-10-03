@@ -1,0 +1,973 @@
+{
+ "summary": {
+  "set": "v34heldout",
+  "cases": 36,
+  "exact": {
+   "v33": 10,
+   "cold": 10,
+   "warm": 35
+  },
+  "byGroup": {
+   "merchant": {
+    "n": 5,
+    "v33": 1,
+    "cold": 1,
+    "warm": 5
+   },
+   "place": {
+    "n": 2,
+    "v33": 0,
+    "cold": 0,
+    "warm": 2
+   },
+   "person": {
+    "n": 4,
+    "v33": 0,
+    "cold": 0,
+    "warm": 4
+   },
+   "abbr": {
+    "n": 3,
+    "v33": 2,
+    "cold": 2,
+    "warm": 2
+   },
+   "wallet": {
+    "n": 2,
+    "v33": 0,
+    "cold": 0,
+    "warm": 2
+   },
+   "safety": {
+    "n": 9,
+    "v33": 5,
+    "cold": 5,
+    "warm": 9
+   },
+   "collision": {
+    "n": 1,
+    "v33": 0,
+    "cold": 0,
+    "warm": 1
+   },
+   "correction": {
+    "n": 1,
+    "v33": 0,
+    "cold": 0,
+    "warm": 1
+   },
+   "typo": {
+    "n": 1,
+    "v33": 0,
+    "cold": 0,
+    "warm": 1
+   },
+   "session": {
+    "n": 4,
+    "v33": 0,
+    "cold": 0,
+    "warm": 4
+   },
+   "multi": {
+    "n": 2,
+    "v33": 0,
+    "cold": 0,
+    "warm": 2
+   },
+   "control": {
+    "n": 2,
+    "v33": 2,
+    "cold": 2,
+    "warm": 2
+   }
+  },
+  "rescues": [
+   "h1",
+   "h2",
+   "h3",
+   "h4",
+   "h5",
+   "h6",
+   "h8",
+   "h9",
+   "h10",
+   "h11",
+   "h15",
+   "h16",
+   "h17",
+   "h18",
+   "h19",
+   "h21",
+   "h26",
+   "h27",
+   "h28",
+   "h29",
+   "h30",
+   "h31",
+   "h32",
+   "h33",
+   "h34"
+  ],
+  "regressions": [],
+  "coldRegressions": [],
+  "falseAlias": [],
+  "confidentWrongPersonal": [
+   "h12"
+  ],
+  "personalRejectedByBugCatcher": [],
+  "clarifications": {
+   "v33": 16,
+   "warm": 13
+  },
+  "latencyMs": {
+   "v33": {
+    "avg": 31.6,
+    "p95": 32.7
+   },
+   "cold": {
+    "avg": 13,
+    "p95": 23.7
+   },
+   "warm": {
+    "avg": 19.1,
+    "p95": 42.1
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "h1",
+   "group": "merchant",
+   "text": "es teh solo 5rb cash",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Es Teh Solo Pak Gendut"
+    ],
+    "cold": [
+     "merchant:  ≠ Es Teh Solo Pak Gendut"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h2",
+   "group": "merchant",
+   "text": "Mie ayam Pakde 14rb via gopay",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Mie Ayam Pakde Karso"
+    ],
+    "cold": [
+     "merchant:  ≠ Mie Ayam Pakde Karso"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h3",
+   "group": "merchant",
+   "text": "tadi pagi sarapan bubur cikini 18k pakai jenius",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Bubur Ayam Cikini"
+    ],
+    "cold": [
+     "merchant:  ≠ Bubur Ayam Cikini"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h4",
+   "group": "merchant",
+   "text": "isi galon di depot jaya 6rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant: Depot Jaya ≠ Depot Air Jaya Abadi"
+    ],
+    "cold": [
+     "merchant: Depot Jaya ≠ Depot Air Jaya Abadi"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h5",
+   "group": "place",
+   "text": "fotokopi 3k di bdg",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 2
+   },
+   "errors": {
+    "v33": [
+     "merchant: Bdg ≠ Bedeng"
+    ],
+    "cold": [
+     "merchant: Bdg ≠ Bedeng"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h6",
+   "group": "place",
+   "text": "jajan gorengan 10rb basecmp",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Basecamp"
+    ],
+    "cold": [
+     "merchant:  ≠ Basecamp"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h7",
+   "group": "merchant",
+   "text": "kemarin beli obat di apotek k24 35rb bri",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 1
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h8",
+   "group": "person",
+   "text": "mas kev ngutang 25rb buat futsal",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "person: Kev ≠ Kevin Wijaya"
+    ],
+    "cold": [
+     "person: Kev ≠ Kevin Wijaya"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h9",
+   "group": "person",
+   "text": "mas kev bayar 20rb ke jago",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "kind: expense ≠ receivable_payment",
+     "link:  ≠ rk"
+    ],
+    "cold": [
+     "kind: expense ≠ receivable_payment",
+     "link:  ≠ rk"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h10",
+   "group": "person",
+   "text": "pinjem 200rb sama om hen masuk mandiri",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "cold": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h11",
+   "group": "person",
+   "text": "si ucup minjem 40k",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "person: Ucup ≠ Yusuf Maulana"
+    ],
+    "cold": [
+     "person: Ucup ≠ Yusuf Maulana"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h12",
+   "group": "abbr",
+   "text": "jjn 15rb gopay",
+   "v33": false,
+   "cold": false,
+   "warm": false,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "description: Jjn ≠ Jajan"
+    ],
+    "cold": [
+     "description: Jjn ≠ Jajan"
+    ],
+    "warm": [
+     "description:  ≠ Jajan"
+    ]
+   }
+  },
+  {
+   "id": "h13",
+   "group": "abbr",
+   "text": "ongkr 12rb",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h14",
+   "group": "abbr",
+   "text": "tkt bus 30rb cash",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h15",
+   "group": "wallet",
+   "text": "kopi 20k pake jns",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "wallet:  ≠ jenius"
+    ],
+    "cold": [
+     "wallet:  ≠ jenius"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h16",
+   "group": "wallet",
+   "text": "tf 250rb dari mdr ke jago",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "wallet:  ≠ mandiri"
+    ],
+    "cold": [
+     "wallet:  ≠ mandiri"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h17",
+   "group": "safety",
+   "text": "es teh solo 6rb jago",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Es Teh Solo Pak Gendut"
+    ],
+    "cold": [
+     "merchant:  ≠ Es Teh Solo Pak Gendut"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h18",
+   "group": "safety",
+   "text": "om hen ngasih pinjaman 100rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "cold": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h19",
+   "group": "safety",
+   "text": "gue minjemin om hen 100rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "cold": [
+     "person: Hen ≠ Hendra Gunawan"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h20",
+   "group": "safety",
+   "text": "bubur cikini",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h21",
+   "group": "safety",
+   "text": "fotokopi 3k di bdg jam 8 malam",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 3,
+    "warm": 4
+   },
+   "errors": {
+    "v33": [
+     "merchant: Bdg ≠ Bedeng"
+    ],
+    "cold": [
+     "merchant: Bdg ≠ Bedeng"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h22",
+   "group": "safety",
+   "text": "tf 50rb jago ke gopay",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h23",
+   "group": "safety",
+   "text": "kevin ngutang 10rb",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h24",
+   "group": "safety",
+   "text": "makan 18rb pakai gopay",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h25",
+   "group": "safety",
+   "text": "beli 20 bakso",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 1
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h26",
+   "group": "collision",
+   "text": "mas kev ngutang 15rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 0,
+   "asks": 1,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 1
+   },
+   "errors": {
+    "v33": [
+     "tidak bertanya"
+    ],
+    "cold": [
+     "tidak bertanya"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h27",
+   "group": "correction",
+   "text": "mie ayam pakde 14rb, pakde maksudnya Mie Ayam Pakde Joyo",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Mie Ayam Pakde Joyo"
+    ],
+    "cold": [
+     "merchant:  ≠ Mie Ayam Pakde Joyo"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h28",
+   "group": "typo",
+   "text": "bubur cikinii 18k jenius",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "merchant:  ≠ Bubur Ayam Cikini"
+    ],
+    "cold": [
+     "merchant:  ≠ Bubur Ayam Cikini"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h29",
+   "group": "session",
+   "text": "doi udah balikin 6rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 1,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 3,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "link:  ≠ ra"
+    ],
+    "cold": [
+     "link:  ≠ ra"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h30",
+   "group": "session",
+   "text": "orangnya bayar 10rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 0,
+   "asks": 1,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 2
+   },
+   "errors": {
+    "v33": [
+     "tidak bertanya"
+    ],
+    "cold": [
+     "tidak bertanya"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h31",
+   "group": "session",
+   "text": "yg tadi jadi 20rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "target:  ≠ t1"
+    ],
+    "cold": [
+     "target:  ≠ t1"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h32",
+   "group": "session",
+   "text": "sisanya lusa",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "kind: note_new ≠ plan_new",
+     "amount: null ≠ 4000"
+    ],
+    "cold": [
+     "kind: note_new ≠ plan_new",
+     "amount: null ≠ 4000"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h33",
+   "group": "multi",
+   "text": "es teh solo 5rb terus fotokopi 3k di bdg",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 2,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 1,
+    "warm": 2
+   },
+   "errors": {
+    "v33": [
+     "#1 merchant:  ≠ Es Teh Solo Pak Gendut",
+     "#2 merchant: Bdg ≠ Bedeng"
+    ],
+    "cold": [
+     "#1 merchant:  ≠ Es Teh Solo Pak Gendut",
+     "#2 merchant: Bdg ≠ Bedeng"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h34",
+   "group": "multi",
+   "text": "mas kev ngutang 30rb, om hen ngutang 50rb",
+   "v33": false,
+   "cold": false,
+   "warm": true,
+   "used": 2,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [
+     "#1 person: Kev ≠ Kevin Wijaya",
+     "#2 person: Hen ≠ Hendra Gunawan"
+    ],
+    "cold": [
+     "#1 person: Kev ≠ Kevin Wijaya",
+     "#2 person: Hen ≠ Hendra Gunawan"
+    ],
+    "warm": []
+   }
+  },
+  {
+   "id": "h35",
+   "group": "control",
+   "text": "bayar listrik 150rb mandiri",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  },
+  {
+   "id": "h36",
+   "group": "control",
+   "text": "gaji masuk 8jt ke mandiri",
+   "v33": true,
+   "cold": true,
+   "warm": true,
+   "used": 0,
+   "asks": 0,
+   "rejected": [],
+   "clar": {
+    "v33": 0,
+    "warm": 0
+   },
+   "errors": {
+    "v33": [],
+    "cold": [],
+    "warm": []
+   }
+  }
+ ]
+}

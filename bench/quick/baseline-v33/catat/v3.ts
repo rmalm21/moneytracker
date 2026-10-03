@@ -18,7 +18,6 @@
 import { normalizeQuick, parseQuickPlan, refreshAction, type ActionCandidate, type QuickParseResult } from '../quick-plan.ts';
 import { knownPlaces, walletsIn, type QuickContext, type QuickGroup, type QuickKind } from '../quick-entry.ts';
 import { catchBugs } from './bug-catcher.ts';
-import { decorate, personalize, type PersonalInput } from './personal.ts';
 import { analyzeSemantics, kindOfIntent, type SemanticEngineResult } from './nlp-engine.ts';
 
 export type ConsensusNote = { role: 'intent' | 'wallet' | 'merchant' | 'person' | 'amount'; outcome: 'agree' | 'rescued' | 'rejected' | 'escalated' | 'both-silent'; detail: string };
@@ -31,13 +30,9 @@ const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const titleCase = (s: string) => s.replace(/(^|\s)(\S)/g, (_, sp: string, c: string) => sp + c.toLocaleUpperCase('id-ID'));
 const SPENDING = new Set<QuickKind>(['expense', 'income', 'plan_new', 'recurring_new']);
 
-export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode: QuickGroup | QuickKind = 'auto', personal?: PersonalInput): Promise<V3Result> {
+export async function parseQuickPlanV3(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): Promise<V3Result> {
   const t0 = performance.now();
-  // V3.4: the Kamus Pribadi and the short session first (checked by the personal Bug Catcher); everything after reads
-  // the personalized text with the same general engines.
-  const pre = personalize(typed, ctxIn, mode, personal);
-  const input = pre.text, ctx = pre.ctx;
-  let plan = pre.plan as V3Result;
+  let plan = parseQuickPlan(input, ctx, mode) as V3Result;
   let grammarMs = performance.now() - t0, nlpMs = 0, nlpLoadMs: number | undefined;
   // Respelling: NLP.js recognises a configured wallet or a known place written with a typo ("mandri", "famili mart");
   // the grammar then reads the message again with the right spelling (it validates the result; NLP.js decides nothing).
@@ -71,7 +66,6 @@ export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode:
           if (lower(a.text).includes(r.value) && (r.type === 'MERCHANT' ? lower(a.result.preset.merchant || '') === r.value : Boolean(r.id) && [a.result.preset.walletId, a.result.preset.destinationWalletId].includes(r.id))) { a.evidence.push(`${note}.`); (a.consensus ||= []).push({ role: r.type === 'WALLET' ? 'wallet' : 'merchant', outcome: 'rescued', detail: `ejaan ${r.raw} → ${r.value}` }); }
         }
         again.trace.unshift(...respelled.map(r => `NLP.js: ejaan “${r.raw}” → “${r.value}” (${r.type === 'WALLET' ? 'dompet' : 'tempat'}), dibaca ulang oleh tata bahasa`));
-        if (pre.plan.personal) decorate(again, pre.plan.personal, typed, input, ctx, personal?.session);
         plan = again;
       }
     }

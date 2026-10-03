@@ -2,7 +2,7 @@
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BadgeInfo, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { BadgeInfo, BookOpenText, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { resyncAll } from '@/lib/sync';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
@@ -23,6 +23,7 @@ import { APP_VERSION } from '@/lib/version';
 import { rupiah } from '@/lib/accounting';
 import { horizonLabels } from '@/lib/finance-control';
 import { FinanceControlSettings } from './finance-control-settings';
+import { PersonalLexiconSettings } from './personal-lexicon-settings';
 import { themes } from '@/lib/appearance';
 /** A tappable row that jumps to another page. */
 function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick?: () => void }) {
@@ -30,13 +31,14 @@ function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon
 }
 const backupNames: Record<string, string> = { wallets: 'dompet', categories: 'kategori', budgets: 'anggaran', transactions: 'transaksi', claims: 'klaim', receivables: 'piutang', debts: 'utang', funds: 'tujuan dana', recurring: 'jadwal rutin', drafts: 'draf', plannedTransactions: 'rencana', categorizationRules: 'aturan kategori', financialNotes: 'catatan', cycleSnapshots: 'siklus' };
 
-type Section = 'profile' | 'security' | 'reminders' | 'appearance' | 'app' | 'about' | 'control' | 'data';
+type Section = 'profile' | 'security' | 'reminders' | 'appearance' | 'language' | 'app' | 'about' | 'control' | 'data';
 const groups = ['Akun', 'Aplikasi', 'Keuangan & data'] as const;
 const sections: { key: Section; title: string; detail: string; icon: LucideIcon; group: typeof groups[number]; tone: string }[] = [
   { key: 'profile', title: 'Profil & gaji', detail: 'Nama, siklus gaji, dan isian otomatis saat mencatat.', icon: UserRound, group: 'Akun', tone: 'teal' },
   { key: 'security', title: 'Keamanan', detail: 'PIN aplikasi dan password akun.', icon: KeyRound, group: 'Akun', tone: 'blue' },
   { key: 'reminders', title: 'Pengingat', detail: 'Jam pengingat perbarui saldo dan tagihan.', icon: BellRing, group: 'Aplikasi', tone: 'amber' },
   { key: 'appearance', title: 'Tampilan', detail: 'Tema warna, mode layar, dan ukuran teks.', icon: Palette, group: 'Aplikasi', tone: 'pink' },
+  { key: 'language', title: 'Bahasa Saya', detail: 'Kata, nama, dan singkatan yang biasa kamu pakai di Catat otomatis.', icon: BookOpenText, group: 'Aplikasi', tone: 'teal' },
   { key: 'app', title: 'Aplikasi di perangkat', detail: 'Pasang ke layar utama agar bisa dibuka offline.', icon: Smartphone, group: 'Aplikasi', tone: 'violet' },
   { key: 'about', title: 'Info aplikasi', detail: 'Versi, apa yang baru, dan tentang Dompet Ajaib.', icon: BadgeInfo, group: 'Aplikasi', tone: 'indigo' },
   { key: 'control', title: 'Kontrol keuangan', detail: 'Uang tersedia, cadangan, dompet yang dihitung, aset bersih, dan batas anggaran.', icon: SlidersHorizontal, group: 'Keuangan & data', tone: 'green' },
@@ -63,6 +65,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
   security:`${profile?.pinHash?(biometricEnabled(user?.uid||'')?'PIN & sidik jari aktif':'PIN aktif'):'PIN belum aktif'} · password`,
   reminders:[r.balanceEnabled?`Perbarui saldo ${r.times.length}× sehari`:'Perbarui saldo mati',r.billsEnabled?'tagihan aktif':'tagihan mati'].join(' · '),
   appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${({xxs:'SS',xs:'XS',s:'S',m:'M',l:'L'} as Record<string,string>)[profile?.fontSize||'s']}`,
+  language:`${profile?.personalLexicon?.on===false?'Personalisasi mati':'Personalisasi aktif'} · ${Object.keys(profile?.personalLexicon?.aliases||{}).length} kata`,
   app:pwa.installed?'Terpasang di perangkat ini':'Pasang ke layar utama',
   about:`Versi ${APP_VERSION} · apa yang baru`,
   control:`${profile?.excludeCommittedFromAvailable===false?'Tagihan tidak dikurangi':`Tagihan ${horizonLabels[profile?.commitmentHorizon||'cycle'].toLowerCase()}`}${profile?.freeMoneyBuffer?` · cadangan ${rupiah(profile.freeMoneyBuffer)}`:''} · aset bersih ${profile?.netWorthIncludesReceivables?'+ piutang':'tanpa piutang'}`,
@@ -104,6 +107,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
    {page.key==='about'&&<div className="set-form"><AboutApp navigate={navigate}/></div>}
 
    {page.key==='control'&&<div className="set-form"><FinanceControlSettings perform={perform} navigate={navigate}/>{errorText}</div>}
+   {page.key==='language'&&<div className="set-form"><PersonalLexiconSettings perform={perform}/>{errorText}</div>}
 
    {page.key==='data'&&<div className="set-form">
     <div className="set-card"><h3>Unduh cadangan</h3><p>Simpan dompet, kategori, transaksi, anggaran, dan catatan lainnya dalam satu file JSON.</p><div className="settings-actions start"><Button variant="secondary" onClick={()=>void exportJson()} disabled={busy}><Download size={16}/> Unduh cadangan</Button></div></div>

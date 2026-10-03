@@ -1,4 +1,4 @@
-import { collection, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { collection, deleteField, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { isCurrent, syncedCollections, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
@@ -142,6 +142,16 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   return ()=>{all.forEach(stop=>stop());customStop?.();};
 }
 export async function saveProfile(uid:string,changes:Partial<Profile>) { await settle(updateDoc(userRef(uid),{...changes,updatedAt:serverTimestamp()})); }
+/**
+ * Kamus Pribadi: each alias is written as its own field (personalLexicon.aliases.<id>), so two devices editing different
+ * words never overwrite each other; null removes an alias. `reset` empties the dictionary (financial data untouched).
+ */
+export async function saveLexicon(uid:string,changes:Record<string,import('./catat/personal').PersonalAlias|null>,options:{on?:boolean;reset?:boolean}={}) {
+  const update:Record<string,unknown>={updatedAt:serverTimestamp()};
+  if(options.reset) update.personalLexicon={on:options.on!==false,aliases:{}};
+  else { if(options.on!==undefined) update['personalLexicon.on']=options.on; for(const [id,alias] of Object.entries(changes)) { if(!/^[a-z]+_[0-9a-z]+$/.test(id)) continue; update[`personalLexicon.aliases.${id}`]=alias===null?deleteField():alias; } }
+  await settle(updateDoc(userRef(uid),update));
+}
 export async function saveWallet(uid:string,input:Partial<Wallet>&{name:string;openingBalance:number},id?:string) {
   if(!Number.isSafeInteger(input.openingBalance)) throw Error('Saldo awal harus berupa angka Rupiah yang valid.');
   if(input.color&&!/^#[0-9a-fA-F]{6}$/.test(input.color))throw Error('Warna dompet tidak valid.');

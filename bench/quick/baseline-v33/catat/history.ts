@@ -83,8 +83,6 @@ export function resolveTransactions(phrase: string, ctx: QuickContext, amountHin
     if (last && t === newest) { score += 2; evidence.push('yang terakhir dicatat'); }
     if (first && t === earliestToday) { score += 2; evidence.push('yang pertama hari ini'); }
     if (!today && !yesterday && t.date === ctx.today) score += 0.25;
-    // V3.4: "yang tadi" with nothing else to go on, right after saving from this box: the entry just saved.
-    if (!words.length && !amountHint && !yesterday && ctx.sessionTxIds?.[0] === t.id) { score += 3; evidence.push('yang barusan kamu catat di sini'); }
     return { kind: 'transaction' as const, id: t.id, label: txLabel(t, ctx), amount: t.amount, date: t.date, ...(t.time ? { time: t.time } : {}), score, evidence };
   }).filter(c => c.score >= 2).sort((a, b) => b.score - a.score);
   trace.push(`kandidat: ${scored.slice(0, 4).map(c => `${c.label} skor ${c.score}`).join(' · ') || 'tidak ada'}`);

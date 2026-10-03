@@ -91,16 +91,6 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
   const isWallet = (t: Tok) => walletsIn(t.w, ctx.wallets).some(w => w.at === 0);
   const person = (t?: Tok) => Boolean(t && (nameLike(t.w, ctx) || isHonorific(t.w)) && !isVerb(t.w));
   const trace: string[] = [];
-  // V3.4: a person already known by a name of two or three words ("Muhammad Tio" in Piutang, a Split Bill contact, a
-  // name from the Kamus Pribadi) is read whole, not cut to its last word.
-  const known = knownFullNames(ctx);
-  const fullAt = (from: number, to: number) => {
-    if (from < 0 || to >= toks.length || from >= to) return null;
-    const name = known.get(toks.slice(from, to + 1).map(t => t.w).join(' '));
-    return name ? { name, from, to } : null;
-  };
-  const wholeEndingAt = (j: number) => fullAt(j - 2, j) || fullAt(j - 1, j);
-  const wholeStartingAt = (n: number) => fullAt(n, n + 2) || fullAt(n, n + 1);
 
   // The verb: the first loan or repayment word.
   let at = -1, cls: VerbClass | null = null;
@@ -144,9 +134,8 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
         subject = { word: t.w, party: name || 'dia', implicit: false, pronoun: true, at: j, ...(many ? { ambiguousWith: many } : {}) };
         trace.push(`“${t.w}” → ${name || (many ? `belum jelas: ${many.join(' atau ')}` : 'belum jelas siapa')}${earlier ? ' (disebut sebelumnya di kalimat ini)' : name ? ' (satu-satunya orang di pesan ini)' : ''}`);
       } else if (person(t)) {
-        const whole = wholeEndingAt(j);
         const name = isHonorific(t.w) && toks[j + 1] && j + 1 < at && person(toks[j + 1]) ? toks[j + 1].w : t.w;
-        subject = whole ? { word: t.w, party: whole.name, implicit: false, pronoun: false, at: whole.from } : { word: name, party: title(name), implicit: false, pronoun: false, at: j };
+        subject = { word: name, party: title(name), implicit: false, pronoun: false, at: j };
       }
       break;
     }
@@ -160,8 +149,6 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
       const t = toks[n]; if (!t) continue;
       if (USER.test(t.w)) return { party: 'user', word: t.w, prep: toks[k].w, at: n };
       if (isWallet(t)) return { party: '', word: t.w, prep: toks[k].w, wallet: walletsIn(t.w, ctx.wallets)[0].id, at: n };
-      const whole = wholeStartingAt(n);
-      if (whole) return { party: whole.name, word: toks[whole.to].w, prep: toks[k].w, at: whole.to };
       if (person(t)) return { party: title(t.w), word: t.w, prep: toks[k].w, at: n };
     }
     return null;
@@ -172,8 +159,6 @@ export function readRelation(text: string, ctx: QuickContext, active?: { name: s
       if (isAmount(t) || FILLER_AFTER.test(t.w) || DEBT_NOUN.test(t.w)) continue;
       if (USER.test(t.w)) return { party: 'user', word: t.w, at: k };
       if (isHonorific(t.w) && toks[k + 1] && person(toks[k + 1])) continue;
-      const whole = wholeStartingAt(k);
-      if (whole) return { party: whole.name, word: toks[whole.to].w, at: whole.to };
       if (person(t)) return { party: title(t.w), word: t.w, at: k };
       return null;
     }
@@ -277,15 +262,4 @@ function isVerb(w: string) {
 export function withoutPurpose(text: string, r: RelationReading | null) {
   if (!r?.purpose) return text;
   return text.slice(0, r.purpose.start) + ' '.repeat(r.purpose.end - r.purpose.start) + text.slice(r.purpose.end);
-}
-
-/** Known people whose name has two or three words, lowercased → as written (records, contacts, Kamus Pribadi). */
-export function knownFullNames(ctx: Pick<QuickContext, 'receivables' | 'debts' | 'people'>) {
-  const map = new Map<string, string>();
-  for (const name of [...(ctx.receivables || []).map(r => r.person), ...(ctx.debts || []).map(d => d.provider || ''), ...(ctx.people || [])]) {
-    const clean = (name || '').replace(/\s+/g, ' ').trim();
-    const words = clean.split(' ');
-    if (words.length >= 2 && words.length <= 3 && words.every(w => /^\p{L}[\p{L}'.-]*$/u.test(w))) map.set(clean.toLocaleLowerCase('id-ID'), clean);
-  }
-  return map;
 }

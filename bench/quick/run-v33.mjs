@@ -139,7 +139,7 @@ if (label === '--compare' || process.argv.includes('--compare')) {
   process.exit(0);
 }
 
-const engine = label === 'v32' ? resolve(here, 'baseline-v32/catat/v3.ts') : resolve(root, 'lib/catat/v3.ts');
+const engine = label === 'v32' ? resolve(here, 'baseline-v32/catat/v3.ts') : label === 'v33base' ? resolve(here, 'baseline-v33/catat/v3.ts') : resolve(root, 'lib/catat/v3.ts');
 const { parseQuickPlanV3 } = await import(pathToFileURL(engine).href);
 const rows = [], times = [];
 for (const c of cases) {

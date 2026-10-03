@@ -616,10 +616,10 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   if (kind === 'receivable_new' || kind === 'debt_new') {
     // A name written with a capital letter ("… tiket konser Sinta 750rb") is the person; otherwise the word next to the
     // verb is only a guess when other words stand around it.
-    const known = [...(ctx.receivables || []).map(x => x.person), ...(ctx.debts || []).map(d => d.provider), ...(ctx.people || [])].filter(Boolean).map(n => n.toLocaleLowerCase('id-ID'));
+    const known = [...(ctx.receivables || []).map(x => x.person), ...(ctx.debts || []).map(d => d.provider)].filter(Boolean).map(n => n.toLocaleLowerCase('id-ID'));
     const walletWords = new Set(ctx.wallets.flatMap(w => w.name.toLocaleLowerCase('id-ID').split(/\s+/)));
     const capitals = [...new Set(unit.text.split(/[^\p{L}]+/u).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}{2,}$/u.test(w) && !walletWords.has(w.toLocaleLowerCase('id-ID'))))];
-    if (capitals.length === 1 && !(r.person || '').toLocaleLowerCase('id-ID').split(/\s+/).includes(capitals[0].toLocaleLowerCase('id-ID')) && !known.includes((r.person || '').toLocaleLowerCase('id-ID'))) { r.person = capitals[0]; set('person', 'verified', `${capitals[0]} (ditulis dengan huruf besar)`); }
+    if (capitals.length === 1 && (r.person || '').toLocaleLowerCase('id-ID') !== capitals[0].toLocaleLowerCase('id-ID') && !known.includes((r.person || '').toLocaleLowerCase('id-ID'))) { r.person = capitals[0]; set('person', 'verified', `${capitals[0]} (ditulis dengan huruf besar)`); }
     else if (r.person) {
       const person = r.person, others = leftoverWords(text, ctx, [person.toLocaleLowerCase('id-ID')]).filter(w => !/^(pinjem|pinjam|minjem|pinjemin|minjemin|talangin|nalangin|bayarin|utang|hutang|kasih|ngasih|pinjaman|dulu|nanti|ganti|gantiin|balikin|dia|makan)$/.test(w));
       const sure = known.includes(person.toLocaleLowerCase('id-ID')) || capitals.some(c => c.toLocaleLowerCase('id-ID') === person.toLocaleLowerCase('id-ID')) || others.length === 0;

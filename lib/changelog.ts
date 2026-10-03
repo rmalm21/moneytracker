@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.8', date: '3 Okt 2026', title: 'Catat otomatis paham caramu bicara', items: [
+    ['📝', 'Kamus Pribadi: ketik “ingat besto itu D\'Besto” atau “kak tio itu Muhammad Tio”, lalu “ayam besto 13k jago” langsung dibaca Ayam · D\'Besto · Rp13.000 · Jago.'],
+    ['💡', 'Catat otomatis juga belajar diam-diam dari koreksimu. Kata yang baru sekali dikoreksi belum dipakai; setelah beberapa kali baru dikenali, dan tetap bisa diubah atau dihapus.'],
+    ['🔒', 'Yang dipelajari hanya kata dan nama. Nominal, dompet yang dipakai, tanggal, jam, dan arah utang selalu dibaca dari kalimatmu saat itu, tidak pernah dari kebiasaan.'],
+    ['💸', 'Lanjutkan percakapan: setelah “atuy ngutang 20k”, tulis “dia bayar 5k”. Atau “yang tadi jadi 21k” untuk mengubah yang barusan dicatat. Kalau “dia” bisa dua orang, Catat otomatis bertanya.'],
+    ['✅', 'Pengaturan › Bahasa Saya: lihat, ubah, matikan, hapus, atau reset kata-katamu. Personalisasi bisa dimatikan kapan saja, dan reset tidak menyentuh transaksi.'],
+    ['🧾', 'Nama orang dua kata yang sudah dikenal (mis. “Muhammad Tio”) kini dibaca utuh, tidak terpotong jadi “Tio”.'],
+  ] },
   { version: '4.7', date: '2 Okt 2026', title: 'Jelaskan siklus ini, versi baru', items: [
     ['💡', 'Penjelasan siklus kini dibuka dengan posisi siklus: hari ke berapa dan berapa hari lagi gajian.'],
     ['📝', 'Setiap bagian jadi kartu dengan ikon, status berwarna (misalnya Aman, Lebih cepat, Sesuai biasanya), angka utama yang besar, dan satu kalimat inti. Rincian dibuka kalau perlu.'],
