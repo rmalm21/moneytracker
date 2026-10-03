@@ -133,7 +133,8 @@ Tidak ada mesin kategori kedua. Alias yang sudah diganti ke nama kanonik dibaca 
 
 - "ayam besto" → keterangan Ayam, tempat D'Besto. Entitasnya tidak dilebur balik ke keterangan.
 - "besto 13k" → tempat D'Besto.
-- Singkatan seperti "mkn", "prkr", "bnsn" dipelajari dari pengajaran eksplisit, atau dari koreksi di halaman Bahasa Saya.
+- **Singkatan umum sudah dikenali mesin umum sejak versi sebelumnya** ("mkn", "mkan", "maem", "mnm", "maksi", "makmal", "kmrn", "td", dan lainnya). V3.4 tidak mengubahnya; hasilnya sama persis dengan V3.3.
+- Kamus Pribadi hanya untuk singkatan khas pengguna yang tidak ada di kamus bawaan (mis. "jjn", "prkr", "bnsn"). Saat ini singkatan khas ini dipelajari dari pengajaran eksplisit atau dari halaman Bahasa Saya.
 - Pencocokan salah ketik (satu huruf) hanya berlaku untuk kata tempat yang sudah *learned* dengan panjang ≥ 5. Tidak berlaku untuk orang maupun dompet.
 
 ## 19–22. Sesi, kedaluwarsa, kata ganti, referensi antar-kalimat
@@ -205,6 +206,9 @@ Set pengembangan, 48 kalimat (`SET=v34dev node bench/quick/run-v34.mjs`):
 | Orang | 1/4 | 1/4 | 4/4 |
 | Tempat | 0/2 | 0/2 | 2/2 |
 | Singkatan | 1/3 | 1/3 | 3/3 |
+
+Catatan kelompok Singkatan: yang 1/3 lulus di V3.3 adalah "mkn 25k gopay". "mkn" sudah ada di kamus bawaan, jadi kasus itu bukan bukti personalisasi.
+
 | Dompet | 0/2 | 0/2 | 2/2 |
 | Keamanan | 11/12 | 11/12 | 12/12 |
 | Tabrakan / koreksi / salah ketik | 0/4 | 0/4 | 4/4 |
@@ -323,14 +327,14 @@ Uji di 390 px, alur nyata dengan dua akun di emulator: **25/25 lulus**, tanpa er
 
 - **Orang di piutang/utang hanya punya nama, tanpa id.** Alias orang menunjuk id hanya untuk kontak Split Bill. Mengganti nama orang yang hanya ada di piutang tidak ikut memperbarui alias.
 - **Koreksi tempat di formulir lengkap belum jadi bahan belajar.** Yang dipakai hanya field Tempat di kartu Catat otomatis dan koreksi orang di kartu.
-- **Singkatan hanya dipelajari dari pengajaran eksplisit,** karena kartu pengeluaran tidak punya field keterangan. Ini disengaja supaya salah ketik tidak dihafal.
+- **Singkatan khas pengguna** (yang tidak ada di kamus bawaan) hanya dipelajari dari pengajaran eksplisit, karena kartu pengeluaran tidak punya field keterangan. Singkatan umum seperti "mkn" sudah dikenali tanpa Kamus Pribadi.
 - **Sesi hilang setelah aplikasi dimuat ulang,** termasuk kalau PWA ditutup. Batas 30 menit ditetapkan tanpa data pengguna nyata.
 - **Pertanyaan tabrakan memblokir simpan,** termasuk ketika bacaan umum sudah cukup. Ini lebih aman, tapi menambah satu ketukan.
 - **Ukuran korpus.** Set pengembangan dan held-out ditulis oleh pengembang. Korpus kalimat "nyata" (12 kalimat berantakan, di bagian berikutnya) masih kecil dan bukan data pengguna sungguhan.
 
 ## Lampiran: korpus kalimat realistis (12 kalimat)
 
-Dijalankan dengan kamus: besto, piot, kak tio, kntor, jg, mkn, ucup, indo.
+Dijalankan dengan kamus: besto, piot, kak tio, kntor, jg, mkn, ucup, indo. (Catatan: "mkn" sebenarnya sudah dikenali mesin umum; alias ini tidak diperlukan dan tidak mengubah hasil.)
 
 | Kalimat | V3.3 cold | V3.4 warm |
 |---|---|---|
