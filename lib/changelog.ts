@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.3', date: '3 Okt 2026', title: 'Badge anggaran lebih rapi', items: [
+    ['✅', 'Angka di badge sisa anggaran pada menu kini tepat di tengah, di desktop maupun di HP.'],
+  ] },
   { version: '5.2', date: '3 Okt 2026', title: 'Sisa anggaran terlihat dari menu', items: [
     ['💰', 'Tombol Anggaran di menu kini punya badge sisa anggaran periode ini. Warnanya gradien: hijau kalau masih banyak, berangsur kuning kalau mulai tipis, dan merah kalau hampir habis. Kalau sudah lewat batas, badge-nya menyala pelan.'],
   ] },

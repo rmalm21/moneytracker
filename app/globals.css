@@ -755,12 +755,12 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .mobile-menu-grid button { min-height: 54px; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--ink); font-weight: 700; font-size: .9rem; line-height: 1.25; padding: 12px; overflow-wrap: anywhere; }
 .mobile-menu-grid button svg { flex: none; color: var(--accent); }
 /* Anggaran in the menu: what is left of this period's budgets, coloured green → yellow → red as a gradient. */
-.budget-meter { flex: none; margin-left: auto; min-width: 38px; padding: 2px 8px; border-radius: 99px; background: linear-gradient(135deg, hsl(calc(var(--meter-h) + 16) 84% 56%), hsl(var(--meter-h) 78% 43%)); color: var(--meter-ink); font-size: .7rem; font-weight: 800; line-height: 1.5; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px -3px hsl(var(--meter-h) 80% 40% / .75), inset 0 1px 0 #ffffff45; }
+.budget-meter { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 20px; margin-left: auto; min-width: 40px; padding: 1.5px 8px 0; border-radius: 99px; background: linear-gradient(135deg, hsl(calc(var(--meter-h) + 16) 84% 56%), hsl(var(--meter-h) 78% 43%)); color: var(--meter-ink); font-size: .7rem; font-weight: 800; line-height: 1; letter-spacing: .01em; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px -3px hsl(var(--meter-h) 80% 40% / .75), inset 0 1px 0 #ffffff45; }
 .budget-meter.is-over { animation: meter-pulse 2.4s ease-in-out infinite; }
 @keyframes meter-pulse { 50% { box-shadow: 0 2px 12px -1px hsl(0 85% 50% / .8), inset 0 1px 0 #ffffff45; } }
 @media (prefers-reduced-motion: reduce) { .budget-meter.is-over { animation: none; } }
 .mobile-menu-grid button:has(.budget-meter) { position: relative; overflow: visible; }
-.mobile-menu-grid .budget-meter { position: absolute; top: -8px; right: -6px; margin: 0; border: 2px solid var(--paper); }
+.mobile-menu-grid .budget-meter { position: absolute; top: -9px; right: -6px; height: 22px; margin: 0; border: 2px solid var(--paper); }
 .sidebar.is-collapsed .nav-item { position: relative; }
 .sidebar.is-collapsed .budget-meter { position: absolute; top: 5px; right: 5px; min-width: 0; width: 10px; height: 10px; padding: 0; font-size: 0; border: 2px solid var(--deep); }
 .mobile-menu-grid button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
