@@ -25,11 +25,6 @@ import { horizonLabels } from '@/lib/finance-control';
 import { FinanceControlSettings } from './finance-control-settings';
 import { PersonalLexiconSettings } from './personal-lexicon-settings';
 import { themes } from '@/lib/appearance';
-import { features, searchRows } from '@/lib/features';
-import { resetTips, writeUsage } from '@/lib/usage';
-import { Search } from 'lucide-react';
-/** Settings sections → the registry features that describe them (their user-language keywords power the filter). */
-const sectionFeatures: Record<string, string[]> = { profile: ['profile'], security: ['security'], reminders: ['reminders'], appearance: ['appearance', 'home-layout'], language: ['lexicon'], app: ['install'], about: ['about'], control: ['control', 'available'], data: ['backup', 'resync'] };
 /** A tappable row that jumps to another page. */
 function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick?: () => void }) {
   return <button type="button" className="settings-link" onClick={onClick}><span className="settings-link-icon" aria-hidden="true"><Icon size={18}/></span><span className="settings-link-text"><strong>{title}</strong><small>{detail}</small></span><ChevronRight size={18} className="settings-link-arrow" aria-hidden="true"/></button>;
@@ -57,9 +52,6 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  const [section,setSection]=useState<Section|null>(sections.some(item=>item.key===focus)?focus as Section:null),[wide,setWide]=useState(false);
  // Opened again with a section (e.g. "pengingat" from Catat otomatis) while Pengaturan is already showing.
  useEffect(()=>{if(focus&&sections.some(item=>item.key===focus))setSection(focus as Section)},[focus]);
- // 5.0: "Reset data atau hapus akun" from search scrolls to the danger zone (it is not a section of its own).
- useEffect(()=>{if(focus!=='danger')return;const id=window.setTimeout(()=>document.getElementById('settings-danger')?.scrollIntoView({block:'center',behavior:'smooth'}),300);return()=>window.clearTimeout(id)},[focus]);
- const [filter,setFilter]=useState('');
  useEffect(()=>{const media=window.matchMedia('(min-width: 900px)');const update=()=>setWide(media.matches);update();media.addEventListener('change',update);return ()=>media.removeEventListener('change',update)},[]);
  const active=section??(wide?'profile':null);
  useBackHandler(Boolean(section)&&!wide,()=>setSection(null));
@@ -86,11 +78,9 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  <div className={`set-layout ${active?'has-page':''}`}>
   <aside className="set-menu" aria-label="Menu pengaturan">
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>
-   <label className="set-filter"><Search size={16} aria-hidden="true"/><input type="search" value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Cari pengaturan… (mis. pin, tema, gaji)" aria-label="Cari pengaturan"/></label>
-   {(()=>{const hits=filter.trim()?new Set(searchRows(sections,filter,item=>({name:item.title,description:`${item.detail} ${summaries[item.key]}`,keywords:(sectionFeatures[item.key]||[]).flatMap(id=>features.find(f=>f.id===id)?.keywords||[])})).map(h=>h.item.key)):null;return <>{hits&&!hits.size&&<p className="set-filter-empty">Tidak ada pengaturan yang cocok. Coba cari dari ikon cari di atas untuk semua fitur.</p>}
-   {groups.map(group=>{const list=sections.filter(item=>item.group===group&&(!hits||hits.has(item.key)));if(!list.length)return null;return <section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{list.map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>})}</>})()}
+   {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
    {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button></div></section>}
-   <div id="settings-danger"><AccountDangerZone notify={notify}/></div>
+   <AccountDangerZone notify={notify}/>
    <div className="set-group"><Confirm title="Keluar dari akun?" description="Kamu perlu masuk lagi dengan username dan password untuk membuka catatan keuangan ini." confirmLabel="Ya, keluar" onConfirm={()=>logout()}><button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari akun</button></Confirm><small className="set-version">Dompet Ajaib · Versi {APP_VERSION}</small></div>
   </aside>
   {page&&<section className="set-page" key={page.key} aria-labelledby="set-page-title">
@@ -114,7 +104,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
 
    {page.key==='app'&&<div className="set-form"><InstallPanel/></div>}
 
-   {page.key==='about'&&<div className="set-form"><AboutApp navigate={navigate}/><div className="set-card"><h3>Saran fitur</h3><p>Dompet Ajaib menyarankan fitur saat datamu membutuhkannya. Saran yang ditutup tidak muncul lagi untuk sementara. Atur ulang di sini untuk melihatnya lagi; data keuangan tidak berubah.</p><div className="settings-actions start"><Button variant="secondary" onClick={()=>{writeUsage(user?.uid,resetTips);notify('Saran fitur diatur ulang.')}}>Atur ulang saran</Button></div></div></div>}
+   {page.key==='about'&&<div className="set-form"><AboutApp navigate={navigate}/></div>}
 
    {page.key==='control'&&<div className="set-form"><FinanceControlSettings perform={perform} navigate={navigate}/>{errorText}</div>}
    {page.key==='language'&&<div className="set-form"><PersonalLexiconSettings perform={perform}/>{errorText}</div>}

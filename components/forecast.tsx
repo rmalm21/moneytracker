@@ -71,9 +71,7 @@ function BalanceChart({ points, height, compact = false }: { points: { label: st
   </div>;
 }
 
-export function ForecastView({ focus }: { focus?: string } = {}) {
-  // 5.0 deep link: "Kalau beli ini?" from search scrolls straight to the simulator.
-  useEffect(() => { if (focus !== 'whatif') return; const id = window.setTimeout(() => document.getElementById('whatif')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); return () => window.clearTimeout(id); }, [focus]);
+export function ForecastView() {
   const { data, profile } = useApp();
   const defaults = { salary: profile?.monthlySalary || 0, overtime: 0, extra: 0, claim: 0, debtDue: 0, spendAdjust: 0 };
   const [input, setInput] = useState(defaults);
@@ -148,7 +146,7 @@ export function ForecastView({ focus }: { focus?: string } = {}) {
       <div className={`forecast-step is-total`}><span className="forecast-step-label">Total setoran per bulan</span><span className="forecast-step-bar"><i style={{ width: `${Math.min(100, Math.max(2, need / Math.max(1, result.income) * 100))}%` }}/></span><AnimatedRupiah value={need} className="forecast-step-value"/></div></div>
     </section> : null; })()}
 
-    <div className="section-heading" id="whatif"><h2><ShoppingBag size={19}/> Kalau beli ini?</h2></div>
+    <div className="section-heading"><h2><ShoppingBag size={19}/> Kalau beli ini?</h2></div>
     <div className="forecast-grid">
       <section className="panel forecast-panel"><div className="form-grid">
         <Field label="Barang"><Input value={item} onChange={e => setItem(e.target.value)} placeholder="Misalnya: sepatu baru"/></Field>

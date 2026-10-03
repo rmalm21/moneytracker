@@ -549,8 +549,6 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="rs-actions">
         <Button type="submit" className="full">{split ? (useAnyway ? 'Tetap gunakan di Split Bill' : 'Gunakan di Split Bill') : lowOk ? 'Ya, nominal sudah benar. Simpan' : `Simpan transaksi${draft.amount ? ` · ${rupiah(draft.amount)}` : ''}`}</Button>
-        {/* 5.0 next action: a receipt with several items may have been shared; one quiet option, not a second primary. */}
-        {!split && draft.type === 'expense' && navigate && draft.items.length >= 3 && <button type="button" className="link-button rs-next" onClick={toSplitBill}><ReceiptText size={15}/> Dibayar bareng teman? Bagi lewat Split Bill</button>}
       </div>
     </form>}
 

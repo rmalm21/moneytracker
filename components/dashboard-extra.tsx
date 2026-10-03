@@ -1,5 +1,4 @@
 'use client';
-import { budgetStatuses } from '@/lib/budget-status';
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useApp } from './app-provider';
@@ -105,7 +104,7 @@ function CategoryChanges({ ctx }: { ctx: ExtraContext }) {
 function BudgetAlerts({ ctx }: { ctx: ExtraContext }) {
   const { data, profile } = useApp();
   const day = dateInTimeZone(new Date(), profile?.timeZone), salaryDay = profile?.salaryCycleStartDay || 24;
-  const rows = budgetStatuses(data, day, salaryDay, profile?.budgetWarningPercent || 80).map(r => ({ ...r, cat: data.categories.find(c => c.id === budgetIconCategoryId(r.b)) })).filter(r => r.warn || r.over).sort((a, b) => b.used - a.used);
+  const rows = data.budgets.filter(b => b.active && b.classification !== 'savings' && b.classification !== 'sinking').map(b => { const s = budgetCurrent(b, data.transactions, data.categories, day, salaryDay), committed = budgetCommitted(b, data, day, salaryDay), limit = Math.max(1, s.available), used = (s.spent + committed) / limit, warn = (b.warningPercent || profile?.budgetWarningPercent || 80) / 100, cat = data.categories.find(c => c.id === budgetIconCategoryId(b)); return { b, used, left: s.remaining - committed, over: s.spent > s.available || s.remaining - committed < 0, warn: used >= warn, cat }; }).filter(r => r.warn || r.over).sort((a, b) => b.used - a.used);
   return <Card title="Anggaran Perlu Perhatian" sub="Hampir habis atau terlampaui" value={rows.length ? `${rows.length} anggaran` : undefined} tone={rows.some(r => r.over) ? 'amount-negative' : ''} link={['Buka Anggaran', () => ctx.navigate('budgets')]}>
     {rows.length ? rows.map(r => <Row key={r.b.id} icon={<AppIcon icon={r.cat?.icon} fallback="🎯"/>} color={r.cat?.color} title={r.b.name} sub={`${Math.round(r.used * 100)}% terpakai`} amount={rupiah(r.left)} amountSub={r.left < 0 ? 'lewat batas' : r.left === 0 ? 'habis' : 'sisa'} tone={r.left < 0 ? 'amount-negative' : ''} bar={<Bar value={r.used} color={r.over ? 'var(--rose)' : '#d98a1c'}/>} onClick={() => ctx.navigate('budgets')}/>) : <Empty>Semua anggaran masih aman. 👍</Empty>}
   </Card>;

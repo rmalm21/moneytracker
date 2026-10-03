@@ -2,14 +2,6 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '5.0', date: '3 Okt 2026', title: 'Lebih sedikit sekaligus, fitur tetap lengkap', items: [
-    ['💡', 'Dompet Ajaib sekarang menampilkan lebih sedikit hal sekaligus, tetapi fitur lengkap tetap ada dan lebih mudah ditemukan. Tidak ada fitur yang dihapus.'],
-    ['📝', 'Cari apa pun dari ikon cari di atas (Ctrl/⌘+K di komputer) dengan bahasamu sendiri: “uang balik”, “tagihan bulanan”, “bunga”, atau “rekonsiliasi”. Hasilnya fitur, datamu, dan jawaban Tanya Jawab.'],
-    ['💰', 'Beranda baru menjawab satu pertanyaan dulu: bagaimana uangku sekarang. Uang Bebas dengan tombol Kenapa?, satu kotak Perlu perhatian, lalu yang akan datang dan aktivitas terakhir. Beranda yang sudah kamu atur tidak diubah; tampilan rekomendasi bisa dicoba dan dikembalikan.'],
-    ['✅', 'Fitur lanjutan muncul saat datamu membutuhkannya, misalnya Rutin untuk pembayaran yang berulang atau bunga otomatis untuk dompet tabungan. Paling banyak satu saran sekali tampil, dan yang ditutup tidak muncul lagi.'],
-    ['🧾', 'Menu Lainnya dikelompokkan menurut kebutuhan dengan penjelasan singkat, ada Disematkan dan Sering dibuka, plus halaman Jelajahi Dompet Ajaib berisi semua fitur.'],
-    ['🔒', 'Saran dan riwayat pencarian hanya disimpan di perangkat ini untuk akunmu, tanpa angka keuangan. Bisa diatur ulang di Pengaturan › Info aplikasi.'],
-  ] },
   { version: '4.10', date: '3 Okt 2026', title: 'Catat otomatis makin paham bahasa chat', items: [
     ['📝', 'Singkatan yang belum pernah diajarkan pun kini dikenali dari cara singkatan dibentuk: srapn, sarpan, makn, lstrk, tghn, pnglrn, tkt kreta, dan sejenisnya. Tidak perlu disimpan di Kamus Pribadi.'],
     ['✅', 'Cara mengetik di HP juga dimengerti: “makan25k”, “mkn:25k”, “makannn”, “bensinn”, emoji, “wkwk”, “catetin …”, sampai “ngopi 22k ama temen”. Keterangan tetap bersih, misalnya Makan atau Ngopi.'],
