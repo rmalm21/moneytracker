@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.0', date: '3 Okt 2026', title: 'Catat otomatis ingat tempatmu', items: [
+    ['💡', 'Tempat yang pernah kamu catat diingat. Setelah sekali menulis “kopi di Dopamine Avenue”, cukup ketik “kopi dopamine 77k” dan tempatnya langsung terbaca Dopamine Avenue, tanpa “di” dan tanpa nama lengkap. Salah ketik satu huruf seperti “dopamin” juga dikenali.'],
+    ['📝', 'Kebiasaanmu dipelajari: kalau hanya menulis tempatnya, misalnya “dopamine 45k jago”, keterangan dan kategori yang biasa kamu pakai di sana diisi otomatis dan ditandai kemungkinan benar.'],
+    ['🔒', 'Memori diambil dari catatanmu sendiri di perangkat ini, tidak dikirim ke mana pun, dan tidak tercampur dengan akun lain. Mematikan personalisasi di Bahasa Saya juga mematikan memori ini.'],
+    ['💸', 'Nominal, dompet, dan tanggal tidak pernah diambil dari memori. Kata umum seperti kopi, warung, atau motor tidak dianggap nama tempat, dan nama yang cocok dengan dua tempat tidak ditebak.'],
+  ] },
   { version: '4.11', date: '3 Okt 2026', title: 'Catat otomatis paham kalimat utuh', items: [
     ['📝', 'Tulis bebas urutannya: “Nongkrong 77k di kongsi tiam krom beli Teh Tarik dan Snack Platter” dibaca Nongkrong · Kongsi Tiam · Krom, kategori Nongkrong, dengan rincian Teh Tarik · Snack Platter. “krom 77k nongkrong kongsi tiam” juga dibaca sama.'],
     ['🧾', 'Barang yang dibeli disimpan sebagai rincian di catatan, bukan jadi keterangan atau kategori. Kalau harga tiap barang dijumlah pas dengan totalnya, rinciannya ikut tersimpan per barang.'],

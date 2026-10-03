@@ -358,6 +358,8 @@ type Parse = (input: string, ctx: QuickContext, mode: QuickGroup | QuickKind) =>
 export function personalize(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind, p: PersonalInput | undefined, parse: Parse = parseQuickPlan): { plan: PersonalPlan; text: string; ctx: QuickContext } {
   const t0 = performance.now();
   let sessionCtx: QuickContext = p?.session?.txIds.length ? { ...ctx, sessionTxIds: p.session.txIds } : ctx;
+  // Personalization off: the Memori Konteks (places and habits from the history) is off too.
+  if (p?.lexicon?.on === false) sessionCtx = { ...sessionCtx, contextMemory: false };
   // The person's own words are never respelled by the general layer ("srpn" taught as a place stays "srpn").
   const own = p?.lexicon?.on !== false ? Object.values(p?.lexicon?.aliases || {}).filter(a => a.status === 'learned' || a.status === 'provisional').flatMap(a => a.key.split(' ')) : [];
   if (own.length) sessionCtx = { ...sessionCtx, protectedWords: [...(sessionCtx.protectedWords || []), ...own] };

@@ -119,6 +119,8 @@ export type QuickContext = {
   sessionTxIds?: string[];
   /** General language layer: words never rewritten in this sentence (the person's own alias keys). */
   protectedWords?: string[];
+  /** Memori Konteks (lib/catat/context-memory.ts): read places named in part and their habits from the history. Off with personalization. */
+  contextMemory?: boolean;
 };
 /** A recent ledger entry as the V3.3 resolver sees it (no notes, no receipt). */
 export type RecentTx = Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'categoryId' | 'subcategoryId' | 'merchant' | 'description'> & Partial<Pick<LedgerTx, 'time' | 'receivableId' | 'debtId' | 'claimId' | 'plannedId' | 'splitBillId' | 'counterparty'>> & { createdMs?: number };

@@ -34,6 +34,7 @@ import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from '
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { compileLanguagePack, curatedReading, normalizeGeneral, type Normalization } from './catat/language.ts';
 import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
+import { habitOf, placeMemory } from './catat/context-memory.ts';
 import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
 export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name' | 'purpose';
@@ -999,7 +1000,7 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   const before = guarded, beforeAmounts = amountGuard.words;
   guarded = g.guard; amountGuard.words = g.guard;
   let plan: QuickParseResult;
-  try { plan = readPlan(g.text || raw, ctx, mode); if (mode === 'auto') plan = compose(plan, g.text || raw, ctx); } finally { guarded = before; amountGuard.words = beforeAmounts; }
+  try { plan = readPlan(g.text || raw, ctx, mode); if (mode === 'auto') { plan = compose(plan, g.text || raw, ctx); recallHabits(plan, ctx); } } finally { guarded = before; amountGuard.words = beforeAmounts; }
   if (!g.notes.length) { if (plan.sourceText !== raw && plan.composition) plan.sourceText = raw; return plan; }
   plan.sourceText = raw;
   plan.language = { version: g.version, text: g.text, notes: g.notes };
@@ -1020,6 +1021,41 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
  * the event that owns it. The V3.5 Bug Catcher keeps the plain reading whenever the composed one would move money,
  * wallet, date, the kind of an event or invent events.
  */
+/**
+ * Memori Konteks: a spending at a place the person recorded before, with no description or no category, gets what they
+ * usually record there ("dopamine 45k" → Kopi, Minuman). Only empty fields, marked "kemungkinan benar"; never money,
+ * wallet or date.
+ */
+function recallHabits(plan: QuickParseResult, ctx: QuickContext) {
+  if (ctx.contextMemory === false || !ctx.history.length) return;
+  let mem: ReturnType<typeof placeMemory> | null = null;
+  for (const a of plan.actions) {
+    const r = a.result, p = r.preset;
+    if ((r.kind !== 'expense' && r.kind !== 'income') || !p.merchant) continue;
+    const noDesc = !p.description || p.description.toLocaleLowerCase('id-ID') === p.merchant.toLocaleLowerCase('id-ID');
+    const noCat = !p.categoryId || a.fields.category?.status === 'missing';
+    if (!noDesc && !noCat) continue;
+    mem ||= placeMemory(ctx);
+    const habit = habitOf(p.merchant, mem);
+    if (!habit) continue;
+    const filled: string[] = [];
+    if (noDesc && habit.description && habit.description.share >= 0.5) { p.description = habit.description.text; filled.push(`keterangan ${habit.description.text}`); }
+    const cat = habit.category && ctx.categories.find(c => c.id === habit.category!.categoryId && !c.isArchived);
+    const sub = habit.category?.subcategoryId ? ctx.categories.find(c => c.id === habit.category!.subcategoryId && !c.isArchived) : null;
+    if (noCat && cat && habit.category!.share >= 0.6 && (cat.type === r.kind || !cat.type)) {
+      p.categoryId = cat.id; p.subcategoryId = sub?.id || null;
+      a.fields.category = { status: 'likely', note: `biasanya di ${habit.name}` };
+      if (a.ask?.field === 'category') a.ask = undefined;
+      filled.push(`kategori ${sub ? `${cat.name} › ${sub.name}` : cat.name}`);
+    }
+    if (!filled.length) continue;
+    r.why = `biasanya dicatat begitu di ${habit.name}`;
+    a.evidence.push(`Di ${habit.name} kamu biasanya mencatat ${filled.join(' dan ')}.`);
+    a.review = Object.values(a.fields).some(f => f && (f.status === 'check' || f.status === 'missing'));
+    plan.trace.push(`Memori Konteks: ${habit.name} (${habit.count}×) → ${filled.join(', ')}`);
+  }
+}
+
 const joinNames = (l: string[]) => l.length > 1 ? `${l.slice(0, -1).join(', ')} dan ${l[l.length - 1]}` : l[0] || '';
 function compose(plain: QuickParseResult, text: string, ctx: QuickContext): QuickParseResult {
   if (!plain.actions.length || plain.confirm) return plain;
@@ -1068,6 +1104,7 @@ function compose(plain: QuickParseResult, text: string, ctx: QuickContext): Quic
     if (slot.purpose) { r.purpose ||= slot.purpose; a.evidence.push(`“${slot.purpose}” dibaca sebagai keperluan.`); }
     if (slot.activity) a.evidence.push(`${slot.activity[0].toLocaleUpperCase('id-ID') + slot.activity.slice(1)} dibaca sebagai aktivitas.`);
     if (slot.place) a.evidence.push(`${slot.place} dibaca sebagai tempat.`);
+    if (slot.memory) a.evidence.push(`“${slot.memory.raw}” dibaca ${slot.memory.name}, tempat yang pernah kamu catat${slot.memory.count > 1 ? ` (${slot.memory.count} kali)` : ''}.`);
     if (slot.merchant) { r.preset.merchant = slot.merchant; a.evidence.push(`${slot.merchant} dibaca sebagai satu nama tempat.`); }
     if (slot.charges?.length && r.composition) a.evidence.push(`Potongan/biaya dibaca milik nominal utama, bukan entri baru.`);
     if (slot.categoryMissing && !slot.category) {

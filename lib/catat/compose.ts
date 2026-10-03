@@ -23,7 +23,8 @@
  * budgets, goals or splits are left exactly as V3.4 reads them. The plan reader checks the composed reading against
  * the plain one (V3.5 Bug Catcher) and keeps the plain reading if money, wallet, date or the number of events would move.
  */
-import { DATE_PHRASES, findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
+import { DATE_PHRASES, findAmounts, knownPlaces, walletsIn, type QuickContext } from '../quick-entry.ts';
+import { placeMemory, recallPlace } from './context-memory.ts';
 import { conceptWords } from '../categorize.ts';
 import { CANONICAL, compileLanguagePack, curatedReading } from './language.ts';
 
@@ -50,6 +51,8 @@ export type ComposedSlot = {
   categoryMissing?: string;
   /** Charges / discounts moved next to the amount they change ("… di kongsi tiam krom diskon 7k"). */
   charges?: number[];
+  /** Memori Konteks: a place written in part ("dopamine") read as the remembered one ("Dopamine Avenue"). */
+  memory?: { raw: string; name: string; count: number };
 };
 export type Composed = { core: string; slots: ComposedSlot[]; trace: string[] };
 
@@ -161,7 +164,7 @@ const CATEGORY_CMD = /(?<![\p{L}])(?:masuk(?:in|kan)?\s+(?:ke\s+)?(?:dalam\s+)?k
  * Finds the extra scopes of every clause and returns the core text for the grammar plus what was taken out.
  * Null when nothing was composed (the sentence is read exactly as before).
  */
-export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | 'categories' | 'receivables' | 'debts' | 'people'>): Composed | null {
+export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | 'categories' | 'receivables' | 'debts' | 'people'> & Partial<Pick<QuickContext, 'history' | 'merchants' | 'contextMemory'>>): Composed | null {
   const low = lower(text);
   if (!findAmounts(low).length) return null;
   const people = new Set([...(ctx.people || []), ...(ctx.receivables || []).map(r => r.person), ...(ctx.debts || []).map(d => d.provider || '')].filter(Boolean).map(lower));
@@ -279,6 +282,30 @@ export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | '
         trace.push(`“${cp[1]} ${name}” → orang`);
       }
     }
+    // 3d. Memori Konteks: one distinctive word of a place this person recorded before ("kopi dopamine 77k" after
+    //     "kopi di Dopamine Avenue") is that place. Only without a place already said ("di …"), never a wallet or person.
+    if (ctx.contextMemory !== false && ctx.history?.length && !slot.merchant && !/(?<![\p{L}])(?:di|@|at)\s/u.test(plow)) {
+      const mem = placeMemory({ history: ctx.history, merchants: ctx.merchants });
+      const known = knownPlaces({ history: [], merchants: [] });
+      const words = [...plow.matchAll(/[\p{L}'’-]+/gu)];
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i][0];
+        if (w.length < 4 || isKnownWord(w) || people.has(w) || PEOPLE_WORDS.has(w) || walletsIn(w, ctx.wallets).length || known.has(w)) continue;
+        const place = recallPlace(w, mem);
+        // The full name is already written ("B1 Piot" from the Kamus Pribadi): the entity engine reads it as is.
+        if (!place || plow.includes(lower(place.name))) continue;
+        // The run of words of that same name ("kongsi tiam" when only "kongsi" was needed).
+        let j = i; const nameWords = new Set(lower(place.name).split(/[\s'’&.,-]+/));
+        while (j + 1 < words.length && nameWords.has(words[j + 1][0]) && words[j + 1].index! - (words[j].index! + words[j][0].length) <= 1) j++;
+        const start = words[i].index!, end = words[j].index! + words[j][0].length, raw = part.slice(start, end);
+        if (known.has(lower(raw))) break;
+        // The place goes to the end of the clause, where it cannot swallow the words after it ("dopamine kopi 77k").
+        part = (part.slice(0, start) + part.slice(end)).replace(/\s{2,}/g, ' ').replace(/\s*([,;.]?)\s*$/, ` di ${place.name}$1`); plow = lower(part);
+        slot.memory = { raw, name: place.name, count: place.count };
+        trace.push(`memori: “${raw}” → ${place.name} (${place.count}× di riwayat)`);
+        break;
+      }
+    }
     // 4. Place boundaries: a place stops at an activity ("di kongsi tiam nongkrong 77k"); an unknown phrase right after a
     //    place-like activity is the place ("nongkrong kongsi tiam 77k").
     const di = plow.match(/(?<![\p{L}])(?:di|@)\s+((?:[\p{L}'’.&-]+\s+){0,4}?)([\p{L}'’-]+)\s+(?=\d)/u);
@@ -292,7 +319,7 @@ export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | '
       slot.activity = a;
       trace.push(`tempat berhenti sebelum aktivitas “${a}”`);
     }
-    const bare = !/(?<![\p{L}])(?:di|@|at)\s/u.test(plow) && plow.match(new RegExp(`(?<![\\p{L}])(${[...PLACE_ACTIVITIES].sort((x, y) => y.length - x.length).join('|')})\\s+((?:[\\p{L}'’.&-]+\\s*){1,3}?)(?=\\s*(?:$|[,;]|\\d|\\b(?:${ctx.wallets.map(w => lower(w.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') || 'zz'})\\b|pake|pakai|via))`, 'u'));
+    const bare = !slot.memory && !/(?<![\p{L}])(?:di|@|at)\s/u.test(plow) && plow.match(new RegExp(`(?<![\\p{L}])(${[...PLACE_ACTIVITIES].sort((x, y) => y.length - x.length).join('|')})\\s+((?:[\\p{L}'’.&-]+\\s*){1,3}?)(?=\\s*(?:$|[,;]|\\d|\\b(?:${ctx.wallets.map(w => lower(w.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') || 'zz'})\\b|pake|pakai|via))`, 'u'));
     if (bare) {
       const words = bare[2].trim().split(/\s+/);
       const unknown = words.length >= 1 && words.every(w => w.length >= 3 && !isKnownWord(w) && !people.has(w) && !walletsIn(w, ctx.wallets).length);
