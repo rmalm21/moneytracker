@@ -1,5 +1,6 @@
 // Dompet Ajaib service worker: fast app shell, offline fallback, and user-approved updates.
-const VERSION = 'v15';
+// Stamped with the app version by scripts/stamp-sw.mjs after every build (a new name per release clears old caches).
+const VERSION = 'v16';
 const STATE = 'dompet-ajaib-state';
 const SHELL = `dompet-ajaib-shell-${VERSION}`;
 const RUNTIME = `dompet-ajaib-runtime-${VERSION}`;

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "predev": "node scripts/copy-ocr.mjs",
-    "prebuild": "node scripts/copy-ocr.mjs"
+    "prebuild": "node scripts/copy-ocr.mjs",
+    "postbuild": "node scripts/stamp-sw.mjs"
   },
   "dependencies": {
     "@arcships/light-ocr-model-ppocrv6-small": "^0.3.4",

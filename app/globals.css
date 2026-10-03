@@ -4920,6 +4920,7 @@ div.wp-group-head { cursor: default; }
 .about-facts span { color: #ffffffb8; font-size: .7rem; font-weight: 700; }
 .about-facts b { font-size: .84rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .about-fresh { display: flex; align-items: center; gap: 6px; margin: 0; color: #ffffffd9; font-size: .8rem; }
+.about-hero .about-hard { justify-self: start; padding: 0; border: 0; background: none; color: #ffffffd9; font-size: .78rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .about-hero .about-update { justify-self: start; border: 0; background: #fff; color: var(--deep); }
 .about-news { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); box-shadow: var(--elev-1); }
 .about-news header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }

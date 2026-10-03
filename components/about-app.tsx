@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ChevronDown, CircleHelp, Cloud, RefreshCw, ShieldCheck, Smartphone, Sparkles } from 'lucide-react';
 import { Emoji } from './emoji';
 import { Button } from './ui/button';
-import { applyUpdate, usePwa } from '@/lib/pwa';
+import { applyUpdate, hardRefresh, usePwa } from '@/lib/pwa';
 import { APP_VERSION } from '@/lib/version';
 import { releases } from '@/lib/changelog';
 
@@ -26,6 +26,7 @@ export function AboutApp({ navigate }: { navigate?: (key: string) => void }) {
       </div>
       {pwa.updateReady ? <Button type="button" className="small about-update" onClick={applyUpdate}><RefreshCw size={15}/> Muat versi terbaru</Button>
         : <p className="about-fresh"><ShieldCheck size={15} aria-hidden="true"/> Ini versi terbaru yang ada di perangkatmu.</p>}
+      <button type="button" className="link-button about-hard" onClick={() => void hardRefresh()}>Tampilan belum berubah? Muat ulang dari awal</button>
     </section>
 
     <section className="about-news" aria-labelledby="about-news-title">

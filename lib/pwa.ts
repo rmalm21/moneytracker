@@ -60,5 +60,11 @@ export function usePwa() {
   start();
   return useSyncExternalStore(listener => { listeners.add(listener); return () => listeners.delete(listener); }, () => state, () => state);
 }
+/** Last resort when a device keeps showing an old build: drop this site's service worker and app caches, then reload. Reminder settings stay. */
+export async function hardRefresh() {
+  try { const regs = await navigator.serviceWorker?.getRegistrations?.(); await Promise.all((regs || []).map(r => r.unregister())); } catch { /* ignore */ }
+  try { const keys = await caches.keys(); await Promise.all(keys.filter(k => k !== 'dompet-ajaib-state').map(k => caches.delete(k))); } catch { /* ignore */ }
+  window.location.reload();
+}
 export function applyUpdate() { if (waiting) waiting.postMessage('SKIP_WAITING'); else window.location.reload(); }
 export async function promptInstall() { if (!installEvent) return false; await installEvent.prompt(); const choice = await installEvent.userChoice; installEvent = null; set({ canInstall: false }); return choice.outcome === 'accepted'; }
