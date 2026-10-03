@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.2', date: '3 Okt 2026', title: 'Sisa anggaran terlihat dari menu', items: [
+    ['💰', 'Tombol Anggaran di menu kini punya badge sisa anggaran periode ini. Warnanya gradien: hijau kalau masih banyak, berangsur kuning kalau mulai tipis, dan merah kalau hampir habis. Kalau sudah lewat batas, badge-nya menyala pelan.'],
+  ] },
   { version: '5.1', date: '3 Okt 2026', title: 'Catat otomatis ingat tempatmu', items: [
     ['✅', 'Pembaruan langsung terpasang: setiap versi baru kini membersihkan tampilan lama yang tersimpan di HP. Sisa tampilan 5.0 lama yang ditarik juga dihapus. Kalau tampilan belum berubah, buka Pengaturan › Info aplikasi lalu ketuk “Muat ulang dari awal”.'],
     ['💡', 'Tempat yang pernah kamu catat diingat. Setelah sekali menulis “kopi di Dopamine Avenue”, cukup ketik “kopi dopamine 77k” dan tempatnya langsung terbaca Dopamine Avenue, tanpa “di” dan tanpa nama lengkap. Salah ketik satu huruf seperti “dopamin” juga dikenali.'],
