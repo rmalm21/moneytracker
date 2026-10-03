@@ -159,7 +159,7 @@ const RULES: Rule[] = [
   R(/\b(kopi|coffee|ngopi|latte|cappuccino|kapucino|espresso|americano|mocha|kopi susu|starbucks|sbux|fore|tomoro|point coffee|janji jiwa|kenangan|excelso|anomali|cafe|kafe|coffee shop)\b/, 'coffee', 4),
   R(/\b(gofood|go-?food|grabfood|grab ?food|shopeefood|shopee ?food|pesan antar|delivery)\b|\b(gojek|grab|shopee|maxim)\s+(?:makan|makanan|food)\b/, 'delivery', 4.6),
   // Transport and vehicles
-  R(/\b(bensin|pertalite|pertamax|pertamax turbo|dexlite|solar|bbm|spbu|shell|bp akr|isi bensin)\b/, 'fuel', 4.6, { veto: /\bshell (?:kerang|laut)\b|\b(?:bbm|bensin|solar|shell|spbu)\s+(?:cafe|kafe|coffee|resto|restoran|kitchen|bakery|bar|grill|store|shop)\b/ }),
+  R(/\b(bensin|pertalite|pertamax|pertamax turbo|dexlite|solar|bbm|spbu|shell|bp akr|isi bensin)\b/, 'fuel', 4.6, { veto: /\bshell (?:kerang|laut)\b/ }),
   R(/\b(parkir|parking)\b/, 'parking', 4.6),
   R(/\b(tol|toll|e-?toll|etoll)\b/, 'toll', 4.2),
   R(/\b(gojek|grab|maxim|indrive|indriver|uber)\b/, 'ride', 3.8, { veto: FOOD_ORDER }),
@@ -265,14 +265,6 @@ const RULES: Rule[] = [
 ];
 
 /** `contested`: the word could also be read as something else ("air": a drink or the water bill), so the reading took context. */
-/** Every word the category engine knows (rule and category-name words): real words, never shorthand of another word. */
-export function conceptWords(): Set<string> {
-  const out = new Set<string>();
-  for (const r of RULES) for (const w of r.match.source.replace(/\\[bsdw]/g, ' ').match(/\p{L}{3,}/gu) || []) out.add(w);
-  for (const c of CONCEPTS) for (const n of c.names) for (const w of n.replace(/^~/, '').split(/\s+/)) if (w.length >= 3) out.add(w);
-  return out;
-}
-
 export type ConceptHit = { score: number; word: string; start: number; contested?: boolean };
 /** What the text is about, with a score per concept (only the given direction). */
 export function readConcepts(text: string, amount: number, flow?: Flow) {

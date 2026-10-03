@@ -115,8 +115,6 @@ export type QuickContext = {
   people?: string[];
   /** V3.4 short session: ids of the entries saved from this box in the last minutes, newest first ("yang tadi"). */
   sessionTxIds?: string[];
-  /** General language layer: words never rewritten in this sentence (the person's own alias keys). */
-  protectedWords?: string[];
 };
 /** A recent ledger entry as the V3.3 resolver sees it (no notes, no receipt). */
 export type RecentTx = Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'categoryId' | 'subcategoryId' | 'merchant' | 'description'> & Partial<Pick<LedgerTx, 'time' | 'receivableId' | 'debtId' | 'claimId' | 'plannedId' | 'splitBillId' | 'counterparty'>> & { createdMs?: number };
@@ -149,10 +147,8 @@ const SLANG: Record<string, number> = { seceng: 1000, noceng: 2000, goceng: 5000
 const NUM_WORDS: Record<string, number> = { nol: 0, satu: 1, se: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10, sebelas: 11, seratus: 100, seribu: 1000, sejuta: 1000000 };
 const SCALES: Record<string, number> = { ribu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, jt: 1e6, miliar: 1e9, milyar: 1e9, m: 1e9 };
 const NUMBER_RUN = new RegExp(`(?<![\\p{L}\\p{N}])((?:(?:${[...Object.keys(NUM_WORDS), 'puluh', 'belas', 'ratus', 'setengah', ...Object.keys(SCALES)].sort((a, b) => b.length - a.length).join('|')}|\\d+(?:[.,]\\d+)?)\\s*)+)(?![\\p{L}\\p{N}])`, 'gu');
-/** Words read as names in the sentence being parsed ("Ceban Cafe"): never money slang. Set by the plan reader. */
-export const amountGuard: { words: Set<string> } = { words: new Set() };
 export function amountWords(text: string) {
-  let out = text.replace(new RegExp(`\\b(${Object.keys(SLANG).join('|')})\\b`, 'g'), word => amountGuard.words.has(word) ? word : `${SLANG[word]}`);
+  let out = text.replace(new RegExp(`\\b(${Object.keys(SLANG).join('|')})\\b`, 'g'), word => `${SLANG[word]}`);
   out = out.replace(NUMBER_RUN, (run: string) => {
     const tokens = run.trim().split(/\s+/);
     // Only runs with a number word; plain "1,5 juta" is read later as it is.

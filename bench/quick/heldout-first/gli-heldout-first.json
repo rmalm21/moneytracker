@@ -1,0 +1,732 @@
+{
+ "summary": {
+  "set": "gliheldout",
+  "cases": 40,
+  "languageVersion": "1.0",
+  "exact": {
+   "before": 27,
+   "after": 38
+  },
+  "byGroup": {
+   "A": {
+    "n": 8,
+    "before": 8,
+    "after": 8
+   },
+   "B": {
+    "n": 22,
+    "before": 11,
+    "after": 20
+   },
+   "C": {
+    "n": 10,
+    "before": 8,
+    "after": 10
+   }
+  },
+  "falseNormalization": [],
+  "regressions": [],
+  "rescues": [
+   "hb1",
+   "hb2",
+   "hb4",
+   "hb6",
+   "hb14",
+   "hb15",
+   "hb16",
+   "hb17",
+   "hb21",
+   "hc1",
+   "hc2"
+  ],
+  "descriptionRetention": {
+   "n": 9,
+   "before": 1,
+   "after": 7
+  },
+  "latencyMs": {
+   "before": {
+    "avg": 30.6,
+    "p95": 112.1
+   },
+   "after": {
+    "avg": 11.5,
+    "p95": 20.7
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "ha1",
+   "group": "A",
+   "text": "beli sepatu 350rb jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha2",
+   "group": "A",
+   "text": "bayar internet 300rb mandiri",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha3",
+   "group": "A",
+   "text": "kemarin minum es teh 5rb cash",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha4",
+   "group": "A",
+   "text": "bonus masuk 1jt jenius",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha5",
+   "group": "A",
+   "text": "beli krim wajah 60rb gopay",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha6",
+   "group": "A",
+   "text": "naik kereta ke kota 8rb bri",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha7",
+   "group": "A",
+   "text": "langganan netflix 54rb jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "ha8",
+   "group": "A",
+   "text": "dina bayar 20rb ke jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb1",
+   "group": "B",
+   "text": "sptu 350k jago",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "sptu→sepatu:PRODUCTIVE_SHORTHAND"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "description: Sptu ≠ Sepatu",
+     "cat: ∅ ≠ shop"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb2",
+   "group": "B",
+   "text": "byr intrnt 300k mandiri",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "byr→bayar:COMMON_ABBREVIATION",
+    "intrnt→internet:PRODUCTIVE_SHORTHAND"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ net"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb3",
+   "group": "B",
+   "text": "kmaren mnum es teh 5k cash",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "kmaren→kemarin:TEMPORAL_SHORTHAND",
+    "mnum→minum:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb4",
+   "group": "B",
+   "text": "bns msk 1jt jenius",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "bns→bonus:PRODUCTIVE_SHORTHAND",
+    "msk→masuk:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [
+     "kind: expense ≠ income"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb5",
+   "group": "B",
+   "text": "lngganan netflix 54k jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "lngganan→langganan:PRODUCTIVE_SHORTHAND"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb6",
+   "group": "B",
+   "text": "srapan 17k krom",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "srapan→sarapan:PRODUCTIVE_SHORTHAND"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "description: Srapan ≠ Sarapan",
+     "cat: ∅ ≠ food"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb7",
+   "group": "B",
+   "text": "sraapn 17k krom",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb8",
+   "group": "B",
+   "text": "mkan siang 35k jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "mkan→makan:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb9",
+   "group": "B",
+   "text": "parkr motor 3k cash",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "parkr→parkir:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb10",
+   "group": "B",
+   "text": "bensinn 60k jago",
+   "before": false,
+   "after": false,
+   "falseNorm": [],
+   "notes": [],
+   "desc": {
+    "before": false,
+    "after": false
+   },
+   "errors": {
+    "before": [
+     "description: Bensinn ≠ Bensin",
+     "cat: ∅ ≠ fuel"
+    ],
+    "after": [
+     "description: Bensinn ≠ Bensin",
+     "cat: ∅ ≠ fuel"
+    ]
+   }
+  },
+  {
+   "id": "hb11",
+   "group": "B",
+   "text": "blnjaa 90k mandiri",
+   "before": false,
+   "after": false,
+   "falseNorm": [],
+   "notes": [],
+   "desc": {
+    "before": false,
+    "after": false
+   },
+   "errors": {
+    "before": [
+     "description: Blnjaa ≠ Belanja",
+     "cat: ∅ ≠ shop"
+    ],
+    "after": [
+     "description: Blnjaa ≠ Belanja",
+     "cat: ∅ ≠ shop"
+    ]
+   }
+  },
+  {
+   "id": "hb12",
+   "group": "B",
+   "text": "ongkr 12k gopay",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "ongkr→ongkir:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb13",
+   "group": "B",
+   "text": "bayar tghan listrik 180k mandiri",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "tghan→tagihan:PRODUCTIVE_SHORTHAND"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb14",
+   "group": "B",
+   "text": "bensin40k jago",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "bensin40k→bensin 40k:COMPOUND_SPLIT"
+   ],
+   "desc": {
+    "before": true,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ fuel"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb15",
+   "group": "B",
+   "text": "parkir=3rb cash",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "r=→r:PUNCTUATION"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "description: Parkir= ≠ Parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb16",
+   "group": "B",
+   "text": "masukin jajan 12k krom hehe",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "masukin→∅:COMMAND_FILLER",
+    "hehe→∅:FILLER"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "description: Masukin Hehe ≠ Jajan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb17",
+   "group": "B",
+   "text": "mkn 40k bareng keluarga jago",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "bareng keluarga→∅:FILLER",
+    "mkn→makan:COMMON_ABBREVIATION"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "description: Makan Bareng Keluarga ≠ Makan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb18",
+   "group": "B",
+   "text": "tf 200k dr mandiri ke gopay",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "dr→dari:COMMON_SLANG"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb19",
+   "group": "B",
+   "text": "gw minjem 50k ke rudi",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "gw→aku:COMMON_SLANG"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb20",
+   "group": "B",
+   "text": "kmrn plng kntor naik ojek 25k gopay",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "kmrn→kemarin:TEMPORAL_SHORTHAND",
+    "plng→pulang:PRODUCTIVE_SHORTHAND",
+    "kntor→kantor:COMMON_ABBREVIATION"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hb21",
+   "group": "B",
+   "text": "kmrn srpan 15k trus bnsin 30k jago",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "kmrn→kemarin:TEMPORAL_SHORTHAND",
+    "srpan→sarapan:PRODUCTIVE_SHORTHAND",
+    "trus→terus:COMMON_SLANG",
+    "bnsin→bensin:COMMON_ABBREVIATION"
+   ],
+   "desc": {
+    "before": false,
+    "after": true
+   },
+   "errors": {
+    "before": [
+     "#1 description: Srpan ≠ Sarapan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hb22",
+   "group": "B",
+   "text": "pesenin grabfood 50k gopay",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [
+    "pesenin→beli:ACTION_SYNONYM"
+   ],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc1",
+   "group": "C",
+   "text": "ngopi di PRKR Coffee 28k jago",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [
+     "merchant: Parkir Coffee ≠ Prkr Coffee",
+     "cat tidak boleh park"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hc2",
+   "group": "C",
+   "text": "Bnsn ngutang 40k",
+   "before": false,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [
+     "person: Bensin ≠ Bnsn"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "hc3",
+   "group": "C",
+   "text": "makan di Goceng Resto 35k jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc4",
+   "group": "C",
+   "text": "beli tiket ke kuta 900rb jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc5",
+   "group": "C",
+   "text": "beli plang toko 150rb cash",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc6",
+   "group": "C",
+   "text": "aldi ngutang 30k, sinta ngutang 20k",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc7",
+   "group": "C",
+   "text": "gaji transferan 5jt jenius",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc8",
+   "group": "C",
+   "text": "beli mie ayam 15rb sing enak",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc9",
+   "group": "C",
+   "text": "belanja di SPTU Store 200k jago",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "hc10",
+   "group": "C",
+   "text": "jajan 10k di kantin kampus",
+   "before": true,
+   "after": true,
+   "falseNorm": [],
+   "notes": [],
+   "desc": null,
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  }
+ ]
+}

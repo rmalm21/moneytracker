@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.10', date: '3 Okt 2026', title: 'Catat otomatis makin paham bahasa chat', items: [
+    ['📝', 'Singkatan yang belum pernah diajarkan pun kini dikenali dari cara singkatan dibentuk: srapn, sarpan, makn, lstrk, tghn, pnglrn, tkt kreta, dan sejenisnya. Tidak perlu disimpan di Kamus Pribadi.'],
+    ['✅', 'Cara mengetik di HP juga dimengerti: “makan25k”, “mkn:25k”, “makannn”, “bensinn”, emoji, “wkwk”, “catetin …”, sampai “ngopi 22k ama temen”. Keterangan tetap bersih, misalnya Makan atau Ngopi.'],
+    ['🔒', 'Nama tidak ikut diubah: “SRPN Coffee”, “MKN Store”, “Ceban Cafe”, dan teman bernama “Mkn” tetap seperti yang kamu tulis. Kata asli seperti kota, krim, atau kamus juga tidak dianggap singkatan.'],
+    ['💸', 'Nominal, tanggal, dompet, dan arah uang tidak pernah diubah oleh pembaca bahasa. Contohnya, “transferin 500rb ke mandiri” dibaca transfer, tapi “gaji ditransfer” tetap pemasukan.'],
+    ['💡', 'Tekan Kenapa? untuk melihat kata yang dibaca ulang, misalnya “srapn” dibaca “sarapan”.'],
+  ] },
   { version: '4.9', date: '3 Okt 2026', title: 'Singkatan umum langsung dikenali', items: [
     ['📝', 'Singkatan yang biasa diketik siapa pun kini dikenali tanpa perlu diajari: prkr, bnsn, jjn, blnja, yg, utk, bwt, dgn, kntr, dan lainnya (mkn, kmrn, td sudah dari dulu).'],
     ['🧾', '“jajan 15rb” kini tersimpan dengan keterangan Jajan. Kategorinya tetap Makan & Minum, dan keterangannya tidak hilang lagi.'],

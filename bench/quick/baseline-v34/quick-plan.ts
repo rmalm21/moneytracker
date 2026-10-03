@@ -32,8 +32,7 @@ import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
-import { compileLanguagePack, curatedReading, normalizeGeneral, type Normalization } from './catat/language.ts';
-import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
+import { amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
 export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name' | 'purpose';
 export type FieldStatus = 'verified' | 'likely' | 'check' | 'missing';
@@ -105,8 +104,6 @@ export type QuickParseResult = {
   confirm?: { question: string; items: { id: string; amount: number }[] };
   /** Developer trace: every step and decision, in order. */
   trace: string[];
-  /** General Language layer: what changed in the form of the words before the grammar read them (never the meaning). */
-  language?: { version: string; text: string; notes: Normalization[] };
 };
 
 /* ------------------------------------------------------------------ Normalization */
@@ -128,7 +125,7 @@ const SPELLING: Record<string, string> = {
   bsk: 'besok', bln: 'bulan', thn: 'tahun', mgg: 'minggu', jln: 'jalan',
 };
 /** The general reading of one shorthand word ("mkn" -> "makan"), or undefined: what everyone may type, not personal memory. */
-export const generalSpelling = (word: string) => Object.prototype.hasOwnProperty.call(SPELLING, word) ? SPELLING[word] : curatedReading(word) ?? compileLanguagePack().variants.get(word);
+export const generalSpelling = (word: string) => Object.prototype.hasOwnProperty.call(SPELLING, word) ? SPELLING[word] : undefined;
 const PHRASES: [RegExp, string][] = [
   // Day of month as people type it: "tgl2", "tnggl 2", "tanggal2" → "tgl 2".
   [/\b(?:tanggal|tangal|tnggal|tnggl|tngl|tgl|tg)\s*(\d{1,2})(?!\d)/g, 'tgl $1'],
@@ -140,13 +137,11 @@ const PHRASES: [RegExp, string][] = [
 /** "2jt200" / "2 juta 200" → 2.200.000; the digits after "jt" are thousands ("2jt50" = 2.050.000), one digit is a tenth ("2jt5" = 2,5 jt). */
 const MILLION_TAIL = /\b(\d{1,3})\s*(?:jt|juta)\s*(\d{1,3})\b(?!\s*(?:rb|ribu|k|jt|juta|[.,]\d))/g;
 const millionTail = (_: string, whole: string, tail: string) => `${Number(whole) * 1000 + Number(tail) * (tail.length === 1 ? 100 : 1)}rb`;
-/** Words protected in the sentence being read (names the general layer found): never respelled. */
-let guarded: Set<string> = new Set();
 export function normalizeQuick(text: string) {
   let out = text.toLocaleLowerCase('id-ID').replace(/[“”"]/g, '').replace(/\s+/g, ' ').trim();
   for (const [pattern, to] of PHRASES) out = out.replace(pattern, to);
   out = out.replace(MILLION_TAIL, millionTail);
-  out = out.replace(/\p{L}+/gu, word => guarded.has(word) || !Object.prototype.hasOwnProperty.call(SPELLING, word) ? word : SPELLING[word]);
+  out = out.replace(/\p{L}+/gu, word => SPELLING[word] ?? word);
   return amountWords(out);
 }
 
@@ -985,33 +980,7 @@ const CANCEL = /\btidak jadi\b|\bbatal(?:in|kan)?\b|\bcancel\b|\bdibatalkan\b/;
 const CONSEQUENCE = /(?:^|\b(?:jadi|catat|berarti|biar|anggap|terus|nah)\s+)(?:dia|ia|\p{L}+)\s+(?:utang|hutang|ngutang|berutang|berhutang|minjem|pinjam)\s+(?:ke|sama|ama|kepada|dengan)?\s*(?:aku|saya)\b/u;
 const FILLER = /\b(pakai|via|lewat|dari|bayar|dibayar|bayarnya|juga|aja|saja|ya|dong|sama|semua|itu|tapi|terus|lalu|yang|pake|pakainya|semuanya|pas|waktu|ternyata|harusnya|seharusnya|jadinya|cuma|hanya|deh|sih|eh)\b/g;
 
-/**
- * Reads a message: the General Language layer first (lib/catat/language.ts: chat shorthand, fillers, compounds; names
- * protected), then the Financial Grammar on the normalized text. The plan keeps the sentence as typed and every change.
- */
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
-  const raw = input.trim();
-  if (!raw) return readPlan(raw, ctx, mode);
-  const g = normalizeGeneral(raw, ctx);
-  const before = guarded, beforeAmounts = amountGuard.words;
-  guarded = g.guard; amountGuard.words = g.guard;
-  let plan: QuickParseResult;
-  try { plan = readPlan(g.text || raw, ctx, mode); } finally { guarded = before; amountGuard.words = beforeAmounts; }
-  if (!g.notes.length) return plan;
-  plan.sourceText = raw;
-  plan.language = { version: g.version, text: g.text, notes: g.notes };
-  // "Kenapa?": the words read another way, on the entries that contain them.
-  const WORD_CLASSES = ['COMMON_ABBREVIATION', 'COMMON_TYPO', 'PRODUCTIVE_SHORTHAND', 'REPEATED_LETTERS', 'ACTION_SYNONYM', 'TEMPORAL_SHORTHAND'];
-  for (const a of plan.actions) {
-    const said = a.text.toLocaleLowerCase('id-ID');
-    const read = g.notes.filter(n => WORD_CLASSES.includes(n.type) && n.normalized && said.includes(n.normalized));
-    if (read.length) a.evidence.push(`Bahasa umum: ${read.map(n => `“${n.raw}” dibaca “${n.normalized}”`).join(', ')}.`);
-  }
-  plan.trace.unshift(`Bahasa umum v${g.version}: ${g.notes.map(n => `${n.raw} → ${n.normalized || '∅'} (${n.type})`).join(', ')}`);
-  return plan;
-}
-
-function readPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const sourceText = input.trim();
   const graph: Graph = { relations: [], trace: [] };
   const empty: QuickParseResult = { sourceText, normalizedText: '', clauses: [], entities: [], actions: [], unresolved: [], references: [], confidence: 'none', warnings: [], relations: [], cancelled: [], trace: [] };
