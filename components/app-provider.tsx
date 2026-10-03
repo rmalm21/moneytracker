@@ -24,6 +24,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{void import('@/lib/catat/session').then(m=>m.clearSession());if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u)initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
   // Keeps the device copy current (only changed documents are downloaded); the screens read that copy.
   useEffect(()=>{if(!user)return;return startSync(user.uid);},[user?.uid]);
+  // Leftovers of the withdrawn 5.0 "Adaptive Simplicity" build (menu usage per account): removed, never read.
+  useEffect(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith('dompet-ajaib:usage:'))localStorage.removeItem(k);}catch{}},[]);
   // Transactions this device deleted: confirmed with the server once per opening (lib/tombstones.ts).
   useEffect(()=>{if(!user)return;const uid=user.uid,run=()=>{void checkDeletedTransactions(uid).then(()=>tidyCloud(uid)).catch(()=>undefined)},timer=setTimeout(run,4000);window.addEventListener('online',run);return()=>{clearTimeout(timer);window.removeEventListener('online',run)};},[user?.uid]);
   useEffect(()=>{if(user&&profile)noteDeleteMarks(user.uid,profile.syncMarks);},[user?.uid,profile?.syncMarks]);
