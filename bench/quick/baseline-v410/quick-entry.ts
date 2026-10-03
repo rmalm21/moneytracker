@@ -60,8 +60,6 @@ export type QuickResult = {
   duplicateOf?: string;
   /** V3.2: what a loan or repayment is for ("buat ngedate" → "Ngedate"): its own field, never the person or a second action. */
   purpose?: string;
-  /** V3.5: the items of one purchase ("beli teh tarik dan snack platter"): details of this one entry, never its description. */
-  details?: { name: string; qty?: number; amount?: number }[];
   /** Spending/income: how the person was read — after "kirim/transfer ke" (to), after "bayar" (pay), after "dari" (from). */
   personCue?: 'to' | 'pay' | 'from';
   /** V3: the entity spans chosen for this clause and the candidates rejected (provenance, "Kenapa?", trace). */

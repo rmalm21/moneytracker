@@ -1,0 +1,441 @@
+{
+ "summary": {
+  "set": "v35heldout",
+  "cases": 20,
+  "exact": {
+   "before": 3,
+   "after": 18
+  },
+  "segmentation": {
+   "before": 18,
+   "after": 20
+  },
+  "fields": {
+   "kind": {
+    "before": "1/1",
+    "after": "1/1"
+   },
+   "amount": {
+    "before": "21/21",
+    "after": "21/21"
+   },
+   "wallet": {
+    "before": "18/20",
+    "after": "20/20"
+   },
+   "date": {
+    "before": "1/1",
+    "after": "1/1"
+   },
+   "description": {
+    "before": "6/14",
+    "after": "13/14"
+   },
+   "cat": {
+    "before": "6/9",
+    "after": "8/9"
+   },
+   "explicit": {
+    "before": "0/2",
+    "after": "2/2"
+   },
+   "merchant": {
+    "before": "8/13",
+    "after": "12/13"
+   },
+   "details": {
+    "before": "0/11",
+    "after": "11/11"
+   },
+   "purpose": {
+    "before": "0/1",
+    "after": "1/1"
+   },
+   "people": {
+    "before": "0/1",
+    "after": "1/1"
+   }
+  },
+  "confidentWrong": {
+   "before": 16,
+   "after": 1
+  },
+  "regressions": [],
+  "rescues": [
+   "b1",
+   "b4",
+   "b5",
+   "b6",
+   "b7",
+   "b8",
+   "b9",
+   "b10",
+   "b11",
+   "b12",
+   "b13",
+   "b15",
+   "b18",
+   "b19",
+   "b20"
+  ],
+  "latencyMs": {
+   "before": {
+    "avg": 61.1,
+    "p95": 798.4
+   },
+   "after": {
+    "avg": 25.8,
+    "p95": 122.1
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "b1",
+   "group": "",
+   "text": "karaoke 180k di inul vista jago pesen kentang goreng dan es jeruk",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “karaoke 180k di inul vista jago” · rincian: Kentang Goreng · Es Jeruk"
+   ],
+   "errors": {
+    "before": [
+     "description: karaoke kentang goreng es jeruk ≠ karaoke",
+     "details: ∅ ≠ kentang goreng | es jeruk"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b2",
+   "group": "",
+   "text": "65k ngopi di tuku gopay",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "b3",
+   "group": "",
+   "text": "gopay 65k ngopi tuku",
+   "before": false,
+   "after": false,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ngopi tuku ≠ ngopi",
+     "merchant: ∅ ≠ tuku"
+    ],
+    "after": [
+     "description: ngopi tuku ≠ ngopi",
+     "merchant: ∅ ≠ tuku"
+    ]
+   }
+  },
+  {
+   "id": "b4",
+   "group": "",
+   "text": "di bakmi gm makan malam 90k mandiri",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “makan malam di bakmi gm 90k mandiri” · tempat berhenti sebelum aktivitas “makan malam”"
+   ],
+   "errors": {
+    "before": [
+     "merchant: bakmi gm makan malam ≠ bakmi gm"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b5",
+   "group": "",
+   "text": "nonton 100k di cgv jenius beli nachos",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “nonton 100k di cgv jenius” · rincian: Nachos"
+   ],
+   "errors": {
+    "before": [
+     "description: nonton nachos ≠ nonton",
+     "details: ∅ ≠ nachos"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b6",
+   "group": "",
+   "text": "belanja 450k di zara bri beli kemeja dan ikat pinggang",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “belanja 450k di zara bri” · rincian: Kemeja · Ikat Pinggang"
+   ],
+   "errors": {
+    "before": [
+     "details: ∅ ≠ kemeja | ikat pinggang"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b7",
+   "group": "",
+   "text": "kmrn nongkrong 120k di kopi nako krom order es kopi susu & roti bakar",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “kemarin nongkrong 120k di kopi nako krom” · rincian: Es Kopi Susu · Roti Bakar"
+   ],
+   "errors": {
+    "before": [
+     "description: nongkrong es kopi susu & roti bakar ≠ nongkrong",
+     "cat: food ≠ hang",
+     "details: ∅ ≠ es kopi susu | roti bakar"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b8",
+   "group": "",
+   "text": "ngopi 40k di fore jago beli aren latte buat kerja",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “ngopi 40k di fore jago” · “buat kerja” → keperluan · rincian: Aren Latte"
+   ],
+   "errors": {
+    "before": [
+     "description: ngopi aren latte kerja ≠ ngopi",
+     "details: ∅ ≠ aren latte",
+     "purpose: ∅ ≠ kerja"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b9",
+   "group": "",
+   "text": "nongkrong 90k di warung tekko bareng rina gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “nongkrong 90k di warung tekko gopay” · “bareng rina” → orang"
+   ],
+   "errors": {
+    "before": [
+     "merchant: warung tekko bareng rina ≠ warung tekko",
+     "people: ∅ ≠ rina"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b10",
+   "group": "",
+   "text": "nongkrong 85k kategori hiburan pake jenius",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [
+    "V3.5 komposisi: “nongkrong 85k pakai jenius” · kategori eksplisit “hiburan” → Nongkrong & Hiburan"
+   ],
+   "errors": {
+    "before": [
+     "description: ∅ ≠ nongkrong",
+     "wallet: ∅ ≠ jenius",
+     "explicit: ∅ ≠ fun"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b11",
+   "group": "",
+   "text": "nonton 75k xxi jago masuk ke kategori hiburan",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [
+    "V3.5 komposisi: “nonton 75k xxi jago” · kategori eksplisit “hiburan” → Nongkrong & Hiburan"
+   ],
+   "errors": {
+    "before": [
+     "wallet: ∅ ≠ jago",
+     "explicit: ∅ ≠ fun"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b12",
+   "group": "",
+   "text": "jajan 15k beli seblak dan es teh",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “jajan 15k” · rincian: Seblak · Es Teh"
+   ],
+   "errors": {
+    "before": [
+     "description: seblak es teh ≠ jajan",
+     "details: ∅ ≠ seblak | es teh"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b13",
+   "group": "",
+   "text": "sarapan 30k di bubur barito cash beli bubur dan sate usus",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “sarapan 30k di bubur barito cash” · rincian: Bubur · Sate Usus"
+   ],
+   "errors": {
+    "before": [
+     "description: sarapan bubur sate usus ≠ sarapan",
+     "cat: food ≠ breakfast",
+     "details: ∅ ≠ bubur | sate usus"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b14",
+   "group": "",
+   "text": "nongkrong 60k di kopi kenangan krom, parkir 5k cash",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "b15",
+   "group": "",
+   "text": "makan siang 55k di solaria jago pesen nasi goreng sama es teh",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “makan siang 55k di solaria jago” · rincian: Nasi Goreng · Es Teh"
+   ],
+   "errors": {
+    "before": [
+     "details: ∅ ≠ nasi goreng | es teh"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b16",
+   "group": "",
+   "text": "gaming 50k di warnet jago",
+   "before": false,
+   "after": false,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ game"
+    ],
+    "after": [
+     "cat: ∅ ≠ game"
+    ]
+   }
+  },
+  {
+   "id": "b17",
+   "group": "",
+   "text": "NONTON 50K DI XXI GOPAY",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "b18",
+   "group": "",
+   "text": "nongkrong 70k di kongsi tiam krom beli teh tarik 30k dan roti 40k",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [
+    "V3.5 komposisi: “nongkrong 70k di kongsi tiam krom” · rincian: Teh Tarik 30000 · Roti 40000 (harga per item = total)"
+   ],
+   "errors": {
+    "before": [
+     "aksi 3 ≠ 1",
+     "merchant: kongsi ≠ kongsi tiam",
+     "details: ∅ ≠ teh tarik | roti"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b19",
+   "group": "",
+   "text": "belanja 200k di miniso jago beli boneka buat adik",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “belanja 200k di miniso jago” · “buat adik” → keperluan · rincian: Boneka"
+   ],
+   "errors": {
+    "before": [
+     "details: ∅ ≠ boneka"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "b20",
+   "group": "",
+   "text": "ngopi 35k, di janji jiwa, gopay, beli kopi susu + croffle",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [
+    "V3.5 komposisi: “ngopi 35k di janji jiwa gopay” · rincian: Kopi Susu · Croffle"
+   ],
+   "errors": {
+    "before": [
+     "aksi 2 ≠ 1",
+     "merchant: ∅ ≠ janji jiwa",
+     "details: ∅ ≠ kopi susu | croffle"
+    ],
+    "after": []
+   }
+  }
+ ]
+}

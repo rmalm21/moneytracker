@@ -5144,6 +5144,8 @@ html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { fi
 .qp-facts span { padding: 3px 9px; border-radius: 999px; background: var(--paper-2); font-size: .74rem; }
 .qp-facts .qp-cat { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); font-weight: 600; }
 .qp-facts .qp-missing { background: color-mix(in srgb, var(--rose) 10%, var(--paper)); color: var(--rose); }
+.qp-facts .qp-detail { flex-basis: 100%; border-radius: 10px; overflow-wrap: anywhere; line-height: 1.35; }
+.qp-facts .qp-detail b { color: var(--muted); font-weight: 600; margin-right: 4px; }
 .qp-fields { display: grid; gap: 7px; }
 .qp-fields:empty { display: none; }
 .qp-field { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; }

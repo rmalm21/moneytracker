@@ -37,7 +37,6 @@ export const commonAbbreviations: Record<string, string> = {
   prkr: 'parkir', prkir: 'parkir', parkr: 'parkir', pkir: 'parkir', jjn: 'jajan', jjan: 'jajan', jajn: 'jajan', srpn: 'sarapan', ongkr: 'ongkir',
   kntr: 'kantor', kntor: 'kantor', byr: 'bayar', bayr: 'bayar', bayarr: 'bayar', trf: 'transfer', trnsfer: 'transfer', transfr: 'transfer', trsf: 'transfer',
   dpt: 'dapat', dpet: 'dapat', msk: 'masuk', adm: 'admin', disc: 'diskon', svc: 'servis', tlp: 'telepon', hp: 'hp', brp: 'berapa',
-  nongki: 'nongkrong', nongky: 'nongkrong', nongkr: 'nongkrong', nongkie: 'nongkrong',
 };
 /** Function words and pronouns as typed in chat. */
 export const commonSlang: Record<string, string> = {
@@ -91,7 +90,7 @@ belanja bulanan sabun sampo pakaian baju celana sepatu sandal tas kaos jaket ski
 listrik internet tagihan pulsa kuota token laundry sewa kontrakan kosan gas galon iuran sampah keamanan
 kesehatan dokter klinik apotek obat vitamin rumah sakit asuransi gigi
 pendidikan sekolah kuliah kampus kursus buku semester seminar
-hiburan nongkrong nonton bioskop konser karaoke game langganan liburan hotel penginapan wisata
+hiburan nonton bioskop konser karaoke game langganan liburan hotel penginapan wisata
 pengeluaran pemasukan penghasilan pendapatan transfer pembayaran pembelian penjualan anggaran tabungan simpanan investasi
 cicilan angsuran utang hutang piutang pinjaman tagihan klaim reimburse penggantian kantor dinas perjalanan
 gaji gajian lembur bonus komisi honor freelance proyek refund cashback diskon potongan ongkir admin biaya

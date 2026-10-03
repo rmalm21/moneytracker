@@ -33,7 +33,6 @@ import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './c
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { compileLanguagePack, curatedReading, normalizeGeneral, type Normalization } from './catat/language.ts';
-import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
 import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
 export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name' | 'purpose';
@@ -108,8 +107,6 @@ export type QuickParseResult = {
   trace: string[];
   /** General Language layer: what changed in the form of the words before the grammar read them (never the meaning). */
   language?: { version: string; text: string; notes: Normalization[] };
-  /** V3.5: the core the grammar read and the scopes taken out of it (item details, purpose, explicit category, place). */
-  composition?: { core: string; slots: ComposedSlot[] };
 };
 
 /* ------------------------------------------------------------------ Normalization */
@@ -999,8 +996,8 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   const before = guarded, beforeAmounts = amountGuard.words;
   guarded = g.guard; amountGuard.words = g.guard;
   let plan: QuickParseResult;
-  try { plan = readPlan(g.text || raw, ctx, mode); if (mode === 'auto') plan = compose(plan, g.text || raw, ctx); } finally { guarded = before; amountGuard.words = beforeAmounts; }
-  if (!g.notes.length) { if (plan.sourceText !== raw && plan.composition) plan.sourceText = raw; return plan; }
+  try { plan = readPlan(g.text || raw, ctx, mode); } finally { guarded = before; amountGuard.words = beforeAmounts; }
+  if (!g.notes.length) return plan;
   plan.sourceText = raw;
   plan.language = { version: g.version, text: g.text, notes: g.notes };
   // "Kenapa?": the words read another way, on the entries that contain them.
@@ -1011,92 +1008,6 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
     if (read.length) a.evidence.push(`Bahasa umum: ${read.map(n => `“${n.raw}” dibaca “${n.normalized}”`).join(', ')}.`);
   }
   plan.trace.unshift(`Bahasa umum v${g.version}: ${g.notes.map(n => `${n.raw} → ${n.normalized || '∅'} (${n.type})`).join(', ')}`);
-  return plan;
-}
-
-/**
- * V3.5 Compositional Language Intelligence: the sentence's extra scopes (item details, purpose, explicit category, place
- * boundaries; lib/catat/compose.ts) are taken out, the core is read by the same grammar, and each scope is attached to
- * the event that owns it. The V3.5 Bug Catcher keeps the plain reading whenever the composed one would move money,
- * wallet, date, the kind of an event or invent events.
- */
-const joinNames = (l: string[]) => l.length > 1 ? `${l.slice(0, -1).join(', ')} dan ${l[l.length - 1]}` : l[0] || '';
-function compose(plain: QuickParseResult, text: string, ctx: QuickContext): QuickParseResult {
-  if (!plain.actions.length || plain.confirm) return plain;
-  const comp = composeSlots(text, ctx);
-  if (!comp) return plain;
-  const plan = readPlan(comp.core, ctx, 'auto');
-  const reject = (why: string) => { plain.trace.push(`V3.5 komposisi ditolak: ${why} (dibaca seperti V3.4)`); return plain; };
-  const written = new Set(findAmounts(text.toLocaleLowerCase('id-ID')).map(a => a.value));
-  const wallets = new Set(walletsIn(text.toLocaleLowerCase('id-ID'), ctx.wallets).map(w => w.id));
-  const plainDates = new Set(plain.actions.map(a => a.result.date));
-  const FLOW = new Set<QuickKind>(['expense', 'income']);
-  if (!plan.actions.length) return reject('tidak ada entri');
-  if (plan.confirm) return reject('nominal perlu konfirmasi');
-  const amountClauses = comp.core.split(/[;]|,(?=[^,]*\d)/).length;
-  if (plan.actions.length > Math.max(plain.actions.length, amountClauses)) return reject('jumlah entri bertambah');
-  for (const a of plan.actions) {
-    if (!FLOW.has(a.result.kind) && !plain.actions.some(p => p.result.kind === a.result.kind)) return reject(`jenis ${a.result.kind} baru`);
-    if (a.result.amount && !written.has(a.result.amount) && !(a.result.composition && written.has(a.result.composition.gross))) return reject(`nominal ${a.result.amount} tidak ditulis`);
-    if (a.result.preset.walletId && !wallets.has(a.result.preset.walletId)) return reject('dompet tidak disebut');
-    if (!plainDates.has(a.result.date)) return reject('tanggal berubah');
-  }
-  // The money said must still be there: every plain amount that was a real event stays an event, unless it was an item price.
-  const priced = new Set(comp.slots.flatMap(s => [...(s.items || []).map(i => i.amount || 0), ...(s.charges || [])]));
-  for (const p of plain.actions) if (p.result.amount && !priced.has(p.result.amount) && !plan.actions.some(a => a.result.amount === p.result.amount || a.result.composition?.gross === p.result.amount)) return reject(`nominal ${p.result.amount} hilang`);
-  // Attach each slot to the action whose clause contains it.
-  const owner = (slot: ComposedSlot) => {
-    const clause = plan.clauses.find(c => c.source[0] <= slot.at && slot.at <= c.source[1] + 1);
-    return plan.actions.find(a => a.clause === clause?.index) || (plan.actions.length === 1 ? plan.actions[0] : undefined);
-  };
-  for (const slot of comp.slots) {
-    const a = owner(slot);
-    if (!a) return reject('rincian tanpa entri');
-    if (!FLOW.has(a.result.kind)) return reject('rincian di entri bukan belanja');
-    const r = a.result;
-    const notes = slotNotes(slot);
-    if (notes) r.preset.notes = [r.preset.notes, notes].filter(Boolean).join(' · ');
-    if (slot.items?.length) {
-      r.details = slot.items;
-      const priced = slot.items.every(i => i.amount) && slot.items.reduce((n, i) => n + (i.amount || 0), 0) === r.amount;
-      if (priced && !r.composition) r.preset.receipt = { ...(r.preset.merchant ? { merchant: r.preset.merchant } : {}), items: slot.items.map(i => ({ name: i.name, qty: i.qty || 1, price: Math.round((i.amount || 0) / (i.qty || 1)), total: i.amount || 0 })), charges: [], subtotal: r.amount, total: r.amount };
-      // "beli teh dan kopi": the description keeps the list, written as a list.
-      if (slot.inline && r.preset.description && r.preset.description.toLocaleLowerCase('id-ID') === slot.items.map(i => i.name).join(' ').toLocaleLowerCase('id-ID')) r.preset.description = slot.items.map(i => i.name).join(' & ');
-      if (slot.mismatch) a.warnings.push(`Harga rincian ${slot.mismatch.toLocaleString('id-ID')} tidak sama dengan total ${r.amount.toLocaleString('id-ID')}; yang dicatat totalnya.`);
-      a.evidence.push(`${joinNames(slot.items.map(i => i.name))} dibaca sebagai rincian pembelian.`);
-    }
-    if (slot.purpose) { r.purpose ||= slot.purpose; a.evidence.push(`“${slot.purpose}” dibaca sebagai keperluan.`); }
-    if (slot.activity) a.evidence.push(`${slot.activity[0].toLocaleUpperCase('id-ID') + slot.activity.slice(1)} dibaca sebagai aktivitas.`);
-    if (slot.place) a.evidence.push(`${slot.place} dibaca sebagai tempat.`);
-    if (slot.merchant) { r.preset.merchant = slot.merchant; a.evidence.push(`${slot.merchant} dibaca sebagai satu nama tempat.`); }
-    if (slot.charges?.length && r.composition) a.evidence.push(`Potongan/biaya dibaca milik nominal utama, bukan entri baru.`);
-    if (slot.categoryMissing && !slot.category) {
-      a.fields.category = { status: 'check', note: `kategori “${slot.categoryMissing}” belum ada` };
-      a.warnings.push(`Kategori “${slot.categoryMissing}” belum ada. Pilih kategori yang ada, atau buat dulu di menu Kategori.`);
-      a.review = true;
-    }
-    if (slot.category) {
-      // "kategori hiburan" names the parent: the sub the activity already chose inside it stays.
-      const keepSub = !slot.category.subcategoryId && r.preset.categoryId === slot.category.categoryId ? r.preset.subcategoryId || null : null;
-      r.preset.categoryId = slot.category.categoryId; r.preset.subcategoryId = slot.category.subcategoryId || keepSub;
-      r.why = `kategori disebut: “${slot.category.text}”`;
-      a.fields.category = { status: 'verified', note: `disebut: ${slot.category.label}` };
-      const named = [ctx.categories.find(c => c.id === r.preset.categoryId)?.name, ctx.categories.find(c => c.id === r.preset.subcategoryId)?.name].filter(Boolean).join(' › ');
-      a.evidence.push(`Kategori ${named || slot.category.label} disebut langsung.`);
-      if (a.ask?.field === 'category') a.ask = undefined;
-      a.review = Object.values(a.fields).some(f => f && (f.status === 'check' || f.status === 'missing'));
-    }
-  }
-  // Developer trace: the role of every span of each composed entry (§169; never shown to the person).
-  for (const a of plan.actions) {
-    const r = a.result, p = r.preset, slot = comp.slots.find(s => owner(s) === a);
-    if (!slot) continue;
-    const cat = [ctx.categories.find(c => c.id === p.categoryId)?.name, ctx.categories.find(c => c.id === p.subcategoryId)?.name].filter(Boolean).join(' › ');
-    plan.trace.push(`V3.5 slot #${a.clause + 1}: ${[p.description && `ACTIVITY “${p.description}”`, r.amount && `AMOUNT ${r.amount}`, p.merchant && `PLACE “${p.merchant}”`, p.walletId && `WALLET ${p.walletId}`, r.date !== ctx.today && `DATE ${r.date}`, ...(r.details || []).map(i => `ITEM_DETAIL “${i.name}”${i.amount ? ` ${i.amount}` : ''}`), r.purpose && `PURPOSE “${r.purpose}”`, slot.people && `PEOPLE ${slot.people.join(', ')}`, slot.category ? `EXPLICIT_CATEGORY ${slot.category.label}` : cat && `CATEGORY ${cat}`].filter(Boolean).join(' · ')}`);
-  }
-  plan.sourceText = text;
-  plan.composition = { core: comp.core, slots: comp.slots };
-  plan.trace.unshift(`V3.5 komposisi: “${comp.core}” · ${comp.trace.join(' · ')}`);
   return plan;
 }
 

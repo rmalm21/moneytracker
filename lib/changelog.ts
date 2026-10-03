@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.11', date: '3 Okt 2026', title: 'Catat otomatis paham kalimat utuh', items: [
+    ['📝', 'Tulis bebas urutannya: “Nongkrong 77k di kongsi tiam krom beli Teh Tarik dan Snack Platter” dibaca Nongkrong · Kongsi Tiam · Krom, kategori Nongkrong, dengan rincian Teh Tarik · Snack Platter. “krom 77k nongkrong kongsi tiam” juga dibaca sama.'],
+    ['🧾', 'Barang yang dibeli disimpan sebagai rincian di catatan, bukan jadi keterangan atau kategori. Kalau harga tiap barang dijumlah pas dengan totalnya, rinciannya ikut tersimpan per barang.'],
+    ['✅', 'Kategori yang kamu sebut langsung dipakai: “masuk ke kategori hiburan” atau “kategori hiburan > nongkrong”. Kategori yang belum ada tidak dibuat diam-diam, kamu diminta memilih.'],
+    ['💡', 'Aktivitas tetap menentukan kategori: “nongkrong 100k beli kopi” tetap Nongkrong, “nonton di xxi beli popcorn” tetap Bioskop. “buat meeting” dan “bareng andi” juga dicatat terpisah.'],
+    ['💸', 'Nominal, dompet, tanggal, dan jumlah entri tetap aman. “diskon 7k” di akhir kalimat mengurangi belanja yang sama, dan “di Krom Store … jago” tetap dibayar pakai Jago.'],
+  ] },
   { version: '4.10', date: '3 Okt 2026', title: 'Catat otomatis makin paham bahasa chat', items: [
     ['📝', 'Singkatan yang belum pernah diajarkan pun kini dikenali dari cara singkatan dibentuk: srapn, sarpan, makn, lstrk, tghn, pnglrn, tkt kreta, dan sejenisnya. Tidak perlu disimpan di Kamus Pribadi.'],
     ['✅', 'Cara mengetik di HP juga dimengerti: “makan25k”, “mkn:25k”, “makannn”, “bensinn”, emoji, “wkwk”, “catetin …”, sampai “ngopi 22k ama temen”. Keterangan tetap bersih, misalnya Makan atau Ngopi.'],

@@ -661,6 +661,10 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
       fact('t', `${dayText(date)}${time ? ` · ${time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`, action.fields.time?.status === 'check' && !touched.time ? 'qp-missing' : '');
       if (walletId) fact('w', walletName(walletId));
+      // V3.5: what was bought, what for and with whom, as one short line each (never the description or the category).
+      if (result.details?.length && result.preset.description !== result.details.map(i => i.name).join(' & ')) fact('i', <><b>Rincian</b> {result.details.map(i => `${i.qty ? `${i.qty} ` : ''}${i.name}`).join(' · ')}</>, 'qp-detail');
+      if (result.purpose) fact('u', `Untuk ${result.purpose}`);
+      for (const line of (result.preset.notes || '').split(/\n| · /)) { const m = line.match(/^(Bersama|Untuk): (.+)$/); if (m) fact(`n${m[1]}`, `${m[1]} ${m[2]}`); }
       break;
     case 'transfer': fact('w', `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}`, walletId && destination && walletId !== destination ? '' : 'qp-missing'); fact('t', dayText(date)); break;
     case 'open': fact('o', result.menu?.target && result.menu.key === 'wallets' ? 'Buka detail dompet ini' : 'Pindah ke menu ini'); break;
