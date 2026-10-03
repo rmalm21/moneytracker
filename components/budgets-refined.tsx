@@ -111,8 +111,9 @@ export function BudgetsView({ notify, navigate, openTx }: { notify: (message: st
       <div className="bgt-hero-chips">
         {totalLeft > 0 && <span className="is-daily"><Sparkles size={13}/>Aman ±{short(totalLeft / Math.max(1, cycle.daysRemaining))}/hari</span>}
         <span className="is-ok"><i/>{counts.ok} aman</span>
-        <span className="is-warn"><i/>{counts.warn} hampir habis</span>
-        <span className="is-over"><i/>{counts.over} terlampaui</span>
+        {/* 5.0: zero counts are noise; only states that exist are shown. */}
+        {counts.warn > 0 && <span className="is-warn"><i/>{counts.warn} hampir habis</span>}
+        {counts.over > 0 && <span className="is-over"><i/>{counts.over} terlampaui</span>}
         {totals.planned > 0 && <span className="is-plan"><i/>{short(totals.planned)} direncanakan</span>}
       </div>
     </section>}

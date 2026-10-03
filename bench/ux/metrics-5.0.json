@@ -1,0 +1,1794 @@
+[
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "dashboard",
+  "ms": 6734,
+  "first": {
+   "actions": 13,
+   "cards": 5,
+   "amounts": 9,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 32,
+   "cards": 9,
+   "amounts": 31,
+   "badges": 1,
+   "concepts": 13,
+   "emphasis": 1,
+   "scroll": 2.9
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "transactions",
+  "ms": 5909,
+  "first": {
+   "actions": 16,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 42,
+   "cards": 1,
+   "amounts": 42,
+   "badges": 0,
+   "concepts": 26,
+   "emphasis": 2,
+   "scroll": 3.9
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "wallets",
+  "ms": 5173,
+  "first": {
+   "actions": 13,
+   "cards": 4,
+   "amounts": 8,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 26,
+   "cards": 6,
+   "amounts": 11,
+   "badges": 3,
+   "concepts": 5,
+   "emphasis": 1,
+   "scroll": 2.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "budgets",
+  "ms": 5693,
+  "first": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "claims",
+  "ms": 6202,
+  "first": {
+   "actions": 9,
+   "cards": 1,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 45,
+   "cards": 6,
+   "amounts": 9,
+   "badges": 12,
+   "concepts": 8,
+   "emphasis": 2,
+   "scroll": 3.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "debts",
+  "ms": 5181,
+  "first": {
+   "actions": 6,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 8,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "receivables",
+  "ms": 5330,
+  "first": {
+   "actions": 7,
+   "cards": 1,
+   "amounts": 6,
+   "badges": 2,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 9,
+   "cards": 1,
+   "amounts": 6,
+   "badges": 2,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "splitbill",
+  "ms": 5827,
+  "first": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "funds",
+  "ms": 6126,
+  "first": {
+   "actions": 5,
+   "cards": 1,
+   "amounts": 5,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 11,
+   "cards": 2,
+   "amounts": 13,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2,
+   "scroll": 2
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "wishlist",
+  "ms": 5835,
+  "first": {
+   "actions": 6,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "recurring",
+  "ms": 6467,
+  "first": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "upcoming",
+  "ms": 5253,
+  "first": {
+   "actions": 3,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 1,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 9,
+   "cards": 4,
+   "amounts": 6,
+   "badges": 5,
+   "concepts": 3,
+   "emphasis": 1,
+   "scroll": 1.5
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "calendar",
+  "ms": 6109,
+  "first": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "advisor",
+  "ms": 5292,
+  "first": {
+   "actions": 10,
+   "cards": 0,
+   "amounts": 6,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 52,
+   "cards": 2,
+   "amounts": 37,
+   "badges": 2,
+   "concepts": 16,
+   "emphasis": 1,
+   "scroll": 4.9
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "analytics",
+  "ms": 6105,
+  "first": {
+   "actions": 2,
+   "cards": 6,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 11,
+   "cards": 8,
+   "amounts": 9,
+   "badges": 0,
+   "concepts": 4,
+   "emphasis": 1,
+   "scroll": 2.4
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "report",
+  "ms": 6011,
+  "first": {
+   "actions": 6,
+   "cards": 5,
+   "amounts": 4,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 18,
+   "cards": 14,
+   "amounts": 56,
+   "badges": 8,
+   "concepts": 15,
+   "emphasis": 1,
+   "scroll": 5
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "health",
+  "ms": 5364,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "settings",
+  "ms": 5159,
+  "first": {
+   "actions": 8,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 6,
+   "emphasis": 1,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "help",
+  "ms": 5283,
+  "first": {
+   "actions": 12,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 6,
+   "emphasis": 0
+  },
+  "page": {
+   "actions": 15,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 0,
+   "scroll": 1.5
+  }
+ },
+ {
+  "user": "rama",
+  "size": "mobile",
+  "view": "more",
+  "first": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 0
+  },
+  "page": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 0,
+   "scroll": 2.9
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "dashboard",
+  "ms": 5457,
+  "first": {
+   "actions": 13,
+   "cards": 5,
+   "amounts": 9,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 4
+  },
+  "page": {
+   "actions": 32,
+   "cards": 9,
+   "amounts": 31,
+   "badges": 1,
+   "concepts": 13,
+   "emphasis": 4,
+   "scroll": 2.2
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "transactions",
+  "ms": 5403,
+  "first": {
+   "actions": 16,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 42,
+   "cards": 1,
+   "amounts": 42,
+   "badges": 0,
+   "concepts": 26,
+   "emphasis": 2,
+   "scroll": 3.7
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "wallets",
+  "ms": 11471,
+  "first": {
+   "actions": 15,
+   "cards": 5,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 4,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 26,
+   "cards": 6,
+   "amounts": 11,
+   "badges": 3,
+   "concepts": 5,
+   "emphasis": 4,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "budgets",
+  "ms": 5217,
+  "first": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "claims",
+  "ms": 5262,
+  "first": {
+   "actions": 17,
+   "cards": 4,
+   "amounts": 5,
+   "badges": 4,
+   "concepts": 4,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 45,
+   "cards": 6,
+   "amounts": 9,
+   "badges": 12,
+   "concepts": 8,
+   "emphasis": 2,
+   "scroll": 1.8
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "debts",
+  "ms": 5262,
+  "first": {
+   "actions": 8,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 8,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2,
+   "scroll": 1.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "receivables",
+  "ms": 6262,
+  "first": {
+   "actions": 8,
+   "cards": 1,
+   "amounts": 6,
+   "badges": 2,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 9,
+   "cards": 1,
+   "amounts": 6,
+   "badges": 2,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "splitbill",
+  "ms": 5199,
+  "first": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "funds",
+  "ms": 5205,
+  "first": {
+   "actions": 7,
+   "cards": 2,
+   "amounts": 10,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 11,
+   "cards": 2,
+   "amounts": 13,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "wishlist",
+  "ms": 5214,
+  "first": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "recurring",
+  "ms": 6176,
+  "first": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "upcoming",
+  "ms": 5258,
+  "first": {
+   "actions": 9,
+   "cards": 4,
+   "amounts": 6,
+   "badges": 3,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 9,
+   "cards": 4,
+   "amounts": 6,
+   "badges": 5,
+   "concepts": 3,
+   "emphasis": 1,
+   "scroll": 1.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "calendar",
+  "ms": 5227,
+  "first": {
+   "actions": 34,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "advisor",
+  "ms": 5376,
+  "first": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 14,
+   "badges": 2,
+   "concepts": 3,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 52,
+   "cards": 2,
+   "amounts": 37,
+   "badges": 2,
+   "concepts": 16,
+   "emphasis": 2,
+   "scroll": 3.3
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "analytics",
+  "ms": 5022,
+  "first": {
+   "actions": 7,
+   "cards": 6,
+   "amounts": 9,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 5
+  },
+  "page": {
+   "actions": 11,
+   "cards": 8,
+   "amounts": 9,
+   "badges": 0,
+   "concepts": 4,
+   "emphasis": 5,
+   "scroll": 2.1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "report",
+  "ms": 5190,
+  "first": {
+   "actions": 6,
+   "cards": 7,
+   "amounts": 11,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 8
+  },
+  "page": {
+   "actions": 18,
+   "cards": 14,
+   "amounts": 56,
+   "badges": 8,
+   "concepts": 15,
+   "emphasis": 8,
+   "scroll": 3.5
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "health",
+  "ms": 5133,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "settings",
+  "ms": 5198,
+  "first": {
+   "actions": 17,
+   "cards": 3,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 24,
+   "cards": 3,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 10,
+   "emphasis": 1,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "rama",
+  "size": "desktop",
+  "view": "help",
+  "ms": 6386,
+  "first": {
+   "actions": 13,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 15,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "dashboard",
+  "ms": 5345,
+  "first": {
+   "actions": 13,
+   "cards": 6,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 26,
+   "cards": 8,
+   "amounts": 24,
+   "badges": 1,
+   "concepts": 11,
+   "emphasis": 1,
+   "scroll": 2.4
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "transactions",
+  "ms": 6429,
+  "first": {
+   "actions": 16,
+   "cards": 1,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 36,
+   "cards": 1,
+   "amounts": 34,
+   "badges": 0,
+   "concepts": 25,
+   "emphasis": 2,
+   "scroll": 3.2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "wallets",
+  "ms": 5344,
+  "first": {
+   "actions": 13,
+   "cards": 4,
+   "amounts": 8,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 26,
+   "cards": 6,
+   "amounts": 11,
+   "badges": 3,
+   "concepts": 5,
+   "emphasis": 1,
+   "scroll": 2.1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "budgets",
+  "ms": 5278,
+  "first": {
+   "actions": 2,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 2,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "claims",
+  "ms": 5062,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "debts",
+  "ms": 5166,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "receivables",
+  "ms": 5943,
+  "first": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "splitbill",
+  "ms": 5198,
+  "first": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "funds",
+  "ms": 5067,
+  "first": {
+   "actions": 5,
+   "cards": 1,
+   "amounts": 5,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 6,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "wishlist",
+  "ms": 5173,
+  "first": {
+   "actions": 6,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "recurring",
+  "ms": 6013,
+  "first": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1.1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "upcoming",
+  "ms": 5048,
+  "first": {
+   "actions": 2,
+   "cards": 5,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 2,
+   "cards": 5,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "calendar",
+  "ms": 5096,
+  "first": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "advisor",
+  "ms": 5251,
+  "first": {
+   "actions": 9,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 29,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 11,
+   "emphasis": 1,
+   "scroll": 2.5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "analytics",
+  "ms": 5309,
+  "first": {
+   "actions": 4,
+   "cards": 7,
+   "amounts": 4,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 13,
+   "cards": 9,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 4,
+   "emphasis": 1,
+   "scroll": 2.5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "report",
+  "ms": 5215,
+  "first": {
+   "actions": 6,
+   "cards": 5,
+   "amounts": 2,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 17,
+   "cards": 14,
+   "amounts": 40,
+   "badges": 8,
+   "concepts": 15,
+   "emphasis": 1,
+   "scroll": 5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "health",
+  "ms": 5146,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "settings",
+  "ms": 5213,
+  "first": {
+   "actions": 8,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 6,
+   "emphasis": 1,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "help",
+  "ms": 6234,
+  "first": {
+   "actions": 12,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 6,
+   "emphasis": 0
+  },
+  "page": {
+   "actions": 15,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 0,
+   "scroll": 1.5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "mobile",
+  "view": "more",
+  "first": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 0
+  },
+  "page": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 0,
+   "scroll": 2.4
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "dashboard",
+  "ms": 5416,
+  "first": {
+   "actions": 13,
+   "cards": 6,
+   "amounts": 7,
+   "badges": 1,
+   "concepts": 3,
+   "emphasis": 4
+  },
+  "page": {
+   "actions": 26,
+   "cards": 8,
+   "amounts": 24,
+   "badges": 1,
+   "concepts": 11,
+   "emphasis": 4,
+   "scroll": 2.1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "transactions",
+  "ms": 5429,
+  "first": {
+   "actions": 16,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 0,
+   "concepts": 6,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 36,
+   "cards": 1,
+   "amounts": 34,
+   "badges": 0,
+   "concepts": 25,
+   "emphasis": 2,
+   "scroll": 3
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "wallets",
+  "ms": 5310,
+  "first": {
+   "actions": 15,
+   "cards": 5,
+   "amounts": 8,
+   "badges": 2,
+   "concepts": 4,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 26,
+   "cards": 6,
+   "amounts": 11,
+   "badges": 3,
+   "concepts": 5,
+   "emphasis": 4,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "budgets",
+  "ms": 5072,
+  "first": {
+   "actions": 2,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 2,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "claims",
+  "ms": 5101,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "debts",
+  "ms": 5899,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "receivables",
+  "ms": 5294,
+  "first": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 2,
+   "cards": 1,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "splitbill",
+  "ms": 5222,
+  "first": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 3,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "funds",
+  "ms": 5110,
+  "first": {
+   "actions": 5,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 6,
+   "cards": 1,
+   "amounts": 8,
+   "badges": 1,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1.2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "wishlist",
+  "ms": 6161,
+  "first": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 7,
+   "cards": 0,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 2,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "recurring",
+  "ms": 5255,
+  "first": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 8,
+   "cards": 4,
+   "amounts": 4,
+   "badges": 2,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "upcoming",
+  "ms": 5230,
+  "first": {
+   "actions": 2,
+   "cards": 5,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 2,
+   "cards": 5,
+   "amounts": 3,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "calendar",
+  "ms": 5258,
+  "first": {
+   "actions": 34,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 35,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 1,
+   "scroll": 1.3
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "advisor",
+  "ms": 5958,
+  "first": {
+   "actions": 14,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 5,
+   "emphasis": 2
+  },
+  "page": {
+   "actions": 29,
+   "cards": 0,
+   "amounts": 1,
+   "badges": 0,
+   "concepts": 11,
+   "emphasis": 2,
+   "scroll": 2
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "analytics",
+  "ms": 5294,
+  "first": {
+   "actions": 5,
+   "cards": 7,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 2,
+   "emphasis": 5
+  },
+  "page": {
+   "actions": 13,
+   "cards": 9,
+   "amounts": 7,
+   "badges": 0,
+   "concepts": 4,
+   "emphasis": 5,
+   "scroll": 2.1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "report",
+  "ms": 5375,
+  "first": {
+   "actions": 6,
+   "cards": 7,
+   "amounts": 6,
+   "badges": 0,
+   "concepts": 3,
+   "emphasis": 8
+  },
+  "page": {
+   "actions": 17,
+   "cards": 14,
+   "amounts": 40,
+   "badges": 8,
+   "concepts": 15,
+   "emphasis": 8,
+   "scroll": 3.5
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "health",
+  "ms": 5515,
+  "first": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 1,
+   "cards": 1,
+   "amounts": 0,
+   "badges": 0,
+   "concepts": 1,
+   "emphasis": 1,
+   "scroll": 1
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "settings",
+  "ms": 6196,
+  "first": {
+   "actions": 17,
+   "cards": 3,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 24,
+   "cards": 3,
+   "amounts": 1,
+   "badges": 1,
+   "concepts": 10,
+   "emphasis": 1,
+   "scroll": 1.7
+  }
+ },
+ {
+  "user": "budi",
+  "size": "desktop",
+  "view": "help",
+  "ms": 5246,
+  "first": {
+   "actions": 13,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1
+  },
+  "page": {
+   "actions": 15,
+   "cards": 0,
+   "amounts": 0,
+   "badges": 1,
+   "concepts": 7,
+   "emphasis": 1,
+   "scroll": 1.2
+  }
+ }
+]

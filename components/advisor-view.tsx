@@ -1,4 +1,5 @@
 'use client';
+import { countVisit, writeUsage } from '@/lib/usage';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Pin, PinOff, Calculator, LayoutList, UserRound, Layers, HandCoins, Sprout, SlidersHorizontal, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Lightbulb, Scissors, TrendingDown, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
@@ -139,7 +140,7 @@ function SectionHead({ icon: Icon, title, hint }: { icon: LucideIcon; title: str
   return <header className="ins-head"><span className="ins-section-icon" aria-hidden="true"><Icon size={17}/></span><div><h2>{title}</h2>{hint && <small>{hint}</small>}</div></header>;
 }
 
-export function AdvisorView({ navigate }: { navigate: (view: string, focus?: string) => void }) {
+export function AdvisorView({ navigate, focus }: { navigate: (view: string, focus?: string) => void; focus?: string }) {
   const { data, profile, cycle, user } = useApp();
   const { track } = useNotify();
   const salaryDay = profile?.salaryCycleStartDay || 24;
@@ -199,8 +200,6 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const allHidden = [...new Set([...hidden, ...(report?.memory.hidden || [])])];
   const visible = (list: Finding[]) => showHidden ? list : list.filter(f => !allHidden.includes(f.id));
   const [tab, setTab] = useState('');
-  // Receipt item prices are read only when the Harga tab is opened.
-  const prices = useMemo(() => report && tab === 'prices' ? analyzePrices(report) : [], [report, tab]);
 
   function apply(action: Apply, finding: Finding) {
     if (!user || busy) return;
@@ -227,6 +226,11 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const collapse = useCollapsed(user?.uid);
   const [explainOpen, setExplainOpen] = useState(false);
   const [sub, setSub] = useState('summary');
+  // Receipt item prices are read only when the Harga view is opened.
+  const prices = useMemo(() => report && sub === 'prices' && (tab === '' || tab === 'spending') ? analyzePrices(report) : [], [report, tab, sub]);
+  // 5.0 deep links from search and discovery: "lab" (Skenario), "prices" (Harga), "cashflow", "goals", "data".
+  useEffect(() => { if (!focus) return; if (focus === 'prices') { setTab('spending'); setSub('prices'); } else if (['spending', 'cashflow', 'goals', 'lab', 'data'].includes(focus)) setTab(focus); }, [focus]);
+  useEffect(() => { if (user && sub === 'prices') writeUsage(user.uid, u => countVisit(u, 'advisor:prices')); }, [sub, user?.uid]);
   const [changesAll, setChangesAll] = useState(false);
   const hintKey = user ? `dompet-ajaib:insight-hint:${user.uid}` : '';
   const [hintSeen, setHintSeen] = useState(true);
