@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '4.9', date: '3 Okt 2026', title: 'Singkatan umum langsung dikenali', items: [
+    ['📝', 'Singkatan yang biasa diketik siapa pun kini dikenali tanpa perlu diajari: prkr, bnsn, jjn, blnja, yg, utk, bwt, dgn, kntr, dan lainnya (mkn, kmrn, td sudah dari dulu).'],
+    ['🧾', '“jajan 15rb” kini tersimpan dengan keterangan Jajan. Kategorinya tetap Makan & Minum, dan keterangannya tidak hilang lagi.'],
+    ['💡', 'Kamus Pribadi khusus untuk kata yang memang milikmu, seperti nama tempat langganan atau panggilan teman. Singkatan umum tidak perlu disimpan di sana.'],
+  ] },
   { version: '4.8', date: '3 Okt 2026', title: 'Catat otomatis paham caramu bicara', items: [
     ['📝', 'Kamus Pribadi: ketik “ingat besto itu D\'Besto” atau “kak tio itu Muhammad Tio”, lalu “ayam besto 13k jago” langsung dibaca Ayam · D\'Besto · Rp13.000 · Jago.'],
     ['💡', 'Catat otomatis juga belajar diam-diam dari koreksimu. Kata yang baru sekali dikoreksi belum dipakai; setelah beberapa kali baru dikenali, dan tetap bisa diubah atau dihapus.'],

@@ -1023,6 +1023,9 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     const verb = /\b(kirim|ngirim|kirimin)\b/.test(text) ? 'Kirim' : /\b(tf|transfer|trf|transferin)\b/.test(text) ? 'Transfer' : 'Bayar';
     if (item) preset.description = title(item);
     else if (flow === 'income' && /\bgaji|gajian\b/.test(text)) preset.description = 'Gaji';
+    // "jajan 15rb": the word is both the act and the thing. With nothing else bought it stays the description
+    // (the category still reads it as evidence: Makan & Minum › Jajanan).
+    else if (flow === 'expense' && /\b(jajan|jajanan|belanja|ngopi|ngemil)\b/.test(text)) preset.description = title(text.match(/\b(jajan|jajanan|belanja|ngopi|ngemil)\b/)![1]);
     else if (result.person) preset.description = result.personCue === 'from' ? `Dari ${result.person}` : result.personCue === 'pay' ? `Bayar ${result.person}` : `${verb} ke ${result.person}`;
   }
   if (flow === 'debt_new') { result.name = /\bkasbon\b/.test(text) ? title(`kasbon${item ? ` ${item}` : ''}`) : item ? title(item) : result.person ? `Pinjaman ${result.person}` : 'Pinjaman'; }

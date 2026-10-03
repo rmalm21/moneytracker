@@ -119,7 +119,13 @@ const SPELLING: Record<string, string> = {
   ntar: 'nanti', ntr: 'nanti', udh: 'sudah', udah: 'sudah', sdh: 'sudah', blm: 'belum', dgn: 'dengan', dg: 'dengan', jg: 'juga',
   pg: 'pagi', mlm: 'malam', malem: 'malam', mlem: 'malam', trs: 'terus', trus: 'terus', krn: 'karena', lsg: 'langsung', tp: 'tapi', lg: 'lagi', sy: 'saya',
   ingetin: 'ingetin', ingatin: 'ingetin', inget: 'ingetin', tlg: 'tolong', bls: 'balas', bgt: 'banget', gpp: 'tidak apa',
+  // Common Indonesian shorthand anyone may type (general language, not the person's Kamus Pribadi).
+  prkr: 'parkir', bnsn: 'bensin', jjn: 'jajan', jjan: 'jajan', jajn: 'jajan', blnja: 'belanja', mnum: 'minum', srpn: 'sarapan', ongkr: 'ongkir',
+  kntr: 'kantor', kntor: 'kantor', yg: 'yang', utk: 'untuk', bwt: 'buat', sm: 'sama', dpt: 'dapat', dpet: 'dapat', sblm: 'sebelum', stlh: 'setelah', brp: 'berapa',
+  bsk: 'besok', bln: 'bulan', thn: 'tahun', mgg: 'minggu', jln: 'jalan',
 };
+/** The general reading of one shorthand word ("mkn" -> "makan"), or undefined: what everyone may type, not personal memory. */
+export const generalSpelling = (word: string) => Object.prototype.hasOwnProperty.call(SPELLING, word) ? SPELLING[word] : undefined;
 const PHRASES: [RegExp, string][] = [
   // Day of month as people type it: "tgl2", "tnggl 2", "tanggal2" → "tgl 2".
   [/\b(?:tanggal|tangal|tnggal|tnggl|tngl|tgl|tg)\s*(\d{1,2})(?!\d)/g, 'tgl $1'],

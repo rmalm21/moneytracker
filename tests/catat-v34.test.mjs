@@ -9,7 +9,7 @@ import { ctx as base } from '../bench/quick/fixtures-v33state.mjs';
 
 const T0 = Date.parse('2026-10-15T08:00:00Z');
 const lexOf = (...rows) => rows.reduce((lex, [raw, label, type, targetId]) => { const r = teach(lex, raw, label, type, targetId, base, T0); assert.equal(r.problem, null, `${raw}: ${r.problem}`); return applyChanges(lex, r.changes); }, { on: true, aliases: {} });
-const LEX = lexOf(['besto', "D'Besto", 'merchant'], ['piot', 'B1 Piot', 'merchant'], ['kak tio', 'Muhammad Tio', 'person'], ['kntor', 'Kantor', 'place'], ['jg', 'Jago', 'wallet', 'jago'], ['prkr', 'parkir', 'abbr']);
+const LEX = lexOf(['besto', "D'Besto", 'merchant'], ['piot', 'B1 Piot', 'merchant'], ['kak tio', 'Muhammad Tio', 'person'], ['bcamp', 'Basecamp', 'place'], ['jg', 'Jago', 'wallet', 'jago'], ['uks', 'uang kos', 'abbr']);
 /** `null` = cold (no Kamus Pribadi, no session). */
 const read = (text, personal = { lexicon: LEX }, ctx = base) => parseQuickPlanV3(text, ctx, 'auto', personal ?? undefined);
 const one = async (text, personal, ctx) => { const p = await read(text, personal, ctx); assert.equal(p.actions.length, 1, `${text}: ${p.actions.length} aksi`); return { p, a: p.actions[0], r: p.actions[0].result }; };
@@ -45,7 +45,7 @@ test('103 amount never from history: "kopi cotti" has no amount', async () => {
   assert.ok(p.actions.every(a => !a.result.amount));
 });
 test('104 time unchanged by memory: "jam 1" readings are identical cold and warm', async () => {
-  for (const t of ['parkir 2k kntor jam 1', 'ayam besto 13k jam 7', 'susu piot 7k tadi jam 1 siang']) {
+  for (const t of ['parkir 2k bcamp jam 1', 'ayam besto 13k jam 7', 'susu piot 7k tadi jam 1 siang']) {
     const cold = await read(t, null), warm = await read(t);
     assert.deepEqual(warm.actions.map(a => [a.result.date, a.result.preset.time || '', a.result.amount]), cold.actions.map(a => [a.result.date, a.result.preset.time || '', a.result.amount]), t);
   }
@@ -77,7 +77,7 @@ test('108 cross-input update: "yang tadi jadi 21k" right after saving Kopi Cotti
   assert.equal(r.kind, 'tx_update'); assert.equal(r.operation.target.id, 't1'); assert.equal(r.amount, 21000);
 });
 test('109 reset: an empty Kamus Pribadi reads exactly like the general engine', async () => {
-  for (const t of ['ayam besto 13k jago', 'kak tio ngutang 20k', 'parkir 2k kntor', 'transfer 100rb jago ke mandiri']) {
+  for (const t of ['ayam besto 13k jago', 'kak tio ngutang 20k', 'parkir 2k bcamp', 'transfer 100rb jago ke mandiri']) {
     const cold = await read(t, null), reset = await read(t, { lexicon: { on: true, aliases: {} } });
     assert.deepEqual(reset.actions.map(a => [a.result.kind, a.result.amount, a.result.preset.merchant || '', a.result.person || '', a.result.preset.walletId || '']), cold.actions.map(a => [a.result.kind, a.result.amount, a.result.preset.merchant || '', a.result.person || '', a.result.preset.walletId || '']), t);
   }
@@ -127,8 +127,8 @@ test('Bug Catcher: memory may not change amount, date, time, wallet or direction
 test('a word read as a configured wallet stays a wallet even if memory says it is a place', async () => {
   // "krom" cannot be stored as a place at all; a place alias for another word never moves the wallet.
   assert.ok(aliasProblem('krom', 'place', base));
-  const lex = lexOf(['mkn', 'makan', 'abbr']);
-  const { r } = await one('mkn 20k pake krom', { lexicon: lex });
+  const lex = lexOf(['uks', 'uang kos', 'abbr']);
+  const { r } = await one('uks 20k pake krom', { lexicon: lex });
   assert.equal(r.preset.walletId, 'krom'); assert.equal(r.amount, 20000);
 });
 test('correction in the sentence wins: "besto maksud gue Best Meat" reads Best Meat for this sentence', async () => {
@@ -225,8 +225,9 @@ test('explicit teaching: "ingat besto itu D\'Besto", "piot itu B1 Piot"; "kopi i
   assert.deepEqual(['raw', 'label', 'type'].map(k => readTeach("ingat besto itu D'Besto", base)[k]), ['besto', "D'Besto", 'merchant']);
   assert.equal(readTeach('piot itu B1 Piot', base).label, 'B1 Piot');
   assert.equal(readTeach('kak tio itu Muhammad Tio', base).type, 'person');
-  assert.equal(readTeach('kntor itu kantor', base).type, 'place');
-  assert.equal(readTeach('mkn itu makan', base).type, 'abbr');
+  assert.equal(readTeach('bcamp itu basecamp', base).type, 'place');
+  assert.match(readTeach('ingat mkn itu makan', base).problem, /sudah dikenali sebagai “makan” tanpa Kamus Pribadi/);
+  assert.equal(readTeach('ingat uks itu uang kos', base).type, 'abbr');
   assert.equal(readTeach('jg itu Jago', base).type, 'wallet');
   assert.equal(readTeach('kopi itu enak', base), null);
   assert.equal(readTeach('yang tadi itu 20k', base), null);
@@ -270,4 +271,19 @@ test('performance: warm reading stays fast with a large dictionary', async () =>
   for (let i = 0; i < 20; i++) personalize('ayam besto 13k jago', base, 'auto', { lexicon: lex });
   const ms = (performance.now() - t0) / 20;
   assert.ok(ms < 60, `${ms.toFixed(1)} ms`);
+});
+
+test('layers: common shorthand is general language, never personal memory', async () => {
+  for (const [t, desc] of [['mkn 25k gopay', 'Makan'], ['prkr 2k', 'Parkir'], ['bnsn 30rb krom', 'Bensin'], ['jjn 15rb gopay', 'Jajan'], ['blnja bulanan 300rb krom', 'Belanja Bulanan']]) {
+    const p = await read(t, null);
+    assert.equal(p.actions[0]?.result.preset.description, desc, `${t} (tanpa Kamus Pribadi)`);
+  }
+  for (const w of ['mkn', 'prkr', 'bnsn', 'jjn', 'yg', 'dgn', 'blm']) assert.match(aliasProblem(w, 'abbr', base) || '', /sudah dikenali/, w);
+  assert.equal(aliasProblem('uks', 'abbr', base), null);
+});
+test('a word that is both the act and the thing keeps the description; the category still reads it', async () => {
+  const { r } = await one('jajan 15rb gopay', null);
+  assert.equal(r.preset.description, 'Jajan'); assert.equal(r.preset.categoryId, 'food');
+  const { r: r2 } = await one('jajan bakso 15rb gopay', null);
+  assert.equal(r2.preset.description, 'Bakso');
 });

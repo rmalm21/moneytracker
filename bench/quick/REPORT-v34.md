@@ -2,6 +2,18 @@
 
 Rilis aplikasi 4.8. Prinsipnya: **yang dipelajari kata, bukan uang.** V3.4 mengingat sebutan pribadi pengguna untuk tempat, orang, tempat langganan, dompet, dan singkatan. Nominal, tanggal, jam, dompet yang dipakai, arah utang, dan arah transfer tidak pernah diambil dari memori.
 
+## 0. Lapisan bahasa (diperbaiki di 4.9)
+
+```
+1. Penormal bahasa umum   mkn→makan, prkr→parkir, bnsn→bensin, jjn→jajan, yg→yang, blm→belum, dgn→dengan, utk→untuk, kntr→kantor …
+2. Tata bahasa keuangan umum (nominal, waktu, dompet, arah utang, operasi)
+3. Kamus Pribadi          besto→D'Besto, piot→B1 Piot, kak tio→Muhammad Tio (hal yang khas milik pengguna)
+```
+
+Singkatan yang biasa diketik siapa pun adalah tugas lapisan 1, bukan memori pribadi. Kamus Pribadi **menolak** alias jenis singkatan untuk kata yang sudah dikenali lapisan umum, dengan pesan "“mkn” sudah dikenali sebagai “makan” tanpa Kamus Pribadi". Kata yang punya arti umum tetap boleh dipakai sebagai nama pribadi jenis lain, misalnya "jg" untuk dompet Jago.
+
+Kategori juga tidak lagi menelan keterangan. "jajan 15rb" sekarang tersimpan sebagai keterangan **Jajan**, dan kategori tetap Makan & Minum; kata itu dipakai sebagai petunjuk kategori. "jajan bakso 15rb" tetap terbaca keterangan Bakso.
+
 ## 1. Audit sumber (V3.3, commit 70e44bd)
 
 Alur yang ada sebelum V3.4:
@@ -239,7 +251,19 @@ Satu kasus gagal: **h12** "jjn 15rb gopay".
 - Bacaan cold malah tanpa kategori.
 - Tidak ada kolom uang yang salah. Ini beda konvensi antara ekspektasi saya dan mesin, dan mesin tidak disetel untuk kasus ini.
 
-Setelah run pertama dua perbaikan masuk: penerimaan saat bacaan umum kosong, dan "besto 13k" → tempat. Angka held-out setelah perbaikan tetap 35/36.
+Setelah run pertama, perbaikan yang masuk:
+- penerimaan saat bacaan umum kosong;
+- "besto 13k" → tempat;
+- di 4.9, penormal umum diperluas (jjn, prkr, bnsn, yg, utk …) dan keterangan "Jajan" dipertahankan.
+
+Angka setelah perbaikan (bukan run pertama):
+
+| | V3.3 cold | V3.4 cold | V3.4 warm |
+|---|---|---|---|
+| Held-out | 10/36 | 11/36 | 36/36 |
+| Set pengembangan | 20/48 | 22/48 | 48/48 |
+
+Kasus h12 sekarang lulus lewat lapisan umum, tanpa Kamus Pribadi. Alias "jjn" dan "ongkr" di set held-out tidak dimuat sebagai memori pribadi karena sudah dikenali umum.
 
 ## 36–37. Diselamatkan dan regresi
 
@@ -296,7 +320,7 @@ Yang ikut dicek di suite itu: waktu V3.1, relasi V3.2, dan operasi V3.3.
 
 ## 43. Jumlah tes
 
-**527 lulus.** Sebelumnya 491, ditambah 36 tes di `tests/catat-v34.test.mjs`. Isinya:
+**529 lulus.** Sebelumnya 491, ditambah 38 tes di `tests/catat-v34.test.mjs`. Di dalamnya ada tes lapisan: singkatan umum terbaca tanpa kamus dan ditolak sebagai alias pribadi; "jajan" tetap jadi keterangan. Isinya:
 - semua tes wajib 98–112 dari spesifikasi;
 - token terlindungi, Bug Catcher personal, kata ganti, tabrakan;
 - orang mirip (Adi ≠ Aldi, Tio ≠ Tiyo, Rama ≠ Rahma), Barber King ≠ Burger King;

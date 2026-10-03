@@ -17,6 +17,8 @@ const v33 = await import(pathToFileURL(resolve(here, 'baseline-v33/catat/v3.ts')
 const v34 = await import(pathToFileURL(resolve(root, 'lib/catat/v3.ts')).href);
 const P = await import(pathToFileURL(resolve(root, 'lib/catat/personal.ts')).href);
 const showFails = process.argv.includes('--fails');
+/** Aliases a set lists that the general language layer already knows ("mkn", "jjn"): not loaded as personal memory. */
+const skippedGeneral = [];
 
 function contextOf(c) {
   let ctx = { ...state };
@@ -29,7 +31,7 @@ function contextOf(c) {
 }
 function lexiconOf(c, ctx) {
   let lex = { on: !c.off, aliases: {} };
-  for (const [rawWord, label, type, targetId] of c.lex || []) { const r = P.teach({ ...lex, aliases: {} }, rawWord, label, type, targetId, ctx, 0); if (r.problem) throw Error(`${c.id}: ${rawWord}: ${r.problem}`); lex = P.applyChanges(lex, Object.fromEntries(Object.entries(r.changes).filter(([, a]) => a && a.status !== 'disabled'))); }
+  for (const [rawWord, label, type, targetId] of c.lex || []) { const r = P.teach({ ...lex, aliases: {} }, rawWord, label, type, targetId, ctx, 0); if (r.problem && /sudah dikenali/.test(r.problem)) { skippedGeneral.push(`${c.id}:${rawWord}`); continue; } if (r.problem) throw Error(`${c.id}: ${rawWord}: ${r.problem}`); lex = P.applyChanges(lex, Object.fromEntries(Object.entries(r.changes).filter(([, a]) => a && a.status !== 'disabled'))); }
   for (const a of c.lexRaw || []) lex.aliases[a.id] = a;
   return lex;
 }
@@ -82,6 +84,7 @@ const summary = {
   coldRegressions: rows.filter(r => r.v33 && !r.cold).map(r => r.id),
   falseAlias: rows.filter(r => ['control'].includes(r.group) && r.used).map(r => r.id),
   confidentWrongPersonal: rows.filter(r => !r.warm && r.used && !r.asks).map(r => r.id),
+  generalNotPersonal: skippedGeneral,
   personalRejectedByBugCatcher: rows.filter(r => r.rejected.length).map(r => `${r.id}:${r.rejected.join('+')}`),
   clarifications: { v33: rows.reduce((s, r) => s + r.clar.v33, 0), warm: rows.reduce((s, r) => s + r.clar.warm, 0) },
   latencyMs: { v33: { avg: +avg(ms.v33).toFixed(1), p95: +p95(ms.v33).toFixed(1) }, cold: { avg: +avg(ms.cold).toFixed(1), p95: +p95(ms.cold).toFixed(1) }, warm: { avg: +avg(ms.warm).toFixed(1), p95: +p95(ms.warm).toFixed(1) } },
@@ -98,5 +101,6 @@ console.log(`\nDiselamatkan personalisasi: ${summary.rescues.length} (${summary.
 console.log(`Regresi karena personalisasi: ${summary.regressions.length} (${summary.regressions.join(', ') || '–'})`);
 console.log(`Regresi cold V3.4 vs V3.3: ${summary.coldRegressions.length} (${summary.coldRegressions.join(', ') || '–'})`);
 console.log(`Alias salah pasang di kalimat kontrol: ${summary.falseAlias.length} · Salah yakin karena memori: ${summary.confidentWrongPersonal.length} (${summary.confidentWrongPersonal.join(', ') || '–'})`);
+console.log(`Alias yang sudah dikenali umum (tidak dimuat): ${skippedGeneral.join(', ') || '–'}`);
 console.log(`Ditolak Bug Catcher personal: ${summary.personalRejectedByBugCatcher.join(', ') || '–'}`);
 if (showFails) for (const r of rows.filter(r => !r.warm)) console.log(`\n✗ ${r.id} “${r.text}”\n   warm: ${r.errors.warm.join('; ')}`);

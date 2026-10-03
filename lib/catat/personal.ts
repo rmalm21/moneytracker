@@ -16,7 +16,7 @@
  * Aliases live in the user's own profile document (Firestore, per uid) and are never sent anywhere else.
  */
 import { findAmounts, isHonorific, knownPlaces, readDate, walletsIn, type QuickContext, type QuickGroup, type QuickKind } from '../quick-entry.ts';
-import { parseQuickPlan, type ActionCandidate, type QuickParseResult } from '../quick-plan.ts';
+import { generalSpelling, parseQuickPlan, type ActionCandidate, type QuickParseResult } from '../quick-plan.ts';
 
 export type AliasType = 'merchant' | 'person' | 'place' | 'wallet' | 'category' | 'purpose' | 'abbr';
 /** candidate: seen once, not used yet · provisional: used, marked "kemungkinan benar" · learned: used as read · disabled: never used. */
@@ -83,6 +83,10 @@ export function aliasProblem(raw: string, type: AliasType, ctx: Pick<QuickContex
   if (key.length < 2) return 'Kata terlalu pendek.';
   if (key.split(' ').length > 4) return 'Paling banyak 4 kata.';
   if (/^\d/.test(key) || findAmounts(key).some(a => a.text.trim().length >= key.length - 1)) return 'Angka atau nominal tidak bisa dijadikan alias.';
+  // Common shorthand belongs to the general language layer: "mkn" is "makan" for everyone, without memory.
+  // (Only as a short form: "jg" may still be someone's name for the wallet Jago — that one is personal.)
+  const general = type === 'abbr' && !key.includes(' ') ? generalSpelling(key) : undefined;
+  if (general) return `“${raw}” sudah dikenali sebagai “${general}” tanpa Kamus Pribadi.`;
   if (key.split(' ').every(w => PROTECTED.has(w))) return `“${raw}” punya arti tetap (nominal, waktu, arah, atau kata kerja), jadi tidak bisa diubah artinya.`;
   if (type !== 'wallet' && walletsIn(key, ctx.wallets).some(w => aliasKey(w.name) === key)) return `“${raw}” adalah nama dompet. Nama dompet selalu dibaca sebagai dompet.`;
   return null;
@@ -194,7 +198,7 @@ export function guessType(raw: string, label: string, ctx: QuickContext, contact
   const category = ctx.categories.find(c => !c.isArchived && aliasKey(c.name) === l);
   if (category) return { type: 'category', targetId: category.id };
   if (PLACE_WORDS.test(l)) return { type: 'place' };
-  if (!/\s/.test(r) && !/\s/.test(l) && label === lower(label) && isAbbreviation(r, l)) return { type: 'abbr' };
+  if (!/\s/.test(r) && label === lower(label) && isAbbreviation(r, l.replace(/\s+/g, ''))) return { type: 'abbr' };
   if (knownPlaces(ctx).has(l)) return { type: 'merchant' };
   if (ABBR_PEOPLE.test(r.split(' ')[0]) || isHonorific(r.split(' ')[0])) return { type: 'person' };
   return { type: 'merchant' };
