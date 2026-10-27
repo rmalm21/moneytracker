@@ -441,6 +441,16 @@ export async function undoManualPayment(uid:string,kind:'receivables'|'debts',id
     trx.update(rr,{[key]:next,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),manualPayments:list.filter(p=>p.id!==paymentId),updatedAt:serverTimestamp()});});
   await syncSnapshot(uid,date);
 }
+/** Correct a settlement made without a wallet (amount, date, note) in place, instead of undoing and recording it again. */
+export async function editManualPayment(uid:string,kind:'receivables'|'debts',id:string,paymentId:string,amount:number,date:string,note=''){
+  if(!validAmount(amount))throw Error('Nominal harus lebih dari nol.');
+  let earliest=date;
+  await runTx(database(),async trx=>{const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();const list=(row.manualPayments||[]) as ManualPayment[];const payment=list.find(p=>p.id===paymentId);if(!payment)throw Error('Pelunasan ini sudah tidak ada.');if(payment.date<earliest)earliest=payment.date;
+    const key=kind==='debts'?'outstandingAmount':'remainingAmount',room=Number(row[key])+payment.amount;if(amount>room)throw Error(`Nominal melebihi sisa ${kind==='debts'?'utang':'piutang'} (Rp${room.toLocaleString('id-ID')}).`);
+    const next=room-amount,original=Number(row.originalAmount);
+    trx.update(rr,{[key]:next,status:kind==='debts'?(next===0?'paid':'open'):(next===0?'paid':next<original?'partial':'open'),manualPayments:list.map(p=>p.id===paymentId?{id:p.id,amount,date,...(note?{note}:{})}:p),updatedAt:serverTimestamp()});});
+  await syncSnapshot(uid,earliest);
+}
 /** Wish list: create or update one item (money set aside is an earmark, no wallet changes). */
 export async function saveWish(uid:string,record:Partial<WishItem>,id?:string){ const r=id?ref(uid,'wishlist',id):doc(coll(uid,'wishlist')); const {id:_i,createdAt:_c,updatedAt:_u,...fields}=record; if(id) await settle(updateDoc(r,{...fields,updatedAt:serverTimestamp()})); else await settle(setDoc(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()})); return r.id; }
 export async function deleteWish(uid:string,id:string){ const b=writeBatch(database()); b.delete(ref(uid,'wishlist',id)); await settle(b.commit()); await noteDeleted(uid,{wishlist:[id]}); }

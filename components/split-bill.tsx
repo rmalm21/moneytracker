@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Camera, ChevronRight, Copy, Edit3, Image as ImageIcon, ListFilter, MessageCircle, MoreHorizontal, Plus, ReceiptText, Search, Share2, SlidersHorizontal, Trash2, Undo2, Users, WalletCards, X } from 'lucide-react';
+import { Camera, ChevronRight, Copy, Edit3, Image as ImageIcon, ListFilter, MessageCircle, MoreHorizontal, Pencil, Plus, ReceiptText, Search, Share2, SlidersHorizontal, Trash2, Undo2, Users, WalletCards, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -15,11 +15,11 @@ import { PeopleManager } from './split-people';
 import { takeReceiptHandoff } from './receipt-scan';
 import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderNota, shareImage, shareText, statusTone } from './split-bill-shared';
 import { BILL_STATUS_LABELS, billNota, billProgress, notaText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
-import { cancelSplitBill, deleteSplitBill, readTransaction, recordBetweenPayment, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
+import { cancelSplitBill, deleteSplitBill, editBetweenPayment, readTransaction, recordBetweenPayment, subscribeSplitBills, subscribeSplitContacts, undoBetweenPayment } from '@/lib/split-bill-store';
 import { deleteTransaction, subscribeRelatedTransactions } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
 import { formatDate, todayInTimeZone } from '@/lib/period';
-import type { LedgerTx, SplitBill, SplitGroup, SplitPerson } from '@/lib/types';
+import type { LedgerTx, SplitBill, SplitGroup, SplitPayment, SplitPerson } from '@/lib/types';
 
 /**
  * Split Bill: shared bills and who still owes what. The list shows open bills first; details, payments and sharing
@@ -210,15 +210,18 @@ function PersonSheet({ bill, result, person, state, notify, onClose, onShare }: 
   const { track } = useNotify();
   const participant = bill.participants.find(row => row.id === person.id)!;
   const lines = result.people.find(row => row.id === person.id)?.lines || [];
-  const [ledger, setLedger] = useState<LedgerTx[]>([]), [settle, setSettle] = useState<SettleTarget | null>(null), [between, setBetween] = useState(false), [remind, setRemind] = useState(false);
+  const [ledger, setLedger] = useState<LedgerTx[]>([]), [settle, setSettle] = useState<SettleTarget | null>(null), [between, setBetween] = useState<SplitPayment | 'new' | null>(null), [remind, setRemind] = useState(false);
   const recordId = person.record?.id || '';
   useEffect(() => { if (!user || !recordId || (person.role !== 'receivable' && person.role !== 'debt')) return; return subscribeRelatedTransactions(user.uid, person.role === 'receivable' ? 'receivableId' : 'debtId', recordId, items => setLedger(items.filter(tx => tx.type === (person.role === 'receivable' ? 'receivable_payment' : 'debt_payment'))), () => setLedger([])); }, [user?.uid, recordId, person.role]);
   const active = bill.status === 'active', owes = active && person.role !== 'payer' && person.remaining > 0;
   const recordPayment = () => {
-    if (person.role === 'between') { setBetween(true); return; }
+    if (person.role === 'between') { setBetween('new'); return; }
     if (!person.record) { notify('Catatan piutang/utangnya tidak ditemukan. Buka Periksa Data.'); return; }
-    setSettle({ kind: person.role === 'receivable' ? 'receivables' : 'debts', id: person.record.id, name: person.role === 'debt' ? state.payerName : personName(participant), remaining: person.remaining, split: true });
+    setSettle(settleTarget());
   };
+  const settleTarget = (edit?: SettleTarget['edit']): SettleTarget => ({ kind: person.role === 'receivable' ? 'receivables' : 'debts', id: person.record!.id, name: person.role === 'debt' ? state.payerName : personName(participant), remaining: person.remaining, split: true, ...(edit ? { edit } : {}) });
+  // A payment with a wrong date, amount or wallet is corrected in place, not undone and recorded again.
+  const editPayment = (edit: SettleTarget['edit']) => { if (!person.record) { notify('Catatan piutang/utangnya tidak ditemukan. Buka Periksa Data.'); return; } setSettle(settleTarget(edit)); };
   const betweenPayments = (bill.payments || []).filter(row => row.participantId === person.id);
   const wallets = new Map(data.wallets.map(w => [w.id, w.name]));
   return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title={personName(participant)} className="sb-person-dialog"><div className="sb-person-sheet">
@@ -235,29 +238,33 @@ function PersonSheet({ bill, result, person, state, notify, onClose, onShare }: 
     </div>
     {person.role !== 'payer' && <section className="sb-section"><h3>Riwayat pembayaran</h3>
       {!ledger.length && !betweenPayments.length && !(person.record?.manualPayments?.length) && <p className="muted">Belum ada pembayaran.</p>}
-      {ledger.map(tx => <div className="budget-line" key={tx.id}><span>{formatDate(tx.date)} · {person.role === 'debt' ? 'dari' : 'ke'} {wallets.get(tx.walletId) || 'dompet'}</span><span className="toolbar-row"><strong>{rupiah(tx.amount)}</strong>{user && <Confirm title="Batalkan pembayaran ini?" description={`Saldo ${wallets.get(tx.walletId) || 'dompet'} dan sisa ${person.role === 'debt' ? 'utang' : 'piutang'} dikembalikan seperti sebelum pembayaran ini.`} confirmLabel="Batalkan pembayaran" onConfirm={() => track(deleteTransaction(user.uid, tx.id), { pending: 'Membatalkan pembayaran…', success: 'Pembayaran dibatalkan.', failure: 'Pembayaran belum dibatalkan' })}><button type="button" className="icon-btn" aria-label="Batalkan pembayaran" title="Batalkan"><Undo2 size={15}/></button></Confirm>}</span></div>)}
-      {person.record && (person.role === 'receivable' || person.role === 'debt') && <ManualPayments kind={person.role === 'receivable' ? 'receivables' : 'debts'} id={person.record.id} payments={person.record.manualPayments}/>}
-      {betweenPayments.map(payment => <div className="budget-line" key={payment.id}><span>{formatDate(payment.date)}{payment.note ? ` · ${payment.note}` : ''}</span><span className="toolbar-row"><strong>{rupiah(payment.amount)}</strong>{user && <Confirm title="Hapus catatan pembayaran ini?" description="Hanya tanda di Split Bill ini yang dihapus; tidak ada saldo dompet yang berubah." confirmLabel="Hapus" onConfirm={() => track(undoBetweenPayment(user.uid, bill.id, payment.id), { pending: 'Menghapus…', success: 'Catatan pembayaran dihapus.', failure: 'Belum terhapus' })}><button type="button" className="icon-btn" aria-label="Hapus catatan pembayaran" title="Hapus"><Undo2 size={15}/></button></Confirm>}</span></div>)}
+      {ledger.map(tx => <div className="budget-line" key={tx.id}><span>{formatDate(tx.date)} · {person.role === 'debt' ? 'dari' : 'ke'} {wallets.get(tx.walletId) || 'dompet'}</span><span className="toolbar-row"><strong>{rupiah(tx.amount)}</strong>{user && active && <button type="button" className="icon-btn" aria-label="Ubah pembayaran" title="Ubah" onClick={() => editPayment({ tx })}><Pencil size={15}/></button>}{user && <Confirm title="Batalkan pembayaran ini?" description={`Saldo ${wallets.get(tx.walletId) || 'dompet'} dan sisa ${person.role === 'debt' ? 'utang' : 'piutang'} dikembalikan seperti sebelum pembayaran ini.`} confirmLabel="Batalkan pembayaran" onConfirm={() => track(deleteTransaction(user.uid, tx.id), { pending: 'Membatalkan pembayaran…', success: 'Pembayaran dibatalkan.', failure: 'Pembayaran belum dibatalkan' })}><button type="button" className="icon-btn" aria-label="Batalkan pembayaran" title="Batalkan"><Undo2 size={15}/></button></Confirm>}</span></div>)}
+      {person.record && (person.role === 'receivable' || person.role === 'debt') && <ManualPayments kind={person.role === 'receivable' ? 'receivables' : 'debts'} id={person.record.id} payments={person.record.manualPayments} onEdit={active ? payment => editPayment({ payment }) : undefined}/>}
+      {betweenPayments.map(payment => <div className="budget-line" key={payment.id}><span>{formatDate(payment.date)}{payment.note ? ` · ${payment.note}` : ''}</span><span className="toolbar-row"><strong>{rupiah(payment.amount)}</strong>{user && active && <button type="button" className="icon-btn" aria-label="Ubah catatan pembayaran" title="Ubah" onClick={() => setBetween(payment)}><Pencil size={15}/></button>}{user && <Confirm title="Hapus catatan pembayaran ini?" description="Hanya tanda di Split Bill ini yang dihapus; tidak ada saldo dompet yang berubah." confirmLabel="Hapus" onConfirm={() => track(undoBetweenPayment(user.uid, bill.id, payment.id), { pending: 'Menghapus…', success: 'Catatan pembayaran dihapus.', failure: 'Belum terhapus' })}><button type="button" className="icon-btn" aria-label="Hapus catatan pembayaran" title="Hapus"><Undo2 size={15}/></button></Confirm>}</span></div>)}
     </section>}
   </div>
   <SettleDialog target={settle} onClose={() => setSettle(null)}/>
-  {between && <BetweenPayment bill={bill} person={person} payerName={state.payerName} onClose={() => setBetween(false)} today={todayInTimeZone(profile?.timeZone)}/>}
+  {between && <BetweenPayment bill={bill} person={person} payerName={state.payerName} payment={between === 'new' ? undefined : between} onClose={() => setBetween(null)} today={todayInTimeZone(profile?.timeZone)}/>}
   {remind && <ReminderSheet text={reminderText(bill, participant, person.remaining)} notify={notify} onClose={() => setRemind(false)}/>}
   </DialogContent></Dialog>;
 }
 
-function BetweenPayment({ bill, person, payerName, today, onClose }: { bill: SplitBill; person: PersonProgress; payerName: string; today: string; onClose: () => void }) {
+/** `payment`: an earlier mark to correct (its own amount counts as open again). */
+function BetweenPayment({ bill, person, payerName, payment, today, onClose }: { bill: SplitBill; person: PersonProgress; payerName: string; payment?: SplitPayment; today: string; onClose: () => void }) {
   const { user } = useApp();
   const { track } = useNotify();
-  const [amount, setAmount] = useState(person.remaining), [date, setDate] = useState(today), [note, setNote] = useState(''), [error, setError] = useState('');
+  const room = person.remaining + (payment?.amount || 0);
+  const [amount, setAmount] = useState(payment?.amount ?? person.remaining), [date, setDate] = useState(payment?.date || today), [note, setNote] = useState(payment?.note || ''), [error, setError] = useState('');
   function submit(event: FormEvent) {
     event.preventDefault(); if (!user) return;
-    if (!amount || amount > person.remaining) { setError(`Nominal harus antara Rp1 dan ${rupiah(person.remaining)}.`); return; }
+    if (!amount || amount > room) { setError(`Nominal harus antara Rp1 dan ${rupiah(room)}.`); return; }
+    if (!date) { setError('Pilih tanggal.'); return; }
     onClose();
-    track(recordBetweenPayment(user.uid, bill.id, person.id, amount, date, note), { pending: 'Mencatat…', success: `${person.name} sudah bayar ${rupiah(amount)} ke ${payerName}.`, failure: 'Pembayaran belum tercatat' });
+    if (payment) track(editBetweenPayment(user.uid, bill.id, payment.id, amount, date, note), { pending: 'Menyimpan…', success: 'Catatan pembayaran diperbarui.', failure: 'Perubahan belum tersimpan' });
+    else track(recordBetweenPayment(user.uid, bill.id, person.id, amount, date, note), { pending: 'Mencatat…', success: `${person.name} sudah bayar ${rupiah(amount)} ke ${payerName}.`, failure: 'Pembayaran belum tercatat' });
   }
-  return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title={`${person.name} bayar ke ${payerName}`}><form className="form-stack" onSubmit={submit}>
-    <p className="muted">Hanya menandai bahwa {person.name} sudah membayar {payerName}. Saldo dompetmu tidak berubah.</p>
+  return <Dialog open onOpenChange={next => { if (!next) onClose(); }}><DialogContent title={payment ? 'Ubah pembayaran' : `${person.name} bayar ke ${payerName}`}><form className="form-stack" onSubmit={submit}>
+    <p className="muted">{payment ? `Ubah nominal, tanggal, atau catatan pembayaran ${person.name} ke ${payerName}. Bisa sampai ${rupiah(room)}.` : `Hanya menandai bahwa ${person.name} sudah membayar ${payerName}. Saldo dompetmu tidak berubah.`}</p>
     <div className="form-grid"><Field label="Nominal"><Money value={amount} onChange={setAmount} required/></Field><Field label="Tanggal"><Input type="date" value={date} onChange={e => setDate(e.target.value)} required/></Field></div>
     <Field label="Catatan (opsional)"><Input value={note} maxLength={100} onChange={e => setNote(e.target.value)}/></Field>
     {error && <p className="form-error" role="alert">{error}</p>}

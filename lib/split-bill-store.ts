@@ -238,6 +238,24 @@ export async function recordBetweenPayment(uid: string, billId: string, particip
     trx.update(ref(uid, 'splitBills', billId), { payments: [...(bill.payments || []), payment], updatedAt: now() });
   });
 }
+/** Correct a payment between two other people (amount, date, note) without removing it first. */
+export async function editBetweenPayment(uid: string, billId: string, paymentId: string, amount: number, date: string, note = '') {
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw Error('Nominal harus lebih dari nol.');
+  await runTx(database(), async trx => {
+    const bill = read<SplitBill>(await trx.get(ref(uid, 'splitBills', billId)));
+    if (!bill) throw Error('Split Bill tidak ditemukan.');
+    if (bill.status !== 'active') throw Error('Split Bill ini sudah tidak aktif.');
+    const old = (bill.payments || []).find(row => row.id === paymentId);
+    if (!old) throw Error('Catatan pembayaran ini sudah tidak ada.');
+    const person = bill.participants.find(row => row.id === old.participantId);
+    const others = (bill.payments || []).filter(row => row.participantId === old.participantId && row.id !== paymentId).reduce((sum, row) => sum + row.amount, 0);
+    const left = (bill.shares?.[old.participantId] || 0) - others;
+    if (amount > left) throw Error(`Nominal melebihi sisa ${person?.name.trim() || 'orang ini'} (${rupiah(Math.max(0, left))}).`);
+    const { note: _note, ...rest } = old;
+    const payment: SplitPayment = { ...rest, amount, date, ...(note.trim() ? { note: note.trim() } : {}) };
+    trx.update(ref(uid, 'splitBills', billId), { payments: (bill.payments || []).map(row => row.id === paymentId ? payment : row), updatedAt: now() });
+  });
+}
 export async function undoBetweenPayment(uid: string, billId: string, paymentId: string) {
   await runTx(database(), async trx => {
     const bill = read<SplitBill>(await trx.get(ref(uid, 'splitBills', billId)));
