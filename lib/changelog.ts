@@ -2,16 +2,18 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '6.5', date: '27 Okt 2026', title: 'Sensor nominal total', items: [
-    ['👁️', 'Ikon mata sekarang menutup semua angka rupiah, termasuk nominal di daftar transaksi dan di dalam detail, jadi tidak ada lagi yang belang. Kolom isian tetap bisa diketik seperti biasa.'],
+  { version: '6.5', date: '27 Okt 2026', title: 'Sensor nominal total dan notifikasi lebih pintar', items: [
+    ['🛡️', 'Ikon mata sekarang menutup semua angka rupiah, termasuk nominal di daftar transaksi dan di dalam detail, jadi tidak ada lagi yang belang. Kolom isian tetap bisa diketik seperti biasa.'],
+    ['📥', 'Notifikasi di panel lonceng sekarang juga bisa diketuk untuk membuka transaksinya atau Kode akses, bukan cuma pop-up-nya.'],
+    ['⏱️', 'Notifikasi “orang minta akses” sekarang muncul setelah aplikasi terbuka, tidak lagi menimpa layar loading.'],
   ] },
   { version: '6.4', date: '27 Okt 2026', title: 'Kelola akun dan privasi lebih rapi', items: [
     ['👥', 'Pemilik bisa memberi nama tiap akun, melihat kapan terakhir aktif, dan mencabut sekaligus akun yang tidak aktif lebih dari 60 hari.'],
-    ['👁️', 'Ikon mata lebih ketat: saldo, aset, dan pemasukan selalu tertutup.'],
+    ['🛡️', 'Ikon mata lebih ketat: saldo, aset, dan pemasukan selalu tertutup.'],
     ['🧹', 'Bantuan Gemini di Scan struk dihapus. Struk sekarang selalu dibaca di HP saja.'],
-    ['🔐', 'Ada kartu baru “Keamanan datamu” di Pengaturan › Keamanan yang menjelaskan bahwa catatan keuanganmu aman dan terenkripsi.'],
-    ['🔔', 'Notifikasi sekarang bisa diketuk: transaksi tersimpan membuka Transaksi, dan permintaan akses membuka Kode akses.'],
-    ['🐞', 'Setelah keluar lalu masuk dengan akun lain, sapaan “Halo, …” tidak lagi memakai nama akun sebelumnya.'],
+    ['🔒', 'Ada kartu baru “Keamanan datamu” di Pengaturan › Keamanan yang menjelaskan bahwa catatan keuanganmu aman dan terenkripsi.'],
+    ['📱', 'Notifikasi sekarang bisa diketuk: transaksi tersimpan membuka Transaksi, dan permintaan akses membuka Kode akses.'],
+    ['🔧', 'Setelah keluar lalu masuk dengan akun lain, sapaan “Halo, …” tidak lagi memakai nama akun sebelumnya.'],
   ] },
   { version: '6.3', date: '27 Okt 2026', title: 'Minta akses lebih andal', items: [
     ['📨', 'Akun yang aksesnya dicabut kini benar-benar mengirim permintaan ulang, dan permintaannya langsung muncul lagi di daftar pemilik.'],

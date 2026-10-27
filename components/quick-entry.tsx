@@ -274,11 +274,11 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     const learnLexicon = () => { if (lex.on === false) return; const changes: Record<string, PersonalAlias | null> = { ...learnFromSave(lex, facts, ctx, contacts), ...learnOverrides(lex, overrides, ctx) }; if (Object.keys(changes).length) void saveLexicon(uid, changes).catch(() => {}); };
     // 6.4: a saved transaction's card opens Transaksi when tapped.
     const openList = onNavigate && entries.every(([, e]) => txKinds.has(e!.kind)) ? () => onNavigate('transactions') : undefined;
-    if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry, open: openList }); }
+    if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry, open: openList, link: openList && { view: 'transactions' } }); }
     else if (work.length) {
       // Started in order in one go, like the forms: queued writes keep their order offline too.
       const spent = entries.filter(([, e]) => e!.kind === 'expense').reduce((n, [, e]) => n + e!.amount, 0);
-      track(Promise.all(work.map(start)), { open: openList, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
+      track(Promise.all(work.map(start)), { open: openList, link: openList && { view: 'transactions' }, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
     void Promise.all(started).then(learnLexicon, () => {});
     reset(); onDone?.();

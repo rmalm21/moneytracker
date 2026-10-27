@@ -8154,3 +8154,8 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .access-revoke-icon { color: var(--rose); border-color: color-mix(in srgb, var(--rose) 30%, var(--line)) !important; }
 .access-person .access-note-edit { grid-column: 2 / -1; }
 .access-note-edit .input, .access-note-edit input { min-width: 0; flex: 1; }
+/* 6.5: a history card that leads somewhere opens it when tapped. */
+.notif-open { display: grid; gap: 2px; min-width: 0; text-align: left; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.notif-open small::after { content: " ›"; }
+.notif-item.is-openable { cursor: pointer; transition: background .15s, border-color .15s; }
+.notif-item.is-openable:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
