@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Camera, ChevronRight, Copy, Edit3, Image as ImageIcon, ListFilter, MessageCircle, MoreHorizontal, Pencil, Plus, ReceiptText, Search, Share2, SlidersHorizontal, Trash2, Undo2, Users, WalletCards, X } from 'lucide-react';
+import { Camera, ChevronRight, Copy, Edit3, Image as ImageIcon, ListFilter, CheckCheck, MessageCircle, MoreHorizontal, Pencil, Plus, ReceiptText, Search, Share2, SlidersHorizontal, Trash2, Undo2, Users, WalletCards, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
@@ -12,6 +12,7 @@ import { ManualPayments, SettleDialog, type SettleTarget } from './settle-dialog
 import { closeMenu } from './glass';
 import { SplitFlow, type FlowStart } from './split-bill-flow';
 import { PeopleManager } from './split-people';
+import { SettleAllSheet } from './split-settle-all';
 import { takeReceiptHandoff } from './receipt-scan';
 import { PersonAvatar, copyText, openWhatsApp, personName, personTone, renderNota, shareImage, shareText, statusTone } from './split-bill-shared';
 import { BILL_STATUS_LABELS, billNota, billProgress, notaText, computeSplit, EXTRA_LABELS, METHOD_LABELS, PERSON_STATUS_LABELS, reminderText, type BillProgress, type PersonProgress, type SplitResult } from '@/lib/split-bill';
@@ -141,7 +142,7 @@ function BillDetail({ bill, state, notify, onClose, onEdit, groups }: { bill: Sp
   const { user, data, profile } = useApp();
   const { track } = useNotify();
   const result = useMemo(() => computeSplit(bill), [bill]);
-  const [personId, setPersonId] = useState(''), [share, setShare] = useState<{ personId?: string } | null>(null), [busy, setBusy] = useState(false);
+  const [personId, setPersonId] = useState(''), [share, setShare] = useState<{ personId?: string } | null>(null), [busy, setBusy] = useState(false), [settleAll, setSettleAll] = useState(false);
   const wallet = data.wallets.find(w => w.id === bill.walletId);
   const group = groups.find(row => row.id === bill.groupId);
   const person = state.people.find(row => row.id === personId);
@@ -158,7 +159,7 @@ function BillDetail({ bill, state, notify, onClose, onEdit, groups }: { bill: Sp
     {bill.status === 'cancelled' && <div className="notice">Split Bill ini dibatalkan{bill.cancelledAt ? ` pada ${formatDate(bill.cancelledAt)}` : ''}. Piutang, utang, dan transaksi yang dibuatnya sudah dihapus.</div>}
     {active && <p className="sb-counts">{counts || 'Tidak ada yang perlu dibayar.'}{state.remaining > 0 ? ` · sisa ${rupiah(state.remaining)}` : ''}</p>}
 
-    <section className="sb-section"><h3>Pembagian</h3>
+    <section className="sb-section"><div className="sb-section-row"><h3>Pembagian</h3>{active && state.people.some(row => row.role !== 'payer' && row.remaining > 0) && <Button variant="secondary" className="small" onClick={() => setSettleAll(true)}><CheckCheck size={15}/> Tandai lunas</Button>}</div>
       <div className="sb-people-list">{state.people.map(row => { const participant = bill.participants.find(p => p.id === row.id)!; return <button type="button" key={row.id} className="sb-person-row" onClick={() => setPersonId(row.id)}>
         <PersonAvatar person={participant}/><span className="sb-person-main"><strong>{personName(participant)}</strong><small>{row.role === 'payer' ? 'Yang bayar' : row.role === 'debt' ? `Bagianmu, dibayar ke ${state.payerName}` : row.status === 'partial' ? `Sudah bayar ${rupiah(row.paid)}` : row.role === 'between' ? `Bayar ke ${state.payerName}` : row.isMe ? 'Bagianmu' : 'Bayar ke kamu'}</small></span>
         <span className="sb-person-side"><strong>{rupiah(row.share)}</strong>{active && <span className={`gl-pill ${personTone[row.status]}`}>{row.isMe && row.role === 'payer' ? 'Bagianmu' : PERSON_STATUS_LABELS[row.status]}</span>}</span><ChevronRight size={17} aria-hidden="true"/>
@@ -200,6 +201,7 @@ function BillDetail({ bill, state, notify, onClose, onEdit, groups }: { bill: Sp
   </div>
   {person && <PersonSheet bill={bill} result={result} person={person} state={state} notify={notify} onClose={() => setPersonId('')} onShare={() => setShare({ personId: person.id })}/>}
   {share && <ShareSheet bill={bill} result={result} state={state} personId={share.personId} myName={myName} notify={notify} onClose={() => setShare(null)}/>}
+  {settleAll && <SettleAllSheet bill={bill} state={state} onClose={() => setSettleAll(false)}/>}
   </DialogContent></Dialog>;
 }
 
