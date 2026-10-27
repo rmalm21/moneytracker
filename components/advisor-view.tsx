@@ -22,6 +22,8 @@ import { briefView, cashflowView, cycleView, changesView, dataView, explainView,
 import { analyzePrices } from '@/lib/insight-v25';
 import { analyzeInsightV3 } from '@/lib/insight-v3';
 import { recordDecision } from '@/lib/insight-v3/decisions';
+import { highlightsView } from '@/lib/insight-v3/highlights';
+import { Highlights } from './insight/highlights';
 import { Activity, BarChart3, Database, FlaskConical, HeartPulse, History } from 'lucide-react';
 import { dismiss as dismissSignal, readMemory, restoreAll, snooze as snoozeSignal, type InsightMemory } from '@/lib/insight-v25/lifecycle';
 import type { InsightSignal } from '@/lib/insight-v25/types';
@@ -244,7 +246,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const heading = <div className="ix-heading"><div><h1>Insight</h1><small>Dihitung di perangkat ini dari catatanmu sendiri</small></div><button type="button" className="ix-icon-btn" onClick={() => setLayoutOpen(true)} aria-label="Atur tampilan Insight" title="Atur tampilan"><LayoutList size={18}/></button></div>;
   if (!advice || !v3 || !report) return <div className="insight-page ix-page">{heading}<div className="ix-skeleton" aria-busy="true" aria-label="Menyiapkan Insight"><span className="sk-hero"/><span className="sk-line"/><span className="sk-line short"/><span className="sk-card"/></div></div>;
 
-  const hero = heroView(v3), brief = briefView(v3), changes = changesView(v3, changesAll ? 99 : 3), questions = questionsView(v3);
+  const hero = heroView(v3), brief = briefView(v3), changes = changesView(v3, changesAll ? 99 : 3), questions = questionsView(v3), highlights = highlightsView(v3);
   const everything = [...advice.actions, ...advice.wealth, ...advice.reduce, ...advice.loose, ...advice.budgetTips, ...advice.habits, ...advice.recurring, ...advice.obligations, ...advice.alerts];
   const findingById = (id?: string) => everything.find(f => f.id === id);
   const pinnedCards = pinned.map(id => findingById(id)).filter((f): f is Finding => Boolean(f) && !allHidden.includes(f!.id));
@@ -368,6 +370,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
       <InsightHero hero={hero} onFullScore={openHealth}/>
       {firstKey && sections.brief}
     </div>
+    <Highlights items={highlights} today={today} onOpen={openStory} onTx={(id, date) => { const next = new Date(`${date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${id}@${date}..${next.toLocaleDateString('en-CA')}`); }}/>
     {topOrder.filter(k => k !== firstKey).map(key => <Fragment key={key}>{sections[key]}</Fragment>)}
     {openSig && <ModuleBoundary name="Rincian"><StorySheet report={v3} signature={openSig} extraSignals={prices} items={history.items} onClose={() => setOpenSig('')} onGo={go} onApply={apply} busy={busy} onDismiss={dismissStory} onSnooze={snoozeStory}/></ModuleBoundary>}
     {explainOpen && <ExplainSheet steps={explainView(v3)} cycle={cycleView(v3)} onClose={() => setExplainOpen(false)}/>}

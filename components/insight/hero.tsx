@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, Shuffle } from 'lucide-react';
 import { Dialog, DialogContent } from '../ui/dialog';
 import type { heroView } from '@/lib/insight-v3/view';
@@ -21,7 +21,7 @@ export function InsightHero({ hero, onFullScore }: { hero: Hero; onFullScore: ()
   return <section className={`ix-hero tone-${hero.tone}`} aria-label="Keadaan keuanganmu">
     <div className="ix-hero-main">
       <div className="ix-score" aria-label={`Skor kesehatan ${hero.score} dari 100, ${hero.label}`}>
-        <strong>{hero.score}</strong><span><b>{hero.label}</b><small>skor kesehatan · dari 100</small></span>
+        <span className="ix-ring" style={{ '--p': Math.max(0, Math.min(100, hero.score)) } as CSSProperties} aria-hidden="true"><strong>{hero.score}</strong></span><span><b>{hero.label}</b><small>skor kesehatan · dari 100</small></span>
         <HelpButton {...help.score}/>
       </div>
       <p className="ix-statement">{hero.statement}</p>

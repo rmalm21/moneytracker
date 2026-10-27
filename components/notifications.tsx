@@ -107,7 +107,7 @@ function ToastStack({ notes, onDismiss }: { notes: Note[]; onDismiss: (id: strin
   </>;
 }
 
-/** Floating banner that looks like a phone notification: app logo, name, time; swipe up or sideways to dismiss, tap to open. */
+/** Floating banner, kept minimal: a small logo, the message, its action; swipe up or sideways to dismiss, tap to open. */
 function HeadsUp({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 }), [leaving, setLeaving] = useState(false);
   const start = useRef<{ x: number; y: number } | null>(null), moved = useRef(false);
@@ -124,13 +124,11 @@ function HeadsUp({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
   return <div className={`heads-up is-${note.kind} ${leaving ? 'is-leaving' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: drag ? `translate(${offset.x}px, ${offset.y}px)` : undefined, opacity: drag ? Math.max(.2, 1 - (Math.abs(offset.x) + Math.abs(offset.y) * 2) / 300) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <img className="heads-up-logo" src="/icons/icon-192.png" alt="" draggable={false}/>
     <div className="heads-up-text">
-      <span className="heads-up-app">Dompet Ajaib <i aria-hidden="true">·</i> sekarang</span>
       <strong><EmojiText text={note.title}/></strong>
       {note.body && <small><EmojiText text={note.body}/></small>}
       {note.action && <button type="button" className="heads-up-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}
     </div>
     <button type="button" className="heads-up-close" aria-label="Tutup pemberitahuan" onClick={onDismiss}><X size={15}/></button>
-    <span className="heads-up-grip" aria-hidden="true"/>
   </div>;
 }
 

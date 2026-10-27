@@ -165,10 +165,40 @@ export function ProgressSection({ stories, resolved, onOpen }: { stories: Story[
 }
 
 const timelineWord: Record<TimelineEntry['e'], string> = { new: 'Muncul', worse: 'Memburuk', better: 'Membaik', resolved: 'Teratasi', resurfaced: 'Muncul lagi', milestone: 'Pencapaian', outcome: 'Hasil keputusan' };
+const HISTORY_KEY = 'dompet-ajaib-insight-history-open';
+/**
+ * Riwayat Insight: newest first, one heading per day, the same note on the same day shown once. It can be folded to a
+ * one-line summary (remembered on this device) and shows the latest few until "Lihat semua".
+ */
 export function TimelineSection({ entries }: { entries: TimelineEntry[] }) {
-  if (!entries.length) return null;
-  return <section className="ins-section">
-    <header className="ins-head"><span className="ins-section-icon" aria-hidden="true"><Clock3 size={17}/></span><div><h2>Riwayat Insight</h2><small>Hanya perubahan penting yang dicatat.</small></div></header>
-    <ol className="ins2-timeline">{entries.slice(0, 12).map((e, i) => <li key={i} className={`tone-${statusTone[e.tone]}`}><time>{dateText(e.d)}</time><span><b>{timelineWord[e.e]}</b> {e.t}</span></li>)}</ol>
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem(HISTORY_KEY) !== 'false'; } catch { return true; } });
+  const [all, setAll] = useState(false);
+  const days = useMemo(() => {
+    const seen = new Set<string>(), list: { d: string; items: TimelineEntry[] }[] = [];
+    for (const e of entries) {
+      const key = `${e.d}|${e.e}|${e.t}`; if (seen.has(key)) continue; seen.add(key);
+      const last = list[list.length - 1];
+      if (last?.d === e.d) last.items.push(e); else list.push({ d: e.d, items: [e] });
+    }
+    return list;
+  }, [entries]);
+  if (!days.length) return null;
+  const count = days.reduce((n, d) => n + d.items.length, 0), LIMIT = 5;
+  let left = all ? Infinity : LIMIT;
+  const shown = days.map(d => { const items = d.items.slice(0, Math.max(0, left)); left -= items.length; return { ...d, items }; }).filter(d => d.items.length);
+  const toggle = () => setOpen(v => { try { localStorage.setItem(HISTORY_KEY, String(!v)); } catch { /* per-device convenience only */ } return !v; });
+  return <section className={`ix-history ${open ? 'is-open' : 'is-closed'}`}>
+    <button type="button" className="ix-history-head" aria-expanded={open} onClick={toggle}>
+      <span className="ix-history-icon" aria-hidden="true"><Clock3 size={16}/></span>
+      <span className="ix-history-text"><strong>Riwayat Insight</strong><small>{open ? 'Hanya perubahan penting yang dicatat.' : `${count} catatan · terakhir ${dateText(days[0].d)}`}</small></span>
+      <ChevronDown size={18} className="ix-history-chevron" aria-hidden="true"/>
+    </button>
+    {open && <>
+      <ol className="ix-history-days">{shown.map(day => <li key={day.d}>
+        <time>{dateText(day.d)}</time>
+        <ul>{day.items.map((e, i) => <li key={i} className={`tone-${statusTone[e.tone]}`}><b>{timelineWord[e.e]}</b> <span>{e.t}</span></li>)}</ul>
+      </li>)}</ol>
+      {count > LIMIT && <button type="button" className="ix-more" aria-expanded={all} onClick={() => setAll(v => !v)}>{all ? 'Ringkas' : `Lihat semua (${count})`}</button>}
+    </>}
   </section>;
 }

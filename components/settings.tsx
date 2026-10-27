@@ -1,4 +1,5 @@
 'use client';
+import { GoogleLinkCard } from './google-button';
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
@@ -96,6 +97,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
    {page.key==='security'&&<div className="set-form">
     <PinSettings notify={notify} onLockNow={onLockNow}/>
     <PasswordCard user={user} notify={notify}/>
+    <GoogleLinkCard user={user} notify={notify}/>
    </div>}
 
    {page.key==='reminders'&&<div className="set-form"><ReminderSettings/></div>}

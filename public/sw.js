@@ -40,7 +40,7 @@ self.addEventListener('fetch', event => {
     }).catch(() => false);
     refreshing = update;
     event.waitUntil(update);
-    event.respondWith(caches.match(key).then(saved => saved || fresh.then(got => got ? got.page : caches.match('/'))).then(response => response || Response.error()));
+    event.respondWith(caches.match(key).then(saved => saved || fresh.then(got => got ? got.page : caches.match('/'))).then(response => response ? (key === '/login/' ? openToPopups(response) : response) : Response.error()));
     return;
   }
   // Other pages (the receipt benchmark): the network, or the saved app if offline.
@@ -76,6 +76,14 @@ self.addEventListener('notificationclick', event => {
   }));
 });
 
+// The login page is not cross-origin isolated: "Masuk dengan Google" opens Google in a popup that must be able to talk
+// back. A copy saved with the isolation headers (an older build) is served without them.
+function openToPopups(response) {
+  if (!response.headers.get('cross-origin-opener-policy') && !response.headers.get('cross-origin-embedder-policy')) return response;
+  const headers = new Headers(response.headers);
+  headers.delete('Cross-Origin-Opener-Policy'); headers.delete('Cross-Origin-Embedder-Policy');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 // Background check (Android, installed app): the browser wakes the worker now and then; show a reminder that is due.
 function isolated(response) {
   if (!response || response.type === 'opaque' || response.headers.get('cross-origin-embedder-policy')) return response;

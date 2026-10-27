@@ -20,7 +20,7 @@ export function useCollapsed(uid?: string) {
 
 export function InsightSection({ id, title, subtitle, icon: Icon, open, onToggle, right, children, quiet }: { id: string; title: string; subtitle?: string; icon?: LucideIcon; open: boolean; onToggle: () => void; right?: ReactNode; children: ReactNode; quiet?: boolean }) {
   const bodyId = `ix-body-${id}`;
-  return <section className={`ix-section ${open ? 'is-open' : 'is-closed'} ${quiet ? 'is-quiet' : ''}`} aria-labelledby={`ix-h-${id}`}>
+  return <section className={`ix-section ${open ? 'is-open' : 'is-closed'} ${quiet ? 'is-quiet' : ''}`} data-sec={id} aria-labelledby={`ix-h-${id}`}>
     <header className="ix-section-head">
       <button type="button" className="ix-section-toggle" aria-expanded={open} aria-controls={bodyId} onClick={onToggle}>
         {Icon && <span className="ix-section-icon" aria-hidden="true"><Icon size={16}/></span>}
