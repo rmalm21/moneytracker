@@ -73,6 +73,8 @@ const basisWord = { direct: 'langsung', estimated: 'perkiraan', associated: 'ber
 const effectWord = (kind: string) => kind === 'reduces' ? 'berkurang' : kind === 'increases' ? 'bertambah' : kind === 'estimated_to_affect' ? 'bisa lebih sempit' : kind === 'funds' ? 'diisi dari sisa siklus' : 'terkait';
 
 /** Story sheet: answer → why (drivers) → impact (forward flow) → evidence & calculation, each a step deeper. */
+/** A link to exactly these transactions in Transaksi (between the first and the last date). */
+const txLink = (txs: LedgerTx[]) => { const dates = txs.map(t => t.date).sort(), last = new Date(`${dates[dates.length - 1]}T12:00:00`); last.setDate(last.getDate() + 1); return `tx:${txs.map(t => t.id).join(',')}@${dates[0]}..${last.toLocaleDateString('en-CA')}`; };
 export function StorySheet({ report, signature, extraSignals, items, onClose, onGo, onApply, busy, onDismiss, onSnooze }: { report: InsightV3Report; signature: string; extraSignals: InsightSignal[]; items: LedgerTx[]; onClose: () => void; onGo: (view: string, focus?: string) => void; onApply: (apply: Apply, finding: Finding) => void; busy?: string; onDismiss: (s: InsightSignal) => void; onSnooze: (s: InsightSignal) => void }) {
   const story = report.v25.stories.find(st => st.signature === signature);
   const s = story?.root || [...report.v25.signals, ...extraSignals].find(x => x.signature === signature);
@@ -107,7 +109,8 @@ export function StorySheet({ report, signature, extraSignals, items, onClose, on
       <p className="ix-note"><b>{s.confidence.label}.</b> {s.confidence.reasons.join('; ')}.</p>
       {s.caveats.length > 0 && <ul className="ix-caveats">{s.caveats.map(c => <li key={c}>{c}</li>)}</ul>}
     </details>
-    {txs.length > 0 && <details className="ix-details"><summary>Transaksi ({txs.length})</summary><ul className="ix-txs">{txs.map(t => <li key={t.id}><span>{t.merchant || t.description || 'Transaksi'}<small>{dayMonth(t.date)}{t.time ? ` · ${t.time}` : ''}</small></span><em>{moneyFull(t.ownShare ?? t.amount)}</em></li>)}</ul></details>}
+    {txs.length > 0 && <details className="ix-details"><summary>Transaksi ({txs.length})</summary><ul className="ix-txs">{txs.map(t => <li key={t.id}><span>{t.merchant || t.description || 'Transaksi'}<small>{dayMonth(t.date)}{t.time ? ` · ${t.time}` : ''}</small></span><em>{moneyFull(t.ownShare ?? t.amount)}</em></li>)}</ul>
+      <button type="button" className="ix-more" onClick={() => { onClose(); onGo('transactions', txLink(txs)); }}>Buka di Transaksi <ArrowRight size={14} aria-hidden="true"/></button></details>}
     <div className="ix-sheet-foot">
       {apply && s.finding ? <Button className="small" disabled={busy === s.finding.id} onClick={() => onApply(apply, s.finding!)}><Check size={14}/> {apply.kind === 'create-budget' ? `Buat anggaran ${money(apply.amount)}` : `Ubah anggaran ke ${money(apply.amount)}`}</Button>
         : target ? <Button variant="secondary" className="small" onClick={() => { onClose(); onGo(target.view, target.focus); }}>{s.action?.label && s.action.label !== 'Lihat' ? s.action.label : 'Lihat'} <ArrowRight size={14}/></Button> : <span/>}

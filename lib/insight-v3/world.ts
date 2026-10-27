@@ -27,7 +27,9 @@ export type FinancialWorld = {
   currentCycle: { start: string; end: string; elapsed: number; total: number; daysLeft: number; income: number; expense: number };
   historicalCycles: CycleRow[];
   income: { typical: number; regularTypical: number; irregularShare: number; floor: number; salary: number };
-  liquidity: { free: number; committed: number; buffer: number; available: number; safeDaily: number; reserved: number; beforePayday: number; dailyPace: number };
+  liquidity: { free: number; committed: number; buffer: number; available: number; safeDaily: number; reserved: number; beforePayday: number; dailyPace: number;
+    /** False in the first week of the first recorded cycle: the pace then comes from a few days (rent paid on day one…) and a projection would mislead. */
+    paceReliable: boolean };
   spending: { cycleSoFar: number; dailyPace: number };
   obligations: { debtOutstanding: number; claimsOutstanding: number; receivablesOutstanding: number; upcoming: UpcomingEvent[] };
   targets: { id: string; name: string; target: number; current: number; perMonth: number; monthsLeft: number | null; status: string; emergency: boolean }[];
@@ -69,7 +71,7 @@ export function buildWorld(input: AdvisorInput, ctx: InsightContext, profile: Pa
     currentCycle: { start: cur.start, end: cur.end, elapsed: cur.elapsed, total: cur.total, daysLeft: cur.daysLeft, income: cur.income, expense: cur.expense },
     historicalCycles,
     income: { typical: median(historicalCycles.map(c => c.income)) || input.monthlySalary, regularTypical, irregularShare: totalIncome ? irregularIncome / totalIncome : 0, floor: Math.min(regularTypical, lowest || regularTypical), salary: input.monthlySalary },
-    liquidity: { free: stat.free, committed, buffer: Math.max(0, settings.freeMoneyBuffer || 0), available: availableMoney(stat.free, committed, settings), safeDaily: safeDaily(stat.discretionaryRemaining, cur.daysLeft), reserved: stat.reserved, beforePayday: fc.before, dailyPace: fc.daily },
+    liquidity: { free: stat.free, committed, buffer: Math.max(0, settings.freeMoneyBuffer || 0), available: availableMoney(stat.free, committed, settings), safeDaily: safeDaily(stat.discretionaryRemaining, cur.daysLeft), reserved: stat.reserved, beforePayday: fc.before, dailyPace: fc.daily, paceReliable: fc.dailySource === 'baseline' || cur.elapsed >= 7 },
     spending: { cycleSoFar: cur.expense, dailyPace: fc.daily },
     obligations: {
       debtOutstanding: stat.liabilities,

@@ -142,7 +142,8 @@ export function questionsView(r: InsightV3Report) {
 // ——— Cashflow ———
 export function cashflowView(r: InsightV3Report) {
   const { base, claimArrives, claimDelayed } = r.scenarios, pace = Math.max(1, r.world.liquidity.dailyPace), low = base.lowest;
-  const status = low.balance < 0 ? { text: 'Bisa minus sebelum gajian', tone: 'bad' as Tone } : low.balance < pace * 7 ? { text: 'Mepet, kurang dari seminggu belanja', tone: 'warn' as Tone } : { text: 'Aman sampai gajian', tone: 'good' as Tone };
+  const status = !r.world.liquidity.paceReliable ? { text: 'Perkiraan kasar: belum ada siklus lengkap, laju belanja baru dari beberapa hari', tone: 'info' as Tone }
+    : low.balance < 0 ? { text: 'Bisa minus sebelum gajian', tone: 'bad' as Tone } : low.balance < pace * 7 ? { text: 'Mepet, kurang dari seminggu belanja', tone: 'warn' as Tone } : { text: 'Aman sampai gajian', tone: 'good' as Tone };
   const events = [
     { date: base.points[0].date, label: 'Hari ini', amount: r.world.liquidity.free - r.world.liquidity.buffer, kind: 'now' as const },
     ...base.points.flatMap(p => p.events.filter(e => Math.abs(e.amount) >= 50_000).map(e => ({ date: p.date, label: e.label, amount: e.amount, kind: (e.kind === 'claim' ? 'claim' : 'scheduled') as 'claim' | 'scheduled' }))),

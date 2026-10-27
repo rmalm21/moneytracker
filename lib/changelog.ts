@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.10', date: '27 Okt 2026', title: 'Insight yang bisa ditelusuri', items: [
+    ['💡', 'Tombol “Lihat” di Insight sekarang selalu menemukan transaksinya. Kartu yang dihitung dari siklus-siklus sebelumnya (misalnya Kurangi Belanja, Kebocoran kecil, Pesan Antar turun, atau rata-rata per kategori) membuka siklus-siklus itu sampai hari ini, bukan siklus ini saja yang di awal siklus masih kosong. Transaksi tidak biasa langsung dibuka transaksinya.'],
+    ['🧾', 'Di halaman Transaksi, hasil filter yang kosong kini menawarkan “Perluas 3 bulan ke belakang” atau “Cari di seluruh riwayat”. Rincian kartu Insight juga punya tombol “Buka di Transaksi” untuk melihat persis transaksi yang dipakai.'],
+    ['✅', 'Insight dirapikan: perkiraan saldo terendah tidak lagi muncul dari data beberapa hari saja di siklus pertama, angka minus ditulis “minus ±Rp…”, label “Perkiraan siklus ini” untuk angka perkiraan, angka “sisa uang biasanya” sama di semua kartu, saran memindah uang menganggur tidak menyuruh investasi saat dana darurat masih kurang, dan biaya tetap seperti sewa kos tidak lagi disarankan dibuatkan anggaran.'],
+  ] },
   { version: '5.9', date: '27 Okt 2026', title: 'Beranda lebih bersih', items: [
     ['✅', 'Piutang, utang, dan Split Bill yang sudah lunas tidak lagi muncul namanya di Beranda. Kartu Piutang hanya menampilkan yang belum lunas, dari sisa terbesar, jadi yang masih harus ditagih tidak tertutup nama yang sudah Rp0. Klaim kantor yang sudah cair atau ditolak juga tidak ditampilkan.'],
   ] },

@@ -37,7 +37,7 @@ export function anomalySignals(ctx: InsightContext): InsightSignal[] {
       confidence: confidence({ samples: peers.length, direct: false }), current: l.amount, baseline: s.median, delta: l.amount - s.median, impact: 0, urgency: .2, actionable: false, material: true,
       evidence: [{ label: 'Transaksi ini', value: rp(l.amount), note: dateText(l.date), txIds: [l.tx.id] }, { label: `Biasanya di ${peerName}`, value: rp(s.median), note: `median ${peers.length} transaksi; rentang ${short(s.p25)}–${short(s.p75)}` }],
       caveats: ['Transaksi dari rencana, daftar keinginan yang sudah dibeli, dan jadwal rutin tidak pernah ditandai tidak biasa.'],
-      action: { label: 'Periksa transaksinya', target: { view: 'transactions', focus: `search:${l.merchant || l.tx.description}@${ctx.current.start}..${ctx.current.end}` } },
+      action: { label: 'Periksa transaksinya', target: { view: 'transactions', focus: `tx:${l.tx.id}@${l.date}..${addDays(l.date, 1)}` } },
     }, ctx.today));
   }
   return out;

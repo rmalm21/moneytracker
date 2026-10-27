@@ -7865,3 +7865,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .sb-settle-note { margin: 0; font-size: .8rem; }
 .sb-settle-sum { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--paper-2); color: var(--muted); font-size: .84rem; font-weight: 600; }
 .sb-settle-sum strong { color: var(--ink); font: 800 1.05rem var(--font-head); }
+
+/* Transaksi: an empty filtered list offers to look further back instead of a dead end (links from Insight). */
+.tx-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.tx-empty-actions:empty { display: none; }

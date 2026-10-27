@@ -21,7 +21,7 @@ export function dataQualitySignals(ctx: InsightContext): InsightSignal[] {
       tone: q.uncategorizedCurrent >= .15 ? 'watch' : 'neutral', severity: Math.min(.5, q.uncategorizedCurrent * 1.5), deepDive: 'spending', unit: 'percent',
       confidence: confidence({ direct: true }), current: q.uncategorizedCurrent, actionable: true, material: q.uncategorizedCurrent >= .15,
       evidence: [{ label: 'Belum berkategori', value: rp(sum(lines.map(l => l.amount))), txIds: lines.slice(0, 12).map(l => l.tx.id) }, { label: 'Porsi dari pengeluaran siklus ini', value: pct(q.uncategorizedCurrent) }],
-      action: { label: 'Isi kategorinya', target: { view: 'transactions', focus: `type:expense@${ctx.current.start}..${ctx.current.end}` } },
+      action: { label: 'Isi kategorinya', target: { view: 'transactions', focus: `category:uncategorized@${ctx.current.start}..${ctx.current.end}` } },
     }, ctx.today));
   }
   const skipped = ctx.cycles.filter(c => !c.usable);

@@ -90,7 +90,8 @@ export function spendingSignals(ctx: InsightContext): InsightSignal[] {
     ...(b.outliers.length ? [`${b.outliers.length} siklus yang tidak biasa tidak dihitung dalam angka biasanya.`] : []),
   ];
   const projectFull = (delta: number) => delta / Math.max(current.progress, .2);
-  const focus = (kind: string, id: string) => ({ view: 'transactions', focus: `${kind}:${id}@${current.start}..${current.end}` });
+  // A rise is in this cycle's transactions; a fall (down to nothing, even) is seen against the cycles it is compared with.
+  const focus = (kind: string, id: string, up = true) => ({ view: 'transactions', focus: `${kind}:${id}@${up ? current.start : ctx.baseline[0]?.start || current.start}..${current.end}` });
 
   const read = (match: (l: Line) => boolean, id: string, label: string, level: Driver['level'], levels: ('subcategory' | 'merchant')[]): Read => {
     const c = cur.filter(match), bl = base.map(lines => lines.filter(match));
@@ -139,7 +140,7 @@ export function spendingSignals(ctx: InsightContext): InsightSignal[] {
       ],
       caveats: [...caveatsFor(b), ...(planned ? [`Kenaikan ini terutama dari pembelian yang sudah direncanakan (${rp(plannedAmount)}).`] : [])],
       series: { labels, values: [...r.base.map(lines => sum(lines.map(l => l.amount))), b.current] },
-      action: { label: 'Lihat transaksinya', target: focus(o.kind === 'merchant' ? 'search' : 'category', o.kind === 'merchant' ? o.name : o.id) },
+      action: { label: 'Lihat transaksinya', target: focus(o.kind === 'merchant' ? 'search' : 'category', o.kind === 'merchant' ? o.name : o.id, up) },
     }, today);
   };
 

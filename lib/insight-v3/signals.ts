@@ -14,13 +14,15 @@ import type { FinancialWorld } from './world.ts';
 export function liquiditySignals(world: FinancialWorld, base: ScenarioResult, arrives: ScenarioResult, delayed: ScenarioResult, hasOpenClaims: boolean): InsightSignal[] {
   const out: InsightSignal[] = [];
   const pace = Math.max(1, world.liquidity.dailyPace), low = base.lowest;
-  if (low.balance < pace * 7) {
+  // "±Rp…" reads oddly with a minus sign: a negative point is said as "minus ±Rp…".
+  const about = (n: number, f = rp) => n < 0 ? `minus ±${f(-n)}` : `±${f(n)}`;
+  if (low.balance < pace * 7 && world.liquidity.paceReliable) {
     const why = low.events.length ? `${low.events.length} pengeluaran terjadwal berdekatan sebelum tanggal itu` : 'laju belanja harian sampai tanggal itu';
     out.push(signal({
       signature: 'liquidity:lowest', domain: 'cashflow', type: 'liquidity_low_point',
       title: low.balance < 0 ? `Uang bisa minus sekitar ${dateText(low.date)}` : `Titik tersempit sekitar ${dateText(low.date)}`,
-      summary: `Bila pola belanja sama dan tagihan terjadwal dibayar, uang bebas paling rendah ±${rp(low.balance)} pada ${dateText(low.date)} (${why}).${hasOpenClaims && arrives.lowest.balance !== delayed.lowest.balance ? ` Bila klaim cair sesuai riwayat: ±${rp(arrives.lowest.balance)}; bila tertunda: ±${rp(delayed.lowest.balance)}.` : ''}`,
-      headline: `Titik tersempit ±${short(low.balance)} sekitar ${dateText(low.date)}`,
+      summary: `Bila pola belanja sama dan tagihan terjadwal dibayar, uang bebas paling rendah ${about(low.balance)} pada ${dateText(low.date)} (${why}).${hasOpenClaims && arrives.lowest.balance !== delayed.lowest.balance ? ` Bila klaim cair sesuai riwayat: ${about(arrives.lowest.balance)}; bila tertunda: ${about(delayed.lowest.balance)}.` : ''}`,
+      headline: `Titik tersempit ${about(low.balance, short)} sekitar ${dateText(low.date)}`,
       tone: low.balance < 0 ? 'important' : 'watch', severity: low.balance < 0 ? .75 : .5, deepDive: 'cashflow', unit: 'money',
       confidence: confidence({ progress: world.currentCycle.elapsed / world.currentCycle.total }), current: low.balance, impact: Math.max(0, -low.balance), urgency: .8, actionable: true, material: true,
       evidence: [{ label: 'Uang bebas sekarang (− cadangan)', value: rp(world.liquidity.free - world.liquidity.buffer) }, { label: 'Laju belanja per hari', value: rp(pace), note: 'tanpa tagihan & rencana (dihitung terpisah)' }, ...low.events.map(e => ({ label: `${dateText(e.date)} · ${e.label}`, value: rp(e.amount) })), { label: 'Sebelum gajian', value: rp(base.beforePayday) }],

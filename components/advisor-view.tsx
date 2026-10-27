@@ -73,7 +73,8 @@ function Metric({ finding }: { finding: Finding }) {
   // Budget usage: the average of every period, as the text says; money: the earlier cycles vs this one.
   const earlier = percent ? series : series.slice(0, -1), avg = earlier.reduce((n, v) => n + v, 0) / Math.max(1, earlier.length);
   const change = avg > 0 ? last / avg - 1 : 0;
-  const caption = percent ? `Terpakai · ${lastLabel === 'Kini' ? 'periode ini' : `periode ${lastLabel}`}` : lastLabel === 'Kini' ? 'Siklus ini' : `Siklus ${lastLabel}`;
+  // "Perkiraan": the last point is where this cycle is heading (early in a cycle that is simply the average), not what was spent.
+  const caption = percent ? `Terpakai · ${lastLabel === 'Kini' ? 'periode ini' : `periode ${lastLabel}`}` : lastLabel === 'Kini' ? 'Siklus ini' : lastLabel === 'Perkiraan' ? 'Perkiraan siklus ini' : `Siklus ${lastLabel}`;
   const compare = percent ? `rata-rata ${Math.round(avg)}%` : Math.abs(change) < .05 ? 'setara rata-rata' : `${change > 0 ? '▲' : '▼'} ${pct(Math.abs(change))} vs rata-rata`;
   return <div className="ins-metric">
     <div className="ins-metric-text">
@@ -282,13 +283,14 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     { key: 'data', label: 'Data', icon: Database, question: 'Seberapa kuat dasar Insight ini?' },
   ];
   const active = tabs.find(t => t.key === tab) || tabs[0];
+  // Category rows show the average per cycle, so they open the compared cycles up to today, not this cycle alone.
   const subs = [['summary', 'Ringkas'], ['cats', 'Kategori'], ['habits', 'Kebiasaan'], ['prices', 'Harga']] as const;
   const tabBody = () => {
     switch (active.key) {
       case 'spending': return <>
         <div className="ix-subtabs" role="tablist" aria-label="Bagian pengeluaran">{subs.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? 'active' : ''} onClick={() => setSub(k)}>{l}</button>)}</div>
         {sub === 'summary' && <>{signalRows(deep.spending)}{cards(pinFirst(once(visible([...advice.reduce, ...advice.loose, ...advice.budgetTips]))))}{!deep.spending.length && !advice.reduce.length && !advice.loose.length && !advice.budgetTips.length && <p className="ix-empty-line">Tidak ada pos pengeluaran yang perlu diubah.</p>}</>}
-        {sub === 'cats' && (topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => go('transactions', `category:${c.id}@${cycle.start}..${cycle.end}`)}>
+        {sub === 'cats' && (topCats.length ? <div className="panel ins-cats">{topCats.map(c => <button type="button" key={c.id} className="ins-cat" onClick={() => go('transactions', `category:${c.id}@${v3?.v25.context.cycles[0]?.start || cycle.start}..${cycle.end}`)}>
           <span className="ins-cat-icon" style={identityStyle(c.color)} aria-hidden="true"><AppIcon icon={c.icon} fallback="🗂️"/></span>
           <span className="ins-cat-name"><strong>{c.name}</strong><small>{c.kind === 'need' ? 'Kebutuhan' : 'Keinginan'} · {pct(c.share)} pengeluaran</small></span>
           <Spark values={[...c.history, c.projected]}/>
