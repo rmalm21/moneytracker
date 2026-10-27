@@ -7804,12 +7804,13 @@ button.int-more { justify-self: start; font-size: .74rem; }
   .bn-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .65rem; letter-spacing: .01em; }
   .bottom-nav button.active .bn-label { font-weight: 800; }
   .bottom-nav button.add .bn-label { color: var(--accent); }
-  .bottom-nav button.add { gap: 7px; }
-  .bottom-nav .nav-add-icon { width: 50px; height: 50px; margin-top: -30px; border: 0; border-radius: 19px; color: var(--accent-on); transition: transform .15s ease, box-shadow .15s ease;
+  /* The add button floats above the dock with clear air between its raised edge and the label. */
+  .bottom-nav button.add { gap: 13px; }
+  .bottom-nav .nav-add-icon { width: 50px; height: 50px; margin-top: -38px; border: 0; border-radius: 19px; color: var(--accent-on); transition: transform .15s ease, box-shadow .15s ease;
     background: radial-gradient(120% 120% at 30% 18%, color-mix(in srgb, var(--accent) 45%, #fff) 0%, var(--accent) 52%, color-mix(in srgb, var(--accent) 72%, #000) 100%);
-    box-shadow: inset 0 2px 1px rgba(255, 255, 255, .45), inset 0 -5px 10px rgba(0, 0, 0, .18), 0 0 0 4px color-mix(in srgb, var(--paper) 92%, transparent), 0 4px 0 4px color-mix(in srgb, var(--accent) 55%, #000), 0 16px 24px -4px color-mix(in srgb, var(--accent) 55%, transparent); }
+    box-shadow: inset 0 2px 1px rgba(255, 255, 255, .45), inset 0 -5px 10px rgba(0, 0, 0, .18), 0 0 0 4px color-mix(in srgb, var(--paper) 92%, transparent), 0 4px 0 2px color-mix(in srgb, var(--accent) 55%, #000), 0 14px 22px -6px color-mix(in srgb, var(--accent) 55%, transparent); }
   .bottom-nav .nav-add-icon svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
-  .bottom-nav button.add:active .nav-add-icon { transform: translateY(3px); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .35), inset 0 -3px 8px rgba(0, 0, 0, .22), 0 0 0 4px color-mix(in srgb, var(--paper) 92%, transparent), 0 1px 0 4px color-mix(in srgb, var(--accent) 55%, #000), 0 8px 14px -6px color-mix(in srgb, var(--accent) 50%, transparent); }
+  .bottom-nav button.add:active .nav-add-icon { transform: translateY(3px); box-shadow: inset 0 2px 1px rgba(255, 255, 255, .35), inset 0 -3px 8px rgba(0, 0, 0, .22), 0 0 0 4px color-mix(in srgb, var(--paper) 92%, transparent), 0 1px 0 2px color-mix(in srgb, var(--accent) 55%, #000), 0 8px 14px -6px color-mix(in srgb, var(--accent) 50%, transparent); }
   .bottom-nav button:not(.add):active { transform: scale(.94); }
 }
 @media (max-width: 350px) { .bottom-nav { left: 8px; right: 8px; } .bn-label { font-size: .6rem; } }
