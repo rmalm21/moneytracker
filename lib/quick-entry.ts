@@ -25,6 +25,7 @@
  * category named in the text, then from common words (kopi → a food & drink category, bensin → transport…).
  * The user can also pick the kind first with the chips (Keluar, Masuk, Utang, Anggaran, Dompet…).
  */
+import type { AskData } from './catat/ask.ts';
 import type { Budget, Category, Claim, Debt, Fund, LedgerTx, PlannedTransaction, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
 import { flowOf, suggestCategory } from './categorize.ts';
 import { blankOut, resolveBoundaries, type BoundaryResult } from './catat/entities.ts';
@@ -117,6 +118,8 @@ export type QuickContext = {
   people?: string[];
   /** V3.4 short session: ids of the entries saved from this box in the last minutes, newest first ("yang tadi"). */
   sessionTxIds?: string[];
+  /** 6.0 Tanya: the ledger a question about one's own money is answered from (lib/catat/ask.ts). Read only. */
+  ask?: AskData;
   /** General language layer: words never rewritten in this sentence (the person's own alias keys). */
   protectedWords?: string[];
   /** Memori Konteks (lib/catat/context-memory.ts): read places named in part and their habits from the history. Off with personalization. */

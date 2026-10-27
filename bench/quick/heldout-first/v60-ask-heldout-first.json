@@ -1,0 +1,207 @@
+{
+ "set": "v60askheldout",
+ "cases": 22,
+ "ok": 22,
+ "confidentWrong": 0,
+ "rows": [
+  {
+   "id": "q1",
+   "text": "total pengeluaran minggu ini berapa ya",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran minggu ini Rp325.000 dari 8 transaksi.",
+   "confidentWrong": false,
+   "ms": 227.01454900000004
+  },
+  {
+   "id": "q2",
+   "text": "bulan lalu habis berapa buat bensin",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran Bensin bulan lalu Rp150.000 dari 3 transaksi.",
+   "confidentWrong": false,
+   "ms": 57.633775000000014
+  },
+  {
+   "id": "q3",
+   "text": "saldo mandiri sekarang berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Saldo Mandiri Rp5.200.000.",
+   "confidentWrong": false,
+   "ms": 9.13255300000003
+  },
+  {
+   "id": "q4",
+   "text": "kapan terakhir kali nonton",
+   "ok": true,
+   "why": [],
+   "answer": "Terakhir 7 Okt (8 hari lalu): Nonton · XXI Rp85.000.",
+   "confidentWrong": false,
+   "ms": 19.321656000000075
+  },
+  {
+   "id": "q5",
+   "text": "udah berapa kali ngopi bulan ini",
+   "ok": true,
+   "why": [],
+   "answer": "4 kali Minuman bulan ini, total Rp96.000.",
+   "confidentWrong": false,
+   "ms": 542.126295
+  },
+  {
+   "id": "q6",
+   "text": "pengeluaran paling gede bulan ini apa",
+   "ok": true,
+   "why": [],
+   "answer": "Paling besar bulan ini: Sepatu · Zalora Rp450.000 (2 Okt).",
+   "confidentWrong": false,
+   "ms": 5.929452999999967
+  },
+  {
+   "id": "q7",
+   "text": "sisa budget nongkrong",
+   "ok": true,
+   "why": [],
+   "answer": "Sisa anggaran Nongkrong & Hiburan Rp115.000 dari Rp400.000 (terpakai Rp285.000).",
+   "confidentWrong": false,
+   "ms": 4.399030999999923
+  },
+  {
+   "id": "q8",
+   "text": "pemasukan bulan ini berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pemasukan bulan ini Rp1.500.000 dari 1 transaksi.",
+   "confidentWrong": false,
+   "ms": 5.9442260000000715
+  },
+  {
+   "id": "q9",
+   "text": "belanja di indomaret bulan ini berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran Belanja bulan ini Rp150.000 dari 1 transaksi.",
+   "confidentWrong": false,
+   "ms": 7.251213000000007
+  },
+  {
+   "id": "q10",
+   "text": "kemarin keluar duit berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran kemarin Rp170.000 dari 2 transaksi.",
+   "confidentWrong": false,
+   "ms": 4.3899169999999685
+  },
+  {
+   "id": "q11",
+   "text": "jajan bulan ini udah berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran “jajan” bulan ini Rp27.000 dari 2 transaksi.",
+   "confidentWrong": false,
+   "ms": 5.807015000000092
+  },
+  {
+   "id": "q12",
+   "text": "gopay kepake berapa minggu ini",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran pakai GoPay minggu ini Rp42.000 dari 2 transaksi.",
+   "confidentWrong": false,
+   "ms": 7.839206999999988
+  },
+  {
+   "id": "q13",
+   "text": "total uangku di semua dompet berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Total saldo 7 dompet Rp9.855.000.",
+   "confidentWrong": false,
+   "ms": 5.965571000000182
+  },
+  {
+   "id": "q14",
+   "text": "kapan terakhir isi bensin",
+   "ok": true,
+   "why": [],
+   "answer": "Terakhir 13 Okt (2 hari lalu): Bensin · Shell Rp75.000.",
+   "confidentWrong": false,
+   "ms": 5.556106
+  },
+  {
+   "id": "q15",
+   "text": "pengeluaran bulan ini dibanding bulan lalu gimana",
+   "ok": true,
+   "why": [],
+   "answer": "Bulan ini lebih boros Rp1.152.000 (254%): Rp1.605.000 vs Rp453.000 di 1–15 Sep.",
+   "confidentWrong": false,
+   "ms": 7.328808999999865
+  },
+  {
+   "id": "q16",
+   "text": "bulan ini berapa kali makan di warteg bahari",
+   "ok": true,
+   "why": [],
+   "answer": "1 kali Makan & Minum bulan ini, total Rp32.000.",
+   "confidentWrong": false,
+   "ms": 11.224423999999999
+  },
+  {
+   "id": "q17",
+   "text": "rata-rata ngopi sekali berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Rata-rata Minuman Rp24.000 sekali (4 kali, siklus ini).",
+   "confidentWrong": false,
+   "ms": 11.848137999999835
+  },
+  {
+   "id": "q18",
+   "text": "siklus ini pengeluaran makan berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran Makan & Minum siklus ini Rp293.000 dari 11 transaksi.",
+   "confidentWrong": false,
+   "ms": 5.408380000000079
+  },
+  {
+   "id": "q19",
+   "text": "sisa anggaran bensin bulan ini",
+   "ok": true,
+   "why": [],
+   "answer": "Sisa anggaran Bensin Rp135.000 dari Rp300.000 (terpakai Rp165.000).",
+   "confidentWrong": false,
+   "ms": 5.1279349999999795
+  },
+  {
+   "id": "q20",
+   "text": "tadi udah keluar berapa",
+   "ok": true,
+   "why": [],
+   "answer": "Pengeluaran hari ini Rp21.000 dari 2 transaksi.",
+   "confidentWrong": false,
+   "ms": 3.8399380000000747
+  },
+  {
+   "id": "q21",
+   "text": "beli kopi 20rb gopay",
+   "ok": true,
+   "why": [],
+   "answer": "",
+   "confidentWrong": false,
+   "ms": 95.25202399999989
+  },
+  {
+   "id": "q22",
+   "text": "berapa harga iphone sekarang",
+   "ok": true,
+   "why": [],
+   "answer": "",
+   "confidentWrong": false,
+   "ms": 9.343437999999878
+  }
+ ],
+ "frozenAt": "2026-10-27T11:21:01.891Z"
+}

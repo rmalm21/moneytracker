@@ -13,6 +13,7 @@
  * candidates → nothing is changed and the person picks. Everything here is read only: it proposes an operation; the
  * ledger (lib/firestore.ts) executes it after confirmation.
  */
+import { askMoney, type AskMeta } from './ask.ts';
 import { DATE_PHRASES, findAmounts, knownPlaces, nameLike, readDate, walletsIn, type QuickContext, type RecentTx } from '../quick-entry.ts';
 
 export type OperationType = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL' | 'SETTLE' | 'PARTIAL_SETTLE' | 'TRANSFER' | 'SPLIT' | 'LINK' | 'UNLINK' | 'SCHEDULE' | 'RECUR' | 'STOP_RECURRING' | 'QUERY' | 'INSPECT' | 'CONFIRM';
@@ -28,7 +29,7 @@ export type OperationInfo = {
   expect?: number;
   query?: QueryAnswer; recurring?: Command['recurring'];
 };
-export type QueryAnswer = { question: string; answer: string; lines: { label: string; amount: number }[]; total?: number };
+export type QueryAnswer = { question: string; answer: string; lines: { label: string; amount: number }[]; total?: number; ask?: AskMeta };
 export type Command = {
   type: Extract<OperationType, 'UPDATE' | 'DELETE' | 'CANCEL' | 'QUERY' | 'RECUR' | 'STOP_RECURRING'>;
   target?: TargetRef; targets?: TargetRef[]; candidates: TargetRef[]; ambiguous: boolean;
@@ -151,7 +152,9 @@ function answer(text: string, ctx: QuickContext): QueryAnswer | null {
     const lines = list.map(d => ({ label: d.provider ? `${d.name} (${d.provider})` : d.name, amount: d.outstandingAmount }));
     return { question: text, answer: person ? (lines.length ? `Sisa utangmu ke ${person[0].toUpperCase() + person.slice(1)} ${rupiah(sum(lines))}.` : `Tidak ada utang ke ${person} yang tercatat.`) : `Total utangmu ${rupiah(sum(lines))}.`, lines, total: sum(lines) };
   }
-  if (/\b(utang|hutang|ngutang|piutang|minjem|pinjam|bayar)\b/.test(text)) {
+  // "bayar" asks about a friend's payment only with a name ("berapa bayar listrik" is spending, lib/catat/ask.ts).
+  const known = Boolean(person) && [...open.map(r => r.person), ...debts.map(d => d.provider || ''), ...(ctx.people || [])].some(p => lower(p).split(/\s+/).includes(person!));
+  if (/\b(utang|hutang|ngutang|piutang|minjem|pinjam)\b/.test(text) || known && /\bbayar\b/.test(text)) {
     const list = open.filter(r => !person || lower(r.person).split(/\s+/).includes(person));
     const lines = list.map(r => ({ label: r.description ? `${r.person} (${r.description})` : r.person, amount: r.remainingAmount }));
     const name = person ? person[0].toUpperCase() + person.slice(1) : '';
@@ -168,7 +171,8 @@ export function readCommand(text: string, ctx: QuickContext): Command | null {
   const t = text.trim().replace(/[.!]+$/, '');
   const trace: string[] = [];
   // QUERY first: a question never changes anything.
-  const q = answer(t, ctx);
+  // 6.0: then a question about one's own money (spending, income, balances, budgets), answered from the ledger.
+  const q = ((a: QueryAnswer | null) => a && { ...a, ask: a.ask || { intent: 'owed' as const, total: a.total } })(answer(t, ctx)) || askMoney(t, ctx);
   if (q) return { type: 'QUERY', candidates: [], ambiguous: false, query: q, why: ['Ini pertanyaan, jadi tidak ada yang dicatat atau diubah.'], trace: [`pertanyaan: ${q.answer}`] };
 
   // Recurring rules named in the message: a new amount or a stop.
