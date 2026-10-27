@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.0', date: '27 Okt 2026', title: 'Catat otomatis bisa ditanya', items: [
+    ['💬', 'Sekarang kamu bisa nanya langsung di Catat otomatis: “berapa pengeluaranku bulan ini”, “kapan terakhir isi bensin”, “sisa anggaran makan berapa”, “saldo gopay berapa”, “berapa kali ngopi bulan ini”, atau “bulan ini lebih boros dari bulan lalu?”. Jawabannya dihitung di HP dari catatanmu sendiri, tanpa internet.'],
+    ['🔎', 'Tiap jawaban ada tombol “Lihat transaksi” yang langsung membuka transaksi yang dihitung, jadi angkanya bisa kamu cek sendiri. Ada juga saran pertanyaan lanjutan, tinggal ketuk.'],
+    ['📊', 'Kalau bisa dibandingkan, ada keterangan naik atau turun dibanding periode sebelumnya. Kalau yang ditanya belum ada catatannya, jawabannya bilang belum ada, bukan nebak.'],
+    ['🔐', 'Masuk dengan Google diperbaiki lagi: sekarang pindah ke halaman Google lalu balik otomatis. Kalau masih gagal, pesannya muncul dan menyebut kodenya, supaya gampang dicari penyebabnya.'],
+    ['🗣️', 'Kalimat di bagian-bagian baru dibuat lebih santai dan gampang dipahami.'],
+  ] },
   { version: '5.12', date: '27 Okt 2026', title: 'Masuk dengan Google diperbaiki', items: [
     ['🔐', 'Masuk dengan Google kini langsung membuka aplikasi. Sebelumnya, di beberapa HP dan browser, setelah memilih akun Google kamu kembali lagi ke halaman masuk.'],
     ['📱', 'Di aplikasi yang dipasang di layar utama, masuk dan menghubungkan Google kini lewat halaman Google lalu kembali otomatis, tanpa jendela pop-up yang bisa macet.'],

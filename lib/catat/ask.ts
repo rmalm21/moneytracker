@@ -27,6 +27,8 @@ export type AskIntent = 'spend' | 'income' | 'balance' | 'budget' | 'last' | 'co
 /** What an answer is built from, for the card and the benchmark. Dates are ISO, `end` exclusive. */
 export type AskMeta = {
   intent: AskIntent; total?: number; count?: number; date?: string; start?: string; end?: string; compare?: number; label?: string;
+  /** What the question is about, in words ("Bensin", "“jajan”", "Indomaret"), for follow-up questions. */
+  subject?: string;
   /** The period in words ("bulan ini · 1–31 Okt") and what was counted ("kategori Bensin", "catatan berisi “jajan”"). */
   period?: string; basis?: string;
   /** The same kind of period just before, for "Rp… minggu lalu". */
@@ -38,6 +40,7 @@ export type AskData = { transactions: LedgerTx[]; wallets: { id: string; name: s
 export type AskAnswer = { question: string; answer: string; lines: { label: string; amount: number }[]; total?: number; ask: AskMeta };
 
 const lower = (s: string) => s.toLocaleLowerCase('id-ID');
+const cap = (s: string) => s.replace(/^./, c => c.toUpperCase());
 const rp = (n: number) => `${n < 0 ? '-' : ''}Rp${Math.abs(Math.round(n)).toLocaleString('id-ID')}`;
 const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const has = (text: string, word: string) => new RegExp(`(?:^|[^\\p{L}\\p{N}])${esc(word)}(?![\\p{L}\\p{N}])`, 'u').test(text);
@@ -111,8 +114,10 @@ export function readPeriod(text: string, today: string, salaryDay = 24): Period 
 }
 
 // ——— What is asked ———
+/** A sentence that asks something (for a friendly reply when it cannot be answered from the records). */
+export const looksLikeQuestion = (text: string) => /^\s*(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana|siapa|kenapa)\b|\?\s*$/i.test(text) && !findAmounts(text).some(a => a.marked);
 const QUESTION = /\b(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana)\b|\?\s*$/;
-const LEAD = /^(?:sisa\s+(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata)|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b/u;
+const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b/u;
 const SPEND_CUE = /\b(?:pengeluaran\p{L}*|keluar|keluarin|habis|abis|kepake|kepakai|terpakai|belanja|bayar|beli|jajan|boros|spend|spending|biaya|ongkos)\b/u;
 function intentOf(t: string): Exclude<AskIntent, 'owed'> {
   if (/\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat|banyak|sedikit|gede|besar|kecil))\b/.test(t)) return 'compare';
@@ -180,7 +185,7 @@ function amountFor(t: LedgerTx, s: Subject, flow: 'expense' | 'income') {
   const id = s.category.id;
   return expenseAllocations(t).filter(l => l.categoryId === id || l.subcategoryId === id).reduce((n, l) => n + l.amount, 0);
 }
-const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}` : '', s.text ? `catatan berisi “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `pakai ${s.walletName}` : ''].filter(Boolean).join(' · ');
+const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}` : '', s.text ? `catatan yang ada kata “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `pakai ${s.walletName}` : ''].filter(Boolean).join(' · ');
 const nameOf = (s: Subject) => s.category?.name || (s.text ? `“${s.text}”` : '') || s.merchant || '';
 /** The Transaksi filter that shows exactly the entries counted. */
 function focusOf(s: Subject, ids: string[], flow: 'expense' | 'income', start?: string, end?: string) {
@@ -221,13 +226,13 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
   const rows = (s: string, e: string) => data.transactions.filter(x => within(x, s, e)).map(x => ({ tx: x, amount: amountFor(x, subject, flow) })).filter(r => r.amount > 0);
   const sum = (list: { amount: number }[]) => list.reduce((n, r) => n + r.amount, 0);
   const what = nameOf(subject), basis = basisOf(subject) || undefined;
-  const answer = (sentence: string, ask: AskMeta, lines: { label: string; amount: number }[] = []): AskAnswer => ({ question: text, answer: sentence, lines, total: ask.total, ask: { basis, ...ask } });
+  const answer = (sentence: string, ask: AskMeta, lines: { label: string; amount: number }[] = []): AskAnswer => ({ question: text, answer: sentence, lines, total: ask.total, ask: { basis, subject: what || undefined, ...ask } });
 
   if (intent === 'balance') {
     const live = data.wallets.filter(x => !x.isArchived);
-    if (subject.walletId) { const w = live.find(x => x.id === subject.walletId) || data.wallets.find(x => x.id === subject.walletId); if (w) return answer(`Saldo ${w.name} ${rp(w.cachedBalance)}.`, { intent, total: w.cachedBalance, label: w.name, focus: `wallet:${w.id}` }); }
+    if (subject.walletId) { const w = live.find(x => x.id === subject.walletId) || data.wallets.find(x => x.id === subject.walletId); if (w) return answer(`Saldo ${w.name} sekarang ${rp(w.cachedBalance)}.`, { intent, total: w.cachedBalance, label: w.name, focus: `wallet:${w.id}` }); }
     const total = live.reduce((n, x) => n + x.cachedBalance, 0);
-    return answer(`Total saldo ${live.length} dompet ${rp(total)}.`, { intent, total, label: 'Semua dompet' }, [...live].sort((a, b) => b.cachedBalance - a.cachedBalance).map(x => ({ label: x.name, amount: x.cachedBalance })));
+    return answer(`Total saldo di ${live.length} dompet: ${rp(total)}.`, { intent, total, label: 'Semua dompet' }, [...live].sort((a, b) => b.cachedBalance - a.cachedBalance).map(x => ({ label: x.name, amount: x.cachedBalance })));
   }
 
   if (intent === 'budget') {
@@ -242,12 +247,12 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
     if ((subject.category || subject.text) && !chosen.length) return answer(`Belum ada anggaran untuk ${what}.`, { intent, label: what });
     if (chosen.length === 1) {
       const b = chosen[0], c = current(b);
-      const sentence = c.remaining >= 0 ? `Sisa anggaran ${b.name} ${rp(c.remaining)} dari ${rp(c.available)} (terpakai ${rp(c.spent)}).` : `Anggaran ${b.name} lewat ${rp(-c.remaining)} (terpakai ${rp(c.spent)} dari ${rp(c.available)}).`;
+      const sentence = c.remaining >= 0 ? `Anggaran ${b.name} masih sisa ${rp(c.remaining)} dari ${rp(c.available)}. Sudah terpakai ${rp(c.spent)}.` : `Anggaran ${b.name} sudah lewat ${rp(-c.remaining)}. Terpakai ${rp(c.spent)} dari ${rp(c.available)}.`;
       return answer(sentence, { intent, total: c.remaining, label: b.name, period: `periode anggaran · ${span(c.start, c.end)}`, start: c.start, end: c.end, focus: `category:${b.subcategoryIds?.length === 1 ? b.subcategoryIds[0] : b.subcategoryId || b.categoryId}@${c.start}..${c.end}` }, [{ label: 'Terpakai', amount: c.spent }, { label: 'Anggaran', amount: c.available }]);
     }
     const counted = countedBudgets(chosen), all = counted.map(b => ({ b, c: current(b) }));
     const remaining = all.reduce((n, x) => n + x.c.remaining, 0);
-    return answer(all.length ? `Sisa semua anggaran ${rp(remaining)}.` : 'Belum ada anggaran yang aktif.', { intent, total: remaining, label: 'Semua anggaran' }, all.map(x => ({ label: x.b.name, amount: x.c.remaining })));
+    return answer(all.length ? `Sisa semua anggaranmu ${rp(remaining)}.` : 'Kamu belum punya anggaran yang aktif.', { intent, total: remaining, label: 'Semua anggaran' }, all.map(x => ({ label: x.b.name, amount: x.c.remaining })));
   }
 
   if (intent === 'last') {
@@ -255,7 +260,7 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
     const hit = list[0];
     if (!hit) return answer(`Belum ada catatan ${what || 'pengeluaran'}${period ? ` ${P.label}` : ''}.`, { intent, label: what });
     const x = hit.tx, label = [x.description, x.merchant].filter(Boolean).filter((v, i, a) => a.findIndex(y => lower(y) === lower(v)) === i).join(' · ') || what;
-    return answer(`Terakhir ${dm(x.date)} (${ago(x.date, today)}): ${label} ${rp(hit.amount)}.`, { intent, date: x.date, total: hit.amount, label, focus: `tx:${x.id}` });
+    return answer(`Terakhir tanggal ${dm(x.date)} (${ago(x.date, today)}): ${label}, ${rp(hit.amount)}.`, { intent, date: x.date, total: hit.amount, label, focus: `tx:${x.id}` });
   }
 
   const now = rows(P.start, P.end);
@@ -263,7 +268,7 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
   const subjectWords = `${what ? ` ${what}` : ''}${subject.merchant && what !== subject.merchant ? ` di ${subject.merchant}` : ''}${subject.walletName ? ` pakai ${subject.walletName}` : ''}`;
 
   if (intent === 'count') {
-    return answer(now.length ? `${now.length} kali${subjectWords} ${P.label}, total ${rp(total)}.` : `Belum ada${subjectWords || ' pengeluaran'} ${P.label}.`, { intent, count: now.length, total, start: P.start, end: P.end, period: periodText, focus, label: what });
+    return answer(now.length ? `${cap(P.label)} ada ${now.length} kali${subjectWords}, totalnya ${rp(total)}.` : `${cap(P.label)} belum ada${subjectWords || ' pengeluaran'}.`, { intent, count: now.length, total, start: P.start, end: P.end, period: periodText, focus, label: what });
   }
 
   if (intent === 'top') {
@@ -271,21 +276,21 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
       const by = new Map<string, number>();
       for (const r of now) for (const l of expenseAllocations(r.tx)) if (l.categoryId) by.set(l.categoryId, (by.get(l.categoryId) || 0) + l.amount);
       const ranked = [...by].sort((a, b) => b[1] - a[1]).map(([id, amount]) => ({ label: ctx.categories.find(c => c.id === id)?.name || 'Lainnya', amount, id }));
-      if (!ranked.length) return answer(`Belum ada pengeluaran ${P.label}.`, { intent, start: P.start, end: P.end, period: periodText });
-      return answer(`Paling besar ${P.label}: ${ranked[0].label} ${rp(ranked[0].amount)}.`, { intent, total: ranked[0].amount, label: ranked[0].label, start: P.start, end: P.end, period: periodText, focus: `category:${ranked[0].id}@${P.start}..${P.end}` }, ranked.slice(0, 4).map(({ label, amount }) => ({ label, amount })));
+      if (!ranked.length) return answer(`${cap(P.label)} belum ada pengeluaran.`, { intent, start: P.start, end: P.end, period: periodText });
+      return answer(`${cap(P.label)} paling banyak keluar di ${ranked[0].label}: ${rp(ranked[0].amount)}.`, { intent, total: ranked[0].amount, label: ranked[0].label, start: P.start, end: P.end, period: periodText, focus: `category:${ranked[0].id}@${P.start}..${P.end}` }, ranked.slice(0, 4).map(({ label, amount }) => ({ label, amount })));
     }
     const ranked = [...now].sort((a, b) => b.amount - a.amount);
-    if (!ranked.length) return answer(`Belum ada pengeluaran${subjectWords} ${P.label}.`, { intent, start: P.start, end: P.end, period: periodText });
+    if (!ranked.length) return answer(`${cap(P.label)} belum ada pengeluaran${subjectWords}.`, { intent, start: P.start, end: P.end, period: periodText });
     const name = (x: LedgerTx) => [x.description, x.merchant].filter(Boolean).filter((v, i, a) => a.findIndex(y => lower(y) === lower(v)) === i).join(' · ') || 'Pengeluaran';
     const best = ranked[0];
-    return answer(`Paling besar ${P.label}: ${name(best.tx)} ${rp(best.amount)} (${dm(best.tx.date)}).`, { intent, total: best.amount, label: name(best.tx), date: best.tx.date, start: P.start, end: P.end, period: periodText, focus: `tx:${best.tx.id}` }, ranked.slice(0, 4).map(r => ({ label: `${name(r.tx)} · ${dm(r.tx.date)}`, amount: r.amount })));
+    return answer(`Yang paling besar ${P.label}: ${name(best.tx)}, ${rp(best.amount)} (${dm(best.tx.date)}).`, { intent, total: best.amount, label: name(best.tx), date: best.tx.date, start: P.start, end: P.end, period: periodText, focus: `tx:${best.tx.id}` }, ranked.slice(0, 4).map(r => ({ label: `${name(r.tx)} · ${dm(r.tx.date)}`, amount: r.amount })));
   }
 
   if (intent === 'average') {
     const daily = /\b(?:sehari|per\s*hari|tiap\s+hari|harian)\b/.test(t);
     const elapsed = Math.max(1, days(P.start, P.end < addDays(today, 1) ? P.end : addDays(today, 1)));
     const value = daily ? Math.round(total / elapsed) : now.length ? Math.round(total / now.length) : 0;
-    const sentence = !now.length ? `Belum ada${subjectWords || ' pengeluaran'} ${P.label}.` : daily ? `Rata-rata${subjectWords} ${rp(value)} sehari (${rp(total)} dalam ${elapsed} hari, ${P.label}).` : `Rata-rata${subjectWords} ${rp(value)} sekali (${now.length} kali, ${P.label}).`;
+    const sentence = !now.length ? `${cap(P.label)} belum ada${subjectWords || ' pengeluaran'}.` : daily ? `Rata-rata${subjectWords} ${rp(value)} per hari (${P.label}, ${elapsed} hari).` : `Rata-rata${subjectWords} ${rp(value)} sekali bayar (${now.length} kali, ${P.label}).`;
     return answer(sentence, { intent, total: value, count: now.length, start: P.start, end: P.end, period: periodText, focus, label: what });
   }
 
@@ -298,8 +303,8 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
     const before = sum(rows(prevStart, prevEnd)), diff = curTotal - before;
     const word = flow === 'income' ? (diff >= 0 ? 'lebih banyak' : 'lebih sedikit') : diff > 0 ? 'lebih boros' : diff < 0 ? 'lebih hemat' : 'sama';
     const pct = before ? Math.round(Math.abs(diff) / before * 100) : 0;
-    const sentence = diff === 0 ? `${base.label.replace(/^./, c => c.toUpperCase())} sama dengan ${base.prev?.label || 'sebelumnya'}: ${rp(curTotal)}.` : `${base.label.replace(/^./, c => c.toUpperCase())} ${word} ${rp(Math.abs(diff))}${pct ? ` (${pct}%)` : ''}: ${rp(curTotal)} vs ${rp(before)} di ${span(prevStart, prevEnd)}.`;
-    return answer(sentence, { intent, total: curTotal, compare: before, start: base.start, end: base.end, period: `${base.label} · ${span(base.start, base.end)}`, before: { label: `${base.prev?.label || 'sebelumnya'} (${span(prevStart, prevEnd)})`, total: before }, focus: focusOf(subject, cur.map(r => r.tx.id), flow, base.start, base.end), label: what }, [{ label: base.label, amount: curTotal }, { label: `${base.prev?.label || 'sebelumnya'}, hari yang sama`, amount: before }]);
+    const sentence = !before && curTotal ? `Belum ada catatan di ${span(prevStart, prevEnd)} buat dibandingkan. ${cap(base.label)}: ${rp(curTotal)}.` : diff === 0 ? `${cap(base.label)} sama persis dengan ${span(prevStart, prevEnd)}: ${rp(curTotal)}.` : `${cap(base.label)} ${word} ${rp(Math.abs(diff))}${pct ? ` (${pct}%)` : ''} dibanding ${span(prevStart, prevEnd)} (${rp(before)}).`;
+    return answer(sentence, { intent, total: curTotal, compare: before, start: base.start, end: base.end, period: `${base.label} · ${span(base.start, base.end)}`, before: { label: `${base.prev?.label || 'sebelumnya'} (${span(prevStart, prevEnd)})`, total: before }, focus: focusOf(subject, cur.map(r => r.tx.id), flow, base.start, base.end), label: what }, [{ label: cap(base.label), amount: curTotal }, { label: `${cap(base.prev?.label || 'sebelumnya')}, tanggal yang sama`, amount: before }]);
   }
 
   // spend / income: the total, a breakdown and the same kind of period just before.
@@ -317,8 +322,9 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
     lines.push(...[...by].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([label, amount]) => ({ label, amount })));
   }
   const noun = flow === 'income' ? 'Pemasukan' : 'Pengeluaran';
-  const sentence = now.length
-    ? `${noun}${subjectWords} ${P.label} ${rp(total)} dari ${now.length} transaksi.`
-    : `Belum ada ${lower(noun)}${subjectWords} ${P.label}.`;
+  const sentence = !now.length ? `${cap(P.label)} belum ada ${lower(noun)}${subjectWords}.`
+    : subjectWords.trim().startsWith('pakai') ? `${noun} ${subjectWords.trim()} ${P.label} ${rp(total)} (${now.length} transaksi).`
+    : subjectWords ? `${cap(subjectWords.trim().replace(/[“”]/g, ''))} ${P.label} ${flow === 'income' ? 'masuk' : 'habis'} ${rp(total)} (${now.length} transaksi).`
+    : `${noun}mu ${P.label} ${rp(total)}, dari ${now.length} transaksi.`;
   return answer(sentence, { intent, total, count: now.length, start: P.start, end: P.end, period: periodText, before, focus, label: what }, lines);
 }

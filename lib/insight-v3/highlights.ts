@@ -34,7 +34,7 @@ export function highlightsView(r: InsightV3Report, limit = 6): Highlight[] {
   for (const s of live) {
     const base = { key: s.signature, signature: s.signature, title: s.headline && s.headline.length <= 70 ? s.headline : s.title };
     if (s.type === 'unusual_transaction') { const tx = byId.get(s.evidence.flatMap(e => e.txIds || [])[0] || ''); out.push({ ...base, rank: 1, date: dateOf(s), kind: 'alert', label: 'Tidak biasa', title: tx ? [tx.description, tx.merchant].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || s.title : s.title.replace(/^Tidak biasa:\s*/, ''), value: s.current ? money(s.current) : undefined, txId: tx?.id }); }
-    else if (s.signature === 'liquidity:lowest' && (s.current ?? 0) < 0) out.push({ ...base, rank: 0, date: today, kind: 'alert', label: 'Waspada', title: s.title, value: money(s.current!) });
+    else if (s.signature === 'liquidity:lowest' && (s.current ?? 0) < 0) out.push({ ...base, rank: 0, date: today, kind: 'alert', label: 'Hati-hati', title: s.title, value: money(s.current!) });
     else if (s.type === 'budget_over' || /^budget:pressure/.test(s.signature)) out.push({ ...base, rank: 1, date: today, kind: 'warn', label: 'Anggaran', title: s.title });
     else if (/^claims:aging/.test(s.signature)) out.push({ ...base, rank: 2, date: today, kind: 'warn', label: 'Klaim kantor', title: s.title });
     else if (/^receivable:late/.test(s.signature)) out.push({ ...base, rank: 2, date: today, kind: 'warn', label: 'Piutang', title: s.title });
@@ -42,7 +42,7 @@ export function highlightsView(r: InsightV3Report, limit = 6): Highlight[] {
   }
   // Good news the history already logged during this cycle (a target reached, a warning that cleared).
   for (const e of r.memory.tl.filter(x => x.d >= cur.start && (x.e === 'milestone' || x.e === 'resolved' || x.e === 'outcome')).slice(-2))
-    out.push({ key: `tl:${e.k}:${e.d}`, rank: 4, date: e.d, kind: 'good', label: e.e === 'milestone' ? 'Tercapai' : e.e === 'outcome' ? 'Hasil keputusan' : 'Selesai', title: e.t });
+    out.push({ key: `tl:${e.k}:${e.d}`, rank: 4, date: e.d, kind: 'good', label: e.e === 'milestone' ? 'Tercapai' : e.e === 'outcome' ? 'Hasil pilihanmu' : 'Selesai', title: e.t });
 
   const seen = new Set<string>();
   return out.sort((a, b) => a.rank - b.rank || b.date.localeCompare(a.date))

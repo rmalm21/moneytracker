@@ -12,6 +12,7 @@ import { compositionReceipt } from '@/lib/catat/composition';
 import { aliasKey, learnFromChoice, learnFromSave, learnOverrides, personalize, readTeach, teach, TYPE_LABEL, type AliasType, type Contact, type PersonalAction, type PersonalAlias, type PersonalAsk, type PersonalInput, type PersonalPlan, type SavedFacts } from '@/lib/catat/personal';
 import { rememberSaved, sessionView } from '@/lib/catat/session';
 import { planMutation } from '@/lib/catat/mutation';
+import { looksLikeQuestion, type AskMeta } from '@/lib/catat/ask';
 import { FIELD_LABELS, FIELD_STATUS, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
 import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveLexicon, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
@@ -39,11 +40,15 @@ type Example = { text: string; kind: QuickKind; result: string; section?: string
 const examples: Record<QuickGroup, Example[]> = {
   auto: [
     { text: 'beli kopi 25rb di kenangan', kind: 'expense', result: 'tempat dan kategorinya terisi sendiri', section: 'Transaksi' },
-    { text: 'gaji 7,5jt masuk bca', kind: 'income', result: 'Rp7.500.000 masuk ke BCA' },
-    { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
     { text: 'kemarin makan 25rb, parkir goceng, bensin 30rb pakai gopay', kind: 'expense', result: '3 pengeluaran sekaligus, kemarin, dari GoPay' },
+    { text: 'berapa pengeluaranku bulan ini', kind: 'query', result: 'dijawab dari catatanmu, tanpa internet', section: 'Tanya' },
+    { text: 'kapan terakhir isi bensin', kind: 'query', result: 'tanggal dan transaksinya' },
+    { text: 'sisa anggaran makan berapa', kind: 'query', result: 'terpakai dan sisanya periode ini' },
+    { text: 'bulan ini lebih boros dari bulan lalu?', kind: 'query', result: 'dibanding hari yang sama bulan lalu' },
+    { text: 'gaji 7,5jt masuk bca', kind: 'income', result: 'Rp7.500.000 masuk ke BCA', section: 'Lainnya' },
+    { text: 'pinjam 500rb dari budi', kind: 'debt_new', result: 'kamu berutang ke Budi' },
     { text: 'besok bayar kos 1,5jt, ingetin perpanjang stnk tgl 20', kind: 'plan_new', result: 'rencana dan pengingat sekaligus' },
-    { text: 'anggaran makan 2jt kecuali delivery', kind: 'budget', result: 'Makan & Minum tanpa Delivery', section: 'Menu lain' },
+    { text: 'anggaran makan 2jt kecuali delivery', kind: 'budget', result: 'Makan & Minum tanpa Delivery' },
     { text: 'saldo bca sekarang 12jt', kind: 'balance', result: 'saldo BCA disamakan dengan aslinya' },
     { text: 'langganan netflix 54rb tiap tanggal 5', kind: 'recurring_new', result: 'jadwal bulanan, tinggal konfirmasi' },
     { text: 'buka laporan', kind: 'open', result: 'langsung pindah ke menunya' },
@@ -121,7 +126,7 @@ const examples: Record<QuickGroup, Example[]> = {
 };
 type Tone = 'in' | 'out' | 'move' | 'menu';
 const toneOf = (kind: QuickKind, flow?: 'expense' | 'income'): Tone => ['income', 'receivable_payment', 'claim_payment'].includes(kind) || (kind === 'recurring_new' || kind === 'plan_new') && flow === 'income' ? 'in'
-  : ['transfer', 'target', 'wish', 'fund_new', 'wish_new'].includes(kind) ? 'move' : ['budget', 'wallet_new', 'balance', 'category_new', 'note_new', 'open'].includes(kind) ? 'menu' : 'out';
+  : ['transfer', 'target', 'wish', 'fund_new', 'wish_new'].includes(kind) ? 'move' : ['budget', 'wallet_new', 'balance', 'category_new', 'note_new', 'open', 'query'].includes(kind) ? 'menu' : 'out';
 const txKinds = new Set<QuickKind>(['expense', 'income', 'transfer', 'debt_payment', 'receivable_payment', 'claim_payment', 'target']);
 /** Entries of the other menus: a short summary first; their fields open with "Ubah detail" (or by themselves when something is missing). */
 const menuKinds = new Set<QuickKind>(['budget', 'fund_new', 'wish_new', 'wallet_new', 'balance', 'category_new', 'recurring_new', 'plan_new', 'note_new', 'open']);
@@ -171,7 +176,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const [contacts, setContacts] = useState<Contact[]>([]);
   useEffect(() => { if (!user) { setContacts([]); return; } let off: (() => void) | undefined, live = true; void import('@/lib/split-bill-store').then(m => { if (live) off = m.subscribeSplitContacts(user.uid, v => setContacts(v.people.map(p => ({ id: p.id, name: p.name }))), () => {}); }); return () => { live = false; off?.(); }; }, [user]);
   const people = useMemo(() => [...contacts.map(c => c.name), ...(lexicon?.on === false ? [] : Object.values(lexicon?.aliases || {}).filter(a => a.type === 'person' && (a.status === 'learned' || a.status === 'provisional')).map(a => a.label))], [contacts, lexicon]);
-  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), people }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent, people]);
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), people, ask: { transactions: data.transactions, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent, people]);
   /**
    * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
    * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
@@ -289,6 +294,8 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     if (!actions.length) { if (text.trim()) setError(plan?.references[0] || 'Sebutkan nominalnya, misalnya "beli pocari 8rb di alfa".'); return; }
     if (actions.length === 1) {
       const entry = registry.current.get(actions[0].id);
+      // A question is already answered on the card: Enter only puts the keyboard away so the whole answer shows.
+      if (actions[0].result.kind === 'query') { (document.activeElement as HTMLElement | null)?.blur(); return; }
       if (entry?.missing && entry.openForm) { entry.openForm(); return; }
       commit([actions[0].id]); return;
     }
@@ -302,6 +309,9 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const out = sum('expense'), income = sum('income'), budgets = sum('budget');
   const needs = kept.filter(a => registry.current.get(a.id)?.missing).length;
   const openForm = (preset: Partial<LedgerTx>) => { setText(''); onOpenForm(preset); };
+  // 6.0 Tanya: an answer opens Transaksi on exactly what it counted; a follow-up is asked in the same box.
+  const openFocus = useCallback((focus: string) => { reset(); onDone?.(); onNavigate?.('transactions', focus); }, [onDone, onNavigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  const askAgain = useCallback((question: string) => { setText(question); setMode('auto'); }, []);
   // Developer view (localStorage "dompet-ajaib:quick-debug" = "1"): the reading step by step and the action graph.
   const [debug] = useState(() => { try { return localStorage.getItem('dompet-ajaib:quick-debug') === '1'; } catch { return false; } });
 
@@ -312,7 +322,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form>
     <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>
-    {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
+    {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : example.kind === 'query' ? 'Tanya' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
     {teaching && teachRead && <div className="quick-preview qp-teach" aria-label="Simpan ke Kamus Pribadi">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><BookOpenText size={18}/></span><span className="qp-title"><small>Kamus Pribadi</small><strong>“{teachRead.raw}” = {teachRead.label}</strong></span></div>
       <div className="qp-picks" role="radiogroup" aria-label="Jenis kata">{(['merchant', 'person', 'place', 'wallet', 'category', 'abbr'] as AliasType[]).map(t => <button type="button" key={t} role="radio" aria-checked={(teachType || teachRead.type) === t} className={`sb-chip ${(teachType || teachRead.type) === t ? 'is-on' : ''}`} onClick={() => { setTeachType(t); setError(''); }}>{TYPE_LABEL[t]}</button>)}</div>
@@ -321,9 +331,11 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       <div className="qp-actions"><Button type="button" onClick={saveTeach} disabled={Boolean(teachRead.problem)}><Check size={15}/> Simpan ke Kamus Pribadi</Button></div>
     </div>}
     {!teaching && pAsks.map(a => <div key={a.raw + a.kind} className="qp-ask qp-personal-ask" role="group" aria-label={a.question}><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>{a.question}</span><span className="qp-picks">{a.choices.map(c => <button type="button" key={c.id} className="sb-chip" onClick={() => pickPersonal(a, c.id)}>{c.label}</button>)}<button type="button" className="sb-chip" onClick={() => pickPersonal(a, 'none')}>{a.kind === 'pronoun' ? 'Orang lain' : 'Bukan keduanya'}</button></span></div>)}
-    {!teaching && text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>}
+    {!teaching && text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && (!error && !plan?.references[0] && looksLikeQuestion(typed)
+      ? <div className="quick-preview qa-card qa-help" role="status"><div className="qa-head"><span className="qp-icon" aria-hidden="true"><MessageCircleQuestion size={18}/></span><span className="qa-kicker">Tanya</span></div><p className="qa-sentence">Yang itu belum bisa dijawab dari catatanmu. Coba tanya soal uangmu sendiri, misalnya:</p><div className="qa-next">{['berapa pengeluaranku bulan ini', 'kapan terakhir isi bensin', 'sisa anggaran makan berapa', 'saldo semua dompet berapa'].map(n => <button type="button" key={n} className="qa-chip" onClick={() => askAgain(n)}>{n}</button>)}</div></div>
+      : <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>)}
     {text.trim() && typed.trim() && !actions.length && (plan?.cancelled.length || 0) > 0 && <small className="qp-cancelled">Dibatalkan: {plan!.cancelled.map(c => `“${c}”`).join(', ')}. Tidak ada yang disimpan.</small>}
-    {!teaching && actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} error={error}/>}
+    {!teaching && actions.length === 1 && <QuickCard key={`${actions[0].id}:${actions[0].result.kind}`} action={actions[0]} layout="single" register={register} onSave={() => commit([actions[0].id])} onOpenForm={openForm} onSwitchMode={setMode} onOpen={openFocus} onAsk={askAgain} error={error}/>}
     {!teaching && actions.length > 1 && <div className="quick-preview quick-batch">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><ListChecks size={18}/></span><span className="qp-title"><small>{kept.length} aksi{needs ? ` · ${kept.length - needs} siap · ${needs} perlu dicek` : ' · semua siap'}</small><strong>{entries.length && entries.every(e => e.kind === 'expense') ? <>{rupiah(out)}<em> keluar</em></> : entries.length && entries.every(e => e.kind === 'income') ? <>{rupiah(income)}<em> masuk</em></> : entries.length && entries.every(e => e.kind === 'budget') ? <>{rupiah(budgets)}<em> anggaran</em></> : <>{kept.length}<em> catatan</em></>}</strong></span></div>
       {plan?.references.map(u => <small key={u} className="qp-flag is-check"><b>! Perlu dicek</b> · {u}</small>)}
@@ -346,7 +358,67 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
  * Only what needs attention is highlighted; the reasons stay behind "Kenapa?".
  */
 const OPERATIONS = new Set<QuickKind>(['tx_update', 'tx_delete', 'query', 'recurring_change']);
-const QuickCard = memo((props: CardProps) => OPERATIONS.has(props.action.result.kind) ? <OperationCardView {...props}/> : <QuickCardView {...props}/>, (a, b) => a.action === b.action && a.layout === b.layout && a.error === b.error && a.skipped === b.skipped && a.expanded === b.expanded && a.register === b.register && a.confirmAmount === b.confirmAmount);
+const QuickCard = memo((props: CardProps) => props.action.result.kind === 'query' && props.action.result.operation?.query?.ask ? <AnswerCardView {...props}/> : OPERATIONS.has(props.action.result.kind) ? <OperationCardView {...props}/> : <QuickCardView {...props}/>, (a, b) => a.action === b.action && a.layout === b.layout && a.error === b.error && a.skipped === b.skipped && a.expanded === b.expanded && a.register === b.register && a.confirmAmount === b.confirmAmount);
+
+const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const dayMonth = (iso: string) => { const [, m, d] = iso.split('-').map(Number); return `${d} ${SHORT_MONTH[m - 1]}`; };
+/** Next questions worth one tap, written so the same engine answers them. */
+function followUps(a: AskMeta): string[] {
+  const period = (a.period || '').split('·')[0].trim(), what = ((a.intent === 'balance' || a.intent === 'budget' ? a.label : a.subject) || '').replace(/[“”]/g, '');
+  const thing = what && what !== 'Semua dompet' && what !== 'Semua anggaran' ? what.toLocaleLowerCase('id-ID') : '';
+  const empty = (a.intent === 'spend' || a.intent === 'income' || a.intent === 'count') && !a.count;
+  if (empty) return thing ? [`kapan terakhir ${thing}`] : [];
+  const out: string[] = [];
+  if (a.intent === 'spend' || a.intent === 'income') {
+    const noun = a.intent === 'income' ? 'pemasukan' : 'pengeluaran';
+    if (a.before && a.before.total > 0 && /lalu|kemarin/.test(a.before.label) && period) out.push(`${noun} ${thing ? `${thing} ` : ''}${period} dibanding ${a.before.label}`);
+    if (a.intent === 'spend' && (a.count || 0) > 1) out.push(thing ? `rata-rata ${thing} sekali ${period}` : `pengeluaran terbesar ${period}`);
+    if (a.intent === 'spend' && !thing && period) out.push(`kategori paling boros ${period}`);
+    if (thing && a.intent === 'spend') out.push(`kapan terakhir ${thing}`);
+  } else if (a.intent === 'count' && thing) { out.push(`rata-rata ${thing} sekali ${period}`); out.push(`kapan terakhir ${thing}`); }
+  else if (a.intent === 'last' && thing) out.push(`berapa kali ${thing} bulan ini`);
+  else if (a.intent === 'top' && period) out.push(`pengeluaran ${period} berapa`);
+  else if (a.intent === 'budget') out.push('sisa semua anggaran');
+  else if (a.intent === 'balance' && a.label !== 'Semua dompet') out.push('total saldo semua dompet');
+  return out.slice(0, 3);
+}
+/**
+ * 6.0 Tanya: the answer to a question about one's own money. The figure first, the period it covers and what it was
+ * counted from, how it compares with the period before, a short breakdown, and the transactions behind it.
+ */
+function AnswerCardView({ action, register, onOpen, onAsk }: CardProps) {
+  const q = action.result.operation!.query!, a = q.ask!;
+  const { profile } = useApp(), today = todayInTimeZone(profile?.timeZone);
+  useEffect(() => { register(action.id, { missing: 'Ini pertanyaan; tidak ada yang disimpan.', build: () => ({ run: async () => undefined, pending: '', success: '', failure: '' }), kind: 'query', amount: 0 }); });
+  useEffect(() => () => register(action.id, null), [action.id, register]);
+  const days = (d: string) => Math.round((Date.parse(today) - Date.parse(d)) / 86_400_000);
+  const figure = a.intent === 'count' ? `${a.count ?? 0}×` : a.intent === 'last' ? (a.date ? dayMonth(a.date) : '—') : a.total != null ? rupiah(a.total) : '—';
+  const sub = a.intent === 'last' && a.date ? (days(a.date) <= 0 ? 'hari ini' : days(a.date) === 1 ? 'kemarin' : `${days(a.date)} hari lalu`) : a.period;
+  const over = a.intent === 'budget' && (a.total ?? 0) < 0;
+  const trend = a.before && a.before.total > 0 && (a.intent === 'spend' || a.intent === 'income') && a.total != null ? (() => {
+    const diff = a.total! - a.before!.total, up = diff > 0, pct = a.before!.total ? Math.round(Math.abs(diff) / a.before!.total * 100) : 0;
+    const good = a.intent === 'spend' ? !up : up;
+    return { text: diff === 0 ? `sama dengan ${a.before!.label}` : `${up ? '▲' : '▼'} ${pct ? `${pct}%` : rupiah(Math.abs(diff))} dibanding ${a.before!.label} (${rupiah(a.before!.total)})`, tone: diff === 0 ? 'flat' : good ? 'good' : 'bad' };
+  })() : null;
+  const max = Math.max(1, ...q.lines.map(l => Math.abs(l.amount)));
+  const count = a.intent === 'last' || a.intent === 'top' && a.focus?.startsWith('tx:') ? 1 : a.count;
+  const openLabel = a.intent === 'balance' ? `Lihat transaksi ${a.label}` : a.intent === 'budget' ? 'Lihat transaksi anggaran ini' : count === 1 ? 'Lihat transaksinya' : count ? `Lihat ${count} transaksi` : 'Lihat transaksi';
+  const next = followUps(a);
+  // Nothing counted: no list to open.
+  const canOpen = Boolean(a.focus && onOpen) && !(['spend', 'income', 'count', 'average'].includes(a.intent) && !a.count) && !(a.intent === 'compare' && !a.total);
+  return <div className={`quick-preview qa-card tone-neutral${over ? ' is-over' : ''}`} aria-live="polite">
+    <div className="qa-head"><span className="qp-icon" aria-hidden="true"><MessageCircleQuestion size={18}/></span><span className="qa-kicker">{a.intent === 'owed' ? 'Utang & piutang' : sub ? sub.replace(/^./, c => c.toUpperCase()) : 'Jawaban'}</span></div>
+    <strong className="qa-figure">{figure}</strong>
+    <p className="qa-sentence">{q.answer}</p>
+    {trend && <span className={`qa-trend is-${trend.tone}`}>{trend.text}</span>}
+    {q.lines.length > 1 && <ul className="qa-lines">{q.lines.map(l => <li key={l.label}><span className="qa-line-label">{l.label}</span><b>{rupiah(l.amount)}</b><i aria-hidden="true" style={{ width: `${Math.max(4, Math.abs(l.amount) / max * 100)}%` }}/></li>)}</ul>}
+    {a.basis && <small className="qa-basis">Diambil dari {a.basis}</small>}
+    {(canOpen || next.length > 0) && <div className="qa-actions">
+      {canOpen && <Button type="button" variant="secondary" onClick={() => onOpen?.(a.focus!)}>{openLabel} <ArrowRight size={15}/></Button>}
+      {next.length > 0 && onAsk && <div className="qa-next" role="group" aria-label="Tanya lagi">{next.map(n => <button type="button" key={n} className="qa-chip" onClick={() => onAsk(n)}>{n}</button>)}</div>}
+    </div>}
+  </div>;
+}
 
 /**
  * V3.3: a sentence about records that already exist — change one, delete (with a second tap), a question (nothing is
@@ -402,7 +474,7 @@ function OperationCardView({ action, register, onSave, error: outerError = '' }:
     {(kind === 'tx_update' || kind === 'recurring_change') && onSave && <div className="qp-actions"><Button type="button" onClick={onSave} disabled={Boolean(missing)}><Check size={15}/> Simpan perubahan</Button></div>}
   </div>;
 }
-type CardProps = { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void; /** V3.3: an amount confirmed for several cards at once ("Anggap 20 = Rp20.000…? Ya"). */ confirmAmount?: number };
+type CardProps = { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void; /** V3.3: an amount confirmed for several cards at once ("Anggap 20 = Rp20.000…? Ya"). */ confirmAmount?: number; /** 6.0 Tanya: open Transaksi on what an answer counted; ask a follow-up question. */ onOpen?: (focus: string) => void; onAsk?: (question: string) => void };
 function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle, confirmAmount }: CardProps) {
   const { data, profile, user } = useApp();
   const [choice, setChoice] = useState(0), [why, setWhy] = useState(false), [kindOk, setKindOk] = useState(false);

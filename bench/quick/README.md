@@ -100,3 +100,12 @@ corrections with "salah / nggak / no", "semalam", and the NLP.js model retrained
 `fixtures-v60dev.mjs` and `fixtures-v60heldout.mjs` (first run frozen in `heldout-first/`), 5.10 frozen in
 `baseline-v510/`, runner `run-v60.mjs` (any older set with `SET=`, `--shadow` for every sentence). Report:
 `REPORT-v60prep.md`.
+
+## Catat otomatis 6.0: Tanya (app 6.0)
+
+Questions about one's own money, answered on the device from the ledger (`lib/catat/ask.ts`): spending and income by
+period, category, place, wallet or a word of the notes; balances, budgets, last time, how often, the biggest, averages
+and comparisons. Ledger and truth helpers in `fixtures-v60askstate.mjs`; sets `fixtures-v60askdev.mjs` (32) and
+`fixtures-v60askheldout.mjs` (22, written before the engine; first run frozen in `heldout-first/v60-ask-heldout-first.json`).
+Runner `run-ask.mjs`. First results: dev 32/32, held-out 22/22, 0 confident-wrong. The held-out was written by the same
+author against the same small ledger, so real questions will miss more often than these numbers say.
