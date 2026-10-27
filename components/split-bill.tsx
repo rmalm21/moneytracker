@@ -119,7 +119,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
       <button type="button" onClick={() => { setChooser(false); setFlow({ mode: 'manual' }); }}><span className="sb-chooser-icon"><ReceiptText size={22}/></span><span><strong>Hitung Manual</strong><small>Isi total, orang, dan cara baginya sendiri.</small></span><ChevronRight size={18}/></button>
     </div></DialogContent></Dialog>
     {picker && <TransactionPicker bills={bills || []} onClose={() => setPicker(false)} onPick={tx => { setPicker(false); setFlow({ mode: 'transaction', tx }); }} onManual={() => { setPicker(false); navigate('transactions'); }}/>}
-    {flow && <SplitFlow start={flow} people={contacts.people} groups={contacts.groups} onClose={() => setFlow(null)} onSaved={(id, message) => { setFlow(null); notify(message); setOpenId(id); }}/>}
+    {flow && <SplitFlow start={flow} people={contacts.people} groups={contacts.groups} bills={bills || []} onClose={() => setFlow(null)} onSaved={(id, message) => { setFlow(null); notify(message); setOpenId(id); }}/>}
     {opened && <BillDetail bill={opened} state={progress.get(opened.id)!} notify={notify} onClose={() => setOpenId('')} onEdit={mode => { setOpenId(''); setFlow({ mode, bill: opened }); }} groups={contacts.groups}/>}
     <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} value={filter} onChange={setFilter} people={personNames} groups={contacts.groups}/>
     {peopleOpen && <PeopleManager people={contacts.people} groups={contacts.groups} bills={bills || []} onClose={() => setPeopleOpen(false)}/>}

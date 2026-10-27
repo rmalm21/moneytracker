@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.6', date: '27 Okt 2026', title: 'Split Bill lebih luwes', items: [
+    ['✅', 'Pembayaran di Split Bill sekarang bisa diubah. Salah tanggal, nominal, dompet, atau catatan? Buka orangnya, lalu ketuk ikon pensil di riwayat pembayaran. Tidak perlu menghapus lalu mencatat ulang. Saldo dompet dan sisa tagihan ikut menyesuaikan.'],
+    ['📝', 'Memilih orang di Split Bill jadi lebih rapi. Ada kolom cari yang sekaligus bisa menambah nama baru, deretan grup, “Sering diajak”, dan daftar semua orang dengan tanda centang. Ketuk sekali lagi untuk mengeluarkan seseorang. Grup juga bisa dimatikan lagi.'],
+    ['📝', 'Memilih anggota grup di Orang & grup memakai daftar yang sama, lengkap dengan kolom cari.'],
+  ] },
   { version: '5.5', date: '27 Okt 2026', title: 'Hapus dan arsip dompet', items: [
     ['✅', 'Dompet sekarang bisa dihapus: buka Lainnya di kartu dompet, lalu pilih Hapus dompet. Semua transaksinya tetap tersimpan di riwayat, laporan, dan grafik dengan nama “(dihapus)”. Utang, piutang, dan klaim yang terkait juga tetap utuh.'],
     ['🔒', 'Dompet yang diarsipkan kini ada tempatnya: bagian “Dompet diarsipkan” di bawah daftar dompet, lengkap dengan tombol Pulihkan dan Hapus. Sebelumnya dompet arsip yang belum pernah dipakai bisa terhapus sendiri, dan itu sudah diperbaiki.'],

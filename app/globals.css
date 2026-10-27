@@ -6262,6 +6262,46 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .sb-person-chip button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 99px; background: none; color: var(--muted); cursor: pointer; }
 .sb-person-add { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; border: 1px dashed var(--line-strong); border-radius: 999px; background: none; color: var(--accent); font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; }
 .sb-add-panel { display: grid; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--paper-2); }
+.sb-pick { display: grid; gap: 12px; padding: 12px; border-radius: 16px; background: var(--paper-2); min-width: 0; }
+.sb-pick-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--paper); color: var(--muted); }
+.sb-pick-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.sb-pick-search input { flex: 1; min-width: 0; height: 42px; border: 0; outline: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; }
+.sb-pick-clear { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 99px; background: none; color: var(--muted); cursor: pointer; }
+.sb-pick-new { display: grid; gap: 6px; }
+.sb-pick-new > button { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line-strong)); border-radius: 12px; background: var(--paper); color: var(--accent); font: inherit; font-size: .88rem; font-weight: 600; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.sb-pick-new b { color: var(--ink); }
+.sb-pick-sec { display: grid; gap: 7px; min-width: 0; }
+.sb-pick-sec h5 { margin: 0; color: var(--muted); font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.sb-pick-groups, .sb-pick-often { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 1px 12px 3px; scroll-padding: 12px; }
+.sb-pick-groups::-webkit-scrollbar, .sb-pick-often::-webkit-scrollbar { display: none; }
+.sb-pick-groups button { flex: none; display: flex; align-items: center; gap: 9px; min-height: 50px; padding: 6px 12px 6px 10px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.sb-pick-groups button img.emoji { width: 22px; height: 22px; margin: 0; }
+.sb-pick-groups button span { display: grid; line-height: 1.2; }
+.sb-pick-groups strong { font-size: .86rem; white-space: nowrap; }
+.sb-pick-groups small { color: var(--muted); font-size: .72rem; white-space: nowrap; }
+.sb-pick-groups button.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.sb-pick-groups button.is-on small, .sb-pick-groups button.is-on svg { color: var(--accent); }
+.sb-pick-often button { flex: none; display: grid; justify-items: center; gap: 4px; width: 62px; padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer; }
+.sb-pick-often button small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; font-weight: 600; }
+.sb-pick-often button:disabled { opacity: .6; cursor: default; }
+.sb-pick-face { position: relative; display: inline-grid; }
+.sb-pick-face .sb-avatar { width: 46px; height: 46px; font-size: 1.05rem; }
+.sb-pick-often button.is-on .sb-avatar { box-shadow: 0 0 0 2px var(--paper-2), 0 0 0 4px var(--accent); }
+.sb-pick-face i { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 19px; height: 19px; border: 2px solid var(--paper-2); border-radius: 99px; background: var(--accent); color: var(--accent-on); }
+.sb-pick-list { list-style: none; margin: 0; padding: 4px; max-height: min(44vh, 320px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.sb-pick-letter { display: block; padding: 8px 10px 2px; color: var(--muted); font-size: .7rem; font-weight: 800; }
+.sb-pick-list button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px 10px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.sb-pick-list button:hover { background: var(--paper-2); }
+.sb-pick-list button.is-on { background: var(--accent-soft); }
+.sb-pick-list button:disabled { opacity: .65; cursor: default; }
+.sb-pick-name { flex: 1; display: grid; min-width: 0; line-height: 1.25; }
+.sb-pick-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; font-weight: 600; }
+.sb-pick-name small { color: var(--muted); font-size: .74rem; }
+.sb-pick-tick { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid var(--line-strong); border-radius: 99px; color: var(--accent-on); }
+.sb-pick-list button.is-on .sb-pick-tick { border-color: var(--accent); background: var(--accent); }
+.sb-members { padding: 0; background: none; gap: 8px; }
+.sb-members .sb-pick-list { max-height: min(40vh, 280px); }
+.sb-pick-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 /* Rows */
 .sbx-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .sbx-row { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); padding-bottom: 8px; }

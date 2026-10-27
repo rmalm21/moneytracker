@@ -7,9 +7,9 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { Field, Input, Money, Select } from './fields';
 import { CategoryPicker } from './category-picker';
-import { Emoji } from './emoji';
 import { AppIcon } from './visual-identity';
 import { PeopleManager } from './split-people';
+import { PeoplePicker } from './split-people-picker';
 import { PersonAvatar, personName, shrinkPhoto } from './split-bill-shared';
 import { ReceiptScan } from './receipt-scan';
 import { billProgress, computeSplit, defaultDistribution, differenceText, EXTRA_LABELS, isDeduction, METHOD_LABELS, splitFromReceipt } from '@/lib/split-bill';
@@ -61,7 +61,7 @@ function startBill(start: FlowStart, context: { myName: string; today: string; w
   return { ...base, title: tx.description || tx.merchant || 'Split Bill', merchant: tx.merchant || '', date: tx.date, time: tx.time || '', total: tx.amount, walletId: tx.walletId, transactionId: tx.id, fromTransaction: true, categoryId: tx.categoryId, subcategoryId: tx.subcategoryId, notes: tx.notes || '' };
 }
 
-export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: FlowStart; people: SplitPerson[]; groups: SplitGroup[]; onClose: () => void; onSaved: (id: string, message: string) => void }) {
+export function SplitFlow({ start, people, groups, bills = [], onClose, onSaved }: { start: FlowStart; people: SplitPerson[]; groups: SplitGroup[]; bills?: SplitBill[]; onClose: () => void; onSaved: (id: string, message: string) => void }) {
   const { user, data, profile } = useApp();
   const { track } = useNotify();
   const today = todayInTimeZone(profile?.timeZone);
@@ -74,7 +74,7 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
   // Opening from "Scan struk" goes straight to the camera and the shared receipt review.
   const [scanOpen, setScanOpen] = useState(start.mode === 'receipt' && !start.receipt);
   const [openItem, setOpenItem] = useState(''), [addingItem, setAddingItem] = useState(false), [addingPerson, setAddingPerson] = useState(false), [openPerson, setOpenPerson] = useState(''), [billOpen, setBillOpen] = useState(false), [otherMethods, setOtherMethods] = useState(false);
-  const [newName, setNewName] = useState(''), [remember, setRemember] = useState(true), [lastPicked, setLastPicked] = useState('');
+  const [lastPicked, setLastPicked] = useState('');
   const [itemName, setItemName] = useState(''), [itemQty, setItemQty] = useState(1), [itemPrice, setItemPrice] = useState(0);
   const [openExtra, setOpenExtra] = useState(''), [addingExtra, setAddingExtra] = useState(false), [peopleOpen, setPeopleOpen] = useState(false), [exactFor, setExactFor] = useState('');
   const editing = start.mode === 'edit' && start.bill?.status === 'active';
@@ -112,13 +112,9 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     setError('');
     return person;
   }
-  async function addTyped() {
-    const clean = newName.trim();
-    if (!clean) return;
-    const saved = people.find(person => person.name.trim().toLocaleLowerCase('id-ID') === clean.toLocaleLowerCase('id-ID'));
-    if (saved) { addPerson(saved.name, { personId: saved.id, emoji: saved.emoji || undefined }); setNewName(''); return; }
+  /** A name typed in the picker that is not saved yet (kept in Orang tersimpan when asked). */
+  async function addNew(clean: string, remember: boolean) {
     const person = addPerson(clean);
-    setNewName('');
     if (person && remember && user) {
       try { const id = await saveSplitPerson(user.uid, { name: clean }); setBill(current => ({ ...current, participants: current.participants.map(row => row.id === person.id ? { ...row, personId: id } : row) })); }
       catch { /* the bill still works without the saved contact */ }
@@ -137,16 +133,19 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
     if (on && !me) setBill(current => ({ ...current, participants: [{ id: 'me', name: myName, isMe: true }, ...current.participants] }));
     if (!on && me) removePerson(me.id);
   }
-  function addGroup(group: SplitGroup) {
+  /** A group on (its saved members join the bill) or off (members who paid nothing leave it). */
+  function addGroup(group: SplitGroup, on = true) {
+    if (!on) {
+      const out = new Set(group.memberIds), leaving = bill.participants.filter(person => person.personId && out.has(person.personId) && !paidPeople.has(person.id));
+      leaving.forEach(person => removePerson(person.id));
+      if (bill.groupId === group.id) setBill(current => ({ ...current, groupId: null }));
+      return;
+    }
     const members = group.memberIds.map(id => people.find(person => person.id === id)).filter((person): person is SplitPerson => Boolean(person));
     const known = new Set(bill.participants.map(person => person.personId || person.name.trim().toLocaleLowerCase('id-ID')));
     const fresh = members.filter(person => !known.has(person.id) && !known.has(person.name.trim().toLocaleLowerCase('id-ID'))).map(person => ({ id: newId('p'), name: person.name, personId: person.id, emoji: person.emoji || undefined }));
     setBill(current => ({ ...current, groupId: group.id, participants: [...current.participants, ...fresh], payerId: current.payer === 'other' && !current.payerId && fresh[0] ? fresh[0].id : current.payerId }));
   }
-  const suggestions = useMemo(() => {
-    const query = newName.trim().toLocaleLowerCase('id-ID'), taken = new Set(bill.participants.map(person => person.personId).filter(Boolean));
-    return people.filter(person => !taken.has(person.id) && (!query || person.name.toLocaleLowerCase('id-ID').includes(query) || (person.nickname || '').toLocaleLowerCase('id-ID').includes(query))).slice(0, query ? 6 : 10);
-  }, [people, newName, bill.participants]);
 
   /* ---------------- items and extras */
   const setItems = (items: SplitItem[]) => setBill(current => ({ ...current, items, method: items.length && !current.items.length && current.method === 'equal' ? 'items' : !items.length && current.method === 'items' ? 'equal' : current.method }));
@@ -243,17 +242,9 @@ export function SplitFlow({ start, people, groups, onClose, onSaved }: { start: 
             <div className="sb-chips">{!me && <button type="button" role="radio" aria-checked={bill.payer === 'me'} className={`sb-chip ${bill.payer === 'me' ? 'is-on' : ''}`} disabled={bill.payer !== 'me' && hasPayments} onClick={() => patch({ payer: 'me', payerId: '' })}>{bill.payer === 'me' ? <Check size={13}/> : null}<span>Saya (tidak ikut patungan)</span></button>}{bill.participants.map(person => { const on = bill.payer === 'me' ? Boolean(person.isMe) : person.id === bill.payerId; const locked = !on && (hasPayments || (bill.fromTransaction && !person.isMe)); return <button type="button" role="radio" aria-checked={on} key={person.id} className={`sb-chip ${on ? 'is-on' : ''}`} disabled={locked} title={locked ? (hasPayments ? 'Sudah ada pembayaran, pembayar tidak bisa diganti.' : 'Split Bill dari transaksi selalu dibayar olehmu.') : undefined} onClick={() => patch(person.isMe ? { payer: 'me', payerId: person.id } : { payer: 'other', payerId: person.id })}>{on ? <Check size={13}/> : <PersonAvatar person={person} size="sm"/>}<span>{personName(person)}</span></button>; })}</div>
             <small className="muted">{bill.payer === 'me' ? `Kamu yang bayar${bill.fromTransaction ? '' : ` dari ${walletName}`}; teman membayar balik ke kamu.` : `${payer ? personName(payer) : 'Orang lain'} yang bayar; bagianmu jadi utang ke dia.`}</small>
           </div>
-          {addingPerson && <div className="sb-add-panel">
-            <form className="sb-add" onSubmit={e => { e.preventDefault(); void addTyped(); }}>
-              <Input value={newName} maxLength={60} onChange={e => setNewName(e.target.value)} placeholder="Nama orang" aria-label="Nama orang" autoComplete="off" autoFocus/>
-              <Button type="submit" className="small" disabled={!newName.trim()}>Tambah</Button>
-            </form>
-            {newName.trim() && !people.some(person => person.name.trim().toLocaleLowerCase('id-ID') === newName.trim().toLocaleLowerCase('id-ID')) && <label className="check-row sb-remember"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}/> Simpan ke Orang tersimpan</label>}
-            {suggestions.length > 0 && <div className="sb-chips">{suggestions.map(person => <button type="button" key={person.id} className="sb-chip" onClick={() => { addPerson(person.name, { personId: person.id, emoji: person.emoji || undefined }); setNewName(''); }}>{person.emoji ? <Emoji e={person.emoji}/> : <Plus size={14}/>}<span>{person.name}</span></button>)}</div>}
-            {groups.length > 0 && <div className="sb-chips">{groups.map(group => <button type="button" key={group.id} className={`sb-chip ${bill.groupId === group.id ? 'is-on' : ''}`} onClick={() => addGroup(group)}><Emoji e={group.emoji || '👥'}/><span>{group.name}</span><small>{group.memberIds.length}</small></button>)}</div>}
-            <label className="check-row"><input type="checkbox" checked={Boolean(me)} onChange={e => toggleMe(e.target.checked)}/> Saya ikut patungan</label>
-            <button type="button" className="sb-link" onClick={() => setPeopleOpen(true)}><Users size={14}/> Kelola orang tersimpan{people.length ? ` (${people.length})` : ''}</button>
-          </div>}
+          {addingPerson && <PeoplePicker people={people} groups={groups} bills={bills} participants={bill.participants} locked={paidPeople} groupId={bill.groupId} me={Boolean(me)}
+            onAdd={person => addPerson(person.name, { personId: person.id, emoji: person.emoji || undefined })} onAddNew={(name, remember) => void addNew(name, remember)} onRemove={removePerson}
+            onGroup={addGroup} onToggleMe={toggleMe} onManage={() => setPeopleOpen(true)} onDone={() => setAddingPerson(false)}/>}
         </section>
 
         {/* 3. Items and who had them. */}

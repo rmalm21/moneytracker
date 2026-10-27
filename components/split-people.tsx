@@ -9,6 +9,7 @@ import { Confirm } from './ui/alert-dialog';
 import { Empty, Field, Input } from './fields';
 import { Emoji } from './emoji';
 import { EmojiSearchButton } from './visual-identity';
+import { MemberList } from './split-people-picker';
 import { PersonAvatar } from './split-bill-shared';
 import { deleteSplitGroup, deleteSplitPerson, saveSplitGroup, saveSplitPerson } from '@/lib/split-bill-store';
 import type { SplitBill, SplitGroup, SplitPerson } from '@/lib/types';
@@ -61,7 +62,7 @@ export function PeopleManager({ people, groups, bills = [], onClose }: { people:
       {group ? <form className="form-stack sb-edit" onSubmit={saveGroup}>
         <Field label="Nama grup"><Input autoFocus value={group.name || ''} maxLength={60} onChange={e => setGroup({ ...group, name: e.target.value })} placeholder="Misalnya Bultang, Kantor, Trip"/></Field>
         <div className="sb-emoji-row"><span className="sb-emoji-now"><Emoji e={group.emoji || '👥'}/></span><div className="sb-chips">{['🏸', '💼', '🏖️', '👥', '🍜', '⚽', '🎮', '🏠'].map(emoji => <button type="button" key={emoji} className={`sb-chip ${group.emoji === emoji ? 'is-on' : ''}`} onClick={() => setGroup({ ...group, emoji })}><Emoji e={emoji}/></button>)}</div><EmojiSearchButton value={group.emoji} onPick={emoji => setGroup({ ...group, emoji })} label="Lainnya"/></div>
-        <Field label="Anggota">{people.length ? <div className="sb-chips">{people.map(row => { const on = (group.memberIds || []).includes(row.id); return <button type="button" key={row.id} className={`sb-chip ${on ? 'is-on' : ''}`} aria-pressed={on} onClick={() => setGroup({ ...group, memberIds: on ? (group.memberIds || []).filter(id => id !== row.id) : [...(group.memberIds || []), row.id] })}><PersonAvatar person={row} size="sm"/><span>{row.name}</span></button>; })}</div> : <p className="muted">Tambahkan orang di tab Orang tersimpan dulu.</p>}</Field>
+        <Field label="Anggota">{people.length ? <MemberList people={people} value={group.memberIds || []} onChange={memberIds => setGroup({ ...group, memberIds })}/> : <p className="muted">Tambahkan orang di tab Orang tersimpan dulu.</p>}</Field>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="modal-actions"><Button type="button" variant="secondary" onClick={() => setGroup(null)}>Batal</Button><Button type="submit">Simpan</Button></div>
       </form> : <Button variant="secondary" onClick={() => setGroup({ name: '', emoji: '👥', memberIds: [] })}><Plus size={16}/> Buat grup</Button>}
