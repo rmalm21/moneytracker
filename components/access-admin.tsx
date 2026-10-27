@@ -5,7 +5,7 @@ import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input } from './fields';
-import { ACCESS_SINCE, approveRequest, createCode, deleteCode, dismissRequest, listCodes, listGrants, revokeGrant, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
+import { ACCESS_SINCE, watchGrants, approveRequest, createCode, deleteCode, dismissRequest, listCodes, revokeGrant, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
 
 const day = (d?: Date) => d ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) : '';
 const ago = (d?: Date) => { if (!d) return ''; const m = Math.round((Date.now() - d.getTime()) / 60_000); return m < 1 ? 'baru saja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : day(d); };
@@ -18,8 +18,11 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
   const [days, setDays] = useState(7), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [fresh, setFresh] = useState(''), [copied, setCopied] = useState(false), [error, setError] = useState('');
   const [requests, setRequests] = useState<AccessRequest[] | null>(null), [working, setWorking] = useState('');
   useEffect(() => watchRequests(setRequests), []);
+  useEffect(() => watchGrants(setGrants), []);
+  // A request from someone who already got in (with a code) is done: tidied away.
+  useEffect(() => { for (const r of requests || []) if ((grants || []).some(g => g.uid === r.uid)) void dismissRequest(r.uid).catch(() => undefined); }, [requests, grants]);
   useEffect(() => { if (fresh) document.querySelector('.access-fresh')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [fresh]);
-  const load = useCallback(() => { void listCodes().then(setCodes).catch(() => setError('Daftar kode belum bisa dibuka.')); void listGrants().then(setGrants).catch(() => undefined); }, []);
+  const load = useCallback(() => { void listCodes().then(setCodes).catch(() => setError('Daftar kode belum bisa dibuka.')); }, []);
   useEffect(load, [load]);
   if (!user) return null;
   async function make(forWho = note) { setBusy(true); setError(''); try { const code = await createCode(user!, days, forWho); setFresh(code); setNote(''); setCopied(false); load(); } catch (e) { setError((e as Error).message || 'Belum berhasil membuat kode.'); } finally { setBusy(false); } }

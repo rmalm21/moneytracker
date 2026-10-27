@@ -8118,3 +8118,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 :root[data-theme='dark'] .heads-up, :root[data-theme='dark'] .toast-card { background: var(--paper); box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .75); }
 .heads-up.is-warning, .toast-card.is-warning { border-left: 3px solid var(--amber); }
 .heads-up.is-error, .toast-card.is-error { border-left: 3px solid var(--rose); }
+.login-credit-star { display: inline-block; margin-left: 2px; font-size: 1rem; line-height: 1; background: linear-gradient(135deg, #7be3ff, var(--accent) 45%, #b48cff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 45%, transparent)); transform: translateY(1px); }
+/* 6.3: asking again after the owner dismissed a request. */
+.access-resend { width: 100%; display: grid; gap: 8px; justify-items: center; padding: 10px 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--paper)); font-size: .82rem; color: color-mix(in srgb, var(--ink) 80%, var(--muted)); }
+.access-switch:disabled { opacity: .6; cursor: default; }

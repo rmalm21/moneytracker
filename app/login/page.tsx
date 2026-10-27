@@ -43,7 +43,7 @@ export default function LoginPage(){
     <div className="login-or" role="separator"><span>atau</span></div>
     <GoogleButton busy={googleBusy} disabled={busy||!ready} onClick={()=>void google()}/><p className="login-foot">Data setiap akun tersimpan terpisah dan dilindungi oleh aturan akses cloud.</p>
    </>}
-  <p className="login-credit">created by Rama <span aria-hidden="true">⭐</span></p>
+  <p className="login-credit">created by Rama <span className="login-credit-star" aria-hidden="true">✦</span></p>
   </div></div>
   <Dialog open={forgotOpen} onOpenChange={setForgotOpen}><DialogContent title="Atur ulang password" className="auth-dialog">{forgotOpen&&<ForgotPassword initial={identifier} onClose={()=>setForgotOpen(false)}/>}</DialogContent></Dialog></main>;
 }

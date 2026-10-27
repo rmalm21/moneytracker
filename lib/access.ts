@@ -24,7 +24,7 @@ export const madeBeforeAccess = (user: Pick<User, 'metadata'> | null) => Boolean
 const okKey = (uid: string) => `dompet-ajaib:access:${uid}`;
 const revokedKey = (uid: string) => `dompet-ajaib:revoked:${uid}`;
 /** "May open" (offline too) and, separately, "the owner took access back" (until access is given again). */
-const remember = (uid: string, ok: boolean, revoked = false) => { try { if (ok) { localStorage.setItem(okKey(uid), '1'); localStorage.removeItem(revokedKey(uid)); } else { localStorage.removeItem(okKey(uid)); if (revoked) localStorage.setItem(revokedKey(uid), '1'); } } catch { /* optional */ } };
+const remember = (uid: string, ok: boolean, revoked = false) => { try { if (ok) { localStorage.setItem(okKey(uid), '1'); localStorage.removeItem(revokedKey(uid)); sessionStorage.removeItem(`dompet-ajaib:asked:${uid}`); } else { localStorage.removeItem(okKey(uid)); if (revoked) localStorage.setItem(revokedKey(uid), '1'); } } catch { /* optional */ } };
 const wasRevoked = (uid: string) => { try { return localStorage.getItem(revokedKey(uid)) === '1'; } catch { return false; } };
 const need = () => { if (!db) throw Error('Konfigurasi cloud belum tersedia.'); return db; };
 const toDate = (v: unknown) => v instanceof Timestamp ? v.toDate() : undefined;
@@ -68,7 +68,7 @@ export async function redeemCode(user: User, typed: string) {
   const batch = writeBatch(store);
   batch.update(doc(store, 'accessCodes', code), { usedBy: user.uid, usedAt: serverTimestamp(), usedEmail: user.email || '' });
   batch.set(doc(store, 'accessGrants', user.uid), { code, email: user.email || '', at: serverTimestamp() });
-  try { await batch.commit(); void deleteDoc(doc(store, 'accessRequests', user.uid)).catch(() => undefined); }
+  try { await batch.commit(); }
   catch (error) {
     const c = (error as { code?: string })?.code || '';
     if (/permission-denied|not-found/.test(c)) throw Error('Kodenya tidak cocok, sudah dipakai, atau sudah kedaluwarsa. Minta kode baru ke pemilik aplikasi.');
@@ -80,10 +80,22 @@ export async function redeemCode(user: User, typed: string) {
 
 /** Puts this account on the owner's "Minta akses" list (once per opening; the rules allow one write a minute). */
 export async function askForAccess(user: User) {
+  // At most once a minute from this device (the rules hold the same limit); a request is sent again after access was
+  // taken back, because approving one deletes it.
   const key = `dompet-ajaib:asked:${user.uid}`;
-  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* ask anyway */ }
-  await setDoc(doc(need(), 'accessRequests', user.uid), { email: user.email || '', name: (user.displayName || '').slice(0, 80), at: serverTimestamp(), tries: increment(1), since: user.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : '' }, { merge: true }).catch(() => undefined);
+  try { const last = Number(sessionStorage.getItem(key)) || 0; if (Date.now() - last < 65_000) return; sessionStorage.setItem(key, String(Date.now())); } catch { /* ask anyway */ }
+  await sendRequest(user).catch(() => undefined);
 }
+/** Sends (or sends again) this account's request to the owner. */
+export function sendRequest(user: User) {
+  return setDoc(doc(need(), 'accessRequests', user.uid), { email: user.email || '', name: (user.displayName || '').slice(0, 80), at: serverTimestamp(), tries: increment(1), since: user.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : '' }, { merge: true });
+}
+/** Whether this account's request is still on the owner's list (false once the owner dismissed it). */
+export function watchOwnRequest(uid: string, onValue: (waiting: boolean) => void): Unsubscribe {
+  return onSnapshot(doc(need(), 'accessRequests', uid), snap => { if (!snap.metadata.fromCache) onValue(snap.exists()); }, () => undefined);
+}
+/** Waiting time before asking again, growing with each try: 5 s, 10 s, 30 s, then 1 minute. */
+export const RESEND_WAIT = [5, 10, 30, 60];
 /** Opens the app the moment the owner lets this account in (approved, or a code redeemed elsewhere). */
 export function watchGrant(uid: string, onGranted: () => void): Unsubscribe {
   return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (snap.exists()) { remember(uid, true); onGranted(); } }, () => undefined);
@@ -122,6 +134,10 @@ export async function listCodes(): Promise<AccessCode[]> {
   const snap = await getDocs(collection(need(), 'accessCodes'));
   return snap.docs.map(d => { const x = d.data(); return { code: d.id, createdAt: toDate(x.createdAt), expiresAt: toDate(x.expiresAt), note: x.note || '', usedBy: x.usedBy || null, usedAt: toDate(x.usedAt), usedEmail: x.usedEmail || '' }; })
     .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+}
+/** Who has access, live (so the request list never hides someone whose access was just taken back). */
+export function watchGrants(onValue: (list: AccessGrant[]) => void): Unsubscribe {
+  return onSnapshot(collection(need(), 'accessGrants'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, code: x.code || '', email: x.email || '', at: toDate(x.at) }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => undefined);
 }
 export async function listGrants(): Promise<AccessGrant[]> {
   const snap = await getDocs(collection(need(), 'accessGrants'));

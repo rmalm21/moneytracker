@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { signOut } from 'firebase/auth';
-import { Check, KeyRound, LoaderCircle, LogIn, LogOut, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, KeyRound, LoaderCircle, LogIn, LogOut, Send, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { auth } from '@/lib/firebase';
-import { askForAccess, cleanCode, madeBeforeAccess, redeemCode, showCode, watchGrant } from '@/lib/access';
+import { RESEND_WAIT, askForAccess, cleanCode, madeBeforeAccess, redeemCode, sendRequest, showCode, watchGrant, watchOwnRequest } from '@/lib/access';
 
 /**
  * 6.1 Kode akses, step two after signing in: Dompet Ajaib is for people its owner invited. The person types the code
@@ -19,6 +19,15 @@ export function AccessGate() {
   const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false);
   // The owner sees this account in their list right away, and can let it in without a code: then this screen opens.
   useEffect(() => { if (!user) return; void askForAccess(user); return watchGrant(user.uid, () => { setDone(true); setTimeout(refreshAccess, 1100); }); }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Whether the request is still on the owner's list. Dismissed: ask again, waiting longer each time (5 s, 10 s,
+  // 30 s, then a minute) so nobody floods the owner.
+  const [waiting, setWaiting] = useState<boolean | null>(null), [tries, setTries] = useState(0), [readyAt, setReadyAt] = useState(0), [now, setNow] = useState(Date.now()), [sending, setSending] = useState(false);
+  useEffect(() => user ? watchOwnRequest(user.uid, setWaiting) : undefined, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Each time the request is found dismissed, the wait starts fresh from that moment.
+  useEffect(() => { if (waiting === false) setReadyAt(Date.now() + RESEND_WAIT[Math.min(tries, RESEND_WAIT.length - 1)] * 1000); else setReadyAt(0); setNow(Date.now()); }, [waiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (waiting !== false || now >= readyAt) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [waiting, now, readyAt]);
+  const left = Math.max(0, Math.ceil((readyAt - now) / 1000));
+  async function askAgain() { if (!user || left || sending) return; setSending(true); try { await sendRequest(user); setTries(n => n + 1); } catch { setError('Belum bisa mengirim. Tunggu sebentar, lalu coba lagi.'); } finally { setSending(false); } }
   const input = useRef<HTMLInputElement>(null);
   const clean = cleanCode(code).slice(0, 9), boxes = useMemo(() => Array.from({ length: 9 }, (_, i) => clean[i] || ''), [clean]);
   async function submit(event: FormEvent) {
@@ -43,7 +52,9 @@ export function AccessGate() {
           : kind === 'update'
             ? 'Dompet Ajaib sekarang lebih aman: tiap akun perlu izin dari pemilik. Ini cuma sekali, dan datamu tetap aman seperti biasa. Begitu diizinkan, aplikasi langsung terbuka. Punya kode? Ketik di bawah.'
             : 'Dompet Ajaib cuma untuk yang diundang. Ketik kode dari pemilik aplikasi, atau tunggu sebentar sampai kamu diizinkan.'}</p>
-        <p className="access-waiting" role="status"><i aria-hidden="true"/>{kind === 'revoked' ? 'Permintaan akses ulang sudah terkirim' : 'Permintaan akses sudah terkirim ke pemilik'}</p>
+        {waiting === false
+          ? <div className="access-resend" role="status"><span>Permintaanmu belum diterima pemilik. Kirim lagi kalau perlu, ya.</span><button type="button" className="access-switch" disabled={left > 0 || sending} onClick={() => void askAgain()}><Send size={14}/> {sending ? 'Mengirim…' : left ? `Kirim lagi (${left} dtk)` : 'Kirim permintaan lagi'}</button></div>
+          : <p className="access-waiting" role="status"><i aria-hidden="true"/>{kind === 'revoked' ? 'Permintaan akses ulang sudah terkirim' : 'Permintaan akses sudah terkirim ke pemilik'}</p>}
         <form onSubmit={submit} className="access-form">
           <label className={`access-code ${error ? 'is-error' : ''}`} onClick={() => input.current?.focus()}>
             <span className="sr-only">Kode akses</span>

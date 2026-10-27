@@ -86,8 +86,10 @@ service cloud.firestore {
     // Someone signed in without access asks for it: their email shows in the owner's list (approve or give a code).
     // Only their own request, small, and not more than once a minute.
     match /accessRequests/{uid} {
-      allow get, list: if isAdmin();
-      allow delete: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      // The person sees whether their request is still waiting (the owner may have dismissed it); only the owner
+      // removes requests, so asking again needs the owner to have acted first (no create-delete loop).
+      allow get: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow list, delete: if isAdmin();
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['email', 'name', 'at', 'tries', 'since'])
         && request.resource.data.get('since', '') is string && request.resource.data.get('since', '').size() <= 40
