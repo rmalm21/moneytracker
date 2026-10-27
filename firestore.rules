@@ -1,7 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function own(userId) { return request.auth != null && request.auth.uid == userId; }
+    // 6.1 Kode akses: the app is for people the owner let in. An account can use its data only with a grant
+    // (accessGrants/{uid}), made by the owner or by redeeming one of the owner's codes. The owner (an admin listed in
+    // appConfig/access, set once in the Firebase Console) always gets in.
+    function adminUid(uid) {
+      return exists(/databases/$(database)/documents/appConfig/access)
+        && uid in get(/databases/$(database)/documents/appConfig/access).data.get('admins', []);
+    }
+    function isAdmin() { return request.auth != null && adminUid(request.auth.uid); }
+    function allowed() { return exists(/databases/$(database)/documents/accessGrants/$(request.auth.uid)) || isAdmin(); }
+    function own(userId) { return request.auth != null && request.auth.uid == userId && allowed(); }
     function canPay(userId, walletId) {
       let wallet = get(/databases/$(database)/documents/users/$(userId)/wallets/$(walletId));
       return wallet.data.get('isArchived', false) == false
@@ -46,6 +55,34 @@ service cloud.firestore {
             && transactionId == 'wint_' + data.walletId + '_' + data.date);
     }
     function validName(data, longest) { return data.name is string && data.name.size() > 0 && data.name.size() <= longest; }
+    // Read by the app to know whether the signed-in account is the owner. Changed only in the Firebase Console.
+    match /appConfig/{docId} {
+      allow get: if request.auth != null;
+      allow list, write: if false;
+    }
+    // A code: random, one use, with an expiry. Only the owner sees and makes codes. Someone signed in redeems one by
+    // writing their own uid on it, in the same batch that creates their grant (each checks the other with getAfter).
+    match /accessCodes/{code} {
+      allow get, list, create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (request.auth != null
+            && resource.data.get('usedBy', null) == null
+            && resource.data.get('expiresAt', request.time) >= request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt', 'usedEmail'])
+            && request.resource.data.usedBy == request.auth.uid
+            && getAfter(/databases/$(database)/documents/accessGrants/$(request.auth.uid)).data.code == code);
+    }
+    match /accessGrants/{uid} {
+      allow get: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow list, delete: if isAdmin();
+      allow update: if false;
+      allow create: if isAdmin()
+        || (request.auth != null && request.auth.uid == uid
+            && request.resource.data.keys().hasOnly(['code', 'email', 'at'])
+            && request.resource.data.code is string
+            && get(/databases/$(database)/documents/accessCodes/$(request.resource.data.code)).data.get('usedBy', null) == null
+            && getAfter(/databases/$(database)/documents/accessCodes/$(request.resource.data.code)).data.usedBy == uid);
+    }
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {

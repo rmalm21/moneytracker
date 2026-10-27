@@ -1,5 +1,6 @@
 import { collection, deleteDoc, deleteField, getDocs, limit, query, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, signOut, type User } from 'firebase/auth';
+import { signedInRecently } from './auth';
 import { auth, db } from './firebase';
 import { coll, exportData, names, userRef } from './firestore';
 import { isOffline } from './offline';
@@ -68,13 +69,18 @@ export async function resetAllData(uid: string, options: { preferences: boolean 
 }
 
 export type DeleteProgress = WipeProgress & { stage: 'verify' | 'data' | 'account' };
-/** Checks the password, deletes every record and the profile, then the login itself. */
-export async function deleteAccount(user: User, password: string, onProgress?: (progress: DeleteProgress) => void) {
+/**
+ * Checks it is the owner, deletes every record and the profile, then the login itself. With a password the password
+ * is checked; an account that signs in with Google only (password null) must have signed in a few minutes ago, which
+ * is checked BEFORE anything is deleted (Firebase would refuse to delete the login afterwards).
+ */
+export async function deleteAccount(user: User, password: string | null, onProgress?: (progress: DeleteProgress) => void) {
   requireOnline();
   if (!user.email) throw Error('Akun ini belum memiliki email.');
   const uid = user.uid, total = wipeOrder.length;
   onProgress?.({ stage: 'verify', step: 0, total, label: 'password' });
-  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  if (password != null) await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  else if (!(await signedInRecently(user))) throw Object.assign(Error('Masuk lagi dengan Google dulu.'), { code: 'auth/requires-recent-login' });
   await wipeUserData(uid, progress => onProgress?.({ ...progress, stage: 'data' }));
   onProgress?.({ stage: 'account', step: total, total, label: 'akun' });
   await deleteDoc(userRef(uid));

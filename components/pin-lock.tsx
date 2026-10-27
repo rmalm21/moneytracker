@@ -116,7 +116,7 @@ export function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
         <PinPad onComplete={verify} disabledUntil={until}/>
         {bio && <button type="button" className="link-button bio-switch" onClick={() => { setUsePin(false); void scan(); }}>{face ? <ScanFace size={15}/> : <Fingerprint size={15}/>} Pakai {face ? 'Face ID' : 'sidik jari'}</button>}
       </>}
-      <button type="button" className="link-button pin-forgot" onClick={() => void logout()}>Lupa PIN? Keluar & masuk dengan password</button>
+      <button type="button" className="link-button pin-forgot" onClick={() => void logout()}>Lupa PIN? Keluar & masuk lagi</button>
     </div>
   </main>;
 }
@@ -185,7 +185,7 @@ export function PinSettings({ notify, onLockNow }: { notify: (message: string) =
     <Dialog open={mode !== null} onOpenChange={next => { if (!next) setMode(null); }}><DialogContent title={mode === 'off' ? 'Nonaktifkan PIN' : mode === 'change' ? 'Ganti PIN' : 'Aktifkan PIN'} className="pin-dialog">
       <p className="pin-prompt">{prompt}</p>
       <PinPad key={`${mode}-${step}`} onComplete={complete}/>
-      {mode === 'set' && <small className="muted">Jika lupa PIN, keluar lalu masuk lagi dengan password, kemudian ganti PIN di Pengaturan.</small>}
+      {mode === 'set' && <small className="muted">Jika lupa PIN, keluar lalu masuk lagi (pakai password atau Google), kemudian ganti PIN di Pengaturan.</small>}
     </DialogContent></Dialog>
   </div>;
 }

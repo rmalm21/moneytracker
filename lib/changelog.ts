@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.1', date: '27 Okt 2026', title: 'Kode akses dan password untuk akun Google', items: [
+    ['🎟️', 'Dompet Ajaib sekarang khusus untuk yang diundang. Setelah masuk (pakai Google atau password), akun baru diminta kode akses dari pemilik aplikasi. Kodenya acak, cuma bisa dipakai sekali, dan bisa diberi batas waktu. Tanpa kode, akun itu tidak bisa membaca atau menulis data apa pun.'],
+    ['🛡️', 'Pemilik aplikasi punya menu Pengaturan › Kode akses untuk membuat kode, membagikannya lewat WhatsApp, dan melihat atau mencabut siapa saja yang boleh masuk.'],
+    ['🔑', 'Yang masuk pakai Google kini diajak membuat password sekali, lengkap dengan indikator kekuatan password. Setelah itu, akunnya bisa dibuka pakai Google atau Gmail dan password. Bisa juga dibuat nanti di Pengaturan › Keamanan.'],
+    ['🗑️', 'Hapus akun untuk akun Google tidak perlu password: cukup ketik HAPUS, asal baru saja masuk. Kalau sudah lama, kamu diminta masuk ulang dulu, sebelum ada data yang dihapus.'],
+  ] },
   { version: '6.0', date: '27 Okt 2026', title: 'Catat otomatis bisa ditanya', items: [
     ['💬', 'Sekarang kamu bisa nanya langsung di Catat otomatis: “berapa pengeluaranku bulan ini”, “kapan terakhir isi bensin”, “sisa anggaran makan berapa”, “saldo gopay berapa”, “berapa kali ngopi bulan ini”, atau “bulan ini lebih boros dari bulan lalu?”. Jawabannya dihitung di HP dari catatanmu sendiri, tanpa internet.'],
     ['🔎', 'Tiap jawaban ada tombol “Lihat transaksi” yang langsung membuka transaksi yang dihitung, jadi angkanya bisa kamu cek sendiri. Ada juga saran pertanyaan lanjutan, tinggal ketuk.'],

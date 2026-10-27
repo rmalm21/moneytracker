@@ -1,11 +1,14 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { signOut } from 'firebase/auth';
 import { ChevronRight, CircleCheck, Download, LoaderCircle, RotateCcw, UserX } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { Field, Input } from './fields';
 import { PasswordInput, errorText } from './password-ui';
+import { hasPassword, signedInRecently } from '@/lib/auth';
+import { auth } from '@/lib/firebase';
 import { deleteAccount, downloadBackup, resetAllData, wipeOrder, type DeleteProgress, type WipeProgress } from '@/lib/account';
 
 /** Pengaturan, above "Keluar dari akun": start over with an empty account, or delete the account for good. */
@@ -61,22 +64,31 @@ function ResetBody({ onClose, onBusy, notify }: { onClose: () => void; onBusy: (
 function DeleteBody({ onClose, onBusy }: { onClose: () => void; onBusy: (busy: boolean) => void }) {
   const { user } = useApp(), records = useRecordList();
   const [password, setPassword] = useState(''), [sure, setSure] = useState(false), [progress, setProgress] = useState<DeleteProgress | null>(null), [error, setError] = useState('');
+  // 6.1: an account that signs in with Google only has no password: it types HAPUS and must have signed in recently.
+  const googleOnly = Boolean(user) && !hasPassword(user), [typed, setTyped] = useState(''), [stale, setStale] = useState(false);
+  const confirmed = googleOnly ? typed.trim().toUpperCase() === 'HAPUS' : Boolean(password);
+  useEffect(() => { if (googleOnly && user) void signedInRecently(user).then(recent => setStale(!recent)); }, [googleOnly, user]);
+  async function signInAgain() { if (auth) await signOut(auth).catch(() => undefined); window.location.replace('/login/'); }
   async function run(event: FormEvent) {
-    event.preventDefault(); if (!user || !password || !sure) return;
+    event.preventDefault(); if (!user || !confirmed || !sure) return;
     setError(''); onBusy(true); setProgress({ stage: 'verify', step: 0, total: wipeOrder.length, label: 'password' });
-    try { await deleteAccount(user, password, setProgress); }
-    catch (e) { onBusy(false); setProgress(null); setError(/invalid-credential|wrong-password/.test((e as { code?: string })?.code || '') ? 'Password salah. Coba lagi.' : errorText(e)); }
+    try { await deleteAccount(user, googleOnly ? null : password, setProgress); }
+    catch (e) { onBusy(false); setProgress(null); const code = (e as { code?: string })?.code || ''; if (googleOnly && /requires-recent-login/.test(code)) setStale(true); else setError(/invalid-credential|wrong-password/.test(code) ? 'Password salah. Coba lagi.' : errorText(e)); }
   }
-  if (progress) return <Working tone="rose" title={progress.stage === 'verify' ? 'Memeriksa password…' : progress.stage === 'account' ? 'Menghapus akun…' : `Menghapus ${progress.label}…`} step={progress.stage === 'verify' ? 0 : progress.step} total={progress.total} note={progress.stage === 'data' ? `${progress.step} dari ${progress.total} jenis data · jangan tutup aplikasi dulu` : 'Jangan tutup aplikasi dulu'}/>;
+  if (progress) return <Working tone="rose" title={progress.stage === 'verify' ? (googleOnly ? 'Memeriksa akun…' : 'Memeriksa password…') : progress.stage === 'account' ? 'Menghapus akun…' : `Menghapus ${progress.label}…`} step={progress.stage === 'verify' ? 0 : progress.step} total={progress.total} note={progress.stage === 'data' ? `${progress.step} dari ${progress.total} jenis data · jangan tutup aplikasi dulu` : 'Jangan tutup aplikasi dulu'}/>;
   return <form className="danger-flow" onSubmit={run}>
     <div className="danger-hero tone-rose"><span className="auth-badge tone-rose" aria-hidden="true"><UserX size={24}/></span><div><strong>Hapus akun permanen</strong><small><b>{user?.email}</b> dan semua datanya akan hilang. Setelah itu akun ini tidak bisa dipakai untuk masuk lagi.</small></div></div>
     <section className="danger-list"><h4>Ikut terhapus</h4><ul>{[...records, 'Pengaturan & PIN', 'Login akun ini'].map(item => <li key={item}>{item}</li>)}</ul></section>
     {user && <BackupFirst uid={user.uid}/>}
     <input type="text" name="username" autoComplete="username" value={user?.email || ''} readOnly hidden/>
-    <Field label="Password akun"><PasswordInput value={password} onChange={setPassword} autoComplete="current-password" placeholder="Untuk memastikan ini kamu"/></Field>
+    {googleOnly ? <>
+      <p className="danger-google">Kamu masuk pakai Google, jadi tidak perlu password. Untuk memastikan ini kamu, ketik <b>HAPUS</b> di bawah.</p>
+      <Field label="Ketik HAPUS"><Input value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" placeholder="HAPUS"/></Field>
+      {stale && <p className="form-error" role="alert">Demi keamanan, hapus akun cuma bisa beberapa menit setelah masuk. Keluar, masuk lagi dengan Google, lalu buka menu ini lagi. <button type="button" className="link-button" onClick={() => void signInAgain()}>Keluar & masuk lagi</button></p>}
+    </> : <Field label="Password akun"><PasswordInput value={password} onChange={setPassword} autoComplete="current-password" placeholder="Untuk memastikan ini kamu"/></Field>}
     <label className="danger-check"><input type="checkbox" checked={sure} onChange={e => setSure(e.target.checked)}/><span><strong>Saya paham akun ini tidak bisa dipulihkan</strong><small>Data yang sudah dihapus tidak bisa dikembalikan, kecuali dari file cadangan.</small></span></label>
     {error && <p className="form-error" role="alert">{error}</p>}
-    <div className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>Batal</Button><Button type="submit" variant="danger" disabled={!password || !sure}><UserX size={16}/> Hapus akun permanen</Button></div>
+    <div className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>Batal</Button><Button type="submit" variant="danger" disabled={!confirmed || !sure || googleOnly && stale}><UserX size={16}/> Hapus akun permanen</Button></div>
   </form>;
 }
 

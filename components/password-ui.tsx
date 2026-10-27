@@ -4,7 +4,9 @@ import type { User } from 'firebase/auth';
 import { ArrowLeft, Check, CircleCheck, CircleX, Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, Mail, MailCheck, Send } from 'lucide-react';
 import { Field, Input } from './fields';
 import { Button } from './ui/button';
-import { changePassword, checkResetLink, finishReset, forgotPassword, friendlyError, normalizeLoginIdentifier } from '@/lib/auth';
+import { changePassword, checkResetLink, createPassword, finishReset, forgotPassword, friendlyError, hasPassword, normalizeLoginIdentifier } from '@/lib/auth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { maskEmail, passwordChecks, passwordReady, passwordScore, strengthLabels } from '@/lib/password';
 
 /** Firebase errors carry a code; our own checks only a message. */
@@ -92,8 +94,43 @@ export function ResetPasswordPanel({ code, onDone, onRequestNew }: { code: strin
   </form>;
 }
 
+/**
+ * 6.1: an account that signs in with Google makes its own password (no "password saat ini": there is none). After that
+ * it can also sign in with the Gmail (or the part before @) and the password, and confirm things like Hapus akun.
+ */
+export function CreatePasswordForm({ user, onDone, compact = false }: { user: User; onDone: () => void; compact?: boolean }) {
+  const [next, setNext] = useState(''), [repeat, setRepeat] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [stale, setStale] = useState(false);
+  const ready = passwordReady(next, repeat);
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (!ready) return;
+    setBusy(true); setError(''); setStale(false);
+    try { await createPassword(user, next); setNext(''); setRepeat(''); onDone(); }
+    catch (e) { if (/requires-recent-login/.test(codeOf(e))) setStale(true); else setError(errorText(e)); }
+    finally { setBusy(false); }
+  }
+  async function signInAgain() { if (auth) await signOut(auth).catch(() => undefined); window.location.replace('/login/'); }
+  return <form className={compact ? 'pw-create' : 'pw-create is-card'} onSubmit={submit}>
+    <input type="text" name="username" autoComplete="username" value={user.email || ''} readOnly hidden/>
+    <Field label="Password baru"><PasswordInput value={next} onChange={v => { setNext(v); setError(''); }} autoComplete="new-password" placeholder="Minimal 8 karakter" autoFocus={compact}/></Field>
+    {next && <PasswordStrength value={next}/>}
+    <Field label="Ulangi password"><PasswordInput value={repeat} onChange={v => { setRepeat(v); setError(''); }} autoComplete="new-password" placeholder="Ketik sekali lagi"/></Field>
+    <RepeatHint value={next} repeat={repeat}/>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {stale && <p className="form-error" role="alert">Demi keamanan, password cuma bisa dibuat sebentar setelah masuk. Keluar, masuk lagi dengan Google, lalu langsung buat password. <button type="button" className="link-button" onClick={() => void signInAgain()}>Keluar & masuk lagi</button></p>}
+    <div className="settings-actions"><Button type="submit" disabled={busy || !ready}><LockKeyhole size={16}/> {busy ? 'Menyimpan…' : 'Buat password'}</Button></div>
+  </form>;
+}
+
 /** Pengaturan → Keamanan: change the password, or get a reset link when the current one is forgotten. */
 export function PasswordCard({ user, notify }: { user: User | null; notify: (message: string) => void }) {
+  const [, refresh] = useState(0);
+  if (user && !hasPassword(user)) return <div className="set-card pw-card">
+    <div className="pw-card-head"><span className="auth-badge is-small" aria-hidden="true"><KeyRound size={20}/></span><div><h3>Buat password</h3><p>Kamu masuk pakai Google, jadi akun ini belum punya password. Buat sekarang supaya bisa juga masuk pakai <b>{user.email}</b> dan password, dan untuk konfirmasi hal penting.</p></div></div>
+    <CreatePasswordForm user={user} onDone={() => { notify('Password sudah dibuat. Sekarang bisa masuk pakai Google atau password.'); refresh(n => n + 1); }}/>
+  </div>;
+  return <ChangePasswordCard user={user} notify={notify}/>;
+}
+function ChangePasswordCard({ user, notify }: { user: User | null; notify: (message: string) => void }) {
   const [current, setCurrent] = useState(''), [next, setNext] = useState(''), [repeat, setRepeat] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [sent, setSent] = useState(''), [sending, setSending] = useState(false);
   const email = user?.email || '', ready = Boolean(current) && passwordReady(next, repeat, current);

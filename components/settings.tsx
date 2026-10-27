@@ -1,9 +1,11 @@
 'use client';
 import { GoogleLinkCard } from './google-button';
+import { AccessAdmin } from './access-admin';
+import { hasPassword } from '@/lib/auth';
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { BadgeInfo, BookOpenText, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { Ticket, BadgeInfo, BookOpenText, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { resyncAll } from '@/lib/sync';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
@@ -32,11 +34,12 @@ function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon
 }
 const backupNames: Record<string, string> = { wallets: 'dompet', categories: 'kategori', budgets: 'anggaran', transactions: 'transaksi', claims: 'klaim', receivables: 'piutang', debts: 'utang', funds: 'tujuan dana', recurring: 'jadwal rutin', drafts: 'draf', plannedTransactions: 'rencana', categorizationRules: 'aturan kategori', financialNotes: 'catatan', cycleSnapshots: 'siklus' };
 
-type Section = 'profile' | 'security' | 'reminders' | 'appearance' | 'language' | 'app' | 'about' | 'control' | 'data';
+type Section = 'profile' | 'security' | 'access' | 'reminders' | 'appearance' | 'language' | 'app' | 'about' | 'control' | 'data';
 const groups = ['Akun', 'Aplikasi', 'Keuangan & data'] as const;
 const sections: { key: Section; title: string; detail: string; icon: LucideIcon; group: typeof groups[number]; tone: string }[] = [
   { key: 'profile', title: 'Profil & gaji', detail: 'Nama, siklus gaji, dan isian otomatis saat mencatat.', icon: UserRound, group: 'Akun', tone: 'teal' },
   { key: 'security', title: 'Keamanan', detail: 'PIN aplikasi dan password akun.', icon: KeyRound, group: 'Akun', tone: 'blue' },
+  { key: 'access', title: 'Kode akses', detail: 'Undang orang dengan kode, dan atur siapa saja yang boleh masuk.', icon: Ticket, group: 'Akun', tone: 'violet' },
   { key: 'reminders', title: 'Pengingat', detail: 'Jam pengingat perbarui saldo dan tagihan.', icon: BellRing, group: 'Aplikasi', tone: 'amber' },
   { key: 'appearance', title: 'Tampilan', detail: 'Tema warna, mode layar, dan ukuran teks.', icon: Palette, group: 'Aplikasi', tone: 'pink' },
   { key: 'language', title: 'Bahasa Saya', detail: 'Kata, nama, dan singkatan yang biasa kamu pakai di Catat otomatis.', icon: BookOpenText, group: 'Aplikasi', tone: 'teal' },
@@ -46,7 +49,7 @@ const sections: { key: Section; title: string; detail: string; icon: LucideIcon;
   { key: 'data', title: 'Data & cadangan', detail: 'Unduh cadangan atau pulihkan data dari file.', icon: DatabaseBackup, group: 'Keuangan & data', tone: 'slate' },
 ];
 
-export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void;focus?:string}){const {user,profile,data}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
+export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:string)=>void;navigate?:(key:string)=>void;onLockNow?:()=>void;focus?:string}){const {user,profile,data,admin}=useApp(),pwa=usePwa(),[name,setName]=useState(profile?.displayName||''),[day,setDay]=useState(profile?.salaryCycleStartDay||24),[salary,setSalary]=useState(profile?.monthlySalary||0),[timeZone,setTimeZone]=useState<TimeZone>(profile?.timeZone||'Asia/Jakarta'),[defaultExpenseWallet,setDefaultExpenseWallet]=useState(profile?.defaultExpenseWalletId||''),[defaultIncomeWallet,setDefaultIncomeWallet]=useState(profile?.defaultIncomeWalletId||''),[salaryCategory,setSalaryCategory]=useState(profile?.salaryIncomeCategoryId||''),[budgetWarning,setBudgetWarning]=useState(profile?.budgetWarningPercent||80),[error,setError]=useState(''),[busy,setBusy]=useState(false),[importFile,setImportFile]=useState<unknown>(null),[fileName,setFileName]=useState(''),[counts,setCounts]=useState<Record<string,number>>({}),[mode,setMode]=useState<'merge'|'replace'>('merge'),[crossAccount,setCrossAccount]=useState(false);
  async function perform(fn:()=>Promise<unknown>,message:string){setError('');setBusy(true);try{await fn();notify(message);}catch(e){setError((e as Error).message||'Pengaturan belum tersimpan.');}finally{setBusy(false);}}
  async function handleFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(!file)return;setError('');setFileName(file.name);try{if(file.size>25_000_000)throw Error('File cadangan terlalu besar (maksimal 25 MB).');const parsed=JSON.parse(await file.text()) as unknown;const result=validateBackup(parsed);setImportFile(parsed);setCounts(result.counts);}catch(e){setError((e as Error).message);setImportFile(null);}}
  async function exportJson(){if(!user)return;await perform(()=>downloadBackup(user.uid),'File cadangan diunduh.');}
@@ -63,7 +66,8 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  const r=reminderConfig(profile);
  const summaries:Record<Section,string>={
   profile:`Gajian tanggal ${profile?.salaryCycleStartDay||24} · ${rupiah(profile?.monthlySalary||0)}`,
-  security:`${profile?.pinHash?(biometricEnabled(user?.uid||'')?'PIN & sidik jari aktif':'PIN aktif'):'PIN belum aktif'} · password`,
+  security:`${profile?.pinHash?(biometricEnabled(user?.uid||'')?'PIN & sidik jari aktif':'PIN aktif'):'PIN belum aktif'} · ${user&&!hasPassword(user)?'belum ada password':'password'}`,
+  access:'Undang orang dan atur siapa yang boleh masuk',
   reminders:[r.balanceEnabled?`Perbarui saldo ${r.times.length}× sehari`:'Perbarui saldo mati',r.billsEnabled?'tagihan aktif':'tagihan mati'].join(' · '),
   appearance:`${themes.find(t=>t.value===(profile?.themePreset||'default'))?.label||'Dompet Ajaib'} · ${({system:'Ikuti sistem',light:'Terang',dark:'Gelap'} as Record<string,string>)[profile?.colorMode||profile?.theme||'light']} · teks ${({xxs:'SS',xs:'XS',s:'S',m:'M',l:'L'} as Record<string,string>)[profile?.fontSize||'s']}`,
   language:`${profile?.personalLexicon?.on===false?'Personalisasi mati':'Personalisasi aktif'} · ${Object.keys(profile?.personalLexicon?.aliases||{}).length} kata`,
@@ -79,7 +83,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  <div className={`set-layout ${active?'has-page':''}`}>
   <aside className="set-menu" aria-label="Menu pengaturan">
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>
-   {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
+   {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group&&(item.key!=='access'||admin)).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
    {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button></div></section>}
    <AccountDangerZone notify={notify}/>
    <div className="set-group"><Confirm title="Keluar dari akun?" description="Kamu perlu masuk lagi dengan username dan password untuk membuka catatan keuangan ini." confirmLabel="Ya, keluar" onConfirm={()=>logout()}><button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari akun</button></Confirm><small className="set-version">Dompet Ajaib · Versi {APP_VERSION}</small></div>
@@ -99,6 +103,8 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
     <PasswordCard user={user} notify={notify}/>
     <GoogleLinkCard user={user} notify={notify}/>
    </div>}
+
+   {page.key==='access'&&admin&&<AccessAdmin notify={notify}/>}
 
    {page.key==='reminders'&&<div className="set-form"><ReminderSettings/></div>}
 

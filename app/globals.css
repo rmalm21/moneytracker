@@ -8017,3 +8017,70 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .qa-chip::before { content: '↳ '; opacity: .6; }
 .qa-chip:hover { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); }
 .qa-chip:active { transform: scale(.97); }
+
+/* 6.1 Kode akses: the step after signing in (components/access-gate.tsx). */
+.access-gate { min-height: 100dvh; display: grid; place-items: center; grid-template-columns: minmax(0, 1fr); padding: max(28px, env(safe-area-inset-top)) 16px 28px; }
+.access-card { position: relative; width: min(100%, 430px); min-width: 0; box-sizing: border-box; display: grid; gap: 14px; justify-items: center; text-align: center; padding: 26px 22px 22px; border-radius: 28px; border: 1px solid color-mix(in srgb, var(--paper) 60%, var(--line)); background: color-mix(in srgb, var(--paper) 78%, transparent); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--accent) 45%, transparent), 0 1px 0 color-mix(in srgb, #fff 60%, transparent) inset; animation: view-in .35s var(--ease-out); }
+.access-card h1 { margin: 0; font: 800 1.45rem/1.2 var(--font-head); letter-spacing: -.01em; }
+.access-card > .muted { margin: 0; font-size: .92rem; line-height: 1.5; max-width: 34ch; }
+.access-steps { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; position: relative; }
+.access-steps::before { content: ''; position: absolute; top: 15px; left: 16.6%; right: 16.6%; height: 2px; background: color-mix(in srgb, var(--ink) 10%, transparent); border-radius: 2px; }
+.access-steps li { position: relative; display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: .74rem; font-weight: 600; }
+.access-dot { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--paper); border: 2px solid color-mix(in srgb, var(--ink) 14%, var(--line)); transition: all .25s var(--ease-out); z-index: 1; }
+.access-steps li.is-done .access-dot { background: var(--accent); border-color: var(--accent); color: var(--accent-on, #fff); }
+.access-steps li.is-done { color: color-mix(in srgb, var(--accent) 70%, var(--ink)); }
+.access-steps li.is-now .access-dot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent); }
+.access-steps li.is-now { color: var(--ink); }
+.access-badge { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 22px; color: var(--accent-on, #fff); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 85%, #fff), var(--accent) 55%, color-mix(in srgb, var(--accent) 70%, #000)); box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--accent) 70%, transparent), 0 1px 0 rgba(255,255,255,.4) inset; }
+.access-form { width: 100%; display: grid; gap: 12px; margin-top: 4px; }
+.access-code { position: relative; display: block; cursor: text; }
+.access-code input { position: absolute; inset: 0; width: 100%; opacity: 0; font-size: 16px; caret-color: transparent; }
+.access-boxes { display: flex; justify-content: center; gap: clamp(3px, 1.4vw, 6px); width: 100%; }
+.access-boxes i { font-style: normal; flex: 1 1 0; min-width: 0; max-width: 40px; height: 46px; display: grid; place-items: center; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--ink) 14%, var(--line)); background: color-mix(in srgb, var(--paper) 85%, transparent); font: 800 1.2rem/1 var(--font-head); color: var(--ink); transition: border-color .15s, transform .15s, background .15s; }
+.access-boxes i.gap { margin-right: clamp(4px, 2.2vw, 10px); }
+.access-boxes i.has { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); }
+.access-code:focus-within .access-boxes i.is-next { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+.access-code:focus-within .access-boxes i.is-next::after { content: ''; width: 2px; height: 20px; border-radius: 2px; background: var(--accent); animation: access-caret 1s steps(2) infinite; }
+.access-code.is-error .access-boxes i { border-color: color-mix(in srgb, var(--rose) 60%, var(--line)); }
+.access-code.is-error .access-boxes { animation: access-shake .35s; }
+@keyframes access-caret { 50% { opacity: 0; } }
+@keyframes access-shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+.access-who { margin: 2px 0 0; font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+.access-owner { width: 100%; border-top: 1px dashed var(--line); padding-top: 10px; }
+.access-owner > .link-button { font-size: .8rem; display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.access-owner.is-open > .link-button svg { transform: rotate(180deg); }
+.access-owner-body { text-align: left; font-size: .82rem; line-height: 1.5; color: color-mix(in srgb, var(--ink) 80%, var(--muted)); }
+.access-owner-body ol { margin: 6px 0; padding-left: 18px; display: grid; gap: 4px; }
+.access-owner-body code, .access-id code { font: 600 .78rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+.access-id { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); }
+.access-id .link-button { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; font-size: .8rem; }
+.access-done { display: grid; justify-items: center; gap: 10px; padding: 18px 0 8px; }
+.access-done-ring { width: 84px; height: 84px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-on, #fff); background: var(--accent); box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 16%, transparent), 0 0 0 22px color-mix(in srgb, var(--accent) 7%, transparent); animation: access-pop .5s var(--ease-out); }
+@keyframes access-pop { from { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.08); } to { transform: scale(1); opacity: 1; } }
+
+/* Pengaturan › Kode akses (owner). */
+.access-days { display: flex; flex-wrap: wrap; gap: 6px; }
+.access-days .sb-chip.is-on { background: var(--accent); color: var(--accent-on, #fff); border-color: var(--accent); }
+.access-fresh { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 16px 14px; border-radius: 18px; border: 1.5px dashed color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 10%, var(--paper)), var(--paper)); }
+.access-fresh small { color: var(--muted); font-weight: 600; }
+.access-fresh strong { font: 800 clamp(1.5rem, 7vw, 1.9rem)/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; color: var(--ink); }
+.access-fresh-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.access-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.access-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 4%, var(--paper)); min-width: 0; }
+.access-list li > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.access-list li b { overflow-wrap: anywhere; font-size: .88rem; }
+.access-list li small { color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
+.access-list li.is-used, .access-list li.is-expired { opacity: .7; }
+.access-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+.access-row-actions { display: flex; gap: 2px; }
+.access-older summary { cursor: pointer; color: var(--muted); font-size: .82rem; margin-top: 6px; }
+.access-revoke { display: inline-flex; align-items: center; gap: 4px; color: var(--rose); white-space: nowrap; font-size: .82rem; }
+
+/* 6.1 Buat password (Google accounts) and Hapus akun without a password. */
+.pw-create { display: grid; gap: 10px; }
+.pw-prompt-head { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.pw-prompt-head p { margin: 0; font-size: .9rem; line-height: 1.5; color: color-mix(in srgb, var(--ink) 82%, var(--muted)); }
+.pw-prompt-later { justify-self: center; margin-top: 6px; color: var(--muted); }
+.pw-prompt .pw-create { margin-top: 12px; }
+.danger-google { margin: 0; font-size: .88rem; line-height: 1.5; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--amber) 10%, var(--paper)); }
+.access-form .spin { animation: spin 1s linear infinite; }

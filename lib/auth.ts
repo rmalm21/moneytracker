@@ -29,7 +29,7 @@ export async function loginWithGoogle(remember = true) {
   // a popup, which browsers may cut off from the page and which an installed app cannot hand back. Elsewhere (a preview
   // link, local testing) the sign-in page is on another address, where only a popup gets its answer back.
   if (sameSite() || installedApp()) { markFresh(); try { sessionStorage.setItem(PENDING, '1'); } catch { /* the hint after coming back is optional */ } await signInWithRedirect(auth, google()); return 'redirect' as const; }
-  try { await signInWithPopup(auth, google()); markFresh(); return 'popup' as const; }
+  try { const result = await signInWithPopup(auth, google()); markFresh(); offerPassword(result.user); return 'popup' as const; }
   catch (error) {
     const code = (error as { code?: string })?.code || '';
     if (/popup-blocked|operation-not-supported-in-this-environment|web-storage-unsupported/.test(code)) { markFresh(); await signInWithRedirect(auth, google()); return 'redirect' as const; }
@@ -42,12 +42,23 @@ export async function finishGoogleRedirect(): Promise<{ error: string | null; li
   let pending = false; try { pending = sessionStorage.getItem(PENDING) === '1'; sessionStorage.removeItem(PENDING); } catch { /* no hint */ }
   try {
     const result = await getRedirectResult(auth);
-    if (result) return { error: null, linked: result.operationType === 'link' };
+    if (result) { if (result.operationType === 'signIn') offerPassword(result.user); return { error: null, linked: result.operationType === 'link' }; }
     // Back from Google with nothing to show: say so instead of leaving the page as it was.
     return { error: pending && !auth.currentUser ? 'Masuk dengan Google belum selesai. Coba sekali lagi, ya. Kalau masih gagal, masuk pakai username dulu.' : null, linked: false };
   } catch (error) { return { error: friendlyError(error), linked: false }; }
 }
 export const hasGoogle = (user: User | null) => Boolean(user?.providerData.some(p => p.providerId === 'google.com'));
+/**
+ * An account that signs in with Google only adds a password (then both work: Google, or the Gmail/username with the
+ * password). updatePassword adds the password sign-in to the same account (linking a new email credential would be
+ * refused: the email is already this account's). Firebase allows it only shortly after a sign-in.
+ */
+export async function createPassword(user: User, password: string) { if (!user.email) throw Error('Akun ini belum punya email.'); if (password.length < 8) throw Error('Password minimal 8 karakter.'); await updatePassword(user, password); await user.reload(); }
+/** Whether the last sign-in is recent enough for sensitive changes (Firebase allows about 5 minutes; a margin is kept). */
+export async function signedInRecently(user: User) { try { return Date.now() - Date.parse((await user.getIdTokenResult()).authTime) < 4 * 60_000; } catch { return false; } }
+/** Set once a Google sign-in finished for an account without a password: the app offers to make one right away. */
+export const GOOGLE_NO_PASSWORD = 'dompet-ajaib:google-no-password';
+const offerPassword = (user: User) => { if (!hasPassword(user)) try { sessionStorage.setItem(GOOGLE_NO_PASSWORD, '1'); } catch { /* optional */ } };
 export const hasPassword = (user: User | null) => Boolean(user?.providerData.some(p => p.providerId === 'password'));
 /** Pengaturan → Keamanan: add Google to an account that signs in with a password (both keep working). */
 export async function linkGoogle(user: User) { if (sameSite() || installedApp()) { try { sessionStorage.setItem(PENDING, '1'); } catch { /* optional */ } await linkWithRedirect(user, google()); return ''; } const result = await linkWithPopup(user, google()); return result.user.providerData.find(p => p.providerId === 'google.com')?.email || ''; }
