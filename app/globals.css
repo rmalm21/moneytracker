@@ -8036,7 +8036,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .access-code { position: relative; display: block; cursor: text; }
 .access-code input { position: absolute; inset: 0; width: 100%; opacity: 0; font-size: 16px; caret-color: transparent; }
 .access-boxes { display: flex; justify-content: center; gap: clamp(3px, 1.4vw, 6px); width: 100%; }
-.access-boxes i { font-style: normal; flex: 1 1 0; min-width: 0; max-width: 40px; height: 46px; display: grid; place-items: center; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--ink) 14%, var(--line)); background: color-mix(in srgb, var(--paper) 85%, transparent); font: 800 1.2rem/1 var(--font-head); color: var(--ink); transition: border-color .15s, transform .15s, background .15s; }
+.access-boxes i { font-style: normal; flex: 1 1 0; min-width: 0; max-width: 40px; height: 42px; display: grid; place-items: center; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--ink) 14%, var(--line)); background: color-mix(in srgb, var(--paper) 85%, transparent); font: 800 1.2rem/1 var(--font-head); color: var(--ink); transition: border-color .15s, transform .15s, background .15s; }
 .access-boxes i.gap { margin-right: clamp(4px, 2.2vw, 10px); }
 .access-boxes i.has { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); }
 .access-code:focus-within .access-boxes i.is-next { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
@@ -8084,3 +8084,19 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .pw-prompt .pw-create { margin-top: 12px; }
 .danger-google { margin: 0; font-size: .88rem; line-height: 1.5; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--amber) 10%, var(--paper)); }
 .access-form .spin { animation: spin 1s linear infinite; }
+
+/* 6.1 tidy: the access screen's waiting line and account row, the owner's request list, the login credit. */
+.access-waiting { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 6px 12px; border-radius: 999px; font-size: .78rem; font-weight: 600; color: color-mix(in srgb, var(--accent) 75%, var(--ink)); background: color-mix(in srgb, var(--accent) 9%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); }
+.access-waiting i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); animation: access-pulse 1.6s infinite; }
+@keyframes access-pulse { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.access-who { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 4%, var(--paper)); font-size: .8rem; color: var(--muted); text-align: left; min-width: 0; }
+.access-who > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.35; }
+.access-who b { color: var(--ink); font-weight: 600; }
+.access-switch { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 6px 11px; font: 600 .78rem/1 inherit; cursor: pointer; }
+.access-switch:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.access-requests.has-new { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--accent) 60%, transparent); }
+.access-request { flex-wrap: wrap; }
+.access-request > span:first-child { flex: 1 1 160px; }
+.access-request-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.access-request-actions .btn { padding: 7px 11px; font-size: .8rem; min-height: 0; }
+.login-credit { margin: 18px 0 0; text-align: center; font-size: .74rem; letter-spacing: .02em; color: color-mix(in srgb, var(--muted) 80%, transparent); }

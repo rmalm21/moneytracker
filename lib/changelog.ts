@@ -4,6 +4,7 @@ export type Release = { version: string; date: string; title: string; items: [em
 export const releases: Release[] = [
   { version: '6.1', date: '27 Okt 2026', title: 'Kode akses dan password untuk akun Google', items: [
     ['🎟️', 'Dompet Ajaib sekarang khusus untuk yang diundang. Setelah masuk (pakai Google atau password), akun baru diminta kode akses dari pemilik aplikasi. Kodenya acak, cuma bisa dipakai sekali, dan bisa diberi batas waktu. Tanpa kode, akun itu tidak bisa membaca atau menulis data apa pun.'],
+    ['📨', 'Kalau ada yang masuk tapi belum punya akses, emailnya langsung muncul di daftar “Minta akses” milik pemilik. Tinggal pilih: izinkan langsung (layar orang itu otomatis terbuka) atau buatkan kode.'],
     ['🛡️', 'Pemilik aplikasi punya menu Pengaturan › Kode akses untuk membuat kode, membagikannya lewat WhatsApp, dan melihat atau mencabut siapa saja yang boleh masuk.'],
     ['🔑', 'Yang masuk pakai Google kini diajak membuat password sekali, lengkap dengan indikator kekuatan password. Setelah itu, akunnya bisa dibuka pakai Google atau Gmail dan password. Bisa juga dibuat nanti di Pengaturan › Keamanan.'],
     ['🗑️', 'Hapus akun untuk akun Google tidak perlu password: cukup ketik HAPUS, asal baru saja masuk. Kalau sudah lama, kamu diminta masuk ulang dulu, sebelum ada data yang dihapus.'],
@@ -245,7 +246,7 @@ export const releases: Release[] = [
     ['💡', 'Saat aplikasi dibuka kini muncul sapaan “Halo, (namamu)! Selamat datang kembali” dengan tangan melambai, di kartu kaca buram di tengah layar dengan latar warna yang bergerak lembut. Tampil rapi di mode terang dan gelap.'],
   ] },
   { version: '2.3', date: '28 Sep 2026', title: 'Yang dihapus benar-benar hilang dari cloud, foto struk tampil terpotong', items: [
-    ['🔒', 'Yang dihapus di aplikasi kini juga terhapus di Firestore. Draf rutin yang dilewati dan kategori yang digabung langsung dihapus (dulu hanya ditandai). Dompet, kategori, atau kantong yang tersembunyi karena masih punya riwayat ikut terhapus otomatis begitu transaksinya dihapus.'],
+    ['🔒', 'Yang dihapus di aplikasi kini juga terhapus di cloud. Draf rutin yang dilewati dan kategori yang digabung langsung dihapus (dulu hanya ditandai). Dompet, kategori, atau kantong yang tersembunyi karena masih punya riwayat ikut terhapus otomatis begitu transaksinya dihapus.'],
     ['🔒', 'Catatan penghapusan untuk sinkron antar-HP dibersihkan sendiri setelah seminggu, dan ikut terhapus saat Reset semua data atau Hapus akun.'],
     ['📷', 'Setelah area struk ditentukan, foto yang tampil (saat membaca, gambar kecil di atas, Seluruh struk, penanda letak angka, dan yang dibawa ke Split Bill) kini potongan struk yang sudah diluruskan. Foto utuh hanya muncul saat mengubah area lewat Atur sudut.'],
   ] },
@@ -260,7 +261,7 @@ export const releases: Release[] = [
     ['📝', 'Tombol di layar area struk dirombak: Magnet, Rapikan, Putar, dan Ulangi dalam satu baris ringkas, tombol kamera bulat untuk ambil ulang, dan satu tombol besar “Baca struk”.'],
   ] },
   { version: '2.0', date: '28 Sep 2026', title: 'Versi 2.0: tanpa unggahan sama sekali, item bisa diubah saat membagi', items: [
-    ['🔒', 'Aplikasi tidak lagi mengunggah file apa pun. Foto struk hanya dibaca di HP ini lalu dibuang. Data disimpan di Firestore seperti biasa, dan Firebase Storage tidak dipakai lagi (termasuk lampiran klaim).'],
+    ['🔒', 'Aplikasi tidak lagi mengunggah file apa pun. Foto struk hanya dibaca di HP ini lalu dibuang. Data disimpan di cloud seperti biasa, dan penyimpanan file cloud tidak dipakai lagi (termasuk lampiran klaim).'],
     ['🧾', 'Split Bill: saat membagi item, nama, jumlah, dan harganya bisa langsung diubah di kartu yang sama. Tidak perlu membuka “Atur item” lagi.'],
     ['📝', 'Kartu item Split Bill dirapikan: pilihan Rata / Per porsi / Nominal di satu baris, diskon dan kategori dilipat dalam “Diskon & kategori”, lalu tombol Hapus dan Selesai di bawah.'],
     ['💡', 'Penomoran versi baru: 2.0, 2.1, sampai 2.10, lalu 3.0, dan seterusnya.'],

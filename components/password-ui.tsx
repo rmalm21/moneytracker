@@ -54,7 +54,7 @@ export function ForgotPassword({ initial, onClose }: { initial: string; onClose:
   return <form className="auth-flow" onSubmit={send} noValidate>
     <span className="auth-badge" aria-hidden="true"><KeyRound size={26}/></span>
     <div className="auth-copy"><h3>Lupa password?</h3><p>Tenang, masukkan username atau email akunmu. Kami kirim link untuk membuat password baru.</p></div>
-    <Field label="Username atau email"><Input value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="contoh: rama" autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus/></Field>
+    <Field label="Username atau email"><Input value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="contoh: andi" autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus/></Field>
     {target && <div className="auth-dest"><Mail size={16} aria-hidden="true"/><span>Link akan dikirim ke <b>{target}</b></span></div>}
     {error && <p className="form-error" role="alert">{error}</p>}
     <Button className="full" disabled={busy}>{busy ? 'Mengirim…' : <><Send size={16}/> Kirim link reset</>}</Button>

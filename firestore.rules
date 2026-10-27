@@ -83,6 +83,18 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/accessCodes/$(request.resource.data.code)).data.get('usedBy', null) == null
             && getAfter(/databases/$(database)/documents/accessCodes/$(request.resource.data.code)).data.usedBy == uid);
     }
+    // Someone signed in without access asks for it: their email shows in the owner's list (approve or give a code).
+    // Only their own request, small, and not more than once a minute.
+    match /accessRequests/{uid} {
+      allow get, list: if isAdmin();
+      allow delete: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'at', 'tries'])
+        && request.resource.data.email is string && request.resource.data.email.size() <= 120
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.at == request.time
+        && (resource == null || request.time > resource.data.at + duration.value(1, 'm'));
+    }
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {

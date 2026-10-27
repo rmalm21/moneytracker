@@ -19,7 +19,7 @@ export type WipeProgress = { step: number; total: number; label: string };
 function requireOnline() { if (isOffline()) throw Error('Butuh koneksi internet. Sambungkan dulu, lalu coba lagi.'); }
 
 export async function wipeUserData(uid: string, onProgress?: (progress: WipeProgress) => void) {
-  if (!db) throw Error('Konfigurasi Firebase belum tersedia.');
+  if (!db) throw Error('Konfigurasi cloud belum tersedia.');
   requireOnline();
   for (const [index, name] of wipeOrder.entries()) {
     onProgress?.({ step: index + 1, total: wipeOrder.length, label: recordLabels[name] });

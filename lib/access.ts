@@ -7,18 +7,20 @@
  *   appConfig/access   { admins: [uid] }                      set once in the Firebase Console
  *   accessCodes/{code} { createdAt, createdBy, expiresAt, note, usedBy, usedAt, usedEmail }   one use, made by the owner
  *   accessGrants/{uid} { code, email, at }                      "this account may use the app"
+ *   accessRequests/{uid} { email, name, at, tries }              someone signed in without access (the owner's list)
  */
-import { Timestamp, collection, deleteDoc, doc, getDoc, getDocFromCache, getDocs, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocFromCache, getDocs, increment, onSnapshot, serverTimestamp, setDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from './firebase.ts';
 
 export type AccessState = 'checking' | 'granted' | 'needs-code' | 'error';
 export type AccessCode = { code: string; createdAt?: Date; expiresAt?: Date; note: string; usedBy: string | null; usedAt?: Date; usedEmail: string };
 export type AccessGrant = { uid: string; code: string; email: string; at?: Date };
+export type AccessRequest = { uid: string; email: string; name: string; at?: Date; tries: number };
 
 const okKey = (uid: string) => `dompet-ajaib:access:${uid}`;
 const remember = (uid: string, ok: boolean) => { try { if (ok) localStorage.setItem(okKey(uid), '1'); else localStorage.removeItem(okKey(uid)); } catch { /* optional */ } };
-const need = () => { if (!db) throw Error('Konfigurasi Firebase belum tersedia.'); return db; };
+const need = () => { if (!db) throw Error('Konfigurasi cloud belum tersedia.'); return db; };
 const toDate = (v: unknown) => v instanceof Timestamp ? v.toDate() : undefined;
 
 /** Letters and digits that cannot be mistaken for each other when read aloud or typed (no 0/O, 1/I/L). */
@@ -57,7 +59,7 @@ export async function redeemCode(user: User, typed: string) {
   const batch = writeBatch(store);
   batch.update(doc(store, 'accessCodes', code), { usedBy: user.uid, usedAt: serverTimestamp(), usedEmail: user.email || '' });
   batch.set(doc(store, 'accessGrants', user.uid), { code, email: user.email || '', at: serverTimestamp() });
-  try { await batch.commit(); }
+  try { await batch.commit(); void deleteDoc(doc(store, 'accessRequests', user.uid)).catch(() => undefined); }
   catch (error) {
     const c = (error as { code?: string })?.code || '';
     if (/permission-denied|not-found/.test(c)) throw Error('Kodenya tidak cocok, sudah dipakai, atau sudah kedaluwarsa. Minta kode baru ke pemilik aplikasi.');
@@ -67,7 +69,30 @@ export async function redeemCode(user: User, typed: string) {
   remember(user.uid, true);
 }
 
+/** Puts this account on the owner's "Minta akses" list (once per opening; the rules allow one write a minute). */
+export async function askForAccess(user: User) {
+  const key = `dompet-ajaib:asked:${user.uid}`;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* ask anyway */ }
+  await setDoc(doc(need(), 'accessRequests', user.uid), { email: user.email || '', name: (user.displayName || '').slice(0, 80), at: serverTimestamp(), tries: increment(1) }, { merge: true }).catch(() => undefined);
+}
+/** Opens the app the moment the owner lets this account in (approved, or a code redeemed elsewhere). */
+export function watchGrant(uid: string, onGranted: () => void): Unsubscribe {
+  return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (snap.exists()) { remember(uid, true); onGranted(); } }, () => undefined);
+}
+
 // ——— Owner ———
+/** Who asked for access, newest first, live (the owner's screen updates while someone is waiting). */
+export function watchRequests(onValue: (list: AccessRequest[]) => void): Unsubscribe {
+  return onSnapshot(collection(need(), 'accessRequests'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, email: x.email || '', name: x.name || '', at: toDate(x.at), tries: Number(x.tries) || 1 }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => onValue([]));
+}
+/** Lets someone in straight away (no code): their grant is made and their request removed. */
+export async function approveRequest(request: AccessRequest) {
+  const store = need(), batch = writeBatch(store);
+  batch.set(doc(store, 'accessGrants', request.uid), { code: 'approved', email: request.email, at: serverTimestamp() });
+  batch.delete(doc(store, 'accessRequests', request.uid));
+  await batch.commit();
+}
+export const dismissRequest = (uid: string) => deleteDoc(doc(need(), 'accessRequests', uid));
 /** A new random code, valid for `days` days (0 = no expiry), with a note of who it is for. */
 export async function createCode(owner: User, days: number, note = '') {
   const store = need();

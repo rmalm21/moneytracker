@@ -1,11 +1,11 @@
 'use client';
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { signOut } from 'firebase/auth';
-import { Check, ChevronDown, Copy, KeyRound, LoaderCircle, LogIn, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, KeyRound, LoaderCircle, LogIn, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { auth } from '@/lib/firebase';
-import { cleanCode, redeemCode, showCode } from '@/lib/access';
+import { askForAccess, cleanCode, redeemCode, showCode, watchGrant } from '@/lib/access';
 
 /**
  * 6.1 Kode akses, step two after signing in: Dompet Ajaib is for people its owner invited. The person types the code
@@ -13,7 +13,9 @@ import { cleanCode, redeemCode, showCode } from '@/lib/access';
  */
 export function AccessGate() {
   const { user, access, refreshAccess } = useApp();
-  const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false), [owner, setOwner] = useState(false), [copied, setCopied] = useState(false);
+  const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false);
+  // The owner sees this account in their list right away, and can let it in without a code: then this screen opens.
+  useEffect(() => { if (!user) return; void askForAccess(user); return watchGrant(user.uid, () => { setDone(true); setTimeout(refreshAccess, 1100); }); }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
   const input = useRef<HTMLInputElement>(null);
   const clean = cleanCode(code).slice(0, 9), boxes = useMemo(() => Array.from({ length: 9 }, (_, i) => clean[i] || ''), [clean]);
   async function submit(event: FormEvent) {
@@ -23,7 +25,6 @@ export function AccessGate() {
     catch (e) { setError((e as Error).message || 'Belum berhasil. Coba lagi.'); setBusy(false); }
   }
   async function switchAccount() { if (auth) await signOut(auth).catch(() => undefined); window.location.replace('/login/'); }
-  async function copyId() { try { await navigator.clipboard.writeText(user?.uid || ''); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* select by hand */ } }
   const step = done ? 3 : 2;
   return <main className="login-panel access-gate">
     <div className="access-card">
@@ -33,7 +34,8 @@ export function AccessGate() {
       {done ? <div className="access-done" role="status"><span className="access-done-ring" aria-hidden="true"><ShieldCheck size={34}/></span><h1>Akses diberikan</h1><p className="muted">Selamat datang! Dompet Ajaib sedang dibuka…</p></div> : <>
         <span className="access-badge" aria-hidden="true"><KeyRound size={26}/></span>
         <h1>Masukkan kode akses</h1>
-        <p className="muted">Dompet Ajaib cuma untuk yang diundang. Minta kode ke pemilik aplikasi, lalu ketik di bawah. Cukup sekali di akun ini.</p>
+        <p className="muted">Dompet Ajaib cuma untuk yang diundang. Ketik kode dari pemilik aplikasi, atau tunggu sebentar sampai kamu diizinkan.</p>
+        <p className="access-waiting" role="status"><i aria-hidden="true"/>Permintaan akses sudah terkirim ke pemilik</p>
         <form onSubmit={submit} className="access-form">
           <label className={`access-code ${error ? 'is-error' : ''}`} onClick={() => input.current?.focus()}>
             <span className="sr-only">Kode akses</span>
@@ -44,19 +46,7 @@ export function AccessGate() {
           {access === 'error' && !error && <p className="form-error" role="status">Belum bisa memeriksa akses. Periksa internet, lalu coba lagi.</p>}
           <Button className="full" disabled={busy || clean.length < 9}>{busy ? <><LoaderCircle size={16} className="spin"/> Memeriksa…</> : <><ShieldCheck size={16}/> Buka Dompet Ajaib</>}</Button>
         </form>
-        <p className="access-who">Masuk sebagai <b>{user?.email}</b> · <button type="button" className="link-button" onClick={() => void switchAccount()}>Ganti akun</button></p>
-        <div className={`access-owner ${owner ? 'is-open' : ''}`}>
-          <button type="button" className="link-button" aria-expanded={owner} onClick={() => setOwner(v => !v)}>Kamu pemilik aplikasi ini? <ChevronDown size={14}/></button>
-          {owner && <div className="access-owner-body">
-            <p>Jadikan akun ini pemilik sekali saja lewat Firebase Console:</p>
-            <ol>
-              <li>Buka <b>Firestore Database</b>, lalu <b>Start collection</b> dengan nama <code>appConfig</code>.</li>
-              <li>Document ID: <code>access</code>. Tambah field <code>admins</code> bertipe <b>array</b>, isinya ID akun di bawah (tipe string).</li>
-              <li>Simpan, lalu muat ulang halaman ini.</li>
-            </ol>
-            <div className="access-id"><code>{user?.uid}</code><button type="button" className="link-button" onClick={() => void copyId()}>{copied ? <><Check size={14}/> Tersalin</> : <><Copy size={14}/> Salin ID</>}</button></div>
-          </div>}
-        </div>
+        <div className="access-who"><span>Masuk sebagai <b>{user?.email}</b></span><button type="button" className="access-switch" onClick={() => void switchAccount()}><LogOut size={14}/> Ganti akun</button></div>
       </>}
     </div>
   </main>;

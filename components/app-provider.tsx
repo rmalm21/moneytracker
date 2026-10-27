@@ -1,5 +1,5 @@
 'use client';
-import { checkAccess, type AccessState } from '@/lib/access';
+import { checkAccess, watchRequests, type AccessState } from '@/lib/access';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -11,16 +11,16 @@ import { salaryCycle, calendarCycle } from '@/lib/accounting';
 import { applyAppearance, cacheAppearance, readCachedAppearance } from '@/lib/appearance';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 
-type AppContextValue={user:User|null;profile:Profile|null;data:Data;loading:boolean;error:string;cycle:{start:string;end:string;daysRemaining:number;daysTotal:number};sync:'syncing'|'synced'|'offline'|'error';ready:boolean;/** 6.1 Kode akses: whether this account may use the app, and whether it is the owner. */access:AccessState;admin:boolean;/** After a code was redeemed: check again and open the app. */refreshAccess:()=>void};
+type AppContextValue={user:User|null;profile:Profile|null;data:Data;loading:boolean;error:string;cycle:{start:string;end:string;daysRemaining:number;daysTotal:number};sync:'syncing'|'synced'|'offline'|'error';ready:boolean;/** 6.1 Kode akses: whether this account may use the app, and whether it is the owner. */access:AccessState;admin:boolean;/** After a code was redeemed: check again and open the app. */refreshAccess:()=>void;/** Owner: how many people are waiting for access (live). */accessRequests:number};
 const Context=createContext<AppContextValue|null>(null);
 function dataError(error:unknown) {
   const code=(error as {code?:string})?.code||'';
-  if(code==='permission-denied')return 'Akses data ditolak. Periksa aturan Firestore untuk akun yang sedang masuk.';
+  if(code==='permission-denied')return 'Akses data ditolak. Periksa aturan akses cloud untuk akun yang sedang masuk.';
   if(code==='unavailable')return 'Koneksi ke database terputus. Periksa internet lalu coba lagi.';
   return 'Data belum bisa dimuat. Coba lagi beberapa saat.';
 }
 export function AppProvider({children}:{children:React.ReactNode}) {
-  const [user,setUser]=useState<User|null>(null),[access,setAccess]=useState<AccessState>('checking'),[admin,setAdmin]=useState(false),[profile,setProfile]=useState<Profile|null>(null),[data,setData]=useState<Data>(emptyData),[loading,setLoading]=useState(true),[error,setError]=useState(''),[sync,setSync]=useState<'syncing'|'synced'|'offline'|'error'>('syncing');
+  const [user,setUser]=useState<User|null>(null),[access,setAccess]=useState<AccessState>('checking'),[admin,setAdmin]=useState(false),[accessRequests,setAccessRequests]=useState(0),[profile,setProfile]=useState<Profile|null>(null),[data,setData]=useState<Data>(emptyData),[loading,setLoading]=useState(true),[error,setError]=useState(''),[sync,setSync]=useState<'syncing'|'synced'|'offline'|'error'>('syncing');
   const cycle=useMemo(()=>salaryCycle(dateInTimeZone(new Date(),profile?.timeZone),profile?.salaryCycleStartDay||24),[profile?.salaryCycleStartDay,profile?.timeZone]);
   useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{void import('@/lib/catat/session').then(m=>m.clearSession());if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u){setAccess('checking');void checkAccess(u).then(r=>{if(auth?.currentUser?.uid!==u.uid)return;setAdmin(r.admin);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});}else{setAccess('checking');setAdmin(false);}},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
   // Keeps the device copy current (only changed documents are downloaded); the screens read that copy.
@@ -45,6 +45,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(user&&data.drafts.some(d=>d.status==='pending'&&d.mode==='auto')&&typeof navigator!=='undefined'&&navigator.onLine)void postAutoDrafts(user.uid,data.drafts);},[user,data.drafts]);
   const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
   const refreshAccess=()=>{const u=auth?.currentUser;if(!u)return;setLoading(true);void checkAccess(u).then(r=>{setAdmin(r.admin);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});};
-  const value={user,profile,data:view,loading,error,cycle,sync,ready:configured,access,admin,refreshAccess};return <Context.Provider value={value}>{children}</Context.Provider>;
+  useEffect(()=>{if(!admin||access!=='granted'){setAccessRequests(0);return;}return watchRequests(list=>setAccessRequests(list.length));},[admin,access]);
+  const value={user,profile,data:view,loading,error,cycle,sync,ready:configured,access,admin,refreshAccess,accessRequests};return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useApp(){const context=useContext(Context);if(!context)throw Error('AppProvider missing');return context;}
