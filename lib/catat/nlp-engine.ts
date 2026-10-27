@@ -12,7 +12,7 @@ import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
 import model from './nlp-model.ts';
-import { KIND_TO_INTENT, type NlpIntent } from './nlp-corpus.ts';
+import { KIND_TO_INTENT, PERSON_OTHER, PERSON_SUBJECT, featureText, type NlpIntent } from './nlp-corpus.ts';
 import { knownPlaces, type QuickContext } from '../quick-entry.ts';
 
 export type SemanticEntityType = 'WALLET' | 'MERCHANT' | 'PERSON' | 'AMOUNT';
@@ -62,7 +62,8 @@ export async function analyzeSemantics(text: string, ctx: QuickContext): Promise
   const { nlp, loadMs } = await engine(ctx);
   const t0 = performance.now();
   const utterance = lower(text);
-  const [intent, ner] = await Promise.all([nlp.process('id', utterance), nlp.ner.process({ locale: 'id', utterance, threshold: 0.8 })]);
+  const ner = await nlp.ner.process({ locale: 'id', utterance, threshold: 0.8 });
+  const intent = await nlp.process('id', featureText(withPeople(utterance, ner.entities)));
   const intentCandidates = (intent.classifications?.length ? intent.classifications : [{ intent: intent.intent, score: intent.score }])
     .filter(c => c.intent && c.intent !== 'None').map(c => ({ intent: c.intent as NlpIntent, score: c.score })).sort((a, b) => b.score - a.score).slice(0, 3);
   const types: Record<string, SemanticEntityType> = { wallet: 'WALLET', merchant: 'MERCHANT', person: 'PERSON', money: 'AMOUNT' };
@@ -73,6 +74,24 @@ export async function analyzeSemantics(text: string, ctx: QuickContext): Promise
     return { type, value: wallet ? wallet.name : e.option || rawText, ...(wallet ? { id: wallet.id } : {}), rawText, start: e.start, end: e.end + 1, confidence: e.accuracy ?? 1 };
   });
   return { engineId: 'nlpjs', intentCandidates, entityCandidates, ms: performance.now() - t0, loadMs };
+}
+
+/** Words that may stand before the one doing it ("kemarin kak tio ngutang"): time, a title, a joining word. */
+const LEAD = new Set('kemarin kemaren tadi barusan semalam hari ini pagi siang sore malam terus trus lalu habis itu eh si kak mas mbak bang om tante pak bu ibu bapak'.split(' '));
+/**
+ * 6.0: a person the records know, as the model was trained (lib/catat/nlp-corpus.ts): the one doing it when only time,
+ * a title or a joining word stands before the name, otherwise the other party. "atuy ngutang 12k" (they owe me) and
+ * "ngutang ke atuy 12k" (I owe them) are then different sentences to the model.
+ */
+function withPeople(utterance: string, entities: { entity: string; start: number; end: number }[]) {
+  let out = '', at = 0;
+  for (const e of entities.filter(x => x.entity === 'person').sort((a, b) => a.start - b.start)) {
+    if (e.start < at) continue;
+    const before = utterance.slice(0, e.start).split(/[^\p{L}]+/u).filter(Boolean);
+    out += utterance.slice(at, e.start) + (before.every(w => LEAD.has(w)) ? PERSON_SUBJECT : PERSON_OTHER);
+    at = e.end + 1;
+  }
+  return out + utterance.slice(at);
 }
 
 const INTENT_TO_KIND = Object.fromEntries(Object.entries(KIND_TO_INTENT).map(([k, v]) => [v, k])) as Record<NlpIntent, string>;

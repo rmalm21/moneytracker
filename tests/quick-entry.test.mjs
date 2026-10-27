@@ -69,7 +69,7 @@ test('piutang: lending money and getting it back', () => {
   assert.equal(q('andi pinjam 100rb').kind, 'receivable_new');
   assert.equal(q('budi utang 200rb').kind, 'receivable_new');
   assert.deepEqual(brief(q('bayarin sinta makan 50rb')), { kind: 'receivable_new', amount: 50000, person: 'Sinta', description: 'Makan' });
-  assert.deepEqual(brief(q('andi bayar 50rb')), { kind: 'receivable_payment', amount: 50000, type: 'receivable_payment', receivableId: 'r1', description: 'Dibayar Andi' });
+  assert.deepEqual(brief(q('andi bayar 50rb')), { kind: 'receivable_payment', amount: 50000, type: 'receivable_payment', receivableId: 'r1', description: 'Dibayar Andi', person: 'Andi' });
   assert.equal(q('terima 50rb dari andi masuk bca').preset.walletId, 'bca');
   assert.equal(q('terima 50rb dari andi masuk bca').kind, 'receivable_payment');
   assert.deepEqual([q('andi lunas').kind, q('andi lunas').amount], ['receivable_payment', 150000]);

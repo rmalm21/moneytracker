@@ -125,7 +125,7 @@ test('normalization changes form, never amounts, dates, wallets or names; raw te
   const p = parseQuickPlan('srapn 22rb jago', base);
   assert.equal(p.sourceText, 'srapn 22rb jago');
   assert.deepEqual(p.language.notes.map(n => [n.raw, n.normalized, n.tier]), [['srapn', 'sarapan', 'CONTEXTUAL']]);
-  assert.ok(p.trace[0].startsWith('Bahasa umum v1.0'));
+  assert.ok(p.trace[0].startsWith(`Bahasa umum v${GENERAL_LANGUAGE_VERSION}`));
 });
 test('productive shorthand only in a money context; canonical sentences are untouched', () => {
   assert.equal(normalizeGeneral('srapn', base).text, 'srapn');

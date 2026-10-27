@@ -32,7 +32,7 @@ import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
-import { compileLanguagePack, curatedReading, normalizeGeneral, type Normalization } from './catat/language.ts';
+import { compileLanguagePack, curatedReading, normalizeGeneral, NAY_WORD, type Normalization } from './catat/language.ts';
 import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
 import { habitOf, placeMemory } from './catat/context-memory.ts';
 import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
@@ -156,20 +156,32 @@ export function normalizeQuick(text: string) {
 
 /* ------------------------------------------------------------------ Corrections */
 
-const MARKER = /(?:\s*,\s*|\s+)(?:eh+m?|ralat|koreksi|maksudnya|maksudku|maksud (?:saya|aku)|sori|sorry|salah ketik)(?:\s*,\s*|\s+)/;
+// 2.0: "eh salah", and "salah / nggak / no" followed by a comma ("bensin 50rb, salah, 40rb", "sejuta? nggak, 35rb"); the
+// comma is required for those, so "nggak jadi beli" or "salah transfer" are never read as corrections.
+const MARKER = /(?:\s*[,?]\s*|\s+)(?:(?:eh+m?\s+)?salah ketik|eh+m?\s+salah|eh+m?|ralat|koreksi|maksudnya|maksudku|maksud (?:saya|aku)|sori|sorry)(?:\s*,\s*|\s+)|(?:\s*[,?]\s*|\s+)(?:salah|nggak|ngga|enggak|engga|gak|ga|no|nope)\s*,\s*/;
 const DATE_ANY = () => new RegExp(`${DATE_PHRASES.source}|\\btadi(?:\\s+(?:pagi|siang|sore|malam))?\\b|\\bbarusan\\b|\\btgl \\d{1,2}(?!\\d)(?:\\s*[/-]\\s*\\d{1,2})?`, 'g');
 const KIND_WORDS: Record<string, QuickKind[]> = {
   pengeluaran: ['expense'], pemasukan: ['income'], transfer: ['transfer'], utang: ['debt_new', 'debt_payment'], hutang: ['debt_new', 'debt_payment'],
   piutang: ['receivable_new', 'receivable_payment'], rencana: ['plan_new'], anggaran: ['budget'], budget: ['budget'], pengingat: ['note_new'], catatan: ['note_new'], rutin: ['recurring_new'],
 };
+/**
+ * The text after the words that name the entry again ("parkir 5rb, eh parkirnya 4rb", "makan siang sejuta? nggak, makan
+ * siang 35rb"): up to three words already said before the marker, when an amount follows them.
+ */
+function afterNamed(text: string, left: string) {
+  const words = text.trim().replace(/^yang\s+/, '').split(/\s+/);
+  let k = 0;
+  while (k < Math.min(3, words.length - 1) && words[k].length >= 3 && has(left, words[k].replace(/nya$/, ''))) k++;
+  const rest = words.slice(k).join(' ');
+  return k && /^(?:rp\.?\s*)?\d/.test(rest) ? rest : text.trim();
+}
 /** The kind of value that starts a text: an amount, a date or a wallet. */
 function leadingType(text: string, ctx: QuickContext, left = ''): 'amount' | 'date' | 'wallet' | 'place' | 'time' | null {
   // "jam 1 eh jam 2", "jam 3 sore eh jam set 3 sore": a new time (before the number reading below takes "jam" as a name).
   if (findTimes(text.trim())[0]?.start === 0 && findTimes(left).length) return 'time';
   { const d = DATE_ANY().exec(text.trim()); if (d && d.index === 0 && DATE_ANY().test(left)) return 'date'; }
   // "parkir 5rb, eh parkirnya 4rb": a word naming the entry before the new value.
-  const named = text.trim().match(/^(?:yang\s+)?(\p{L}+?)(?:nya)?\s+(?=(?:rp\.?\s*)?\d)/u);
-  const t = named && named[1].length >= 3 && has(left, named[1]) ? text.trim().slice(named[0].length) : text.trim();
+  const t = afterNamed(text, left);
   if (/^(?:rp\.?\s*)?\d/.test(t)) return 'amount';
   // "di b1, eh di piot": a new place.
   if (/^(?:di|@)\s+\S/.test(t) && /(?:^|\s)(?:di|@)\s+\S/.test(left)) return 'place';
@@ -203,7 +215,9 @@ export function applyCorrections(input: string, ctx: QuickContext) {
     const left = text.slice(0, m.index), right = text.slice(m.index + m[0].length).replace(/^bukan\s*(?:,|$)\s*(?:tapi\s+)?/, ''), type = leadingType(right, ctx, left);
     const span = type ? lastOf(left, type, ctx) : null;
     const said = span ? left.slice(span[0], span[1]).trim() : '';
-    text = `${span ? left.slice(0, span[0]) + left.slice(span[1]) : left} ${right}`.replace(/\s+/g, ' ').trim();
+    // A new amount said with the entry's name again replaces only the amount: the name is not written twice.
+    const fresh = type === 'amount' ? afterNamed(right, left) : right;
+    text = `${span ? left.slice(0, span[0]) + left.slice(span[1]) : left} ${fresh}`.replace(/\s+/g, ' ').trim();
     // "gue ngutang ke aldi eh ke budi 20k": "ke / sama / dari + a name" after the marker replaces the name after the same word.
     const prepFix = right.trim().match(/^(ke|sama|ama|dari|buat|untuk)\s+(\p{L}{3,})\b\s*(.*)$/u);
     if (!type && prepFix) {
@@ -1194,10 +1208,19 @@ function readPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind
     const bounds = [p.start, ...seg.cuts, p.end];
     return bounds.slice(0, -1).map((b, i) => ({ start: b, end: bounds[i + 1], connector: i ? '' : p.connector })).filter(x => sourceText.slice(x.start, x.end).trim());
   });
-  for (const piece of anchored) {
+  // 6.0: "bensin 50rb, salah, 40rb" / "pulsa 3 jt? no, pulsa 30rb": a bare "salah / nggak / no" followed by a new
+  // amount takes the amount before it back, so the pieces stay one entry and the correction reads them together.
+  const amountLed = (text: string, left: string) => /^(?:rp\.?\s*)?\d/.test(afterNamed(prep(text).text, left));
+  for (const [k, piece] of anchored.entries()) {
     const alone = prep(sourceText.slice(piece.start, piece.end)).text, said = prep(sourceText.slice(0, piece.start)).text;
     if (CANCEL.test(alone) && !pending) { units.push(make(piece, 'cancel')); continue; }
     const lastUnit = units[units.length - 1];
+    if (!pending && lastUnit?.cls === 'action') {
+      const next = anchored[k + 1];
+      if (NAY_WORD.test(alone.replace(/^eh+m?\s+/, '')) && next && amountLed(sourceText.slice(next.start, next.end), lastUnit.norm)) { units[units.length - 1] = make(join(lastUnit, piece), 'action'); continue; }
+      const tail = lastUnit.text.match(/(?:^|[\s,?])(\p{L}+)\s*$/u)?.[1] || '';
+      if (NAY_WORD.test(tail) && amountLed(alone, lastUnit.norm)) { units[units.length - 1] = make(join(lastUnit, piece), 'action'); continue; }
+    }
     // "… pake bca, eh bukan, pake mandiri": a "bukan" left hanging takes the next piece as what it meant.
     if (!pending && lastUnit?.cls === 'action' && /\bbukan\s*[,.]?\s*$/.test(lastUnit.text)) { const merged = join(lastUnit, piece); units[units.length - 1] = make(merged, 'action'); continue; }
     // "100rb ke mandiri, eh bukan pengeluaran, transfer dari jago": what follows a kind correction belongs to it.

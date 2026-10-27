@@ -1,0 +1,482 @@
+{
+ "summary": {
+  "set": "v60heldout",
+  "cases": 28,
+  "exact": {
+   "before": 13,
+   "after": 28
+  },
+  "segmentation": {
+   "before": 28,
+   "after": 28
+  },
+  "fields": {
+   "kind": {
+    "before": "6/7",
+    "after": "7/7"
+   },
+   "amount": {
+    "before": "26/28",
+    "after": "28/28"
+   },
+   "wallet": {
+    "before": "10/11",
+    "after": "11/11"
+   },
+   "to": {
+    "before": "2/2",
+    "after": "2/2"
+   },
+   "date": {
+    "before": "2/3",
+    "after": "3/3"
+   },
+   "description": {
+    "before": "1/10",
+    "after": "10/10"
+   },
+   "cat": {
+    "before": "16/18",
+    "after": "18/18"
+   },
+   "merchant": {
+    "before": "1/1",
+    "after": "1/1"
+   },
+   "person": {
+    "before": "1/2",
+    "after": "2/2"
+   }
+  },
+  "confidentWrong": {
+   "before": 9,
+   "after": 0
+  },
+  "regressions": [],
+  "rescues": [
+   "h1",
+   "h2",
+   "h3",
+   "h4",
+   "h5",
+   "h6",
+   "h7",
+   "h9",
+   "h11",
+   "h12",
+   "h13",
+   "h14",
+   "h17",
+   "h26",
+   "h28"
+  ],
+  "latencyMs": {
+   "before": {
+    "avg": 32.7,
+    "p95": 26.3
+   },
+   "after": {
+    "avg": 14.8,
+    "p95": 86.4
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "h1",
+   "group": "",
+   "text": "beli permen gopek",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "amount: ∅ ≠ 500"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h2",
+   "group": "",
+   "text": "beli sabun 18.500,- di indomaret",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: sabun ,- ≠ sabun"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h3",
+   "group": "",
+   "text": "es kopi 22k an pake gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: es kopi an ≠ es kopi"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h4",
+   "group": "",
+   "text": "byr wifi 300rb, eh salah, 330rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "#1 amount: 300000 ≠ 330000"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h5",
+   "group": "",
+   "text": "tumbas roti 12rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: tumbas roti ≠ roti"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h6",
+   "group": "",
+   "text": "nuku gorengan 10rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: nuku gorengan ≠ gorengan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h7",
+   "group": "",
+   "text": "meuli bensin 25rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: meuli bensin ≠ bensin"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h8",
+   "group": "",
+   "text": "paid internet bill 330k jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h9",
+   "group": "",
+   "text": "semalam makan nasi goreng 30rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "date: 2026-10-15 ≠ 2026-10-14"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h10",
+   "group": "",
+   "text": "hotel semalam 450rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h11",
+   "group": "",
+   "text": "ngegrab ke kantor 28rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ trans"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h12",
+   "group": "",
+   "text": "jajan 20rb lewat qris",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: lewat qris ≠ jajan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h13",
+   "group": "",
+   "text": "makan 45rb pake kartu debit jago",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: makan kartu debit ≠ makan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h14",
+   "group": "",
+   "text": "sinta transfer balik 250rb ke mandiri",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: transfer ≠ receivable_payment",
+     "wallet: ∅ ≠ mandiri",
+     "person: ∅ ≠ sinta"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h15",
+   "group": "",
+   "text": "atuy balikin 12rb cash",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h16",
+   "group": "",
+   "text": "dinner w/ fam 250k",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h17",
+   "group": "",
+   "text": "ngopi 30rb, terus ngebensin 25rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "#2 cat: ∅ ≠ fuel"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h18",
+   "group": "",
+   "text": "top up gopay 100rb dr jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h19",
+   "group": "",
+   "text": "berapa sisa uang di jago?",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h20",
+   "group": "",
+   "text": "tadi siang maksi 35rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h21",
+   "group": "",
+   "text": "lunch meeting 150k pake jenius",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h22",
+   "group": "",
+   "text": "transfr ke bri 1jt dr mandiri",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h23",
+   "group": "",
+   "text": "dapet duit freelance 1,5jt masuk jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h24",
+   "group": "",
+   "text": "got salary 9jt jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h25",
+   "group": "",
+   "text": "parkir 2rb, ralat, 4rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h26",
+   "group": "",
+   "text": "nukoni pulsa 50rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: nukoni pulsa ≠ pulsa"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h27",
+   "group": "",
+   "text": "tadi malem jajan sate 25rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h28",
+   "group": "",
+   "text": "beli obat 45.000,- cash",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: obat ,- ≠ obat"
+    ],
+    "after": []
+   }
+  }
+ ]
+}

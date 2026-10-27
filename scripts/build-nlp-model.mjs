@@ -1,14 +1,14 @@
 /**
  * Prepares the NLP.js intent model for Catat otomatis V3 (Engine B) once, at build time, so the app never trains on the
  * device: node scripts/build-nlp-model.mjs → lib/catat/nlp-model.ts (imported as a serialized model).
- * Corpus: lib/catat/nlp-corpus.ts + the single-action sentences of the original benchmark "set utama".
+ * Corpus: lib/catat/nlp-corpus.ts (CORPUS and the 6.0 CORPUS_V60) + the single-action sentences of the original benchmark "set utama".
  * The person's own entities (wallets, places, people) are added at run time, without retraining.
  */
 import { writeFileSync } from 'node:fs';
 import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
-import { CORPUS, KIND_TO_INTENT } from '../lib/catat/nlp-corpus.ts';
+import { CORPUS, CORPUS_V60, KIND_TO_INTENT, PERSON_OTHER, PERSON_SUBJECT, featureText } from '../lib/catat/nlp-corpus.ts';
 import { cases } from '../bench/quick/fixtures.mjs';
 
 const container = await containerBootstrap();
@@ -17,11 +17,13 @@ const nlp = container.get('nlp');
 nlp.settings.autoSave = false; nlp.settings.nlu = { log: false };
 nlp.addLanguage('id');
 let n = 0;
-for (const [intent, list] of Object.entries(CORPUS)) for (const s of list) { nlp.addDocument('id', s, intent); n++; }
+for (const [intent, list] of Object.entries(CORPUS)) for (const s of list) { nlp.addDocument('id', featureText(s), intent); n++; }
+// 6.0: who does what, with a person the records know replaced (lib/catat/nlp-engine.ts does the same when reading).
+for (const [intent, list] of Object.entries(CORPUS_V60)) for (const s of list) { nlp.addDocument('id', featureText(s.replaceAll('{subjek}', PERSON_SUBJECT).replaceAll('{orang}', PERSON_OTHER)), intent); n++; }
 for (const c of cases) {
   if (c.tags.includes('holdout') || c.actions.length !== 1) continue;
   const intent = KIND_TO_INTENT[c.actions[0].kind];
-  if (intent) { nlp.addDocument('id', c.text.toLowerCase(), intent); n++; }
+  if (intent) { nlp.addDocument('id', featureText(c.text.toLowerCase()), intent); n++; }
 }
 const t0 = Date.now();
 await nlp.train();

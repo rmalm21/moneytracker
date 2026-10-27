@@ -22,9 +22,12 @@
 import { conceptWords } from '../categorize.ts';
 import { findAmounts, knownPlaces, type QuickContext } from '../quick-entry.ts';
 
-export const GENERAL_LANGUAGE_VERSION = '1.0';
+export const GENERAL_LANGUAGE_VERSION = '2.0';
 
-export type NormClass = 'COMMON_ABBREVIATION' | 'COMMON_SLANG' | 'COMMON_TYPO' | 'COMMON_PHONETIC_VARIANT' | 'TEMPORAL_SHORTHAND' | 'ACTION_SYNONYM' | 'PRODUCTIVE_SHORTHAND' | 'REPEATED_LETTERS' | 'FILLER' | 'COMMAND_FILLER' | 'PUNCTUATION' | 'COMPOUND_SPLIT';
+/** Words that take back what was just said when they stand alone before a new value ("…, salah, 40rb"). */
+export const NAY_WORD = /^(?:salah|nggak|ngga|enggak|engga|gak|ga|no|nope)$/i;
+
+export type NormClass = 'COMMON_ABBREVIATION' | 'COMMON_SLANG' | 'COMMON_TYPO' | 'COMMON_PHONETIC_VARIANT' | 'TEMPORAL_SHORTHAND' | 'ACTION_SYNONYM' | 'PRODUCTIVE_SHORTHAND' | 'REPEATED_LETTERS' | 'FILLER' | 'COMMAND_FILLER' | 'PUNCTUATION' | 'COMPOUND_SPLIT' | 'LOAN_WORD' | 'AMOUNT_NOISE';
 export type NormTier = 'EXACT' | 'COMMON' | 'CONTEXTUAL';
 export type Normalization = { raw: string; normalized: string; type: NormClass; tier: NormTier };
 
@@ -38,6 +41,8 @@ export const commonAbbreviations: Record<string, string> = {
   kntr: 'kantor', kntor: 'kantor', byr: 'bayar', bayr: 'bayar', bayarr: 'bayar', trf: 'transfer', trnsfer: 'transfer', transfr: 'transfer', trsf: 'transfer',
   dpt: 'dapat', dpet: 'dapat', msk: 'masuk', adm: 'admin', disc: 'diskon', svc: 'servis', tlp: 'telepon', hp: 'hp', brp: 'berapa',
   nongki: 'nongkrong', nongky: 'nongkrong', nongkr: 'nongkrong', nongkie: 'nongkrong',
+  // 2.0: baby talk and chat forms of everyday words.
+  mamam: 'makan', maemm: 'makan', mimik: 'minum',
 };
 /** Function words and pronouns as typed in chat. */
 export const commonSlang: Record<string, string> = {
@@ -56,15 +61,33 @@ export const safeTypos: Record<string, string> = {
 export const temporalAliases: Record<string, string> = {
   kemaren: 'kemarin', kmaren: 'kemarin', kmrin: 'kemarin', kmren: 'kemarin', kmrn: 'kemarin', kmarin: 'kemarin', kemrin: 'kemarin',
   td: 'tadi', tdi: 'tadi', skrg: 'sekarang', skg: 'sekarang', skrang: 'sekarang', skrng: 'sekarang', hri: 'hari', hr: 'hari',
-  pg: 'pagi', mlm: 'malam', malem: 'malam', mlem: 'malam', bsk: 'besok', bln: 'bulan', thn: 'tahun', mgg: 'minggu', dpn: 'depan', dpan: 'depan',
+  pg: 'pagi', mlm: 'malam', malem: 'malam', mlem: 'malam', semalem: 'semalam', smlm: 'semalam', bsk: 'besok', bln: 'bulan', thn: 'tahun', mgg: 'minggu', dpn: 'depan', dpan: 'depan',
 };
 /** Ways of saying "buy / order" whose verb is not the thing bought ("pesen gofood" → the description is GoFood). */
-export const actionAliases: Record<string, string> = { pesen: 'beli', pesenin: 'beli', orderin: 'beli', checkout: 'beli', checkoutin: 'beli', beliin: 'beli', order: 'beli', lemburan: 'lembur', transferin: 'transfer', tfin: 'tf' };
+export const actionAliases: Record<string, string> = {
+  pesen: 'beli', pesenin: 'beli', orderin: 'beli', checkout: 'beli', checkoutin: 'beli', beliin: 'beli', order: 'beli', lemburan: 'lembur', transferin: 'transfer', tfin: 'tf',
+  // 2.0: typed fast ("bli"), Javanese (tuku, nuku, nukoni, tumbas), Sundanese (meuli, mayar) and English verbs of buying and paying.
+  bli: 'beli', bliin: 'beli', tuku: 'beli', nuku: 'beli', nukoni: 'beli', tumbas: 'beli', numbas: 'beli', meuli: 'beli', ngagaleuh: 'beli',
+  bought: 'beli', buy: 'beli', purchased: 'beli', paid: 'bayar', pay: 'bayar', mbayar: 'bayar', mayar: 'bayar',
+};
+/** Regional verbs that are also shop names ("Kopi Tuku"): read as a verb only in a verb's place. */
+const REGIONAL_VERB = new Set(['tuku', 'nuku', 'nukoni', 'tumbas', 'numbas', 'meuli', 'ngagaleuh', 'mbayar', 'mayar']);
+/**
+ * 2.0: everyday nouns from Javanese and English, mapped to the Indonesian word the category engine knows ("tuku sego" →
+ * "beli nasi", "paid electricity" → "bayar listrik"). Exact words only, and never a protected word (a wallet, a place).
+ */
+export const loanWords: Record<string, string> = {
+  sego: 'nasi', segone: 'nasi', iwak: 'ikan', jangan: 'sayur',
+  electricity: 'listrik', electric: 'listrik', shoes: 'sepatu', shoe: 'sepatu', bill: 'tagihan', bills: 'tagihan', fuel: 'bensin', gasoline: 'bensin', petrol: 'bensin',
+  medicine: 'obat', rent: 'sewa', clothes: 'pakaian', shirt: 'kaos', snacks: 'snack', from: 'dari', received: 'terima', receive: 'terima',
+};
 /** Multi-word phrases, longest first. */
 export const phraseAliases: [RegExp, string][] = [
   [/\bsetor (?:cash|kas)\b/g, 'setor tunai'], [/\btarik (?:cash|kas)\b/g, 'tarik tunai'], [/\bambil cash\b/g, 'tarik tunai'],
   [/\bminggu dpn\b|\bmingdep\b/g, 'minggu depan'], [/\bbulan dpn\b|\bbln dpn\b/g, 'bulan depan'], [/\bhari ni\b/g, 'hari ini'],
   [/\bongkos kirim(?:an)?\b/g, 'ongkir'], [/\bcash back\b/g, 'cashback'],
+  // 2.0: English phrases.
+  [/\bgot paid\b/g, 'dapat'], [/\bpay(?:ing)? for\b/g, 'bayar'],
 ];
 /** Words that carry no financial meaning in a note ("makan 25k jago wkwk"). Removed only as whole words. */
 const FILLER = /(?<![\p{L}\p{N}])(?:wk(?:wk)+|w?k?wkwk\w*|(?:ha){2,}h?|(?:he){2,}h?|(?:hi){2,}h?|anjir|anjay|jir|dong|deh|nih|sih|lho|loh|kok)(?![\p{L}\p{N}])/giu;
@@ -75,8 +98,8 @@ const COMPANION = /\s+(?:sama|ama|dengan|dgn|bareng|bareng2|bersama)\s+(?:temen2
 
 const MOVES_TO_PERSON = /\b(?:ngutang|utang|hutang|ngutangin|minjem|pinjem|pinjam|minjam|minjemin|pinjemin|balikin|dibalikin|ngembaliin|nyicil|cicil|lunasin|bayarin|dibayarin|talangin|nalangin|kasih|ngasih|kirim|transfer|tf|patungan|split|bagi)\b/i;
 /** Everything curated, as one lookup (for the grammar's own word pass and for the "already general" check). */
-export const CURATED: Record<string, string> = { ...commonAbbreviations, ...commonSlang, ...safeTypos, ...temporalAliases };
-const curatedClass = (w: string): NormClass => w in commonAbbreviations ? 'COMMON_ABBREVIATION' : w in temporalAliases ? 'TEMPORAL_SHORTHAND' : w in safeTypos ? 'COMMON_TYPO' : 'COMMON_SLANG';
+export const CURATED: Record<string, string> = { ...commonAbbreviations, ...commonSlang, ...safeTypos, ...temporalAliases, ...loanWords };
+const curatedClass = (w: string): NormClass => w in commonAbbreviations ? 'COMMON_ABBREVIATION' : w in temporalAliases ? 'TEMPORAL_SHORTHAND' : w in safeTypos ? 'COMMON_TYPO' : w in loanWords ? 'LOAN_WORD' : 'COMMON_SLANG';
 const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 /** The curated general reading of one word, or undefined. */
 export const curatedReading = (word: string) => has(CURATED, word) ? CURATED[word] : undefined;
@@ -207,10 +230,21 @@ export function normalizeGeneral(input: string, ctx: Pick<QuickContext, 'wallets
   if (cmd) { notes.push({ raw: cmd[0].trim(), normalized: '', type: 'COMMAND_FILLER', tier: 'EXACT' }); text = text.slice(cmd[0].length); }
   text = text.replace(FILLER, m => { notes.push({ raw: m, normalized: '', type: 'FILLER', tier: 'EXACT' }); return ' '; });
   text = text.replace(/(\p{L}+)\s*[:=]\s*(?=(?:rp\.?\s*)?\d)/giu, (m, l: string) => { notes.push({ raw: m.trim(), normalized: l, type: 'PUNCTUATION', tier: 'EXACT' }); return `${l} `; });
+  // 2.0: what people write around an amount and that is not part of it: "Rp 450.000,-", "25k an", "kira-kira 3rb",
+  // "sejuta?" (asked, then corrected). The amount stays exactly as written.
+  const noise = (re: RegExp, to: string | ((...a: string[]) => string)) => { text = text.replace(re, (m: string, ...a: string[]) => { const out = typeof to === 'string' ? to.replace(/\$(\d)/g, (_x, i: string) => a[Number(i) - 1] ?? '') : to(m, ...a); if (out.trim() !== m.trim()) notes.push({ raw: m.trim(), normalized: out.trim(), type: 'AMOUNT_NOISE', tier: 'EXACT' }); return out; }); };
+  noise(/(\d)\s*[,.]\s*-(?=\s|$|,)/g, '$1');
+  noise(/(\d(?:[\d.,]*\d)?\s*(?:k|rb|ribu|rebu|jt|juta))\s+an\b/giu, '$1');
+  noise(/(?<![\p{L}\p{N}])(?:kira-kira|kira2|kurleb|kurang lebih|sekitar|sktr|kisaran|±|\+-)\s*(?=(?:rp\.?\s*)?\d)/giu, '');
+  noise(/(\d(?:[\d.,]*\d)?\s*(?:k|rb|ribu|rebu|jt|juta|m)?|\bjuta|\bribu|\bsejuta|\bgoceng|\bceban|\bcepek|\bgopek)\s*\?/giu, '$1');
   text = text.replace(/(\p{L}{3,})\s*-\s*(?=(?:rp\.?\s*)?(?:\d[\d.,]*\s*(?:k|rb|ribu|jt|juta)\b|\d{4,}))/giu, (m, l: string) => { notes.push({ raw: m.trim(), normalized: l, type: 'PUNCTUATION', tier: 'EXACT' }); return `${l} `; });
-  text = text.replace(/(\p{L}{2,})\s*,\s*(?=(?:rp\.?\s*)?\d[\d.,]*\s*(?:k|rb|ribu|jt|juta)?\b)/giu, (m, w: string) => { notes.push({ raw: m.trim(), normalized: w, type: 'PUNCTUATION', tier: 'EXACT' }); return `${w} `; });
+  // A comma after "salah / nggak / no" stays: there it takes the amount before it back ("bensin 50rb, salah, 40rb").
+  text = text.replace(/(\p{L}{2,})\s*,\s*(?=(?:rp\.?\s*)?\d[\d.,]*\s*(?:k|rb|ribu|jt|juta)?\b)/giu, (m, w: string) => { if (NAY_WORD.test(w)) return m; notes.push({ raw: m.trim(), normalized: w, type: 'PUNCTUATION', tier: 'EXACT' }); return `${w} `; });
   // Not in a loan or a payment to someone: there "sama temen" is the other party ("pinjem 100k sama temen").
   if (!MOVES_TO_PERSON.test(text)) text = text.replace(COMPANION, m => { notes.push({ raw: m.trim(), normalized: '', type: 'FILLER', tier: 'EXACT' }); return ''; });
+  // 2.0: "pake debit mandiri", "qris jago": how it was paid, said before the wallet, is not a word of the note.
+  { const names = (ctx.wallets || []).map(w => w.name.toLocaleLowerCase('id-ID').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).filter(Boolean);
+    if (names.length) text = text.replace(new RegExp(`(?<![\\p{L}\\p{N}])(?:kartu\\s+)?(?:debit|debet|qris)\\s+(?=(?:${names.join('|')})(?![\\p{L}\\p{N}]))`, 'giu'), m => { notes.push({ raw: m.trim(), normalized: '', type: 'FILLER', tier: 'EXACT' }); return ''; }); }
   const guard = protectedWords(text, ctx);
   const pack = compileLanguagePack();
   const known = (w: string) => CANONICAL.includes(w) || has(CURATED, w) || pack.variants.has(w) || has(actionAliases, w);
@@ -229,9 +263,12 @@ export function normalizeGeneral(input: string, ctx: Pick<QuickContext, 'wallets
     const lw = word.toLocaleLowerCase('id-ID');
     if (guard.has(lw) || amounts.some(a => offset >= a.index && offset < a.index + a.text.length)) return word;
     const swap = (to: string, type: NormClass, tier: NormTier) => { notes.push({ raw: word, normalized: to, type, tier }); return to; };
-    if (has(actionAliases, lw)) return swap(actionAliases[lw], 'ACTION_SYNONYM', 'COMMON');
+    // "go pay" is the wallet, not "bayar". A regional verb is a verb only where a verb stands: "tuku sego" yes, "ngopi di tuku" / "ngopi tuku" (the shop) no.
+    if (has(actionAliases, lw) && !(lw === 'pay' && /(?:^|\s)(?:go|shopee|apple|google|samsung|link)\s*$/i.test(text.slice(0, offset))) && !(REGIONAL_VERB.has(lw) && (/(?:^|\s)(?:di|ke|dari|at|@)\s*$/i.test(text.slice(0, offset)) || !/^\s+[\p{L}\p{N}]/u.test(text.slice(offset + word.length))))) return swap(actionAliases[lw], 'ACTION_SYNONYM', 'COMMON');
     if (has(CURATED, lw)) return lw === CURATED[lw] ? word : swap(CURATED[lw], curatedClass(lw), 'COMMON');
     if (CANONICAL.includes(lw) || FUNCTION_WORDS.has(lw)) return word;
+    // 2.0: "ngebensin", "ngegrab", "ngeprint": the colloquial "nge-" verb of a known word or a well-known place.
+    { const nge = moneyContext ? lw.match(/^nge(\p{L}{3,})$/u) : null; if (nge && !isRealWord(lw) && (CANONICAL.includes(nge[1]) || generalPlaceWords().has(nge[1]))) return swap(nge[1], 'ACTION_SYNONYM', 'CONTEXTUAL'); }
     // "makannn", "bayarrr": emphasis, when what is left is a known word.
     // "makannn", "bensinn", "blnjaa": emphasis, when what is left is a known word (a doubled letter only when the
     // word as typed is not a word: "maaf", "saat" stay).
@@ -258,5 +295,8 @@ export function inspectGeneralLanguage(text: string, ctx?: Parameters<typeof nor
   return r.notes.map(n => `${n.raw} → ${n.normalized || '∅'} (${n.type}, ${n.tier})`);
 }
 
+let placeWords: Set<string> | null = null;
+/** Single-word built-in places (grab, gojek, indomaret…), for "nge-" verbs. */
+const generalPlaceWords = () => (placeWords ||= new Set([...knownPlaces({ history: [], merchants: [] }).keys()].filter(p => !/\s/.test(p))));
 /** Built-in place names are general knowledge; exported for the "unknown token" report. */
 export const generalPlaces = () => knownPlaces({ history: [], merchants: [] });

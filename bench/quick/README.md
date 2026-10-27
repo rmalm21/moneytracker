@@ -92,3 +92,11 @@ Contextual financial reasoning: `lib/catat/history.ts` (commands, historical res
 `lib/catat/composition.ts`, `lib/catat/group.ts`, `lib/catat/mutation.ts`. State-based benchmark `run-v33.mjs` over
 `fixtures-v33state.mjs` + `fixtures-v33dev.mjs` / `fixtures-v33heldout.mjs` (first run frozen in `heldout-first/`),
 V3.2 frozen in `baseline-v32/`. Report: `REPORT-v33.md`.
+
+## Catat otomatis: persiapan 6.0 (app 5.11)
+
+Bahasa umum 2.0 (regional and English verbs and nouns, amount leftovers, payment-method words, "nge-" verbs),
+corrections with "salah / nggak / no", "semalam", and the NLP.js model retrained with who-does-what features. Sets
+`fixtures-v60dev.mjs` and `fixtures-v60heldout.mjs` (first run frozen in `heldout-first/`), 5.10 frozen in
+`baseline-v510/`, runner `run-v60.mjs` (any older set with `SET=`, `--shadow` for every sentence). Report:
+`REPORT-v60prep.md`.

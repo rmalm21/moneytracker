@@ -25,6 +25,60 @@ export const CORPUS: Record<NlpIntent, string[]> = {
   unknown: ['halo', 'apa kabar', 'ini apa ya', 'buka laporan', 'lihat anggaran', 'cara pakai aplikasi', 'tes', 'mantap'],
 };
 
+/**
+ * 6.0 preparation: the model learns who does what. A person the records know is replaced before reading: the one doing
+ * it, first in the clause ("{subjek} ngutang 20rb": they owe me), or the other party ("ngutang ke {orang} 50rb": I owe
+ * them); a bag of words cannot tell those apart by itself. Plus "food, amount, wallet" spending (not a balance), the
+ * normalized 2.0 language (what lib/catat/language.ts writes) and English that stays English.
+ * Written fresh: no sentence of a development or held-out set.
+ */
+export const PERSON_SUBJECT = 'xsubjek', PERSON_OTHER = 'xorang';
+/** "ke aku / dari aku / sama aku": me as the other party (they borrow from me), unlike "aku ngutang" (I borrow). */
+export const featureText = (s: string) => s.replace(/\b(?:ke|dari|sama|ama)\s+(?:aku|saya)\b/g, 'xkeaku');
+export const CORPUS_V60: Partial<Record<NlpIntent, string[]>> = {
+  expense: [
+    'nasi padang 28rb', 'mie ayam 15rb gopay', 'kopi susu 18rb jenius', 'es teh manis 5rb cash', 'soto ayam 20rb bca', 'bubur ayam 12rb ovo',
+    'sate kambing 45rb mandiri', 'seblak 15rb dana', 'pecel lele 22rb cash', 'roti bakar 25rb shopeepay', 'cukur rambut 35rb bri', 'nasi uduk 10rb krom',
+    'terang bulan 35rb di pak budi gopay', 'ayam geprek 18rb di warung bu sri', 'deterjen 22rb di alfamart', 'beli nasi bungkus 12rb', 'beli sayur 20rb di pasar',
+    'beli ikan 35rb cash', 'token listrik 200rb jago', 'bayar tagihan wifi 275rb', 'beli sepatu lari 400rb', 'beli pakaian 150rb', 'tebus obat flu 25rb',
+    'bensin 30rb pertamina', 'isi bensin 40rb shell', 'grab ke mall 32rb', 'gojek ke stasiun 15rb', 'parkir mobil 10rb', 'tol 15rb etoll',
+    'jajan cilok 5rb', 'makan bakso urat 25rb', 'minum es kelapa 10rb', 'traktir pacar 150rb', 'bayar kos bulan ini 900rb', 'sewa motor 100rb', 'tiket bus 120rb', 'tiket konser 500rb',
+    'coffee 30k gopay', 'groceries 350k', 'snack 15k', 'movie ticket 50k', 'haircut 40k', 'laundry 35k',
+  ],
+  income: [
+    'gaji bulan ini 7jt masuk bri', 'terima gaji 6,5jt', 'dapat transferan klien 900rb', 'bonus akhir tahun 3jt masuk',
+    'thr 5jt masuk bca', 'hasil jualan online 450rb', 'dapat hadiah lomba 500rb', 'dividen saham 120rb', 'dapat 100rb dari {orang}', 'dikasih {orang} 200rb',
+    'terima 300rb dari jualan', 'income project 4jt', 'dapat fee desain 750rb',
+  ],
+  transfer: [
+    'transfer ke ovo 150rb dari bri', 'tf ke mandiri 500rb dari bca', 'pindah 750rb dari krom ke jenius', 'top up ovo 50rb pakai bca', 'isi gopay 200rb dari mandiri',
+    'tarik tunai 300rb di atm bri', 'setor tunai 500rb ke jago', 'transfer to savings 500k', 'transfer 300rb bri ke dana', 'top up dana 75rb', 'kirim ke rekening tabungan 1jt',
+  ],
+  debt_creation: [
+    'ngutang ke {orang} 50rb', 'pinjam uang ke {orang} 300rb', 'minjem 100rb ke {orang}', 'aku ngutang ke {orang} 200rb', 'aku pinjam 1jt dari {orang}',
+    'dipinjemin {orang} 150rb', 'utang ke {orang} 75rb buat makan', 'kasbon ke {orang} 500rb', 'aku minjem duit {orang} 50rb', 'pinjem 20rb sama {orang}',
+    'aku ngutang ke warung 30rb', 'pinjam ke koperasi 2jt', 'utang paylater 350rb', 'teman minjemin aku 100rb', 'kakak minjemin aku 500rb', 'dipinjemin teman 200rb',
+  ],
+  debt_payment: [
+    'bayar utang ke {orang} 100rb', 'aku balikin uang {orang} 50rb', 'lunasin utang ke {orang}', 'nyicil utang ke {orang} 200rb', 'aku bayar ke {orang} 75rb utangnya',
+    'cicil ke {orang} 100rb', 'transfer ke {orang} buat bayar utang 300rb', 'bayar cicilan hp 400rb', 'bayar kartu kredit 1,2jt', 'lunasin paylater 250rb',
+  ],
+  receivable_creation: [
+    '{subjek} ngutang 20rb', '{subjek} ngutang 50rb buat makan', '{subjek} minjem 100rb', '{subjek} pinjam 200rb ke aku', '{subjek} ngutang ke aku 30rb',
+    '{subjek} minjem duit 75rb buat bensin', '{subjek} pinjem 40rb', '{subjek} kasbon 100rb', 'pinjemin {orang} 50rb', 'minjemin {orang} 100rb pakai jago',
+    'talangin {orang} makan 45rb', 'bayarin {orang} parkir 5rb', 'kasih pinjam {orang} 150rb', 'utangin {orang} 60rb',
+    'aku minjemin adik 100rb', 'aku minjemin teman kantor 200rb', 'minjemin temen 50rb buat makan', 'temen minjem 100rb ke aku', 'teman ngutang ke aku 50rb', 'adik pinjam 200rb ke aku', 'dia ngutang 25rb', 'dia minjem 50rb ke aku', 'kakak pinjem 300rb ke aku',
+  ],
+  receivable_payment: [
+    '{subjek} bayar 20rb', '{subjek} balikin 50rb', '{subjek} lunasin utangnya', '{subjek} transfer 100rb', '{subjek} bayar utang 30rb',
+    '{subjek} udah bayar 75rb', '{subjek} transfer balik 40rb', '{subjek} nyicil 25rb', '{subjek} balikin duit 60rb', '{subjek} transfer balik 75rb ke bca', '{subjek} udah lunas',
+    'dibayar {orang} 50rb', 'dibalikin {orang} 100rb', 'terima bayaran utang dari {orang} 200rb', '{orang} sudah bayar utangnya',
+    'temen balikin 30rb', 'dia balikin 20rb', 'dia udah bayar 50rb', 'teman transfer balik 100rb', 'adik udah balikin uangnya',
+  ],
+  claim_payment: ['claim dinas cair 300rb', 'klaim bensin cair 120rb', 'reimburse hotel masuk 800rb'],
+  balance_statement: ['saldo gopay tinggal 35rb', 'sisa saldo bca 1,5jt', 'saldo mandiri sekarang 4jt', 'uang di dompet tinggal 50rb', 'saldo ovo 120rb sekarang', 'sisa uang cash 200rb'],
+};
+
 /** V2.5 kinds → the intents above (for training from the benchmark truths, and for comparing with Engine A). */
 export const KIND_TO_INTENT: Record<string, NlpIntent> = {
   expense: 'expense', income: 'income', transfer: 'transfer', debt_new: 'debt_creation', debt_payment: 'debt_payment',
