@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.7', date: '27 Okt 2026', title: 'Navigasi baru', items: [
+    ['💡', 'Bar navigasi bawah di HP sekarang berupa dock melayang dengan efek 3D. Tab yang sedang dibuka ditandai pil timbul yang meluncur halus, dan tombol Tambah jadi tombol bulat yang terasa ditekan.'],
+    ['💡', 'Sidebar di desktop ikut diperbarui: menu yang aktif tampil seperti ubin timbul, menu lain sedikit terangkat saat disorot, dan logo serta foto akun bergaya 3D. Semua mengikuti warna tema dan mode gelap.'],
+  ] },
   { version: '5.6', date: '27 Okt 2026', title: 'Split Bill lebih luwes', items: [
     ['✅', 'Pembayaran di Split Bill sekarang bisa diubah. Salah tanggal, nominal, dompet, atau catatan? Buka orangnya, lalu ketuk ikon pensil di riwayat pembayaran. Tidak perlu menghapus lalu mencatat ulang. Saldo dompet dan sisa tagihan ikut menyesuaikan.'],
     ['📝', 'Memilih orang di Split Bill jadi lebih rapi. Ada kolom cari yang sekaligus bisa menambah nama baru, deretan grup, “Sering diajak”, dan daftar semua orang dengan tanda centang. Ketuk sekali lagi untuk mengeluarkan seseorang. Grup juga bisa dimatikan lagi.'],
