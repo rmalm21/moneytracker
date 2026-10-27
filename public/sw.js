@@ -24,6 +24,8 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Firebase's own pages (Masuk dengan Google: /__/auth/handler, /__/auth/iframe) always come from the network.
+  if (url.pathname.startsWith('/__/')) return;
 
   // Pages: open at once from the saved copy (no waiting on the network), and fetch the page in the background. When
   // that copy differs (a new build was deployed), it is saved for the next opening and the page is told, so it can

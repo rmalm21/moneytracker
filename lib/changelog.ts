@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.12', date: '27 Okt 2026', title: 'Masuk dengan Google diperbaiki', items: [
+    ['🔐', 'Masuk dengan Google kini langsung membuka aplikasi. Sebelumnya, di beberapa HP dan browser, setelah memilih akun Google kamu kembali lagi ke halaman masuk.'],
+    ['📱', 'Di aplikasi yang dipasang di layar utama, masuk dan menghubungkan Google kini lewat halaman Google lalu kembali otomatis, tanpa jendela pop-up yang bisa macet.'],
+  ] },
   { version: '5.11', date: '27 Okt 2026', title: 'Persiapan 6.0', items: [
     ['💡', 'Insight lebih cantik. Di atas ada “Sorotan siklus ini”: gaji masuk, pengeluaran terbesar, transaksi tidak biasa, anggaran yang hampir habis, sampai hal yang membaik, lengkap dengan tanggalnya. Ketuk untuk membuka ceritanya. Skor total kini tampil sebagai lingkaran, dan Riwayat Insight bisa dilipat supaya halaman tidak panjang.'],
     ['🔐', 'Bisa masuk dengan Google lewat tombol “Lanjutkan dengan Google” di halaman masuk. Yang sudah punya akun dengan password bisa menghubungkan Gmail-nya di Pengaturan › Keamanan › Hubungkan akun Google, datanya tetap sama.'],

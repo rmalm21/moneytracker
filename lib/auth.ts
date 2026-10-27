@@ -1,4 +1,4 @@
-import { setPersistence, browserLocalPersistence, browserSessionPersistence, confirmPasswordReset, EmailAuthProvider, getRedirectResult, GoogleAuthProvider, linkWithPopup, reauthenticateWithCredential, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, unlink, updatePassword, verifyPasswordResetCode, type User } from 'firebase/auth';
+import { setPersistence, browserLocalPersistence, browserSessionPersistence, confirmPasswordReset, EmailAuthProvider, getRedirectResult, GoogleAuthProvider, linkWithPopup, linkWithRedirect, reauthenticateWithCredential, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, unlink, updatePassword, verifyPasswordResetCode, type User } from 'firebase/auth';
 import { auth } from './firebase';
 export function normalizeLoginIdentifier(input: string) { const s=input.trim().toLowerCase(); if (!s) return ''; const domain=(process.env.NEXT_PUBLIC_AUTH_EMAIL_DOMAIN || 'gmail.com').trim().toLowerCase(); return s.includes('@') ? s : `${s}@${domain}`; }
 export function friendlyError(error: unknown) { const code=(error as {code?:string})?.code || '';
@@ -17,10 +17,13 @@ export async function logout() { if (auth) await signOut(auth); }
  * browser cannot open one (blocked, or an installed app that does not allow it) the page goes to Google and comes back.
  */
 const google = () => { const provider = new GoogleAuthProvider(); provider.setCustomParameters({ prompt: 'select_account' }); return provider; };
+const installedApp = () => { try { return window.matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true; } catch { return false; } };
 const markFresh = () => { try { sessionStorage.setItem('dompet-ajaib:fresh-login', '1'); } catch { /* the welcome is optional */ } };
 export async function loginWithGoogle(remember = true) {
   if (!auth) throw Error('Konfigurasi Firebase belum tersedia.');
   await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+  // An installed app (home screen) cannot hand a popup's result back: it goes to Google's page and comes back instead.
+  if (installedApp()) { markFresh(); await signInWithRedirect(auth, google()); return 'redirect' as const; }
   try { await signInWithPopup(auth, google()); markFresh(); return 'popup' as const; }
   catch (error) {
     const code = (error as { code?: string })?.code || '';
@@ -28,12 +31,12 @@ export async function loginWithGoogle(remember = true) {
     throw error;
   }
 }
-/** After coming back from Google's page: an error to show, or nothing (success is picked up by the auth listener). */
-export async function finishGoogleRedirect() { if (!auth) return null; try { await getRedirectResult(auth); return null; } catch (error) { return friendlyError(error); } }
+/** After coming back from Google's page: an error to show, and whether Google was just linked (Pengaturan). A sign-in is picked up by the auth listener. */
+export async function finishGoogleRedirect(): Promise<{ error: string | null; linked: boolean }> { if (!auth) return { error: null, linked: false }; try { const result = await getRedirectResult(auth); return { error: null, linked: result?.operationType === 'link' }; } catch (error) { return { error: friendlyError(error), linked: false }; } }
 export const hasGoogle = (user: User | null) => Boolean(user?.providerData.some(p => p.providerId === 'google.com'));
 export const hasPassword = (user: User | null) => Boolean(user?.providerData.some(p => p.providerId === 'password'));
 /** Pengaturan → Keamanan: add Google to an account that signs in with a password (both keep working). */
-export async function linkGoogle(user: User) { const result = await linkWithPopup(user, google()); return result.user.providerData.find(p => p.providerId === 'google.com')?.email || ''; }
+export async function linkGoogle(user: User) { if (installedApp()) { await linkWithRedirect(user, google()); return ''; } const result = await linkWithPopup(user, google()); return result.user.providerData.find(p => p.providerId === 'google.com')?.email || ''; }
 /** Remove Google again (only while a password still signs in). */
 export async function unlinkGoogle(user: User) { if (!hasPassword(user)) throw Error('Akun ini hanya bisa masuk lewat Google, jadi Google tidak bisa dilepas.'); await unlink(user, 'google.com'); }
 /**

@@ -1,9 +1,21 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, connectAuthEmulator, setPersistence } from 'firebase/auth';
 import { CACHE_SIZE_UNLIMITED, connectFirestoreEmulator, initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+/**
+ * Masuk dengan Google signs in on the app's own address when it is served by Firebase Hosting (dompetajaib.web.app has
+ * /__/auth/ built in). With the separate …firebaseapp.com address, browsers that block storage across sites (Safari,
+ * newer Chrome, installed apps) lose the result and the person lands on the login page again. Preview channels
+ * ("--" in the name) and local testing keep the configured address.
+ */
+function authDomain() {
+  const configured = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+  if (typeof window === 'undefined') return configured;
+  const host = window.location.hostname;
+  return /\.(?:web\.app|firebaseapp\.com)$/.test(host) && !host.includes('--') ? window.location.host : configured;
+}
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  authDomain: authDomain(),
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
