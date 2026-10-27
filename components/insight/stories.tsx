@@ -112,8 +112,11 @@ export function StorySheet({ report, signature, extraSignals, items, onClose, on
     {txs.length > 0 && <details className="ix-details"><summary>Transaksi ({txs.length})</summary><ul className="ix-txs">{txs.map(t => <li key={t.id}><span>{t.merchant || t.description || 'Transaksi'}<small>{dayMonth(t.date)}{t.time ? ` · ${t.time}` : ''}</small></span><em>{moneyFull(t.ownShare ?? t.amount)}</em></li>)}</ul>
       <button type="button" className="ix-more" onClick={() => { onClose(); onGo('transactions', txLink(txs)); }}>Buka di Transaksi <ArrowRight size={14} aria-hidden="true"/></button></details>}
     <div className="ix-sheet-foot">
-      {apply && s.finding ? <Button className="small" disabled={busy === s.finding.id} onClick={() => onApply(apply, s.finding!)}><Check size={14}/> {apply.kind === 'create-budget' ? `Buat anggaran ${money(apply.amount)}` : `Ubah anggaran ke ${money(apply.amount)}`}</Button>
-        : target ? <Button variant="secondary" className="small" onClick={() => { onClose(); onGo(target.view, target.focus); }}>{s.action?.label && s.action.label !== 'Lihat' ? s.action.label : 'Lihat'} <ArrowRight size={14}/></Button> : <span/>}
+      {/* A card that suggests a budget still lets you see the transactions behind it. */}
+      {(apply && s.finding) || target ? <span className="ix-sheet-actions">
+        {apply && s.finding && <Button className="small" disabled={busy === s.finding.id} onClick={() => onApply(apply, s.finding!)}><Check size={14}/> {apply.kind === 'create-budget' ? `Buat anggaran ${money(apply.amount)}` : `Ubah anggaran ke ${money(apply.amount)}`}</Button>}
+        {target && <Button variant="secondary" className="small" onClick={() => { onClose(); onGo(target.view, target.focus); }}>{s.action?.label && s.action.label !== 'Lihat' ? s.action.label : 'Lihat'} <ArrowRight size={14}/></Button>}
+      </span> : <span/>}
       {s.tone !== 'positive' && <OverflowMenu label={s.title} items={[{ label: 'Ingatkan minggu depan', onSelect: () => onSnooze(s) }, { label: 'Sembunyikan', onSelect: () => onDismiss(s) }]}/>}
     </div>
     <p className="ix-note">Insight tidak pernah memindahkan uang atau mengubah catatan sendiri.</p>

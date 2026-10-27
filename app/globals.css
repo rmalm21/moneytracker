@@ -7663,6 +7663,8 @@ button.int-more { justify-self: start; font-size: .74rem; }
 @media (max-width: 760px) { .ix-page .ix-heading h1 { font-size: 1.25rem; } .ix-heading small { font-size: .72rem; } .ix-heading .ix-icon-btn { width: 40px; height: 40px; } }
 .ix-sheet .ix-sheet-part, .ix-sheet .ix-compare, .ix-sheet .ix-answer-line { margin-top: 12px; }
 .ix-sheet .ix-details, .ix-sheet .ix-sheet-foot { margin-top: 14px; }
+/* Insight story sheet: a budget suggestion and the link to its transactions side by side. */
+.ix-sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 
 /* 148b. "Jelaskan siklus ini": cycle progress + one card per chapter. */
 .ix-explain .ix-cycle { display: grid; gap: 6px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--paper)), color-mix(in srgb, var(--chart-3) 8%, var(--paper))); border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); }
