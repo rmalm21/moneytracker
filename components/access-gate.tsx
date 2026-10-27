@@ -1,18 +1,21 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { signOut } from 'firebase/auth';
-import { Check, KeyRound, LoaderCircle, LogIn, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, KeyRound, LoaderCircle, LogIn, LogOut, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { auth } from '@/lib/firebase';
-import { askForAccess, cleanCode, redeemCode, showCode, watchGrant } from '@/lib/access';
+import { askForAccess, cleanCode, madeBeforeAccess, redeemCode, showCode, watchGrant } from '@/lib/access';
 
 /**
  * 6.1 Kode akses, step two after signing in: Dompet Ajaib is for people its owner invited. The person types the code
  * the owner gave them (9 letters and numbers, three groups); the rules check it and let the account in.
  */
 export function AccessGate() {
-  const { user, access, refreshAccess } = useApp();
+  const { user, access, refreshAccess, revoked } = useApp();
+  // Three ways to arrive here: access taken back by the owner, someone who used the app before Kode akses (a one-time
+  // security step), or a new account.
+  const kind: 'revoked' | 'update' | 'new' = revoked ? 'revoked' : madeBeforeAccess(user) ? 'update' : 'new';
   const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false);
   // The owner sees this account in their list right away, and can let it in without a code: then this screen opens.
   useEffect(() => { if (!user) return; void askForAccess(user); return watchGrant(user.uid, () => { setDone(true); setTimeout(refreshAccess, 1100); }); }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -29,13 +32,18 @@ export function AccessGate() {
   return <main className="login-panel access-gate">
     <div className="access-card">
       <ol className="access-steps" aria-label="Langkah masuk">
-        {[['Masuk', LogIn], ['Kode akses', KeyRound], ['Mulai pakai', Sparkles]].map(([label, Icon], i) => { const n = i + 1, I = Icon as typeof LogIn; return <li key={n} className={n < step ? 'is-done' : n === step ? 'is-now' : ''} aria-current={n === step ? 'step' : undefined}><span className="access-dot" aria-hidden="true">{n < step ? <Check size={15}/> : <I size={15}/>}</span><small>{label as string}</small></li>; })}
+        {[['Masuk', LogIn], [kind === 'update' ? 'Izin pemilik' : 'Kode akses', KeyRound], ['Mulai pakai', Sparkles]].map(([label, Icon], i) => { const n = i + 1, I = Icon as typeof LogIn; return <li key={n} className={n < step ? 'is-done' : n === step ? 'is-now' : ''} aria-current={n === step ? 'step' : undefined}><span className="access-dot" aria-hidden="true">{n < step ? <Check size={15}/> : <I size={15}/>}</span><small>{label as string}</small></li>; })}
       </ol>
       {done ? <div className="access-done" role="status"><span className="access-done-ring" aria-hidden="true"><ShieldCheck size={34}/></span><h1>Akses diberikan</h1><p className="muted">Selamat datang! Dompet Ajaib sedang dibuka…</p></div> : <>
-        <span className="access-badge" aria-hidden="true"><KeyRound size={26}/></span>
-        <h1>Masukkan kode akses</h1>
-        <p className="muted">Dompet Ajaib cuma untuk yang diundang. Ketik kode dari pemilik aplikasi, atau tunggu sebentar sampai kamu diizinkan.</p>
-        <p className="access-waiting" role="status"><i aria-hidden="true"/>Permintaan akses sudah terkirim ke pemilik</p>
+        {kind !== 'new' && <span className={`access-tag is-${kind}`}>{kind === 'revoked' ? 'Akses dicabut' : 'Pembaruan keamanan'}</span>}
+        <span className={`access-badge is-${kind}`} aria-hidden="true">{kind === 'revoked' ? <ShieldAlert size={26}/> : kind === 'update' ? <ShieldCheck size={26}/> : <KeyRound size={26}/>}</span>
+        <h1>{kind === 'revoked' ? 'Aksesmu dicabut' : kind === 'update' ? 'Satu langkah lagi, ya' : 'Masukkan kode akses'}</h1>
+        <p className="muted">{kind === 'revoked'
+          ? 'Pemilik aplikasi mencabut akses akun ini. Datamu tetap aman dan tidak dihapus. Kalau ini keliru, kabari pemiliknya, atau ketik kode baru di bawah.'
+          : kind === 'update'
+            ? 'Dompet Ajaib sekarang lebih aman: tiap akun perlu izin dari pemilik. Ini cuma sekali, dan datamu tetap aman seperti biasa. Begitu diizinkan, aplikasi langsung terbuka. Punya kode? Ketik di bawah.'
+            : 'Dompet Ajaib cuma untuk yang diundang. Ketik kode dari pemilik aplikasi, atau tunggu sebentar sampai kamu diizinkan.'}</p>
+        <p className="access-waiting" role="status"><i aria-hidden="true"/>{kind === 'revoked' ? 'Permintaan akses ulang sudah terkirim' : 'Permintaan akses sudah terkirim ke pemilik'}</p>
         <form onSubmit={submit} className="access-form">
           <label className={`access-code ${error ? 'is-error' : ''}`} onClick={() => input.current?.focus()}>
             <span className="sr-only">Kode akses</span>

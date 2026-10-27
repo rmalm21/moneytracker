@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.2', date: '27 Okt 2026', title: 'Akses lebih jelas', items: [
+    ['🛡️', 'Yang sudah pakai Dompet Ajaib sebelum ada kode akses melihat pesan “Pembaruan keamanan”: cukup sekali, dan datanya tetap aman. Di daftar Minta akses, pemilik bisa membedakan “Pengguna lama” dan “Akun baru”.'],
+    ['🚫', 'Kalau akses dicabut, orangnya langsung dapat pemberitahuan “Aksesmu dicabut” di aplikasi, termasuk saat aplikasinya sedang terbuka. Konfirmasi cabut akses juga sekarang tampil di dalam aplikasi.'],
+    ['🔔', 'Notifikasi di dalam aplikasi tidak transparan lagi, jadi lebih jelas dibaca.'],
+  ] },
   { version: '6.1', date: '27 Okt 2026', title: 'Kode akses dan password untuk akun Google', items: [
     ['🎟️', 'Dompet Ajaib sekarang khusus untuk yang diundang. Setelah masuk (pakai Google atau password), akun baru diminta kode akses dari pemilik aplikasi. Kodenya acak, cuma bisa dipakai sekali, dan bisa diberi batas waktu. Tanpa kode, akun itu tidak bisa membaca atau menulis data apa pun.'],
     ['📨', 'Kalau ada yang masuk tapi belum punya akses, emailnya langsung muncul di daftar “Minta akses” milik pemilik. Tinggal pilih: izinkan langsung (layar orang itu otomatis terbuka) atau buatkan kode.'],

@@ -16,10 +16,16 @@ import { db } from './firebase.ts';
 export type AccessState = 'checking' | 'granted' | 'needs-code' | 'error';
 export type AccessCode = { code: string; createdAt?: Date; expiresAt?: Date; note: string; usedBy: string | null; usedAt?: Date; usedEmail: string };
 export type AccessGrant = { uid: string; code: string; email: string; at?: Date };
-export type AccessRequest = { uid: string; email: string; name: string; at?: Date; tries: number };
+export type AccessRequest = { uid: string; email: string; name: string; at?: Date; tries: number; /** When the account was made: before 6.1 = someone who already used the app. */ since?: Date };
+/** Accounts made before this were using Dompet Ajaib before Kode akses: for them it is a one-time security step. */
+export const ACCESS_SINCE = Date.parse('2026-10-27T00:00:00+07:00');
+export const madeBeforeAccess = (user: Pick<User, 'metadata'> | null) => Boolean(user?.metadata.creationTime) && Date.parse(user!.metadata.creationTime!) < ACCESS_SINCE;
 
 const okKey = (uid: string) => `dompet-ajaib:access:${uid}`;
-const remember = (uid: string, ok: boolean) => { try { if (ok) localStorage.setItem(okKey(uid), '1'); else localStorage.removeItem(okKey(uid)); } catch { /* optional */ } };
+const revokedKey = (uid: string) => `dompet-ajaib:revoked:${uid}`;
+/** "May open" (offline too) and, separately, "the owner took access back" (until access is given again). */
+const remember = (uid: string, ok: boolean, revoked = false) => { try { if (ok) { localStorage.setItem(okKey(uid), '1'); localStorage.removeItem(revokedKey(uid)); } else { localStorage.removeItem(okKey(uid)); if (revoked) localStorage.setItem(revokedKey(uid), '1'); } } catch { /* optional */ } };
+const wasRevoked = (uid: string) => { try { return localStorage.getItem(revokedKey(uid)) === '1'; } catch { return false; } };
 const need = () => { if (!db) throw Error('Konfigurasi cloud belum tersedia.'); return db; };
 const toDate = (v: unknown) => v instanceof Timestamp ? v.toDate() : undefined;
 
@@ -34,21 +40,24 @@ function randomCode(length = 9) {
 }
 
 /** Whether this account may use the app: a grant, or the owner (who gets a grant on the way). Works offline once known. */
-export async function checkAccess(user: User): Promise<{ state: AccessState; admin: boolean }> {
+export async function checkAccess(user: User): Promise<{ state: AccessState; admin: boolean; revoked: boolean }> {
   const store = need(), grant = doc(store, 'accessGrants', user.uid);
-  let admin = false;
+  let admin = false, before = false;
+  // This device opened the app for this account before: no grant now means the owner took access back.
+  try { before = localStorage.getItem(okKey(user.uid)) === '1'; } catch { /* unknown */ }
   try {
     const config = await getDoc(doc(store, 'appConfig', 'access')).catch(() => null);
     admin = Boolean(config?.exists() && (config.data().admins || []).includes(user.uid));
     const own = await getDoc(grant).catch(async error => { const cached = await getDocFromCache(grant).catch(() => null); if (cached) return cached; throw error; });
-    if (own.exists()) { remember(user.uid, true); return { state: 'granted', admin }; }
-    if (admin) { await setDoc(grant, { code: 'owner', email: user.email || '', at: serverTimestamp() }); remember(user.uid, true); return { state: 'granted', admin }; }
-    remember(user.uid, false);
-    return { state: 'needs-code', admin };
+    if (own.exists()) { remember(user.uid, true); return { state: 'granted', admin, revoked: false }; }
+    if (admin) { await setDoc(grant, { code: 'owner', email: user.email || '', at: serverTimestamp() }); remember(user.uid, true); return { state: 'granted', admin, revoked: false }; }
+    const revoked = before || wasRevoked(user.uid);
+    remember(user.uid, false, revoked);
+    return { state: 'needs-code', admin, revoked };
   } catch {
     // Offline or a hiccup: an account already let in on this device opens as before.
-    try { if (localStorage.getItem(okKey(user.uid)) === '1') return { state: 'granted', admin }; } catch { /* no memory */ }
-    return { state: 'error', admin };
+    try { if (localStorage.getItem(okKey(user.uid)) === '1') return { state: 'granted', admin, revoked: false }; } catch { /* no memory */ }
+    return { state: 'error', admin, revoked: false };
   }
 }
 
@@ -73,17 +82,22 @@ export async function redeemCode(user: User, typed: string) {
 export async function askForAccess(user: User) {
   const key = `dompet-ajaib:asked:${user.uid}`;
   try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* ask anyway */ }
-  await setDoc(doc(need(), 'accessRequests', user.uid), { email: user.email || '', name: (user.displayName || '').slice(0, 80), at: serverTimestamp(), tries: increment(1) }, { merge: true }).catch(() => undefined);
+  await setDoc(doc(need(), 'accessRequests', user.uid), { email: user.email || '', name: (user.displayName || '').slice(0, 80), at: serverTimestamp(), tries: increment(1), since: user.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : '' }, { merge: true }).catch(() => undefined);
 }
 /** Opens the app the moment the owner lets this account in (approved, or a code redeemed elsewhere). */
 export function watchGrant(uid: string, onGranted: () => void): Unsubscribe {
   return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (snap.exists()) { remember(uid, true); onGranted(); } }, () => undefined);
 }
 
+/** While the app is open: tells at once when the owner takes this account's access back (its grant is deleted). */
+export function watchOwnGrant(uid: string, onGone: () => void): Unsubscribe {
+  return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (!snap.exists() && !snap.metadata.fromCache) { remember(uid, false, true); onGone(); } }, () => undefined);
+}
+
 // ——— Owner ———
 /** Who asked for access, newest first, live (the owner's screen updates while someone is waiting). */
 export function watchRequests(onValue: (list: AccessRequest[]) => void): Unsubscribe {
-  return onSnapshot(collection(need(), 'accessRequests'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, email: x.email || '', name: x.name || '', at: toDate(x.at), tries: Number(x.tries) || 1 }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => onValue([]));
+  return onSnapshot(collection(need(), 'accessRequests'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, email: x.email || '', name: x.name || '', at: toDate(x.at), tries: Number(x.tries) || 1, since: x.since ? new Date(x.since) : undefined }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => onValue([]));
 }
 /** Lets someone in straight away (no code): their grant is made and their request removed. */
 export async function approveRequest(request: AccessRequest) {

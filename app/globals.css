@@ -8107,3 +8107,14 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .access-done { gap: 6px; padding: 30px 0 14px; }
 .access-done-ring { margin-bottom: 26px; }
 .access-done h1 { margin-top: 4px; }
+/* 6.2: which kind of access screen (security update, access taken back) and the owner's labels. */
+.access-tag { display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px; font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: color-mix(in srgb, var(--accent) 75%, var(--ink)); margin-bottom: -4px; }
+.access-tag.is-revoked { background: color-mix(in srgb, var(--rose) 13%, var(--paper)); color: color-mix(in srgb, var(--rose) 80%, var(--ink)); }
+.access-badge.is-revoked { background: linear-gradient(145deg, color-mix(in srgb, var(--rose) 80%, #fff), var(--rose) 55%, color-mix(in srgb, var(--rose) 70%, #000)); box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--rose) 70%, transparent), 0 1px 0 rgba(255,255,255,.4) inset; }
+.access-kind { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 999px; font-size: .7rem; font-weight: 700; background: color-mix(in srgb, var(--ink) 7%, var(--paper)); color: var(--muted); }
+.access-kind.is-old { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: color-mix(in srgb, var(--accent) 75%, var(--ink)); }
+/* 6.2: in-app notifications are solid, not see-through. */
+.heads-up, .toast-card { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--line)); box-shadow: 0 14px 34px -14px rgba(16, 46, 55, .42), 0 2px 6px -2px rgba(16, 46, 55, .12); }
+:root[data-theme='dark'] .heads-up, :root[data-theme='dark'] .toast-card { background: var(--paper); box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .75); }
+.heads-up.is-warning, .toast-card.is-warning { border-left: 3px solid var(--amber); }
+.heads-up.is-error, .toast-card.is-error { border-left: 3px solid var(--rose); }

@@ -89,7 +89,8 @@ service cloud.firestore {
       allow get, list: if isAdmin();
       allow delete: if isAdmin() || (request.auth != null && request.auth.uid == uid);
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'name', 'at', 'tries'])
+        && request.resource.data.keys().hasOnly(['email', 'name', 'at', 'tries', 'since'])
+        && request.resource.data.get('since', '') is string && request.resource.data.get('since', '').size() <= 40
         && request.resource.data.email is string && request.resource.data.email.size() <= 120
         && request.resource.data.name is string && request.resource.data.name.size() <= 80
         && request.resource.data.at == request.time
