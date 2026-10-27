@@ -1,51 +1,26 @@
 'use client';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { hasAmount, maskAmounts, maskSensitive } from '@/lib/privacy';
-import { metrics, rupiah } from '@/lib/accounting';
-import { useApp } from './app-provider';
+import { hasAmount, maskAmounts } from '@/lib/privacy';
 
 /**
  * Privacy switch: every amount on screen shows as "Rp•••••" (lib/privacy.ts).
  * It works on the text the pages already render, so every page, dialog, toast and chart tooltip
  * is covered without each one knowing about it. Inputs keep their value, so forms still work.
  * Chosen per device and remembered.
- *
- * While filling in or checking something (a form, the receipt review, any dialog) the numbers being worked on stay
- * visible; only wallet balances shown there (a wallet picker's "BCA · Rp…") remain hidden.
  */
 const KEY = 'dompet-ajaib:hide-amounts';
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'NOSCRIPT']);
 /** Masked text nodes with what the page wrote, so turning the switch off puts it back. */
 const masked = new Map<Text, { original: string; shown: string }>();
 let observer: MutationObserver | null = null;
-/** Wallet balances as written on screen ("Rp1.250.000"): still hidden inside forms and dialogs. */
-let balances: string[] = [];
-const editing = (el: Element) => Boolean(el.closest('[role="dialog"], form, .modal-content'));
-/**
- * 6.4: what the eye hides. "key" (Ketat, the default): every amount except each transaction's own amount in a list and
- * the numbers being filled in a form; even there, balances, income, assets and savings stay hidden. "all": every
- * amount everywhere.
- */
-const MODE_KEY = 'dompet-ajaib:hide-amounts-mode';
-export type HideMode = 'key' | 'all';
-export function readHideMode(): HideMode { try { return localStorage.getItem(MODE_KEY) === 'all' ? 'all' : 'key'; } catch { return 'key'; } }
-export function setHideMode(mode: HideMode) { try { localStorage.setItem(MODE_KEY, mode); } catch { /* this visit only */ } hideMode = mode; remask(); }
-let hideMode: HideMode = typeof window === 'undefined' ? 'key' : readHideMode();
-let sensitive: number[] = [];
-function remask() { if (!observer) return; stopMasking(); startMasking(); }
-export function setSensitive(values: number[]) { const next = [...new Set(values.filter(v => Math.abs(v) >= 1000).map(v => Math.round(Math.abs(v))))]; if (next.join() === sensitive.join()) return; sensitive = next; remask(); }
-const everyday = (el: Element) => Boolean(el.closest('.transaction-row')) || editing(el);
-const hideText = (value: string, parent: Element) => hideMode === 'all' || parent.closest('[data-sensitive]') || !everyday(parent) ? maskAmounts(value) : maskSensitive(value, sensitive);
-
 function maskNode(node: Text) {
   const value = node.nodeValue || '', record = masked.get(node);
   if (record && value === record.shown) return;
   if (!hasAmount(value)) { if (record) masked.delete(node); return; }
   const parent = node.parentElement;
   if (!parent || SKIP.has(parent.tagName) || parent.closest('[contenteditable="true"]')) return;
-  if (editing(parent) && !balances.some(b => value.includes(b)) && hideMode === 'all') { if (record && value === record.shown) node.nodeValue = record.original; masked.delete(node); return; }
-  const shown = hideText(value, parent);
+  const shown = maskAmounts(value);
   if (shown === value) { masked.delete(node); return; }
   masked.set(node, { original: value, shown });
   node.nodeValue = shown;
@@ -104,18 +79,6 @@ export function useHideAmounts() {
 /** Eye button in the top bar, left of the bell. */
 export function AmountToggle() {
   const [hidden, toggle] = useHideAmounts();
-  const { data, profile, cycle } = useApp();
-  const known = data.wallets.map(w => w.cachedBalance).join();
-  useEffect(() => { balances = [...new Set(data.wallets.filter(w => w.cachedBalance).map(w => rupiah(w.cachedBalance)))]; }, [known]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The amounts that say how much money this person has, wherever a page writes them.
-  const values = useMemo(() => {
-    const live = data.wallets.filter(w => !w.isArchived), list = live.map(w => w.cachedBalance);
-    list.push(live.reduce((n, w) => n + w.cachedBalance, 0), profile?.monthlySalary || 0, ...data.funds.map(f => f.currentAmount || 0));
-    try { const m = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay || 24, new Date(), Boolean(profile?.netWorthIncludesReceivables)); list.push(m.assets, m.netWorth, m.free, m.income, m.reserved); } catch { /* balances still hidden */ }
-    for (const t of data.transactions) if (t.type === 'income') list.push(t.amount);
-    return list;
-  }, [data, profile?.monthlySalary, profile?.salaryCycleStartDay, profile?.netWorthIncludesReceivables, cycle.start, cycle.end]);
-  useEffect(() => { setSensitive(values); }, [values]);
   const label = hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal';
   return <button type="button" className={`eye-button ${hidden ? 'is-on' : ''}`} aria-pressed={hidden} aria-label={label} title={label} onClick={toggle}>{hidden ? <EyeOff size={19}/> : <Eye size={19}/>}</button>;
 }

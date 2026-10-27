@@ -4,7 +4,7 @@ export type Release = { version: string; date: string; title: string; items: [em
 export const releases: Release[] = [
   { version: '6.4', date: '27 Okt 2026', title: 'Kelola akun dan privasi lebih rapi', items: [
     ['👥', 'Pemilik bisa memberi nama tiap akun, melihat kapan terakhir aktif, dan mencabut sekaligus akun yang tidak aktif lebih dari 60 hari.'],
-    ['👁️', 'Ikon mata kini lebih ketat dan lebih pas: semua angka disembunyikan, kecuali nominal tiap transaksi dan yang sedang kamu isi, jadi daftar transaksi tetap bisa dicek. Saldo, aset, dan pemasukan selalu tertutup. Mau benar-benar semua? Pilih “Semua nominal” di Pengaturan › Tampilan.'],
+    ['👁️', 'Ikon mata sekarang menutup semua angka rupiah, termasuk nominal di daftar transaksi dan di dalam detail, jadi tidak ada lagi yang belang. Kolom isian tetap bisa diketik seperti biasa.'],
     ['🧹', 'Bantuan Gemini di Scan struk dihapus. Struk sekarang selalu dibaca di HP saja.'],
     ['🔐', 'Ada kartu baru “Keamanan datamu” di Pengaturan › Keamanan yang menjelaskan bahwa catatan keuanganmu aman dan terenkripsi.'],
     ['🔔', 'Notifikasi sekarang bisa diketuk: transaksi tersimpan membuka Transaksi, dan permintaan akses membuka Kode akses.'],
