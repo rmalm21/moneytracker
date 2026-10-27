@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './fields';
 import { applyAppearance, DEFAULT_DENSITY, DEFAULT_FONT_SIZE, effectiveMode, fontChoices, loadFontPreviews, themes, validAccent, type FontChoice } from '@/lib/appearance';
 import { saveProfile } from '@/lib/firestore';
-import { readAlwaysHide, setAlwaysHide } from './hide-amounts';
+import { readAlwaysHide, readHideMode, setAlwaysHide, setHideMode, type HideMode } from './hide-amounts';
 import { rememberSplashStyle, type SplashStyle } from './loading-screen';
 import { Emoji } from './emoji';
 import type { ColorMode, Profile, ThemePreset } from '@/lib/types';
@@ -32,8 +32,10 @@ export function AppearanceSettings({notify:_notify}:{notify:(message:string)=>vo
 }
 /** "Selalu sembunyikan nominal": amounts start hidden each time the app opens on this device. */
 function PrivacyToggle(){
- const [on,setOn]=useState(false);useEffect(()=>setOn(readAlwaysHide()),[]);
- return <label className="switch-row privacy-switch"><input type="checkbox" checked={on} onChange={e=>{setOn(e.target.checked);setAlwaysHide(e.target.checked)}}/><span><strong>Selalu sembunyikan nominal</strong><small>Setiap aplikasi dibuka, semua nominal tampil sebagai Rp•••••. Ketuk ikon mata di atas untuk melihatnya sebentar. Berlaku di perangkat ini.</small></span></label>;
+ const [on,setOn]=useState(false),[mode,setMode]=useState<HideMode>('key');useEffect(()=>{setOn(readAlwaysHide());setMode(readHideMode());},[]);
+ const pick=(m:HideMode)=>{setMode(m);setHideMode(m);};
+ return <><label className="switch-row privacy-switch"><input type="checkbox" checked={on} onChange={e=>{setOn(e.target.checked);setAlwaysHide(e.target.checked)}}/><span><strong>Selalu sembunyikan nominal</strong><small>Setiap aplikasi dibuka, nominal tampil sebagai Rp•••••. Ketuk ikon mata di atas untuk melihatnya sebentar. Berlaku di perangkat ini.</small></span></label>
+  <div className="privacy-mode"><strong>Yang disembunyikan ikon mata</strong><div className="privacy-mode-options" role="radiogroup" aria-label="Yang disembunyikan">{([['key','Yang penting saja','Saldo, aset, uang bebas, pemasukan, dan tabungan. Pengeluaran harian tetap terlihat.'],['all','Semua nominal','Setiap angka rupiah di layar disembunyikan.']] as [HideMode,string,string][]).map(([m,label,hint])=><button type="button" key={m} role="radio" aria-checked={mode===m} className={`privacy-mode-option ${mode===m?'is-on':''}`} onClick={()=>pick(m)}><b>{label}</b><small>{hint}</small></button>)}</div></div></>;
 }
 
 /** Pengaturan → Tampilan: the opening screen, saved at once (and kept on this device, so it shows before login data). */

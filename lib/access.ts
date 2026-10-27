@@ -9,13 +9,13 @@
  *   accessGrants/{uid} { code, email, at }                      "this account may use the app"
  *   accessRequests/{uid} { email, name, at, tries }              someone signed in without access (the owner's list)
  */
-import { Timestamp, collection, deleteDoc, doc, getDoc, getDocFromCache, getDocs, increment, onSnapshot, serverTimestamp, setDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocFromCache, getDocs, increment, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch, type Unsubscribe } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from './firebase.ts';
 
 export type AccessState = 'checking' | 'granted' | 'needs-code' | 'error';
 export type AccessCode = { code: string; createdAt?: Date; expiresAt?: Date; note: string; usedBy: string | null; usedAt?: Date; usedEmail: string };
-export type AccessGrant = { uid: string; code: string; email: string; at?: Date };
+export type AccessGrant = { uid: string; code: string; email: string; at?: Date; /** Last time the account opened the app (kept to within 6 hours). */ seen?: Date; /** The owner's own name for this account. */ note?: string };
 export type AccessRequest = { uid: string; email: string; name: string; at?: Date; tries: number; /** When the account was made: before 6.1 = someone who already used the app. */ since?: Date };
 /** Accounts made before this were using Dompet Ajaib before Kode akses: for them it is a one-time security step. */
 export const ACCESS_SINCE = Date.parse('2026-10-27T00:00:00+07:00');
@@ -106,7 +106,16 @@ export function watchOwnGrant(uid: string, onGone: () => void): Unsubscribe {
   return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (!snap.exists() && !snap.metadata.fromCache) { remember(uid, false, true); onGone(); } }, () => undefined);
 }
 
+/** Marks this account as active (shown to the owner as "terakhir aktif"); at most every 6 hours, from any device. */
+export async function markSeen(uid: string) {
+  const key = `dompet-ajaib:active-mark:${uid}`;
+  try { if (Date.now() - (Number(localStorage.getItem(key)) || 0) < 6 * 3600_000) return; localStorage.setItem(key, String(Date.now())); } catch { /* try anyway */ }
+  await updateDoc(doc(need(), 'accessGrants', uid), { seen: serverTimestamp() }).catch(() => undefined);
+}
+
 // ——— Owner ———
+/** The owner's own name or note for an account ("Rifka, adik"). */
+export const setGrantNote = (uid: string, note: string) => updateDoc(doc(need(), 'accessGrants', uid), { note: note.trim().slice(0, 60) });
 /** Who asked for access, newest first, live (the owner's screen updates while someone is waiting). */
 export function watchRequests(onValue: (list: AccessRequest[]) => void): Unsubscribe {
   return onSnapshot(collection(need(), 'accessRequests'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, email: x.email || '', name: x.name || '', at: toDate(x.at), tries: Number(x.tries) || 1, since: x.since ? new Date(x.since) : undefined }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => onValue([]));
@@ -137,7 +146,7 @@ export async function listCodes(): Promise<AccessCode[]> {
 }
 /** Who has access, live (so the request list never hides someone whose access was just taken back). */
 export function watchGrants(onValue: (list: AccessGrant[]) => void): Unsubscribe {
-  return onSnapshot(collection(need(), 'accessGrants'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, code: x.code || '', email: x.email || '', at: toDate(x.at) }; }).sort((a, b) => (b.at?.getTime() || 0) - (a.at?.getTime() || 0))), () => undefined);
+  return onSnapshot(collection(need(), 'accessGrants'), snap => onValue(snap.docs.map(d => { const x = d.data(); return { uid: d.id, code: x.code || '', email: x.email || '', at: toDate(x.at), seen: toDate(x.seen), note: x.note || '' }; }).sort((a, b) => (b.seen?.getTime() || b.at?.getTime() || 0) - (a.seen?.getTime() || a.at?.getTime() || 0))), () => undefined);
 }
 export async function listGrants(): Promise<AccessGrant[]> {
   const snap = await getDocs(collection(need(), 'accessGrants'));

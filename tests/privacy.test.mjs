@@ -35,3 +35,16 @@ test('debt and receivable payments land in categories, or in their own group wit
   assert.deepEqual(incomeBreakdown(items, cats).map(r => [r.id, r.amount]), [['none', 1_000_000], ['lain', 200_000], [RECEIVABLE_GROUP.id, 50_000]]);
   assert.deepEqual(summarizeTransactions(items), { income: 1_250_000, expense: 600_000, cashFlow: 650_000 });
 });
+
+import { amountsIn, maskSensitive } from '../lib/privacy.ts';
+test('6.4: only the amounts that say how much money someone has are hidden, also when written short', () => {
+  assert.deepEqual(amountsIn('Saldo Rp9.855.000').map(a => a.value), [9_855_000]);
+  assert.deepEqual(amountsIn('Rp9,8 jt').map(a => [a.value, a.step]), [[9_800_000, 100_000]]);
+  assert.deepEqual(amountsIn('±Rp33 rb').map(a => a.value), [33_000]);
+  const sensitive = [9_855_000, 185_000];
+  assert.equal(maskSensitive('Total saldo Rp9.855.000', sensitive), 'Total saldo Rp•••••');
+  assert.equal(maskSensitive('Aset Rp9,9 jt', sensitive), 'Aset Rp•••••');
+  assert.equal(maskSensitive('GoPay Rp185.000 · Kopi Rp25.000', sensitive), 'GoPay Rp••••• · Kopi Rp25.000');
+  assert.equal(maskSensitive('Bensin Rp125.000', sensitive), 'Bensin Rp125.000');
+  assert.equal(maskSensitive('Masuk Rp0', [0]), 'Masuk Rp0');
+});

@@ -1,6 +1,7 @@
 'use client';
 import { GoogleLinkCard } from './google-button';
 import { AccessAdmin } from './access-admin';
+import { DataSafetyCard } from './data-safety';
 import { hasPassword } from '@/lib/auth';
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
@@ -102,6 +103,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
     <PinSettings notify={notify} onLockNow={onLockNow}/>
     <PasswordCard user={user} notify={notify}/>
     <GoogleLinkCard user={user} notify={notify}/>
+    <DataSafetyCard/>
    </div>}
 
    {page.key==='access'&&admin&&<AccessAdmin notify={notify}/>}

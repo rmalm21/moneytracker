@@ -8122,3 +8122,30 @@ button.int-more { justify-self: start; font-size: .74rem; }
 /* 6.3: asking again after the owner dismissed a request. */
 .access-resend { width: 100%; display: grid; gap: 8px; justify-items: center; padding: 10px 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--paper)); font-size: .82rem; color: color-mix(in srgb, var(--ink) 80%, var(--muted)); }
 .access-switch:disabled { opacity: .6; cursor: default; }
+/* 6.4: what the eye hides. */
+.privacy-mode { display: grid; gap: 8px; margin-top: 12px; }
+.privacy-mode > strong { font-size: .9rem; }
+.privacy-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.privacy-mode-option { display: grid; gap: 3px; text-align: left; padding: 11px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s; }
+.privacy-mode-option b { font-size: .86rem; }
+.privacy-mode-option small { font-size: .74rem; line-height: 1.35; color: var(--muted); }
+.privacy-mode-option.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--paper)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+/* 6.4: a notification that opens something when tapped. */
+.toast-card.is-openable, .heads-up.is-openable { cursor: pointer; }
+.toast-card.is-openable:hover, .heads-up.is-openable:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.toast-card.is-openable .toast-text strong::after, .heads-up.is-openable .heads-up-text strong::after { content: ' ›'; color: var(--accent); font-weight: 800; }
+/* 6.4 Kelola akun: names, last active, idle accounts. */
+.access-email { font-style: normal; font-weight: 500; color: var(--muted); font-size: .78rem; margin-left: 4px; }
+.access-kind.is-idle { background: color-mix(in srgb, var(--amber) 16%, var(--paper)); color: color-mix(in srgb, var(--amber) 70%, var(--ink)); }
+.access-list li.is-idle { background: color-mix(in srgb, var(--amber) 6%, var(--paper)); }
+.access-stale { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--paper)); font-size: .82rem; }
+.access-note-edit { display: flex; gap: 6px; align-items: center; }
+.access-note-edit .btn { padding: 8px 12px; min-height: 0; font-size: .8rem; }
+/* 6.4 Keamanan datamu. */
+.data-safety ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; }
+.data-safety li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
+.data-safety li > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); color: var(--accent); }
+.data-safety li strong { display: block; font-size: .88rem; }
+.data-safety li small { color: var(--muted); font-size: .8rem; line-height: 1.45; }
+.access-safe { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: .76rem; line-height: 1.4; color: var(--muted); text-align: left; }
+.access-safe svg { flex: none; margin-top: 2px; color: var(--accent); }

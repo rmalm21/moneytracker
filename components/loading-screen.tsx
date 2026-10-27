@@ -17,13 +17,17 @@ export type SplashStyle = 'standard' | 'greeting';
 export function rememberSplashStyle(style: SplashStyle | undefined) { try { if (style) localStorage.setItem(STYLE_KEY, style); } catch { /* default */ } }
 function savedSplashStyle(): SplashStyle { try { return localStorage.getItem(STYLE_KEY) === 'standard' ? 'standard' : 'greeting'; } catch { return 'greeting'; } }
 /** Remembers who opened the app last, so the next opening can greet them before the profile has loaded. */
-export function rememberGreetingName(name: string) { try { if (name.trim()) localStorage.setItem(NAME_KEY, name.trim()); else localStorage.removeItem(NAME_KEY); } catch { /* greeting only */ } }
+export function rememberGreetingName(name: string, uid = '') { try { if (name.trim()) localStorage.setItem(NAME_KEY, JSON.stringify({ uid, name: name.trim() })); else localStorage.removeItem(NAME_KEY); } catch { /* greeting only */ } }
+/** Signing out forgets the name, so the next person is not greeted as the last one. */
+export function forgetGreetingName() { try { localStorage.removeItem(NAME_KEY); } catch { /* greeting only */ } }
+/** The remembered name, only for the account it belongs to (any account while the sign-in is still being read). */
+function savedName(uid?: string) { try { const raw = localStorage.getItem(NAME_KEY) || ''; if (!raw.startsWith('{')) return ''; const x = JSON.parse(raw) as { uid?: string; name?: string }; return !uid || x.uid === uid ? x.name || '' : ''; } catch { return ''; } }
 
 /** Minimal full-screen splash in the chosen theme colours while the account, profile and data load. `stage` 0 = sign-in, 1 = profile, 2 = data. */
-export function LoadingScreen({ stage = 0, error = '', name = '', style }: { stage?: number; error?: string; name?: string; style?: SplashStyle }) {
+export function LoadingScreen({ stage = 0, error = '', name = '', style, uid }: { stage?: number; error?: string; name?: string; style?: SplashStyle; /** The signed-in account, once known: a name remembered for another account is not shown. */ uid?: string }) {
   // The name and the chosen look as soon as they are known; before that, what this device remembers.
   const [saved, setSaved] = useState(''), [savedStyle, setSavedStyle] = useState<SplashStyle | null>(null);
-  useEffect(() => { try { setSaved(localStorage.getItem(NAME_KEY) || ''); } catch { /* no name */ } setSavedStyle(savedSplashStyle()); }, []);
+  useEffect(() => { setSaved(savedName(uid)); setSavedStyle(savedSplashStyle()); }, [uid]);
   const look = style || savedStyle;
   const who = (name || saved).trim().split(/\s+/)[0] || '';
   const step = steps[Math.min(stage, steps.length - 1)];

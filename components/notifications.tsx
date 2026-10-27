@@ -13,13 +13,13 @@ import { defaultReminders } from '@/lib/reminders';
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
 /** `app`: a reminder from Dompet Ajaib itself, shown as a floating banner with the app logo (like a phone notification). */
-export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean };
-type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean };
+export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean; /** 6.4: tapping the card opens what it is about. */ open?: () => void };
+type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean; open?: () => void };
 /**
  * `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail.
  * `detail`: a second line such as the category and wallet. `log`: keep it in Riwayat (every save that shows a card does).
  */
-type TrackLabels = { pending: string; success: string; failure: string; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string; /** Show the progress card at once instead of only when slow. */ immediate?: boolean };
+type TrackLabels = { pending: string; success: string; failure: string; /** 6.4: tapping the success card opens this. */ open?: () => void; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string; /** Show the progress card at once instead of only when slow. */ immediate?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -41,12 +41,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const busy = useRef(0);
 
   useEffect(() => { setHistory(uid ? readHistory(uid) : []); setFloating([]); }, [uid]);
-  useEffect(() => { if (!uid) return; try { localStorage.setItem(storageKey(uid), JSON.stringify(history.slice(0, 60).map(({ action: _action, ...note }) => note))); } catch { /* History is a convenience. */ } }, [history, uid]);
+  useEffect(() => { if (!uid) return; try { localStorage.setItem(storageKey(uid), JSON.stringify(history.slice(0, 60).map(({ action: _action, open: _open, ...note }) => note))); } catch { /* History is a convenience. */ } }, [history, uid]);
 
   const dismiss = useCallback((id: string) => { setFloating(list => list.filter(note => note.id !== id)); const timer = timers.current.get(id); if (timer) clearTimeout(timer); timers.current.delete(id); }, []);
   const push = useCallback((input: PushInput) => {
     const id = input.id || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const note: Note = { id, title: input.title, body: input.body, kind: input.kind || 'success', time: Date.now(), action: input.action, app: input.app };
+    const note: Note = { id, title: input.title, body: input.body, kind: input.kind || 'success', time: Date.now(), action: input.action, app: input.app, open: input.open };
     setFloating(list => [note, ...list.filter(item => item.id !== id)].slice(0, 4));
     if (input.history !== false && note.kind !== 'progress') setHistory(list => [note, ...list.filter(item => item.id !== id)].slice(0, 60));
     const old = timers.current.get(id); if (old) clearTimeout(old);
@@ -68,7 +68,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       done();
       const body = [labels.detail, navigator.onLine ? '' : labels.offlineNote ?? 'Tersimpan di perangkat · dikirim otomatis saat online'].filter(Boolean).join(' · ') || undefined;
       const log = labels.log ?? !labels.quiet;
-      if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body, kind: 'success' }); } else push({ id, title: labels.success, body, kind: 'success', history: log });
+      if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body, kind: 'success' }); } else push({ id, title: labels.success, body, kind: 'success', history: log, open: labels.open });
       labels.after?.();
     }).catch(error => {
       done();
@@ -118,10 +118,10 @@ function HeadsUp({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
     if (!start.current) return; start.current = null;
     if (offset.y < -40 || Math.abs(offset.x) > 80) { setLeaving(true); setOffset(offset.y < -40 ? { x: 0, y: -160 } : { x: offset.x > 0 ? 480 : -480, y: 0 }); setTimeout(onDismiss, 180); return; }
     setOffset({ x: 0, y: 0 });
-    if (!moved.current && note.action) { note.action.run(); onDismiss(); }
+    if (!moved.current && (note.open || note.action)) { if (note.open) note.open(); else note.action!.run(); onDismiss(); }
   }
   const drag = offset.x || offset.y;
-  return <div className={`heads-up is-${note.kind} ${leaving ? 'is-leaving' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: drag ? `translate(${offset.x}px, ${offset.y}px)` : undefined, opacity: drag ? Math.max(.2, 1 - (Math.abs(offset.x) + Math.abs(offset.y) * 2) / 300) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+  return <div className={`heads-up is-${note.kind} ${leaving ? 'is-leaving' : ''} ${note.open || note.action ? 'is-openable' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: drag ? `translate(${offset.x}px, ${offset.y}px)` : undefined, opacity: drag ? Math.max(.2, 1 - (Math.abs(offset.x) + Math.abs(offset.y) * 2) / 300) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <img className="heads-up-logo" src="/icons/icon-192.png" alt="" draggable={false}/>
     <div className="heads-up-text">
       <strong><EmojiText text={note.title}/></strong>
@@ -139,8 +139,8 @@ function Toast({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
   const Icon = icons[note.kind];
   function down(event: ReactPointerEvent<HTMLDivElement>) { if ((event.target as Element).closest('button')) return; start.current = { x: event.clientX, y: event.clientY, id: event.pointerId }; event.currentTarget.setPointerCapture(event.pointerId); }
   function move(event: ReactPointerEvent<HTMLDivElement>) { if (!start.current) return; setDx(event.clientX - start.current.x); }
-  function up() { if (!start.current) return; start.current = null; if (Math.abs(dx) > 70) { setLeaving(true); setDx(dx > 0 ? 480 : -480); setTimeout(onDismiss, 160); } else setDx(0); }
-  return <div className={`toast-card is-${note.kind} ${leaving ? 'is-leaving' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: dx ? `translateX(${dx}px)` : undefined, opacity: dx ? Math.max(.2, 1 - Math.abs(dx) / 260) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+  function up() { if (!start.current) return; start.current = null; if (Math.abs(dx) > 70) { setLeaving(true); setDx(dx > 0 ? 480 : -480); setTimeout(onDismiss, 160); } else { const tapped = Math.abs(dx) < 6; setDx(0); if (tapped && note.open) { note.open(); onDismiss(); } } }
+  return <div className={`toast-card is-${note.kind} ${leaving ? 'is-leaving' : ''} ${note.open ? 'is-openable' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: dx ? `translateX(${dx}px)` : undefined, opacity: dx ? Math.max(.2, 1 - Math.abs(dx) / 260) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <span className="toast-icon" aria-hidden="true"><Icon size={19}/></span>
     <div className="toast-text"><strong><EmojiText text={note.title}/></strong>{note.body && <small><EmojiText text={note.body}/></small>}{note.action && <button type="button" className="toast-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}</div>
     <button type="button" className="toast-close" aria-label="Tutup notifikasi" onClick={onDismiss}><X size={16}/></button>
@@ -159,7 +159,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState<string[]>([]);
   const uid = profile?.uid || '';
-  useEffect(() => { try { setSeen(JSON.parse(localStorage.getItem(`dompet-ajaib:seen:${uid}`) || '[]')); } catch { setSeen([]); } }, [uid]);
+  useEffect(() => { try { const ids = JSON.parse(localStorage.getItem(`dompet-ajaib:seen:${uid}`) || '[]'); setSeen(Array.isArray(ids) ? ids : []); } catch { setSeen([]); } }, [uid]);
 
   const attention = useMemo<Attention[]>(() => {
     if (!profile) return [];

@@ -1,11 +1,11 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy, KeyRound, Plus, Share2, Trash2, UserCheck, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { Check, Copy, KeyRound, Pencil, Plus, Share2, Trash2, UserCheck, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input } from './fields';
-import { ACCESS_SINCE, watchGrants, approveRequest, createCode, deleteCode, dismissRequest, listCodes, revokeGrant, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
+import { ACCESS_SINCE, watchGrants, approveRequest, createCode, deleteCode, dismissRequest, listCodes, revokeGrant, setGrantNote, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
 
 const day = (d?: Date) => d ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) : '';
 const ago = (d?: Date) => { if (!d) return ''; const m = Math.round((Date.now() - d.getTime()) / 60_000); return m < 1 ? 'baru saja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : day(d); };
@@ -16,7 +16,7 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
   const { user } = useApp();
   const [codes, setCodes] = useState<AccessCode[] | null>(null), [grants, setGrants] = useState<AccessGrant[] | null>(null);
   const [days, setDays] = useState(7), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [fresh, setFresh] = useState(''), [copied, setCopied] = useState(false), [error, setError] = useState('');
-  const [requests, setRequests] = useState<AccessRequest[] | null>(null), [working, setWorking] = useState('');
+  const [requests, setRequests] = useState<AccessRequest[] | null>(null), [working, setWorking] = useState(''), [editing, setEditing] = useState(''), [noteDraft, setNoteDraft] = useState('');
   useEffect(() => watchRequests(setRequests), []);
   useEffect(() => watchGrants(setGrants), []);
   // A request from someone who already got in (with a code) is done: tidied away.
@@ -35,6 +35,11 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
   async function revoke(g: AccessGrant) { await revokeGrant(g.uid).then(() => notify(`Akses ${g.email || 'akun itu'} sudah dicabut. Di layarnya langsung muncul pemberitahuan.`), () => notify('Akses belum bisa dicabut. Coba lagi.')); load(); }
   const open = (codes || []).filter(c => statusOf(c) === 'open'), others = (codes || []).filter(c => statusOf(c) !== 'open').slice(0, 12);
   const waiting = (requests || []).filter(r => !(grants || []).some(g => g.uid === r.uid));
+  const idleDays = (g: AccessGrant) => { const t = (g.seen || g.at)?.getTime(); return t ? Math.floor((Date.now() - t) / 86_400_000) : 0; };
+  const lastActive = (g: AccessGrant) => g.seen ? `Aktif ${ago(g.seen)}` : 'Belum tercatat aktif';
+  const stale = (grants || []).filter(g => g.uid !== user.uid && g.code !== 'owner' && idleDays(g) >= 60);
+  async function revokeStale() { for (const g of stale) await revokeGrant(g.uid).catch(() => undefined); notify(`${stale.length} akun tidak aktif sudah dicabut aksesnya.`); }
+  async function saveNote(uid: string) { await setGrantNote(uid, noteDraft).catch(() => notify('Nama belum tersimpan. Coba lagi.')); setEditing(''); }
   return <div className="set-form access-admin">
     <div className={`set-card access-requests ${waiting.length ? 'has-new' : ''}`}>
       <div className="pw-card-head"><span className="auth-badge is-small" aria-hidden="true"><UserPlus size={20}/></span><div><h3>Minta akses{waiting.length ? ` (${waiting.length})` : ''}</h3><p>Orang yang sudah masuk tapi belum punya akses. Izinkan langsung, atau buatkan kode.</p></div></div>
@@ -61,8 +66,13 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
       {others.length > 0 && <details className="access-older"><summary>Kode lama ({others.length})</summary><ul className="access-list">{others.map(c => <li key={c.code} className={`is-${statusOf(c)}`}><span><b className="access-mono">{showCode(c.code)}</b><small>{statusOf(c) === 'used' ? `Dipakai ${c.usedEmail || 'seseorang'}${c.usedAt ? ` · ${day(c.usedAt)}` : ''}` : `Kedaluwarsa ${day(c.expiresAt)}`}{c.note ? ` · ${c.note}` : ''}</small></span><button type="button" className="icon-button" aria-label={`Hapus ${showCode(c.code)}`} onClick={() => void removeCode(c.code)}><Trash2 size={16}/></button></li>)}</ul></details>}
     </div>
     <div className="set-card">
-      <div className="pw-card-head"><span className="auth-badge is-small" aria-hidden="true"><Users size={20}/></span><div><h3>Yang punya akses</h3><p>Akun yang sudah bisa membuka Dompet Ajaib. Data tiap akun tetap terpisah, kamu tidak bisa melihat isinya.</p></div></div>
-      {grants === null ? <p className="muted">Memuat…</p> : <ul className="access-list">{grants.map(g => <li key={g.uid}><span><b>{g.email || 'Tanpa email'}{g.uid === user.uid ? ' (kamu)' : ''}</b><small>{g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}{g.at ? ` · sejak ${day(g.at)}` : ''}</small></span>{g.uid !== user.uid && <Confirm title={`Cabut akses ${g.email || 'akun ini'}?`} description="Akun itu langsung tidak bisa membuka Dompet Ajaib, dan di layarnya muncul pemberitahuan. Datanya tidak dihapus. Kamu bisa mengizinkannya lagi kapan saja." confirmLabel="Cabut akses" onConfirm={() => revoke(g)}><button type="button" className="link-button access-revoke"><UserMinus size={15}/> Cabut</button></Confirm>}</li>)}</ul>}
+      <div className="pw-card-head"><span className="auth-badge is-small" aria-hidden="true"><Users size={20}/></span><div><h3>Yang punya akses{grants ? ` (${grants.length})` : ''}</h3><p>Akun yang bisa membuka Dompet Ajaib. Kamu cuma melihat email dan kapan terakhir aktif, isi catatan keuangan mereka tidak terlihat dari sini.</p></div></div>
+      {stale.length > 0 && <div className="access-stale"><span>{stale.length} akun tidak aktif lebih dari 60 hari.</span><Confirm title={`Cabut akses ${stale.length} akun tidak aktif?`} description="Akun-akun itu tidak bisa membuka Dompet Ajaib lagi sampai kamu izinkan. Datanya tetap tersimpan terkunci dan tidak dibaca siapa pun, jadi tidak memakai kuota." confirmLabel="Cabut semuanya" onConfirm={() => revokeStale()}><button type="button" className="access-switch"><UserMinus size={14}/> Cabut semuanya</button></Confirm></div>}
+      {grants === null ? <p className="muted">Memuat…</p> : <ul className="access-list">{grants.map(g => { const idle = g.uid !== user.uid && idleDays(g) >= 30; return <li key={g.uid} className={idle ? 'is-idle' : ''}><span>
+        {editing === g.uid ? <form className="access-note-edit" onSubmit={e => { e.preventDefault(); void saveNote(g.uid); }}><Input value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Nama atau catatan" maxLength={60} autoFocus/><Button type="submit">Simpan</Button></form>
+          : <b>{g.note ? <>{g.note} <em className="access-email">{g.email}</em></> : g.email || 'Tanpa email'}{g.uid === user.uid ? ' (kamu)' : ''}</b>}
+        <small>{idle && <span className="access-kind is-idle">Tidak aktif</span>}{lastActive(g)} · {g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}</small></span>
+        <span className="access-row-actions">{editing !== g.uid && <button type="button" className="icon-button" aria-label={`Beri nama ${g.email}`} onClick={() => { setEditing(g.uid); setNoteDraft(g.note || ''); }}><Pencil size={15}/></button>}{g.uid !== user.uid && <Confirm title={`Cabut akses ${g.note || g.email || 'akun ini'}?`} description="Akun itu langsung tidak bisa membuka Dompet Ajaib, dan di layarnya muncul pemberitahuan. Datanya tidak dihapus. Kamu bisa mengizinkannya lagi kapan saja." confirmLabel="Cabut akses" onConfirm={() => revoke(g)}><button type="button" className="link-button access-revoke"><UserMinus size={15}/> Cabut</button></Confirm>}</span></li>; })}</ul>}
     </div>
   </div>;
 }

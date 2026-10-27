@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.4', date: '27 Okt 2026', title: 'Kelola akun dan privasi lebih rapi', items: [
+    ['👥', 'Pemilik bisa memberi nama tiap akun, melihat kapan terakhir aktif, dan mencabut sekaligus akun yang tidak aktif lebih dari 60 hari.'],
+    ['👁️', 'Ikon mata kini hanya menyembunyikan angka yang penting: saldo, aset, uang bebas, pemasukan, dan tabungan. Pengeluaran harian dan anggaran tetap terlihat. Kalau mau semua disembunyikan, pilih “Semua nominal” di Pengaturan › Tampilan.'],
+    ['🔐', 'Ada kartu baru “Keamanan datamu” di Pengaturan › Keamanan yang menjelaskan apa yang terjadi dengan catatan keuanganmu: terenkripsi, cuma bisa dibuka dari akunmu, dan pemilik aplikasi tidak bisa melihat isinya dari Dompet Ajaib.'],
+    ['🔔', 'Notifikasi sekarang bisa diketuk: transaksi tersimpan membuka Transaksi, dan permintaan akses membuka Kode akses.'],
+    ['🐞', 'Setelah keluar lalu masuk dengan akun lain, sapaan “Halo, …” tidak lagi memakai nama akun sebelumnya.'],
+  ] },
   { version: '6.3', date: '27 Okt 2026', title: 'Minta akses lebih andal', items: [
     ['📨', 'Akun yang aksesnya dicabut kini benar-benar mengirim permintaan ulang, dan permintaannya langsung muncul lagi di daftar pemilik.'],
     ['🔁', 'Kalau permintaan diabaikan pemilik, layar orang itu menampilkan tombol “Kirim permintaan lagi”. Jedanya makin lama tiap kali dikirim (5 detik, 10 detik, 30 detik, lalu 1 menit) supaya tidak nyepam.'],

@@ -1,5 +1,6 @@
 'use client';
-import { checkAccess, watchOwnGrant, watchRequests, type AccessState } from '@/lib/access';
+import { forgetGreetingName } from './loading-screen';
+import { checkAccess, markSeen, watchOwnGrant, watchRequests, type AccessState } from '@/lib/access';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -22,7 +23,7 @@ function dataError(error:unknown) {
 export function AppProvider({children}:{children:React.ReactNode}) {
   const [user,setUser]=useState<User|null>(null),[access,setAccess]=useState<AccessState>('checking'),[admin,setAdmin]=useState(false),[accessRequests,setAccessRequests]=useState(0),[revoked,setRevoked]=useState(false),[profile,setProfile]=useState<Profile|null>(null),[data,setData]=useState<Data>(emptyData),[loading,setLoading]=useState(true),[error,setError]=useState(''),[sync,setSync]=useState<'syncing'|'synced'|'offline'|'error'>('syncing');
   const cycle=useMemo(()=>salaryCycle(dateInTimeZone(new Date(),profile?.timeZone),profile?.salaryCycleStartDay||24),[profile?.salaryCycleStartDay,profile?.timeZone]);
-  useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{void import('@/lib/catat/session').then(m=>m.clearSession());if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u){setAccess('checking');void checkAccess(u).then(r=>{if(auth?.currentUser?.uid!==u.uid)return;setAdmin(r.admin);setRevoked(r.revoked);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});}else{setAccess('checking');setAdmin(false);}},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
+  useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{void import('@/lib/catat/session').then(m=>m.clearSession());if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}forgetGreetingName();applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u){setAccess('checking');void checkAccess(u).then(r=>{if(auth?.currentUser?.uid!==u.uid)return;setAdmin(r.admin);setRevoked(r.revoked);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});}else{setAccess('checking');setAdmin(false);}},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
   // Keeps the device copy current (only changed documents are downloaded); the screens read that copy.
   useEffect(()=>{if(!user||access!=='granted')return;return startSync(user.uid);},[user?.uid,access]);
   // Leftovers of the withdrawn 5.0 "Adaptive Simplicity" build (menu usage per account): removed, never read.
@@ -45,6 +46,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(user&&data.drafts.some(d=>d.status==='pending'&&d.mode==='auto')&&typeof navigator!=='undefined'&&navigator.onLine)void postAutoDrafts(user.uid,data.drafts);},[user,data.drafts]);
   const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
   const refreshAccess=()=>{const u=auth?.currentUser;if(!u)return;setLoading(true);void checkAccess(u).then(r=>{setAdmin(r.admin);setRevoked(r.revoked);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});};
+  // Last active, for the owner's list (at most every 6 hours).
+  useEffect(()=>{if(user&&access==='granted')void markSeen(user.uid);},[user?.uid,access]);
   // The owner takes access back while the app is open: the access screen shows at once, saying so.
   useEffect(()=>{if(!user||admin||access!=='granted')return;return watchOwnGrant(user.uid,()=>{setRevoked(true);setAccess('needs-code');});},[user?.uid,admin,access]);
   useEffect(()=>{if(!admin||access!=='granted'){setAccessRequests(0);return;}return watchRequests(list=>setAccessRequests(list.length));},[admin,access]);

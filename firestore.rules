@@ -75,7 +75,13 @@ service cloud.firestore {
     match /accessGrants/{uid} {
       allow get: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow list, delete: if isAdmin();
-      allow update: if false;
+      // The owner keeps a note (a name) on each account; the account itself only marks when it was last active,
+      // at most every 6 hours, and nothing else.
+      allow update: if isAdmin()
+        || (request.auth != null && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen'])
+            && request.resource.data.seen == request.time
+            && (!('seen' in resource.data) || request.time > resource.data.seen + duration.value(6, 'h')));
       allow create: if isAdmin()
         || (request.auth != null && request.auth.uid == uid
             && request.resource.data.keys().hasOnly(['code', 'email', 'at'])
