@@ -5092,7 +5092,7 @@ button.about-card { cursor: pointer; }
 .notif-tip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 10px; margin-top: 18px; padding: 12px 14px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--paper)); }
 .notif-tip-icon { grid-row: span 2; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
 .notif-tip p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.45; }
-.notif-tip .link-button { justify-self: start; padding: 2px 0; font-size: .82rem; font-weight: 800; }
+.notif-tip .link-button { justify-self: start; margin-top: 6px; padding: 6px 14px; font-size: .82rem; font-weight: 800; }
 
 /* 97. Eye button in the top bar: hide every amount (see components/hide-amounts.tsx) */
 .eye-button { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
