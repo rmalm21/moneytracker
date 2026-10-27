@@ -166,6 +166,29 @@ export async function archiveOrDelete(uid:string,name:Name,id:string,data:Data) 
   if(name==='budgets'||name==='funds'||name==='recurring'||name==='wallets'||name==='categories') {if(name==='funds' && !(await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where('fundId','==',id),limit(1)))).empty){await settle(updateDoc(ref(uid,name,id),{isArchived:true,updatedAt:serverTimestamp()}));return 'archived';}const b=writeBatch(database());b.delete(ref(uid,name,id));await settle(b.commit());await noteDeleted(uid,{[name]:[id]});return 'deleted';}
   throw Error('Catatan ini hanya bisa diubah lewat transaksinya.');
 }
+/** Arsipkan dompet: hidden from lists and choices, its history and balance kept; it can be restored. */
+export async function archiveWallet(uid:string,id:string,archived=true){await settle(updateDoc(ref(uid,'wallets',id),{isArchived:archived,updatedAt:serverTimestamp()}));}
+/**
+ * Hapus dompet, keeping every transaction (lib/wallet-delete.ts): the wallet leaves lists, totals, choices and the archive;
+ * its record stays marked deleted so its transactions still name it. Never used: removed whole. Plans / Tujuan dana /
+ * kantong / pending drafts forget it. Refused while an active schedule still posts to it.
+ */
+export async function deleteWalletForever(uid:string,wallet:Wallet,data:Data,profile?:Pick<Profile,'defaultExpenseWalletId'|'defaultIncomeWalletId'>|null){
+  const {walletDeletePlan}=await import('./wallet-delete');
+  const plan=walletDeletePlan(wallet,data,await loadAllTransactions(uid));
+  if(plan.blockers.length)throw Error(`${wallet.name} masih dipakai ${plan.blockers.join(', ')}. Ganti dompet jadwalnya atau jeda dulu.`);
+  const b=writeBatch(database());
+  for(const id of plan.plans)b.update(ref(uid,'plannedTransactions',id),{walletId:null,updatedAt:serverTimestamp()});
+  for(const id of plan.funds){const f=data.funds.find(x=>x.id===id)!;b.update(ref(uid,'funds',id),{...(f.linkedWalletId===wallet.id?{linkedWalletId:''}:{}),...(f.walletIds?.includes(wallet.id)?{walletIds:f.walletIds.filter(w=>w!==wallet.id)}:{}),updatedAt:serverTimestamp()});}
+  for(const id of plan.drafts)b.delete(ref(uid,'drafts',id));
+  const defaults={...(profile?.defaultExpenseWalletId===wallet.id?{defaultExpenseWalletId:deleteField()}:{}),...(profile?.defaultIncomeWalletId===wallet.id?{defaultIncomeWalletId:deleteField()}:{})};
+  if(Object.keys(defaults).length)b.update(userRef(uid),{...defaults,updatedAt:serverTimestamp()});
+  if(plan.unused)b.delete(ref(uid,'wallets',wallet.id));
+  else b.update(ref(uid,'wallets',wallet.id),{isArchived:true,isDeleted:true,deletedAt:new Date().toISOString().slice(0,10),updatedAt:serverTimestamp()});
+  await settle(b.commit());
+  if(plan.unused||plan.drafts.length)await noteDeleted(uid,{...(plan.unused?{wallets:[wallet.id]}:{}),...(plan.drafts.length?{drafts:plan.drafts}:{})});
+  return {kept:plan.kept,removed:plan.unused};
+}
 export async function saveRecord<T extends Category|Budget|Fund|Recurring>(uid:string,name:'categories'|'budgets'|'funds'|'recurring',record:Partial<T>,id?:string) { const r=id?ref(uid,name,id):doc(coll(uid,name)); const {id:_ignored,createdAt:_created,updatedAt:_updated,...fields}=record; if(id) await settle(updateDoc(r,{...fields,updatedAt:serverTimestamp()}));else await settle(setDoc(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));return r.id; }
 export async function saveDisplayOrder(uid:string,name:'categories'|'wallets'|'budgets'|'wishlist',ids:string[]){
  if(ids.length>400||new Set(ids).size!==ids.length)throw Error('Urutan tidak valid.');

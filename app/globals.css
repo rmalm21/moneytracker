@@ -5803,8 +5803,9 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .group-choices .choice-card input { position: absolute; opacity: 0; pointer-events: none; }
 .group-choices .choice-card.is-selected .group-choice-icon { background: var(--accent); color: var(--accent-on); }
 @media (max-width: 760px) { .wallet-group-head .group-hint { display: none; } }
-.wallet-tab .amount-short { display: none; }
-@media (max-width: 760px) { .wallet-tab .amount-full { display: none; } .wallet-tab .amount-short { display: inline; } }
+/* Group totals are written in full; the font shrinks only as much as a long amount needs to fit the tab. */
+.wallet-tab { container-type: inline-size; }
+.wallet-tab .wallet-tab-amount { max-width: 100%; overflow: visible; text-overflow: clip; font-size: min(1.15rem, calc(100cqi / (var(--chars, 10) * .6))); letter-spacing: -.01em; }
 /* Wallet groups in the Beranda widget must shrink to the card, letting long names truncate. */
 .widget-body > .widget-wallet-group, .widget-wallet-group, .wallet-mini-list, .wallet-mini { min-width: 0; max-width: 100%; }
 
@@ -7710,3 +7711,34 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .portion-line .is-short { color: var(--rose); }
 .portion-line .is-titipan::before, .portion-line .is-disisihkan::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 99px; background: var(--amber, #c98a2b); vertical-align: 1px; }
 .portion-line .is-disisihkan::before { background: #7c6fd6; }
+
+/* Hapus dompet (transactions kept) and Dompet diarsipkan. */
+.more-menu .danger-item { color: var(--rose); }
+.wallet-form-delete { display: inline-flex; align-items: center; justify-self: center; gap: 6px; margin-top: 2px; color: var(--rose); }
+.wallet-delete { display: grid; gap: 12px; }
+.wallet-delete-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--identity-color, var(--accent)) 8%, var(--paper)); }
+.wallet-delete-head > span:last-child { display: grid; }
+.wallet-delete-head strong { font-size: .95rem; }
+.wallet-delete-head small { color: var(--muted); font-size: .78rem; }
+.wallet-delete-list { display: grid; gap: 8px; margin: 0; padding-left: 18px; font-size: .86rem; line-height: 1.45; }
+.wallet-delete-block { padding: 11px 13px; border-radius: 14px; background: color-mix(in srgb, var(--amber) 12%, var(--paper)); }
+.wallet-delete-block strong { display: block; margin-bottom: 3px; font-size: .9rem; }
+.wallet-delete-block p { margin: 0; font-size: .84rem; line-height: 1.45; }
+.wallet-delete-sure { font-size: .85rem; }
+.wallet-delete-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.wallet-delete-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.wallet-delete-tip { color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.wallet-archive { margin-top: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); overflow: hidden; }
+.wallet-archive-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 16px; border: 0; background: transparent; color: var(--ink); font-weight: 700; font-size: .9rem; text-align: left; cursor: pointer; }
+.wallet-archive-toggle span { flex: 1; }
+.wallet-archive-toggle b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 6px; padding: 0 6px; border-radius: 99px; background: var(--paper-2); color: var(--muted); font-size: .74rem; }
+.wallet-archive-toggle svg { color: var(--muted); transition: transform .2s; }
+.wallet-archive-toggle .rotated { transform: rotate(180deg); }
+.wallet-archive-list { display: grid; margin: 0; padding: 0 12px 10px; list-style: none; }
+.wallet-archive-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line); }
+.wallet-archive-text { display: grid; min-width: 0; }
+.wallet-archive-text strong { font-size: .9rem; }
+.wallet-archive-text small { color: var(--muted); font-size: .75rem; }
+.wallet-archive-actions { display: flex; align-items: center; gap: 6px; }
+.wallet-archive-actions .btn { display: inline-flex; align-items: center; gap: 5px; }
+.wallet-archive-delete { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--rose); cursor: pointer; }
