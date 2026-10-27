@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.4', date: '27 Okt 2026', title: 'Isi dompet bisa dipisah', items: [
+    ['💰', 'Satu rekening bisa dipisah isinya. Contohnya SeaBank Rp7,5 jt: Uangku Rp1,5 jt dan Dana bisnis Rp6 jt. Saldo di rekening tetap satu, sama seperti di aplikasi bank. Buka dompetnya, lalu ketuk “Pisahkan isi”.'],
+    ['🔒', 'Titipan atau dana transit (uang orang lain yang hanya lewat) tidak dihitung sebagai Uang Bebas, Aset bersih, maupun di Insight. Bagian “Disisihkan” tetap uangmu: masuk Aset bersih, tapi tidak dihitung sebagai Uang Bebas.'],
+    ['💸', 'Saat mencatat transaksi dari dompet itu, pilih bagiannya, misalnya transfer ke supplier diambil dari Dana bisnis. Jumlah bagian ikut berubah sendiri, termasuk kalau transaksinya diubah atau dihapus.'],
+  ] },
   { version: '5.3', date: '3 Okt 2026', title: 'Badge anggaran lebih rapi', items: [
     ['✅', 'Angka di badge sisa anggaran pada menu kini tepat di tengah, di desktop maupun di HP.'],
   ] },
