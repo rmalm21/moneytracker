@@ -6,9 +6,8 @@ import { CloudOff, KeyRound, Lock, ShieldCheck, Smartphone } from 'lucide-react'
  */
 export function DataSafetyCard() {
   const points: [typeof Lock, string, string][] = [
-    [Lock, 'Terenkripsi', 'Data dikirim lewat koneksi terenkripsi dan disimpan terenkripsi di cloud.'],
-    [KeyRound, 'Cuma dari akunmu', 'Aturan akses cloud memastikan catatanmu hanya bisa dibuka dari akunmu sendiri. Akun lain tidak bisa membacanya.'],
-    [ShieldCheck, 'Pemilik aplikasi tidak bisa melihat isinya', 'Di Dompet Ajaib, pemilik hanya melihat email dan kapan terakhir kamu aktif untuk mengatur akses. Tidak ada fitur untuk membuka catatanmu.'],
+    [Lock, 'Aman dan terenkripsi', 'Catatan keuanganmu dikirim dan disimpan dalam keadaan terenkripsi.'],
+    [KeyRound, 'Cuma dari akunmu', 'Catatanmu cuma bisa dibuka dari akunmu sendiri.'],
     [Smartphone, 'Dibaca di HP', 'Catat otomatis, Tanya, dan Scan struk berjalan di HP-mu. Kalimat dan foto tidak dikirim ke layanan AI mana pun.'],
     [CloudOff, 'Foto struk tidak disimpan', 'Foto struk dibaca di HP lalu dibuang dan tidak dikirim ke mana pun. Yang disimpan hanya hasil catatannya.'],
   ];

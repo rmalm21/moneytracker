@@ -65,7 +65,7 @@ export function AccessGate() {
           {access === 'error' && !error && <p className="form-error" role="status">Belum bisa memeriksa akses. Periksa internet, lalu coba lagi.</p>}
           <Button className="full" disabled={busy || clean.length < 9}>{busy ? <><LoaderCircle size={16} className="spin"/> Memeriksa…</> : <><ShieldCheck size={16}/> Buka Dompet Ajaib</>}</Button>
         </form>
-        <p className="access-safe"><ShieldCheck size={14} aria-hidden="true"/> Catatan keuanganmu terenkripsi dan cuma bisa dibuka dari akunmu. Pemilik aplikasi tidak bisa melihat isinya.</p>
+        <p className="access-safe"><ShieldCheck size={14} aria-hidden="true"/> Catatan keuanganmu aman dan terenkripsi.</p>
         <div className="access-who"><span>Masuk sebagai <b>{user?.email}</b></span><button type="button" className="access-switch" onClick={() => void switchAccount()}><LogOut size={14}/> Ganti akun</button></div>
       </>}
     </div>
