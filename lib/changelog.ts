@@ -4,7 +4,8 @@ export type Release = { version: string; date: string; title: string; items: [em
 export const releases: Release[] = [
   { version: '6.4', date: '27 Okt 2026', title: 'Kelola akun dan privasi lebih rapi', items: [
     ['👥', 'Pemilik bisa memberi nama tiap akun, melihat kapan terakhir aktif, dan mencabut sekaligus akun yang tidak aktif lebih dari 60 hari.'],
-    ['👁️', 'Ikon mata kini hanya menyembunyikan angka yang penting: saldo, aset, uang bebas, pemasukan, dan tabungan. Pengeluaran harian dan anggaran tetap terlihat. Kalau mau semua disembunyikan, pilih “Semua nominal” di Pengaturan › Tampilan.'],
+    ['👁️', 'Ikon mata kini lebih ketat dan lebih pas: semua angka disembunyikan, kecuali nominal tiap transaksi dan yang sedang kamu isi, jadi daftar transaksi tetap bisa dicek. Saldo, aset, dan pemasukan selalu tertutup. Mau benar-benar semua? Pilih “Semua nominal” di Pengaturan › Tampilan.'],
+    ['🧹', 'Bantuan Gemini di Scan struk dihapus. Struk sekarang selalu dibaca di HP saja.'],
     ['🔐', 'Ada kartu baru “Keamanan datamu” di Pengaturan › Keamanan yang menjelaskan apa yang terjadi dengan catatan keuanganmu: terenkripsi, cuma bisa dibuka dari akunmu, dan pemilik aplikasi tidak bisa melihat isinya dari Dompet Ajaib.'],
     ['🔔', 'Notifikasi sekarang bisa diketuk: transaksi tersimpan membuka Transaksi, dan permintaan akses membuka Kode akses.'],
     ['🐞', 'Setelah keluar lalu masuk dengan akun lain, sapaan “Halo, …” tidak lagi memakai nama akun sebelumnya.'],

@@ -6936,11 +6936,6 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 .wallet-detail-hero .acct-no-btn { opacity: .85; }
 :root[data-theme='dark'] .wallet-detail-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--identity-color) 78%, #0b1a24), color-mix(in srgb, var(--identity-color) 45%, #0b1a24)); }
 
-/* 138. 2.10: Gemini switch on the Scan struk start screen. */
-.rs-gemini { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--accent) 5%, var(--paper)); cursor: pointer; font-size: .84rem; }
-.rs-gemini input { flex: none; margin-top: 3px; accent-color: var(--accent); }
-.rs-gemini span { display: grid; gap: 2px; min-width: 0; }
-.rs-gemini small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
 
 /* 139. 3.0: receipt notes under an item ("1 hangat · 2 ice"), variant/SKU chips and the one-tap relation question. */
 .rs-row-name small.rs-mods, .sbx-row-name small.rs-mods, .budget-line small.rs-mods, small.rs-mods { display: block; color: var(--accent); font-size: .72rem; font-style: italic; font-weight: 500; overflow-wrap: anywhere; }
@@ -8149,3 +8144,20 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .data-safety li small { color: var(--muted); font-size: .8rem; line-height: 1.45; }
 .access-safe { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: .76rem; line-height: 1.4; color: var(--muted); text-align: left; }
 .access-safe svg { flex: none; margin-top: 2px; color: var(--accent); }
+/* 6.4 tidy: the list of people with access. */
+.access-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.access-person { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--paper); }
+.access-person.is-idle { border-color: color-mix(in srgb, var(--amber) 40%, var(--line)); background: color-mix(in srgb, var(--amber) 5%, var(--paper)); }
+.access-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; font: 800 .95rem/1 var(--font-head); color: var(--accent-on, #fff); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent)); }
+.access-person.is-idle .access-avatar { background: linear-gradient(145deg, color-mix(in srgb, var(--amber) 75%, #fff), var(--amber)); }
+.access-person-main { display: grid; gap: 1px; min-width: 0; }
+.access-person-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.access-person-top b { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.access-person-top .access-kind { margin: 0; flex: none; }
+.access-person-email, .access-person-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .76rem; color: var(--muted); }
+.access-person-meta { font-size: .72rem; opacity: .9; white-space: normal; overflow: visible; line-height: 1.35; }
+.access-person-actions { display: flex; gap: 4px; }
+.access-person-actions .icon-button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); display: grid; place-items: center; }
+.access-revoke-icon { color: var(--rose); border-color: color-mix(in srgb, var(--rose) 30%, var(--line)) !important; }
+.access-person .access-note-edit { grid-column: 2 / -1; }
+.access-note-edit .input, .access-note-edit input { min-width: 0; flex: 1; }

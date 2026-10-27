@@ -68,11 +68,22 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
     <div className="set-card">
       <div className="pw-card-head"><span className="auth-badge is-small" aria-hidden="true"><Users size={20}/></span><div><h3>Yang punya akses{grants ? ` (${grants.length})` : ''}</h3><p>Akun yang bisa membuka Dompet Ajaib. Kamu cuma melihat email dan kapan terakhir aktif, isi catatan keuangan mereka tidak terlihat dari sini.</p></div></div>
       {stale.length > 0 && <div className="access-stale"><span>{stale.length} akun tidak aktif lebih dari 60 hari.</span><Confirm title={`Cabut akses ${stale.length} akun tidak aktif?`} description="Akun-akun itu tidak bisa membuka Dompet Ajaib lagi sampai kamu izinkan. Datanya tetap tersimpan terkunci dan tidak dibaca siapa pun, jadi tidak memakai kuota." confirmLabel="Cabut semuanya" onConfirm={() => revokeStale()}><button type="button" className="access-switch"><UserMinus size={14}/> Cabut semuanya</button></Confirm></div>}
-      {grants === null ? <p className="muted">Memuat…</p> : <ul className="access-list">{grants.map(g => { const idle = g.uid !== user.uid && idleDays(g) >= 30; return <li key={g.uid} className={idle ? 'is-idle' : ''}><span>
-        {editing === g.uid ? <form className="access-note-edit" onSubmit={e => { e.preventDefault(); void saveNote(g.uid); }}><Input value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Nama atau catatan" maxLength={60} autoFocus/><Button type="submit">Simpan</Button></form>
-          : <b>{g.note ? <>{g.note} <em className="access-email">{g.email}</em></> : g.email || 'Tanpa email'}{g.uid === user.uid ? ' (kamu)' : ''}</b>}
-        <small>{idle && <span className="access-kind is-idle">Tidak aktif</span>}{lastActive(g)} · {g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}</small></span>
-        <span className="access-row-actions">{editing !== g.uid && <button type="button" className="icon-button" aria-label={`Beri nama ${g.email}`} onClick={() => { setEditing(g.uid); setNoteDraft(g.note || ''); }}><Pencil size={15}/></button>}{g.uid !== user.uid && <Confirm title={`Cabut akses ${g.note || g.email || 'akun ini'}?`} description="Akun itu langsung tidak bisa membuka Dompet Ajaib, dan di layarnya muncul pemberitahuan. Datanya tidak dihapus. Kamu bisa mengizinkannya lagi kapan saja." confirmLabel="Cabut akses" onConfirm={() => revoke(g)}><button type="button" className="link-button access-revoke"><UserMinus size={15}/> Cabut</button></Confirm>}</span></li>; })}</ul>}
+      {grants === null ? <p className="muted">Memuat…</p> : <ul className="access-people">{grants.map(g => {
+        const me = g.uid === user.uid, idle = !me && idleDays(g) >= 30, name = g.note || (g.email || 'Tanpa email').split('@')[0];
+        return <li key={g.uid} className={`access-person ${idle ? 'is-idle' : ''}`}>
+          <span className="access-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
+          {editing === g.uid
+            ? <form className="access-note-edit" onSubmit={e => { e.preventDefault(); void saveNote(g.uid); }}><Input value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Nama, misalnya Dina" maxLength={60} autoFocus/><Button type="submit">Simpan</Button><button type="button" className="icon-button" aria-label="Batal" onClick={() => setEditing('')}><X size={16}/></button></form>
+            : <div className="access-person-main">
+              <div className="access-person-top"><b>{name}</b>{me && <span className="access-kind is-old">Kamu</span>}{idle && <span className="access-kind is-idle">Tidak aktif</span>}</div>
+              <small className="access-person-email">{g.email}</small>
+              <small className="access-person-meta">{lastActive(g)} · {g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}</small>
+            </div>}
+          {editing !== g.uid && <div className="access-person-actions">
+            <button type="button" className="icon-button" aria-label={`Ubah nama ${g.email}`} title="Ubah nama" onClick={() => { setEditing(g.uid); setNoteDraft(g.note || ''); }}><Pencil size={15}/></button>
+            {!me && <Confirm title={`Cabut akses ${g.note || g.email || 'akun ini'}?`} description="Akun itu langsung tidak bisa membuka Dompet Ajaib, dan di layarnya muncul pemberitahuan. Datanya tidak dihapus. Kamu bisa mengizinkannya lagi kapan saja." confirmLabel="Cabut akses" onConfirm={() => revoke(g)}><button type="button" className="icon-button access-revoke-icon" aria-label={`Cabut akses ${g.email}`} title="Cabut akses"><UserMinus size={15}/></button></Confirm>}
+          </div>}
+        </li>; })}</ul>}
     </div>
   </div>;
 }

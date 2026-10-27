@@ -23,8 +23,9 @@ let observer: MutationObserver | null = null;
 let balances: string[] = [];
 const editing = (el: Element) => Boolean(el.closest('[role="dialog"], form, .modal-content'));
 /**
- * 6.4: what the eye hides. "key" (the default): only amounts that say how much money someone has: wallet balances and
- * their total, assets, money free to spend, income and salary, savings. "all": every amount, as before.
+ * 6.4: what the eye hides. "key" (Ketat, the default): every amount except each transaction's own amount in a list and
+ * the numbers being filled in a form; even there, balances, income, assets and savings stay hidden. "all": every
+ * amount everywhere.
  */
 const MODE_KEY = 'dompet-ajaib:hide-amounts-mode';
 export type HideMode = 'key' | 'all';
@@ -34,7 +35,8 @@ let hideMode: HideMode = typeof window === 'undefined' ? 'key' : readHideMode();
 let sensitive: number[] = [];
 function remask() { if (!observer) return; stopMasking(); startMasking(); }
 export function setSensitive(values: number[]) { const next = [...new Set(values.filter(v => Math.abs(v) >= 1000).map(v => Math.round(Math.abs(v))))]; if (next.join() === sensitive.join()) return; sensitive = next; remask(); }
-const hideText = (value: string, parent: Element) => hideMode === 'all' || parent.closest('[data-sensitive]') ? maskAmounts(value) : maskSensitive(value, sensitive);
+const everyday = (el: Element) => Boolean(el.closest('.transaction-row')) || editing(el);
+const hideText = (value: string, parent: Element) => hideMode === 'all' || parent.closest('[data-sensitive]') || !everyday(parent) ? maskAmounts(value) : maskSensitive(value, sensitive);
 
 function maskNode(node: Text) {
   const value = node.nodeValue || '', record = masked.get(node);
@@ -110,7 +112,7 @@ export function AmountToggle() {
     const live = data.wallets.filter(w => !w.isArchived), list = live.map(w => w.cachedBalance);
     list.push(live.reduce((n, w) => n + w.cachedBalance, 0), profile?.monthlySalary || 0, ...data.funds.map(f => f.currentAmount || 0));
     try { const m = metrics(data, cycle.start, cycle.end, profile?.salaryCycleStartDay || 24, new Date(), Boolean(profile?.netWorthIncludesReceivables)); list.push(m.assets, m.netWorth, m.free, m.income, m.reserved); } catch { /* balances still hidden */ }
-    for (const t of data.transactions) if (t.type === 'income' && t.date >= cycle.start) list.push(t.amount);
+    for (const t of data.transactions) if (t.type === 'income') list.push(t.amount);
     return list;
   }, [data, profile?.monthlySalary, profile?.salaryCycleStartDay, profile?.netWorthIncludesReceivables, cycle.start, cycle.end]);
   useEffect(() => { setSensitive(values); }, [values]);
