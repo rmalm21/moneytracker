@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.11', date: '27 Okt 2026', title: 'Persiapan 6.0', items: [
+    ['💡', 'Insight lebih cantik. Di atas ada “Sorotan siklus ini”: gaji masuk, pengeluaran terbesar, transaksi tidak biasa, anggaran yang hampir habis, sampai hal yang membaik, lengkap dengan tanggalnya. Ketuk untuk membuka ceritanya. Skor total kini tampil sebagai lingkaran, dan Riwayat Insight bisa dilipat supaya halaman tidak panjang.'],
+    ['🔐', 'Bisa masuk dengan Google lewat tombol “Lanjutkan dengan Google” di halaman masuk. Yang sudah punya akun dengan password bisa menghubungkan Gmail-nya di Pengaturan › Keamanan › Hubungkan akun Google, datanya tetap sama.'],
+    ['✍️', 'Catat otomatis makin paham bahasa sehari-hari: “tuku sego 15rb”, “meuli kopi”, “paid electricity 300k”, “gopek”, “Rp 450.000,-”, “kopi 25k an”, “semalem beli martabak” (tercatat kemarin), “makan 30rb via qris jago”, “ngebensin 30rb”, dan ralat seperti “bensin 50rb, salah, 40rb”. Teman yang “transfer balik” langsung tercatat sebagai pembayaran piutang.'],
+    ['🧠', 'Mesin kedua Catat otomatis dilatih ulang supaya lebih paham siapa berutang ke siapa (“atuy ngutang” beda dengan “ngutang ke atuy”). Semuanya tetap berjalan di HP, tanpa internet.'],
+    ['🔔', 'Notifikasi mengambang dibuat lebih ringkas, dan di iPhone layar tidak lagi membesar sendiri saat mengetik.'],
+  ] },
   { version: '5.10', date: '27 Okt 2026', title: 'Insight yang bisa ditelusuri', items: [
     ['💡', 'Tombol “Lihat” di Insight sekarang selalu menemukan transaksinya. Kartu yang dihitung dari siklus-siklus sebelumnya (misalnya Kurangi Belanja, Kebocoran kecil, Pesan Antar turun, atau rata-rata per kategori) membuka siklus-siklus itu sampai hari ini, bukan siklus ini saja yang di awal siklus masih kosong. Transaksi tidak biasa langsung dibuka transaksinya.'],
     ['🧾', 'Di halaman Transaksi, hasil filter yang kosong kini menawarkan “Perluas 3 bulan ke belakang” atau “Cari di seluruh riwayat”. Rincian kartu Insight juga punya tombol “Buka di Transaksi” untuk melihat persis transaksi yang dipakai.'],
