@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.9', date: '27 Okt 2026', title: 'Beranda lebih bersih', items: [
+    ['✅', 'Piutang, utang, dan Split Bill yang sudah lunas tidak lagi muncul namanya di Beranda. Kartu Piutang hanya menampilkan yang belum lunas, dari sisa terbesar, jadi yang masih harus ditagih tidak tertutup nama yang sudah Rp0. Klaim kantor yang sudah cair atau ditolak juga tidak ditampilkan.'],
+  ] },
   { version: '5.8', date: '27 Okt 2026', title: 'Lunas sekaligus dan cari nama', items: [
     ['✅', 'Split Bill bisa ditandai lunas sekaligus. Buka tagihannya, lalu ketuk “Tandai lunas”. Semua yang belum bayar sudah tercentang; lepas centang yang belum, ubah nominal kalau baru bayar sebagian, pilih tanggal dan dompet sekali untuk semua. Riwayat tiap orang tetap tercatat sendiri-sendiri.'],
     ['📝', 'Cari nama lebih luwes: ketik “ip” dan muncul Ipul, Ipan, Ipin, juga Arip. Nama yang diawali huruf itu tampil paling atas, dan huruf yang cocok ditandai. Nama panggilan ikut dicari.'],
