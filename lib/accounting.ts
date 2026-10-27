@@ -1,5 +1,6 @@
 import type { Budget, Category, Data, LedgerTx, Wallet } from './types';
 import { isKantong, kantongWalletIds } from './pockets.ts';
+import { walletSplit } from './wallet-portions.ts';
 export function rupiah(value: number) { const rounded = Math.round(value || 0); return (rounded < 0 ? '-Rp' : 'Rp') + Math.abs(rounded).toLocaleString('id-ID'); }
 export function readMoney(value: string) { const n = Number(value.replace(/\D/g, '')); return Number.isSafeInteger(n) ? n : 0; }
 /** Newest first: by date, then time, then when it was recorded (unsaved local writes count as newest). */
@@ -127,7 +128,12 @@ export function budgetSpent(budget: Budget, txs: LedgerTx[], cats: Category[]) {
 }
 /** `includeReceivables`: whether unpaid receivables and office claims count toward Aset bersih (user setting, off by default). */
 export function metrics(data: Data, start: string, end: string, salaryDay=24, asOf = new Date(), includeReceivables = false) {
-  const active = data.wallets.filter(w => !w.isArchived);
+  // Isi dompet: titipan (someone else's money passing through) is not the person's — out of assets and Uang Bebas;
+  // money set aside inside a wallet stays in assets but not in Uang Bebas.
+  const split = new Map(data.wallets.filter(w => w.portions?.length).map(w => [w.id, walletSplit(w, data.transactions)]));
+  const active = data.wallets.filter(w => !w.isArchived).map(w => split.has(w.id) ? { ...w, cachedBalance: w.cachedBalance - split.get(w.id)!.titipan } : w);
+  const setAside = active.filter(w => split.has(w.id) && w.isSpendable !== false && !w.isReserved).reduce((n, w) => n + Math.min(Math.max(0, w.cachedBalance), split.get(w.id)!.kept), 0);
+  const titipan = data.wallets.filter(w => !w.isArchived).reduce((n, w) => n + (split.get(w.id)?.titipan || 0), 0);
   const owned = active.filter(w => w.includeInNetWorth !== false);
   const liquid = active.filter(w => w.isSpendable !== false);
   const assets = owned.reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
@@ -143,8 +149,8 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const kantongMoney = usableWallets.filter(w=>inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
   const kantongElsewhere = owned.filter(w=>!w.isReserved&&w.isSpendable===false&&inKantong.has(w.id)).reduce((n,w)=>n+Math.max(0,w.cachedBalance),0);
   const goalMoney = data.funds.filter(f=>{ if(f.isArchived||isKantong(f))return false; const w=active.find(x=>x.id===f.linkedWalletId); return !w||!w.isReserved&&w.isSpendable!==false&&!inKantong.has(w.id); }).reduce((n,f)=>n+Math.max(0,f.currentAmount),0);
-  const free = usable-kantongMoney-goalMoney;
-  const reserved = keptWallets+kantongMoney+kantongElsewhere+goalMoney;
+  const free = usable-kantongMoney-goalMoney-setAside;
+  const reserved = keptWallets+kantongMoney+kantongElsewhere+goalMoney+setAside;
   const cycle = data.transactions.filter(t=>t.date>=start&&t.date<end);
   const income = cycle.reduce((n,t)=>n+transactionIncome(t),0);
   const expenses = cycle.reduce((n,t)=>n+transactionExpense(t),0);
@@ -153,5 +159,5 @@ export function metrics(data: Data, start: string, end: string, salaryDay=24, as
   const totalBudget=nonOverlapping.reduce((n,b)=>n+b.amount+(b.rolloverEnabled?(b.rolloverCarry||0):0),0);
   const budgetRemaining=nonOverlapping.reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
   const discretionaryRemaining=nonOverlapping.filter(b=>b.classification==='living').reduce((n,b)=>n+budgetCurrent(b,data.transactions,data.categories,asOf,salaryDay).remaining,0);
-  return {assets,liabilities,receivables,netWorth:signedAssets+(includeReceivables?receivables:0)-liabilities,reserved,free:Math.max(0,free),freeParts:{usable,usableCount:usableWallets.length,kantongMoney,goalMoney,keptWallets},income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
+  return {assets,liabilities,receivables,netWorth:signedAssets+(includeReceivables?receivables:0)-liabilities,reserved,free:Math.max(0,free),freeParts:{usable,usableCount:usableWallets.length,kantongMoney,goalMoney,keptWallets,setAside,titipan},income,expenses,totalBudget,budgetRemaining,discretionaryRemaining,cycle};
 }

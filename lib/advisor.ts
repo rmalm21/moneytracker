@@ -8,6 +8,7 @@ import { savingsPlan } from './savings.ts';
 import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
 import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from './invest-plan.ts';
 import { walletGroup } from './wallet-groups.ts';
+import { ownedWallets } from './wallet-portions.ts';
 import { emergencyPockets, isEmergencyFund, isKantong, kantongWalletIds, kantongWallets, resolveFunds } from './pockets.ts';
 import type { Budget, Category, Data, LedgerTx } from './types';
 
@@ -362,7 +363,8 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   if (daysLeft > 0 && needUntilPayday > available) alerts.unshift({ id: 'runway', tone: 'bad', stat: { label: 'Jatah harian aman', value: shortRp(Math.max(0, available) / daysLeft), note: `${daysLeft} hari sampai gajian` }, title: 'Uang tersedia diperkirakan kurang sampai gajian', detail: `Dengan laju sekarang, ${daysLeft} hari ke depan butuh sekitar **${rp(needUntilPayday)}**, sedangkan uang tersedia **${rp(Math.max(0, available))}**. ==Batasi belanja harian ke ${rp(Math.max(0, available) / daysLeft)}== agar cukup.` });
 
   // Liquid reserve for emergencies: Tabungan wallets (falls back to all Disimpan wallets).
-  const liveWallets = data.wallets.filter(w => !w.isArchived && w.type !== 'credit');
+  // Isi dompet: titipan in a wallet is someone else's money, never idle money of this person.
+  const liveWallets = ownedWallets(data.wallets, data.transactions).filter(w => !w.isArchived && w.type !== 'credit');
   // Kantong group wallets for one purpose; their money is set aside and never counted as daily or free savings.
   const funds = data.funds, inKantong = kantongWalletIds(funds);
   const savingsWallets = liveWallets.filter(w => walletGroup(w) === 'savings' && !inKantong.has(w.id));
