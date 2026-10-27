@@ -66,11 +66,13 @@ export async function tidyCloud(uid:string){
     // Only with a complete device copy: a reference the device does not have yet must never let a record go.
     const synced=syncedCollections.filter(name=>name!=='deletions') as SyncedName[];
     if(await whenCurrent(uid,synced,8000)){
+      // Archived wallets stay until the person restores or deletes them (Dompet diarsipkan); only a deleted wallet that no
+      // transaction names any more is cleaned up. Unused archived categories and funds go, as before.
       const texts:string[]=[];const archived:{name:'wallets'|'categories'|'funds';id:string}[]=[];
       // The profile refers to wallets and categories too (defaults, salary category, dashboard cards).
       const profile=await getDoc(userRef(uid));texts.push(JSON.stringify(profile.data()||{}));
       for(const name of names){let snap;try{snap=(synced as string[]).includes(name)?await getDocsFromCache(coll(uid,name)):await getDocs(coll(uid,name));}catch{return removed;}
-        for(const row of snap.docs){const data=row.data();if((name==='wallets'||name==='categories'||name==='funds')&&data.isArchived===true)archived.push({name,id:row.id});texts.push(JSON.stringify(data));}}
+        for(const row of snap.docs){const data=row.data();if(name==='wallets'?data.isDeleted===true:(name==='categories'||name==='funds')&&data.isArchived===true)archived.push({name:name as 'wallets'|'categories'|'funds',id:row.id});texts.push(JSON.stringify(data));}}
       const all=texts.join('\n');
       const unused=archived.filter(item=>!all.includes(`"${item.id}"`));
       for(const item of unused){await deleteDoc(ref(uid,item.name,item.id));removed++;}

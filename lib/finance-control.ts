@@ -77,7 +77,8 @@ function receivablesAt(data:Data,ledger:LedgerTx[],cutoff:string){return data.re
 export function calculateCycleSnapshot(data:Data,ledger:LedgerTx[],range:DateRange,previous?:CycleSnapshot,includeReceivables=false):Omit<CycleSnapshot,'id'|'createdAt'|'updatedAt'>{
   const transactions=ledger.filter(tx=>inRange(tx.date,range));
   const at=(date:string)=>{
-    const owned=data.wallets.filter(w=>w.includeInNetWorth!==false);
+    // A deleted wallet counts up to the day it was deleted (its history stays), and not after: like the dashboard.
+    const owned=data.wallets.filter(w=>w.includeInNetWorth!==false&&!(w.isDeleted&&w.deletedAt&&date>=w.deletedAt));
     const balances=owned.map(w=>({wallet:w,amount:walletAt(w,ledger,date)}));
     const assets=balances.reduce((sum,row)=>sum+Math.max(0,row.amount),0);
     const signed=balances.reduce((sum,row)=>sum+row.amount,0);
@@ -104,6 +105,8 @@ export function scanData(data:Data,ledger:LedgerTx[],profile:Profile):HealthIssu
     // A Split Bill share someone else paid has no wallet on purpose.
     if(!tx.walletId&&tx.type==='expense'&&tx.splitBillId){}
     else if(!wallets.has(tx.walletId)||tx.destinationWalletId&&!wallets.has(tx.destinationWalletId))issues.push({id:`wallet:${tx.id}`,title:`Transaksi ${tx.description||tx.id} memakai dompet tidak tersedia`,impact:'Transaksi ini mungkin belum memengaruhi saldo.',action:'Periksa dompet dan tautan transaksi.'});
+    // A deleted wallet was removed on purpose and its transactions are kept by design: nothing to report.
+    else if(wallets.get(tx.walletId)?.isDeleted||tx.destinationWalletId&&wallets.get(tx.destinationWalletId)?.isDeleted){}
     else if(wallets.get(tx.walletId)?.isArchived||tx.destinationWalletId&&wallets.get(tx.destinationWalletId)?.isArchived){const archivedId=wallets.get(tx.walletId)?.isArchived?tx.walletId:tx.destinationWalletId!;if(!issues.some(issue=>issue.id===`archivedWallet:${archivedId}`))issues.push({id:`archivedWallet:${archivedId}`,title:`Dompet ${wallets.get(archivedId)?.name} sudah diarsipkan`,impact:'Riwayat tetap tersimpan dengan dompet arsip.',action:'Tidak perlu tindakan bila arsip ini disengaja.'});}
     if(tx.type==='expense'&&!tx.categoryId&&!tx.splits?.length)issues.push({id:`category:${tx.id}`,title:`Transaksi ${tx.description||tx.id} tanpa kategori`,impact:'Anggaran dan analisis kategori kurang lengkap.',action:'Ubah kategori transaksi.'});
     for(const id of [tx.categoryId,tx.subcategoryId,tx.transferFeeCategoryId,...(tx.splits||[]).flatMap(x=>[x.categoryId,x.subcategoryId])])if(id&&(!categories.has(id)||categories.get(id)?.isArchived)&&!issues.some(issue=>issue.id===`reference:${id}`))issues.push({id:`reference:${id}`,title:`Kategori ${id} pada transaksi perlu ditinjau`,impact:'Pengelompokan riwayat bisa tidak lengkap.',action:'Periksa kategori yang diarsipkan atau hilang.'});

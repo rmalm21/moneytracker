@@ -5805,7 +5805,8 @@ img.emoji { display: inline-block; width: 1.2em; height: 1.2em; margin: 0 .04em;
 @media (max-width: 760px) { .wallet-group-head .group-hint { display: none; } }
 /* Group totals are written in full; the font shrinks only as much as a long amount needs to fit the tab. */
 .wallet-tab { container-type: inline-size; }
-.wallet-tab .wallet-tab-amount { max-width: 100%; overflow: visible; text-overflow: clip; font-size: min(1.15rem, calc(100cqi / (var(--chars, 10) * .6))); letter-spacing: -.01em; }
+.wallet-tab .wallet-tab-amount { max-width: 100%; overflow: visible; text-overflow: clip; font-size: min(1.15rem, calc(100cqi / (var(--chars, 10) * .585))); letter-spacing: -.01em; }
+@media (max-width: 380px) { .wallet-tabs { gap: 4px; padding: 4px; } .wallet-tab { padding: 10px 7px; } }
 /* Wallet groups in the Beranda widget must shrink to the card, letting long names truncate. */
 .widget-body > .widget-wallet-group, .widget-wallet-group, .wallet-mini-list, .wallet-mini { min-width: 0; max-width: 100%; }
 
@@ -7742,3 +7743,4 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .wallet-archive-actions { display: flex; align-items: center; gap: 6px; }
 .wallet-archive-actions .btn { display: inline-flex; align-items: center; gap: 5px; }
 .wallet-archive-delete { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--rose); cursor: pointer; }
+@media (max-width: 480px) { .wallet-archive-list li { grid-template-columns: auto minmax(0, 1fr); } .wallet-archive-actions { grid-column: 1 / -1; justify-content: flex-end; } }

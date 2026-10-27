@@ -46,7 +46,7 @@ function PeriodBar({ pair, extra }: { pair: Pair; extra?: ReactNode }) {
   return <div className="panel report-toolbar">
     <PeriodSelector value={pair.preset} custom={profile?.analyticsCustom} onChange={value => void pair.save({ analyticsPeriod: value })} onCustomChange={value => void pair.save({ analyticsCustom: value })}/>
     <details className="disclosure report-filters"><summary>Filter{active ? ` · ${active} aktif` : ''}</summary><div className="form-grid">
-      <Field label="Dompet"><Select value={pair.wallet} onChange={e => pair.setWallet(e.target.value)}><option value="">Semua dompet</option>{data.wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></Field>
+      <Field label="Dompet"><Select value={pair.wallet} onChange={e => pair.setWallet(e.target.value)}><option value="">Semua dompet</option>{data.wallets.map(w => <option key={w.id} value={w.id}>{w.isDeleted ? `${w.name} (dihapus)` : w.name}</option>)}</Select></Field>
       <Field label="Kategori"><Select value={pair.category} onChange={e => pair.setCategory(e.target.value)}><option value="">Semua kategori</option>{categoryOptions(data.categories, undefined, true)}</Select></Field>
     </div><small className="muted">Pembayaran yang dibagi ke beberapa kategori hanya dihitung porsinya.</small></details>
     {extra}
@@ -167,7 +167,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
 
       <div className="report-two">
         <Section icon={<WalletIcon size={18}/>} title="Per dompet" hint="Uang masuk & keluar, termasuk transfer">
-          {wallets.length ? <div className="report-table">{wallets.map(w => <button type="button" key={w.id} className="report-row report-wallet" onClick={() => go('wallets', w.id)}>
+          {wallets.length ? <div className="report-table">{wallets.map(w => <button type="button" key={w.id} className="report-row report-wallet" disabled={Boolean(data.wallets.find(x => x.id === w.id)?.isDeleted)} onClick={() => go('wallets', w.id)}>
             <span className="report-wallet-name"><span className="report-wallet-icon"><AppIcon icon={w.icon}/></span>{w.name}</span>
             <span className="report-flow"><small className="amount-positive">+{rupiah(w.in)}</small><small className="amount-negative">−{rupiah(w.out)}</small></span>
             <strong className={w.net < 0 ? 'amount-negative' : 'amount-positive'}>{w.net < 0 ? '−' : '+'}{rupiah(Math.abs(w.net))}</strong>

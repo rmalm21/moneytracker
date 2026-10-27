@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '5.5', date: '27 Okt 2026', title: 'Hapus dan arsip dompet', items: [
+    ['✅', 'Dompet sekarang bisa dihapus: buka Lainnya di kartu dompet, lalu pilih Hapus dompet. Semua transaksinya tetap tersimpan di riwayat, laporan, dan grafik dengan nama “(dihapus)”. Utang, piutang, dan klaim yang terkait juga tetap utuh.'],
+    ['🔒', 'Dompet yang diarsipkan kini ada tempatnya: bagian “Dompet diarsipkan” di bawah daftar dompet, lengkap dengan tombol Pulihkan dan Hapus. Sebelumnya dompet arsip yang belum pernah dipakai bisa terhapus sendiri, dan itu sudah diperbaiki.'],
+    ['💰', 'Total Operasional, Tabungan, dan Investasi ditulis lengkap tanpa disingkat. Ukuran hurufnya menyesuaikan: nominal kecil tetap besar, nominal panjang mengecil secukupnya supaya muat.'],
+  ] },
   { version: '5.4', date: '27 Okt 2026', title: 'Isi dompet bisa dipisah', items: [
     ['💰', 'Satu rekening bisa dipisah isinya. Contohnya SeaBank Rp7,5 jt: Uangku Rp1,5 jt dan Dana bisnis Rp6 jt. Saldo di rekening tetap satu, sama seperti di aplikasi bank. Buka dompetnya, lalu ketuk “Pisahkan isi”.'],
     ['🔒', 'Titipan atau dana transit (uang orang lain yang hanya lewat) tidak dihitung sebagai Uang Bebas, Aset bersih, maupun di Insight. Bagian “Disisihkan” tetap uangmu: masuk Aset bersih, tapi tidak dihitung sebagai Uang Bebas.'],

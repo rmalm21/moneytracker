@@ -27,7 +27,7 @@ export function incomeBreakdown(items: LedgerTx[], categories: Category[]) {
 
 /** Money in and out of each wallet during the period, transfers included. */
 export function walletFlows(items: LedgerTx[], wallets: Wallet[]) {
-  const rows = new Map(wallets.map(w => [w.id, { id: w.id, name: w.name, icon: w.icon, color: w.color, in: 0, out: 0 }]));
+  const rows = new Map(wallets.map(w => [w.id, { id: w.id, name: w.isDeleted ? `${w.name} (dihapus)` : w.name, icon: w.icon, color: w.color, in: 0, out: 0 }]));
   const add = (id: string | null | undefined, key: 'in' | 'out', amount: number) => { const row = id ? rows.get(id) : undefined; if (row) row[key] += amount; };
   for (const tx of items) {
     if (tx.type === 'transfer' || tx.type === 'fund_contribution') { add(tx.walletId, 'out', tx.amount + (tx.transferFee || 0)); add(tx.destinationWalletId, 'in', tx.amount); }
