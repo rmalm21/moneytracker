@@ -44,11 +44,12 @@ def amount(text):
     t = re.sub(r'[^0-9.,]', '', t)
     if not re.search(r'\d', t):
         return None
-    # Two decimals after the last separator when the other separator groups thousands ("60.000,00", "60,000.00").
+    # Two decimals after the last separator are cents ("60.000,00", "60,000.00", "58000.00", "5272.73"): rounded.
+    cents = 0
     m = re.match(r'^(.*\d)[.,](\d{2})$', t)
-    if m and re.search(r'[.,]\d{3}$', m.group(1)):
-        t = m.group(1)
-    value = int(re.sub(r'[.,]', '', t)) if re.sub(r'[.,]', '', t) else None
+    if m:
+        t, cents = m.group(1), int(m.group(2))
+    value = int(re.sub(r'[.,]', '', t)) + (1 if cents >= 50 else 0) if re.sub(r'[.,]', '', t) else None
     if value is None:
         return None
     return -value if neg else value
