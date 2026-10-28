@@ -25,8 +25,17 @@ import pyarrow.parquet as pq
 SPLITS = {'train': 'cord-train', 'validation': 'cord-dev', 'test': 'cord-test'}
 
 
+def flat(value):
+    """A field printed over several lines comes as a list: joined with spaces."""
+    if isinstance(value, list):
+        return ' '.join(flat(v) for v in value if v is not None).strip()
+    return '' if value is None else str(value)
+
+
 def amount(text):
     """'75,000' / '75.000' / 'Rp 75.000,00' / '(10,000)' / '-45' -> int Rupiah (sign kept), or None."""
+    if isinstance(text, list):
+        text = next((t for t in reversed(text) if amount(t) is not None), None)
     if text is None:
         return None
     t = str(text).strip()
@@ -47,6 +56,7 @@ def amount(text):
 
 def count(text):
     """'2', '2x', 'x2', '2 pcs', '1.00', '@2' -> int quantity (default 1)."""
+    text = flat(text) if isinstance(text, list) else text
     if text is None:
         return 1
     m = re.search(r'\d+(?:[.,]\d+)?', str(text))
@@ -68,7 +78,7 @@ def truth_of(parse):
     for menu in as_list(parse.get('menu')):
         if not isinstance(menu, dict):
             continue
-        name = (menu.get('nm') or '').strip()
+        name = flat(menu.get('nm')).strip()
         qty = count(menu.get('cnt'))
         total = amount(menu.get('price'))
         unit = amount(menu.get('unitprice'))
@@ -79,7 +89,7 @@ def truth_of(parse):
         for sub in as_list(menu.get('sub')):
             if not isinstance(sub, dict):
                 continue
-            sub_name = (sub.get('nm') or '').strip()
+            sub_name = flat(sub.get('nm')).strip()
             sub_price = amount(sub.get('price'))
             if sub_price:
                 addons.append([sub_name, count(sub.get('cnt')), sub_price])

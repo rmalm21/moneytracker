@@ -187,7 +187,8 @@ export function readAmount(text: string) {
   const match = text.match(AMOUNT);
   if (!match) return null;
   const before = text[(match.index || 0) + match[0].indexOf(match[2]) - 1] || '';
-  if (/[\d.,]/.test(before)) return null;
+  // V4: a number glued to a slash ends a code ("INV/20260915/XYZ/551"), it is not money.
+  if (/[\d.,/]/.test(before)) return null;
   // "A-2231", "INV-0045": a code with a hyphen, not a negative amount.
   if (match[1] && /[a-z0-9]/i.test(text[(match.index || 0) - 1] || '')) return null;
   if (!/[.,]/.test(match[2]) && (match[2].length > 8 || (match[2].length > 1 && match[2].startsWith('0')))) return null;

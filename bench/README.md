@@ -39,3 +39,8 @@ server on another port, and run `run.mjs` against that port with another label.
 The photos are rendered, not taken with a phone: they have no paper curl, no thermal fading pattern, no motion blur
 and no real camera noise. The numbers show how versions compare on the same set and catch regressions; they are
 not a promise of the same accuracy on every real receipt. See `receipts/RESULTS.md` for the latest comparison.
+
+## Receipt Intelligence V4 (app 7.0)
+
+Scan struk measured on real Indonesian receipts (CORD v2, CC BY 4.0, kept outside the repository): `bench/cord/` holds
+the converter, the row-model training and evaluation scripts, and the report `REPORT-v4.md`.

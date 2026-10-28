@@ -37,3 +37,11 @@ them into `public/ocr` at build time.
 
 Licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
 Copyright (c) Tesseract.js contributors; Tesseract OCR copyright (c) Google Inc. and the Tesseract contributors.
+
+## CORD v2 receipt dataset (lib/receipt-rowlink-model.ts)
+
+The row model of Scan struk (Receipt Intelligence V4) was trained on CORD v2, "CORD: A Consolidated Receipt Dataset
+for Post-OCR Parsing" by Clova AI Research, NAVER Corp. (https://github.com/clovaai/cord). The dataset itself is not
+included; only the trained weights are.
+
+Licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/).

@@ -9,6 +9,8 @@
 import type { OcrEngine, Recognized, RecognizeOptions } from './receipt-ocr.ts';
 import { healReaderCacheOnce } from './ocr-cache.ts';
 import { linesFromWords, slopeOf, unionBox, type OcrLine, type OcrWord } from './receipt-rows.ts';
+import { groupRows } from './receipt-rowlink.ts';
+import { ROW_LINK_MODEL } from './receipt-rowlink-model.ts';
 
 export type PaddleTier = 'tiny' | 'small';
 type Item = { poly: number[][] | { x: number; y: number }[]; text: string; score: number };
@@ -126,9 +128,20 @@ export function paddleToRecognized(items: Item[]): Recognized {
     .sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
   // The tilt of the text from the segments' own polygons (top edge), so rows of a slanted receipt are not merged.
   const baselines = items.map(i => points(i.poly)).filter(p => p.length >= 2).map(p => ({ x0: p[0].x, y0: p[0].y, x1: p[1].x, y1: p[1].y }));
-  const rows = rowsOfSegments(segments, slopeOf(baselines));
+  const ruleRows = rowsOfSegments(segments, slopeOf(baselines));
   const confidence = items.length ? items.reduce((n, i) => n + i.score, 0) / items.length * 100 : 0;
-  return { native, rows, confidence, segments: true };
+  // V4: rows decided by the model trained on real receipts; the V3 rule's rows stay a candidate the reader may prefer.
+  const modelRows = rowsByModel(segments, slopeOf(baselines));
+  return modelRows.length ? { native, rows: modelRows, ruleRows, confidence, segments: true } : { native, rows: ruleRows, confidence, segments: true };
+}
+/** V4 rows: the segments the row-link model puts on one printed row, left to right, each row one line. */
+export function rowsByModel(segments: OcrWord[][], tilt = 0): OcrLine[] {
+  const boxes = segments.map(words => ({ x0: Math.min(...words.map(w => w.x0)), y0: Math.min(...words.map(w => w.y0)), x1: Math.max(...words.map(w => w.x1)), y1: Math.max(...words.map(w => w.y1)) }));
+  // The tilt the OCR measured on its own slanted text boxes when it has one; otherwise the model measures the layout.
+  return groupRows(boxes, ROW_LINK_MODEL, tilt || undefined).map(row => {
+    const top = Math.min(...row.map(i => boxes[i].y0)), bottom = Math.max(...row.map(i => boxes[i].y1));
+    return linesFromWords(row.flatMap(i => segments[i]).map(w => ({ ...w, y0: top, y1: bottom })), 0)[0];
+  }).filter(Boolean);
 }
 
 export function paddleEngine(tier: PaddleTier = paddleTierFor()): OcrEngine & { id: string; tier: PaddleTier } {

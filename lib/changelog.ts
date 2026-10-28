@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.0', date: '28 Okt 2026', title: 'Scan struk V4: belajar dari struk asli', items: [
+    ['🧾', 'Mesin Scan struk naik ke V4. Sekarang dilatih dan diuji dengan ratusan foto struk asli dari toko dan restoran di Indonesia, bukan cuma contoh buatan.'],
+    ['🤖', 'Baris struk disusun oleh model kecil yang belajar dari struk asli, jadi harga tidak lagi nyasar ke nama barang lain walau fotonya miring atau kertasnya melengkung.'],
+    ['📸', 'Kalau potongan kertas memotong tulisan di pinggir, seluruh foto ikut dibaca. Total dan harga di tepi struk jadi lebih jarang hilang.'],
+    ['✅', 'Diuji pada 100 struk asli yang tidak dipakai saat melatih: total yang terbaca persis naik dari 78% ke 86%, item yang terbaca dari 82% ke 90%, dan item palsu berkurang. Struk tetap dibaca di HP, tanpa unggahan.'],
+  ] },
   { version: '6.10', date: '28 Okt 2026', title: 'Catat otomatis paham singkatan dan obrolan santai', items: [
     ['💳', 'Dompet yang ditulis singkat sekarang dikenali: “nasgor 15rb gpy” masuk GoPay, “mndr” Mandiri, “jns” Jenius. Nama bank atau e-wallet yang belum jadi dompet (“15rb ovo”, “30rb bca”) tidak lagi nyangkut di keterangan atau dikira tempat.'],
     ['📝', 'Keterangan makin bersih: kata seru dan komentar seperti “duh boros banget”, “akhirnya”, “cuma”, dan “aja”, waktu seperti “pagi ini” dan “tadi subuh”, serta “rupiah” tidak ikut masuk. “kopi sama roti 30rb” jadi Kopi & Roti.'],

@@ -51,7 +51,7 @@ export const ocrAvailable = () => typeof window !== 'undefined' && typeof Worker
 /* ------------------------------------------------------------------ The OCR engine */
 
 export type RecognizeOptions = { psm: '6' | '7' | '11'; whitelist?: string; rotate?: boolean; /** The image's size, to map word boxes back when the engine turned the image a little. */ size?: { width: number; height: number } };
-export type Recognized = { native: OcrLine[]; rows: OcrLine[]; confidence: number; /** Native lines are loose text segments (a name and its price apart): on a tie the rebuilt rows win. */ segments?: boolean };
+export type Recognized = { native: OcrLine[]; rows: OcrLine[]; confidence: number; /** Native lines are loose text segments (a name and its price apart): on a tie the rebuilt rows win. */ segments?: boolean; /** V4: the V3 rule's rows, kept as another candidate when `rows` came from the row-link model. */ ruleRows?: OcrLine[] };
 export interface OcrEngine {
   recognize(image: Blob, options: RecognizeOptions): Promise<Recognized>;
   /** Stops the current reading and frees the engine. */
@@ -142,8 +142,8 @@ async function runPass(engine: OcrEngine, page: Prepared, variant: Variant, psm:
   if (region) { const crop = cropRegion(values, page.width, page.height, region.rect, region.scale, pad); image = bmpBlob(crop.data, crop.width, crop.height); size = { width: crop.width, height: crop.height }; }
   else image = bmpBlob(values, page.width, page.height);
   recognized = await engine.recognize(image, { psm, size });
-  if (region) recognized = { ...recognized, native: toPage(recognized.native, region.rect, region.scale, pad), rows: toPage(recognized.rows, region.rect, region.scale, pad) };
-  const options = (recognized.segments ? [recognized.rows, recognized.native] : [recognized.native, recognized.rows]).filter(lines => lines.length).map(lines => { const text = lines.map(l => l.text).join('\n'); const read = readReceiptText(text); return { lines, text, read, score: receiptScore(read) }; });
+  if (region) recognized = { ...recognized, native: toPage(recognized.native, region.rect, region.scale, pad), rows: toPage(recognized.rows, region.rect, region.scale, pad), ...(recognized.ruleRows ? { ruleRows: toPage(recognized.ruleRows, region.rect, region.scale, pad) } : {}) };
+  const options = (recognized.segments ? [recognized.rows, recognized.ruleRows || [], recognized.native] : [recognized.native, recognized.rows]).filter(lines => lines.length).map(lines => { const text = lines.map(l => l.text).join('\n'); const read = readReceiptText(text); return { lines, text, read, score: receiptScore(read) }; });
   const best = options.sort((a, b) => b.score - a.score)[0] || { lines: [], text: '', read: readReceiptText('') };
   return { id, variant, psm, lines: best.lines, confidence: recognized.confidence, text: best.text, read: best.read, ...(region && !region.page ? { region: region.rect } : {}) };
 }
@@ -265,7 +265,9 @@ export async function readReceiptPhoto(photo: Blob, onProgress?: (progress: OcrP
     // Only when the first reading is not complete yet (it does not add up, or the shop or date is missing): a complete
     // reading of the cut is kept as it is, which saves a whole second reading.
     const complete = settled(fused.read) && Boolean(fused.read.merchant) && Boolean(fused.read.date);
-    if (firstEngine !== engine && !complete && !options.corners && !page.digital && (page.cornerConfidence === 'low' || page.cornerConfidence === 'none')) {
+    // V4: on real receipt photos (bench/cord) a confident outline still cut text off often enough that the whole photo
+    // is read whenever the cut's reading is not complete, whatever the outline's confidence.
+    if (firstEngine !== engine && !complete && !options.corners && !page.digital) {
       const t1 = Date.now(), whole = await prepareOffPage(photo, { turn, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] }); stop();
       const pass = await runPass(firstEngine, whole, 'clean', '6', 'paddle-whole'); stop();
       const better = receiptScore(pass.read) > receiptScore(passes[0].read) || pass.read.merchant && !passes[0].read.merchant || pass.read.date && !passes[0].read.date && receiptScore(pass.read) >= receiptScore(passes[0].read);

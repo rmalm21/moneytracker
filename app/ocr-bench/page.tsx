@@ -39,6 +39,15 @@ export default function OcrBench() {
       ocr.dispose();
       return { load: Math.round(load), runs: out, isolated: crossOriginIsolated, cores: navigator.hardwareConcurrency };
     };
+    // The raw photo (no preparation) through one PP-OCRv6 size at one detection size: reading coverage experiments.
+    const raw: Record<string, Promise<{ predict(b: Blob, p: Record<string, unknown>): Promise<{ items: { text: string; poly: unknown; score: number }[] }[]> }>> = {};
+    w.__rawSide = async (url: string, tier: 'tiny' | 'small', side: number) => {
+      const blob = await (await fetch(url)).blob(), base = `${window.location.origin}/ocr`;
+      const { PaddleOCR } = await import('@paddleocr/paddleocr-js');
+      raw[tier] ||= PaddleOCR.create({ textDetectionModelName: `PP-OCRv6_${tier}_det`, textDetectionModelAsset: { url: `${base}/paddle/v6-${tier}/det.tar` }, textRecognitionModelName: `PP-OCRv6_${tier}_rec`, textRecognitionModelAsset: { url: `${base}/paddle/v6-${tier}/rec.tar` }, ortOptions: { backend: 'wasm', wasmPaths: `${base}/ort/`, numThreads: 4, simd: true } }) as never;
+      const t = performance.now(), [r] = await (await raw[tier]).predict(blob, { textDetLimitSideLen: side, textDetLimitType: 'max' });
+      return { ms: Math.round(performance.now() - t), items: r.items.map(i => ({ text: i.text, poly: i.poly, score: i.score })) };
+    };
     setReady(true);
   }, []);
   return <main style={{ padding: 24 }}>{ready ? <p id="bench-ready">Siap</p> : <p>Halaman ini hanya untuk pengembangan.</p>}</main>;
