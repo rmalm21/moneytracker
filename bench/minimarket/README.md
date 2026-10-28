@@ -11,7 +11,9 @@ shops print, with invented shops, addresses and numbers, then "photographed" wit
   Item discounts, cash with change or card/QRIS/e-wallet, PPN already in the prices.
 - `photo.py`: thermal ink faded unevenly, paper tint, curl (rows bow) and crumple, the phone tilted along the paper
   (sideways only a little, as for a narrow receipt), rotation, a table under it, uneven light, a hand's shadow, glare,
-  focus blur, shake, noise, low resolution, JPEG. Three levels: easy 35%, medium 45%, hard 20%.
+  focus blur, shake, noise, low resolution, JPEG. Three levels: easy 35%, medium 45%, hard 20%. With
+  `PHOTO_STYLE=thermal` (7.3) also weaker bands of heat, dead dots of the print head, grainy dots and wrinkle shading,
+  and older, fainter prints.
 - `build.mjs`: prints the receipts flat in Chromium, keeps every word's box, runs `photo.py`; output in the format of
   `bench/cord/convert.py`, so `bench/receipts/run.mjs` (SET_DIR) and the row-model scripts in `bench/cord` read it.
 
@@ -19,6 +21,9 @@ shops print, with invented shops, addresses and numbers, then "photographed" wit
 MINI_DIR=/tmp/mini node bench/minimarket/build.mjs mini-dev 101 60 dev
 MINI_DIR=/tmp/mini node bench/minimarket/build.mjs mini-hold 202 60 hold     # also unseen products, shops and labels
 MINI_DIR=/tmp/mini node bench/minimarket/build.mjs mini-train 303 200 train  # for the row model only
+# 7.3: photos with a thermal printer's defects too, and a second hold-out with its own unseen vocabulary
+PHOTO_STYLE=thermal MINI_DIR=/tmp/mini node bench/minimarket/build.mjs mini-dev2 505 60 dev
+PHOTO_STYLE=thermal MINI_DIR=/tmp/mini node bench/minimarket/build.mjs mini-hold2 606 60 hold2
 SET_DIR=/tmp/mini SET=mini-dev RESULTS_DIR=/tmp/mini-work node bench/receipts/run.mjs http://localhost:3000 v72-mini-dev
 ```
 

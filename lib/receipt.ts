@@ -133,6 +133,8 @@ function cleanLine(raw: string) {
     line = line.replace(/(\s)(\d{1,3}(?:[.,]\d{3})*|\d+)-\s*$/, '$1-$2');
     line = line.replace(/(\d)[.,]-(?=\s|$)/g, '$1').replace(/(\d)\s*(?:IDR|idr)\b/g, '$1').replace(/\(\s*(?:rp\.?\s*)?(\d[\d.,]*)\s*\)\s*$/i, '-$1');
     line = line.replace(/(\d[.,]\d{3})\s+(?:[A-WYZa-wyz]|[*#]{1,2})$/, '$1');
+    // 7.3 — "TotalPembelian", "SubTotal": a summary word glued to the next by the OCR.
+    line = line.replace(/\b(Total|TOTAL|Sub|SUB|Grand|GRAND)(?=[A-Z][a-z]{2,})/g, '$1 ');
     // 7.3 — a lone digit of noise after the line's amount ("211,800   8"), when two amounts come before it.
     line = line.replace(/(\d[.,]\d{3}\s+\S*\d[.,]\d{3})\s+\d$/, '$1');
     // 7.3 — "Diskon -500)": a bracket left after a negative amount.
@@ -271,6 +273,11 @@ const SUMMARY_V41: [Key, RegExp][] = [
   ['fee', /^\W*others?\s*$/i],
   // "SUB.TOTAL", "SB Total", "S/B TOTAL": the subtotal with its punctuation or letters lost.
   ['subtotal', /^\W*(?:sub|sb|s\/b)\W{0,2}t[o0]ta[l1i]\b/i],
+  // 7.3 — "Disc Item", "DISKON ITEM", "DISC MEMBER CARD": a discount, though "item" and "member card" alone are not money.
+  ['discount', /^\W*(?:d[i1l]sc(?:ount)?|d[i1l]sk[o0]n|potongan|promo)\.?\s*(?:per\s*)?(?:item|member)\b/i],
+  // 7.3 — "Sisa 5,000" after the payment is the change; "Uang 30,000" is the cash handed over.
+  ['change', /^\W*sisa\s*:?\s*$/i],
+  ['paid', /^\W*uang\s*:?\s*$/i],
   // 7.2 — "ANDA HEMAT : 7,500" (minimarket): what the item discounts saved, already in the total.
   ['ignore', /^\W*(?:anda\s*hemat|hemat\s*anda|you\s*saved?|total\s*penghematan)\b/i],
   // "DUE", "BALANCE DUE", "NETTO", "TL": what is to be paid.
@@ -736,7 +743,7 @@ function readPaperText(text: string): ReceiptRead {
   // 7.2 — "Total Item 4   56,200" followed by its discounts and another total ("Total Belanja 49,800"): the count row
   // is what the items cost before the discounts, the subtotal. Alone, it stays the total (Alfamidi).
   // 7.3 — the same for "Total Harga 373,700" before "TOTAL 373,200", and when the later total is the same amount.
-  const countRow = totals.find(t => /^\s*t[o0]ta[l1i]\s*(?:item|items|qty|barang|harga)\b/i.test(lines[t.position] || ''));
+  const countRow = totals.find(t => /^\s*(?:t[o0]ta[l1i]\s*(?:item|items|qty|barang|harga)|jumlah\s*[:=]?\s*[\d.,\s]+$)/i.test(lines[t.position] || ''));
   if (countRow && !out.subtotal && totals.some(t => t.position > countRow.position && t.value <= countRow.value)) { out.subtotal = countRow.value; add('subtotal', countRow.position); totals.splice(totals.indexOf(countRow), 1); }
   totals.sort((a, b) => b.strength - a.strength || b.position - a.position);
   if (!out.subtotal && totals.length > 1) { const sub = totals.find(t => t !== totals[0] && t.value === itemSum && t.value !== totals[0].value); if (sub) { out.subtotal = sub.value; subtotalPos = sub.position; sources.subtotal = origin(sub.position); kinds[sub.position] = 'subtotal'; totals.splice(totals.indexOf(sub), 1); } }
@@ -977,7 +984,11 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   const tight = (a: number, b: number) => a > 0 && b > 0 && Math.abs(a - b) <= 100;
   // Nor when a digit was changed only to reach the total, unless what was paid says the same.
   const handed = byPayment || (read.paid && !read.change ? read.paid : 0), circular = read.fittedToTotal && !tight(total, handed);
-  const crossChecked = !circular && (Boolean(best && tight(best.value, best.target)) || Boolean(source === 'printed' && byPayment && tight(read.total, byPayment)));
+  // 7.3 — nor when the cash handed over minus the change is less than the total ("Total Qty 9 91,300" taken for the
+  // total while 90,000 − 2,900 = 87,100): nobody pays less than they owe. (More can be a misread change.) When the total
+  // and the change make a whole thousand, the cash handed over was the misread one (100,000 read for 200,000).
+  const paidSaysOther = Boolean(byPayment && read.change && byPayment < total - 100 && (total + read.change) % 1000 !== 0);
+  const crossChecked = !circular && !paidSaysOther && (Boolean(best && tight(best.value, best.target)) || Boolean(source === 'printed' && byPayment && tight(read.total, byPayment)));
   const lonely = source === 'printed' && !all && !byPayment;
   const tiny = total > 0 && total < 1000;
   if (lonely && !tiny) notes.push('Tidak ada item atau subtotal untuk mencocokkan total. Pastikan nominalnya benar.');

@@ -103,3 +103,18 @@ test('"sure" only when the numbers agree within Rp100, and not when a digit was 
   const fitted = readReceiptText('Nasi Goreng 20.000\nEs Teh 5.000\nPB1 2.500\nTOTAL 32.500');
   assert.ok(fitted.fittedToTotal); assert.equal(checkReceipt(fitted).total, 32500); assert.notEqual(checkReceipt(fitted).confidence, 'tinggi');
 });
+test('7.3 labels: "Disc Item", "DISC MEMBER CARD", "Sisa", "Uang", "TotalPembelian", "JUMLAH" before "TOTAL BAYAR"', () => {
+  const base = 'KOPI   1   20,000   20,000\nTEH   1   5,000   5,000\n';
+  assert.equal(readReceiptText(base + '   Disc Item   -1,000\nTOTAL   24,000').items[1].discount, 1000);
+  assert.equal(readReceiptText(base + 'DISC MEMBER CARD   -1,000\nTOTAL   24,000').discount, 1000);
+  const cash = readReceiptText(base + 'TOTAL 25,000\nUang   30,000\nSisa   5,000');
+  assert.deepEqual([cash.paid, cash.change, cash.payment], [30000, 5000, 'cash']);
+  assert.equal(readReceiptText(base + 'Total Qty 2   25,000\nTotalPembelian   25,000').total, 25000);
+  const sum = readReceiptText(base + 'JUMLAH   25,000\nTOTAL BAYAR   25,000'); assert.equal(sum.subtotal, 25000); assert.equal(checkReceipt(sum).total, 25000);
+});
+test('not "sure" when less cash was handed over than the total, unless the cash amount itself looks misread', () => {
+  const under = readReceiptText('KOPI   1   20,000   20,000\nTEH   1   5,000   5,000\nTOTAL   25,000\nTunai   22,000\nKembali   300');
+  assert.notEqual(checkReceipt(under).confidence, 'tinggi');
+  const misreadCash = readReceiptText('KOPI   1   20,000   20,000\nTEH   1   5,000   5,000\nTOTAL   25,000\nTunai   20,000\nKembali   5,000');
+  assert.equal(checkReceipt(misreadCash).confidence, 'tinggi');
+});
