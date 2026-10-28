@@ -9,11 +9,11 @@ export function Highlights({ items, today, onOpen, onTx }: { items: Highlight[];
   if (!items.length) return null;
   return <section className="ix-highlights" aria-label="Sorotan siklus ini">
     <h2 className="ix-highlights-title">Sorotan siklus ini</h2>
-    <ul>{items.map(h => { const Icon = icons[h.kind]; return <li key={h.key}>
+    <ul className={items.length <= 2 ? 'is-few' : undefined}>{items.map(h => { const Icon = icons[h.kind]; return <li key={h.key}>
       <button type="button" className={`ix-hl is-${h.kind}`} onClick={() => h.signature ? onOpen(h.signature) : h.txId && onTx(h.txId, h.date)}>
-        <span className="ix-hl-top"><span className="ix-hl-icon" aria-hidden="true"><Icon size={15}/></span><small>{h.label}</small><time>{highlightDate(h.date, today)}</time></span>
+        <span className="ix-hl-top"><span className="ix-hl-icon" aria-hidden="true"><Icon size={15}/></span><small>{h.label}</small></span>
         <strong>{h.title}</strong>
-        {h.value && <b className="ix-hl-value">{h.value}</b>}
+        <span className="ix-hl-foot">{h.value && <b className="ix-hl-value">{h.value}</b>}<time>{highlightDate(h.date, today)}</time></span>
       </button>
     </li>; })}</ul>
   </section>;

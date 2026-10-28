@@ -5,7 +5,7 @@ import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input } from './fields';
-import { ACCESS_SINCE, watchGrants, approveRequest, createCode, deleteCode, dismissRequest, listCodes, revokeGrant, setGrantNote, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
+import { ACCESS_SINCE, ONLINE_WITHIN, watchGrants, approveRequest, createCode, deleteCode, dismissRequest, listCodes, revokeGrant, setGrantNote, showCode, watchRequests, type AccessCode, type AccessGrant, type AccessRequest } from '@/lib/access';
 
 const day = (d?: Date) => d ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) : '';
 const ago = (d?: Date) => { if (!d) return ''; const m = Math.round((Date.now() - d.getTime()) / 60_000); return m < 1 ? 'baru saja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : day(d); };
@@ -19,6 +19,9 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
   const [requests, setRequests] = useState<AccessRequest[] | null>(null), [working, setWorking] = useState(''), [editing, setEditing] = useState(''), [noteDraft, setNoteDraft] = useState('');
   useEffect(() => watchRequests(setRequests), []);
   useEffect(() => watchGrants(setGrants), []);
+  // "Aktif sekarang" / "5 menit lalu" keep up with the clock while the list is open.
+  const [, setTick] = useState(0);
+  useEffect(() => { const timer = setInterval(() => setTick(n => n + 1), 30_000); return () => clearInterval(timer); }, []);
   // A request from someone who already got in (with a code) is done: tidied away.
   useEffect(() => { for (const r of requests || []) if ((grants || []).some(g => g.uid === r.uid)) void dismissRequest(r.uid).catch(() => undefined); }, [requests, grants]);
   useEffect(() => { if (fresh) document.querySelector('.access-fresh')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [fresh]);
@@ -36,7 +39,8 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
   const open = (codes || []).filter(c => statusOf(c) === 'open'), others = (codes || []).filter(c => statusOf(c) !== 'open').slice(0, 12);
   const waiting = (requests || []).filter(r => !(grants || []).some(g => g.uid === r.uid));
   const idleDays = (g: AccessGrant) => { const t = (g.seen || g.at)?.getTime(); return t ? Math.floor((Date.now() - t) / 86_400_000) : 0; };
-  const lastActive = (g: AccessGrant) => g.seen ? `Aktif ${ago(g.seen)}` : 'Belum tercatat aktif';
+  const online = (g: AccessGrant) => Boolean(g.seen && Date.now() - g.seen.getTime() < ONLINE_WITHIN);
+  const lastActive = (g: AccessGrant) => online(g) ? 'Aktif sekarang' : g.seen ? `Aktif ${ago(g.seen)}` : 'Belum tercatat aktif';
   const stale = (grants || []).filter(g => g.uid !== user.uid && g.code !== 'owner' && idleDays(g) >= 60);
   async function revokeStale() { for (const g of stale) await revokeGrant(g.uid).catch(() => undefined); notify(`${stale.length} akun tidak aktif sudah dicabut aksesnya.`); }
   async function saveNote(uid: string) { await setGrantNote(uid, noteDraft).catch(() => notify('Nama belum tersimpan. Coba lagi.')); setEditing(''); }
@@ -71,13 +75,13 @@ export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
       {grants === null ? <p className="muted">Memuat…</p> : <ul className="access-people">{grants.map(g => {
         const me = g.uid === user.uid, idle = !me && idleDays(g) >= 30, name = g.note || (g.email || 'Tanpa email').split('@')[0];
         return <li key={g.uid} className={`access-person ${idle ? 'is-idle' : ''}`}>
-          <span className="access-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
+          <span className="access-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}{online(g) && <i className="access-online"/>}</span>
           {editing === g.uid
             ? <form className="access-note-edit" onSubmit={e => { e.preventDefault(); void saveNote(g.uid); }}><Input value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Nama, misalnya Dina" maxLength={60} autoFocus/><Button type="submit">Simpan</Button><button type="button" className="icon-button" aria-label="Batal" onClick={() => setEditing('')}><X size={16}/></button></form>
             : <div className="access-person-main">
               <div className="access-person-top"><b>{name}</b>{me && <span className="access-kind is-old">Kamu</span>}{idle && <span className="access-kind is-idle">Tidak aktif</span>}</div>
               <small className="access-person-email">{g.email}</small>
-              <small className="access-person-meta">{lastActive(g)} · {g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}</small>
+              <small className="access-person-meta"><span className={online(g) ? 'access-now' : undefined}>{lastActive(g)}</span> · {g.code === 'owner' ? 'Pemilik' : g.code === 'approved' ? 'Diizinkan langsung' : `Kode ${showCode(g.code)}`}</small>
             </div>}
           {editing !== g.uid && <div className="access-person-actions">
             <button type="button" className="icon-button" aria-label={`Ubah nama ${g.email}`} title="Ubah nama" onClick={() => { setEditing(g.uid); setNoteDraft(g.note || ''); }}><Pencil size={15}/></button>

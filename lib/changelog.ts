@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.6', date: '28 Okt 2026', title: 'Lebih segar dan lebih rapi', items: [
+    ['🎨', 'Kotak isian teks dan nominal di semua menu tampil baru: kartu putih melayang dengan bayangan lembut, sudut lebih bulat, cincin warna tema saat diketik, dan angka nominal lebih besar dan tegas.'],
+    ['👥', 'Daftar “Yang punya akses” sekarang realtime: yang sedang membuka aplikasi tampil “Aktif sekarang” dengan titik hijau, dan waktu aktifnya terus diperbarui.'],
+    ['💡', 'Sorotan siklus ini lebih rapi: kartu sejajar dengan tepi, dua kartu tampil penuh dengan tinggi sama, dan kartu berikutnya mengintip supaya kelihatan bisa digeser.'],
+    ['✅', 'Klaim yang sudah cair sekarang menandai semua langkah sampai “Cair”.'],
+    ['📊', 'Laporan: Transaksi terbesar tidak lagi terpotong dengan titik di awal baris, dan Per dompet tidak menampilkan “−Rp0”.'],
+    ['🧹', 'Perapian kecil: pilihan di Analisis, Proyeksi, dan Cadangan aman muat satu baris, panah di Kategori sejajar, kolom cari di Arsip selebar layar, dan jadwal Rutin tidak lagi diawali titik.'],
+    ['📝', 'Peringatan di form, misalnya tanggal gajian lebih dari 31, sekarang berbahasa Indonesia.'],
+    ['🔧', 'Label “Hari ini” di Transaksi mengikuti zona waktu di profil, sama seperti bagian lain aplikasi.'],
+  ] },
   { version: '6.5', date: '27 Okt 2026', title: 'Sensor nominal total dan notifikasi lebih pintar', items: [
     ['🛡️', 'Ikon mata sekarang menutup semua angka rupiah, termasuk nominal di daftar transaksi dan di dalam detail, jadi tidak ada lagi yang belang. Kolom isian tetap bisa diketik seperti biasa.'],
     ['📥', 'Notifikasi di panel lonceng sekarang juga bisa diketuk untuk membuka transaksinya atau Kode akses, bukan cuma pop-up-nya.'],

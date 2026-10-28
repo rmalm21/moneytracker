@@ -15,7 +15,7 @@ import { db } from './firebase.ts';
 
 export type AccessState = 'checking' | 'granted' | 'needs-code' | 'error';
 export type AccessCode = { code: string; createdAt?: Date; expiresAt?: Date; note: string; usedBy: string | null; usedAt?: Date; usedEmail: string };
-export type AccessGrant = { uid: string; code: string; email: string; at?: Date; /** Last time the account opened the app (kept to within 6 hours). */ seen?: Date; /** The owner's own name for this account. */ note?: string };
+export type AccessGrant = { uid: string; code: string; email: string; at?: Date; /** Last time the account had the app open (kept to within about 5 minutes). */ seen?: Date; /** The owner's own name for this account. */ note?: string };
 export type AccessRequest = { uid: string; email: string; name: string; at?: Date; tries: number; /** When the account was made: before 6.1 = someone who already used the app. */ since?: Date };
 /** Accounts made before this were using Dompet Ajaib before Kode akses: for them it is a one-time security step. */
 export const ACCESS_SINCE = Date.parse('2026-10-27T00:00:00+07:00');
@@ -106,10 +106,16 @@ export function watchOwnGrant(uid: string, onGone: () => void): Unsubscribe {
   return onSnapshot(doc(need(), 'accessGrants', uid), snap => { if (!snap.exists() && !snap.metadata.fromCache) { remember(uid, false, true); onGone(); } }, () => undefined);
 }
 
-/** Marks this account as active (shown to the owner as "terakhir aktif"); at most every 6 hours, from any device. */
+/**
+ * 6.6: marks this account as active for the owner's list ("Aktif sekarang"). Sent while the app is open and on screen,
+ * at most every 5 minutes from this device; the rules refuse anything closer than 4 minutes from any device.
+ */
+export const SEEN_EVERY = 5 * 60_000;
+/** Seen this recently counts as "Aktif sekarang" on the owner's list. */
+export const ONLINE_WITHIN = SEEN_EVERY + 2 * 60_000;
 export async function markSeen(uid: string) {
   const key = `dompet-ajaib:active-mark:${uid}`;
-  try { if (Date.now() - (Number(localStorage.getItem(key)) || 0) < 6 * 3600_000) return; localStorage.setItem(key, String(Date.now())); } catch { /* try anyway */ }
+  try { if (Date.now() - (Number(localStorage.getItem(key)) || 0) < SEEN_EVERY - 20_000) return; localStorage.setItem(key, String(Date.now())); } catch { /* try anyway */ }
   await updateDoc(doc(need(), 'accessGrants', uid), { seen: serverTimestamp() }).catch(() => undefined);
 }
 

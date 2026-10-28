@@ -74,7 +74,7 @@ export function FinanceControlSettings({ perform, navigate }: { perform: Perform
       </div>
       <div className="fc-field"><span className="fc-label">Cadangan aman</span>
         <div className="fc-buffer"><Money value={bufferDraft} onChange={setBufferDraft}/><Button className="small" disabled={bufferDraft === buffer} onClick={() => save({ freeMoneyBuffer: Math.max(0, bufferDraft) }, 'Cadangan aman disimpan.')}>Simpan</Button></div>
-        <div className="ip-choices fc-chips">{[0, 250_000, 500_000, 1_000_000, 2_000_000].map(v => <button type="button" key={v} className={bufferDraft === v ? 'active' : ''} onClick={() => setBufferDraft(v)}>{v ? rupiah(v).replace('.000.000', ' jt').replace('.000', ' rb') : 'Tanpa'}</button>)}</div>
+        <div className="ip-choices fc-chips">{[0, 250_000, 500_000, 1_000_000, 2_000_000].map(v => <button type="button" key={v} className={bufferDraft === v ? 'active' : ''} onClick={() => setBufferDraft(v)}>{v ? rupiah(v).replace('Rp', '').replace('.000.000', ' jt').replace('.000', ' rb') : 'Tanpa'}</button>)}</div>
         <small className="fc-help">Nominal yang tidak pernah dianggap bisa dibelanjakan, misalnya uang jaga-jaga di dompet harian. Tidak mengubah saldo dompet mana pun.</small>
       </div>
       <div className="set-switches">

@@ -169,7 +169,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         <Section icon={<WalletIcon size={18}/>} title="Per dompet" hint="Uang masuk & keluar, termasuk transfer">
           {wallets.length ? <div className="report-table">{wallets.map(w => <button type="button" key={w.id} className="report-row report-wallet" disabled={Boolean(data.wallets.find(x => x.id === w.id)?.isDeleted)} onClick={() => go('wallets', w.id)}>
             <span className="report-wallet-name"><span className="report-wallet-icon"><AppIcon icon={w.icon}/></span>{w.name}</span>
-            <span className="report-flow"><small className="amount-positive">+{rupiah(w.in)}</small><small className="amount-negative">−{rupiah(w.out)}</small></span>
+            <span className="report-flow">{w.in > 0 && <small className="amount-positive">+{rupiah(w.in)}</small>}{w.out > 0 && <small className="amount-negative">−{rupiah(w.out)}</small>}</span>
             <strong className={w.net < 0 ? 'amount-negative' : 'amount-positive'}>{w.net < 0 ? '−' : '+'}{rupiah(Math.abs(w.net))}</strong>
           </button>)}</div> : <Empty message="Tidak ada pergerakan dompet."/>}
         </Section>

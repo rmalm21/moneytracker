@@ -81,7 +81,7 @@ service cloud.firestore {
         || (request.auth != null && request.auth.uid == uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen'])
             && request.resource.data.seen == request.time
-            && (!('seen' in resource.data) || request.time > resource.data.seen + duration.value(6, 'h')));
+            && (!('seen' in resource.data) || request.time > resource.data.seen + duration.value(4, 'm')));
       allow create: if isAdmin()
         || (request.auth != null && request.auth.uid == uid
             && request.resource.data.keys().hasOnly(['code', 'email', 'at'])

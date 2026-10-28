@@ -1,6 +1,7 @@
 'use client';
 import { forgetGreetingName } from './loading-screen';
-import { checkAccess, markSeen, watchOwnGrant, watchRequests, type AccessState } from '@/lib/access';
+import { installFormMessages } from '@/lib/form-messages';
+import { checkAccess, markSeen, SEEN_EVERY, watchOwnGrant, watchRequests, type AccessState } from '@/lib/access';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -28,6 +29,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(!user||access!=='granted')return;return startSync(user.uid);},[user?.uid,access]);
   // Leftovers of the withdrawn 5.0 "Adaptive Simplicity" build (menu usage per account): removed, never read.
   useEffect(()=>{try{for(const k of Object.keys(localStorage))if(k.startsWith('dompet-ajaib:usage:'))localStorage.removeItem(k);}catch{}},[]);
+  // 6.6: the browser's own form warnings in Indonesian, everywhere (login included).
+  useEffect(()=>installFormMessages(),[]);
   // Transactions this device deleted: confirmed with the server once per opening (lib/tombstones.ts).
   useEffect(()=>{if(!user||access!=='granted')return;const uid=user.uid,run=()=>{void checkDeletedTransactions(uid).then(()=>tidyCloud(uid)).catch(()=>undefined)},timer=setTimeout(run,4000);window.addEventListener('online',run);return()=>{clearTimeout(timer);window.removeEventListener('online',run)};},[user?.uid,access]);
   useEffect(()=>{if(user&&profile)noteDeleteMarks(user.uid,profile.syncMarks);},[user?.uid,profile?.syncMarks]);
@@ -47,7 +50,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
   const refreshAccess=()=>{const u=auth?.currentUser;if(!u)return;setLoading(true);void checkAccess(u).then(r=>{setAdmin(r.admin);setRevoked(r.revoked);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});};
   // Last active, for the owner's list (at most every 6 hours).
-  useEffect(()=>{if(user&&access==='granted')void markSeen(user.uid);},[user?.uid,access]);
+  // 6.6: the owner sees who is active right now: a beat on open, on coming back to the app, and every 5 minutes while it is on screen.
+  useEffect(()=>{if(!user||access!=='granted')return;const uid=user.uid,beat=()=>{if(document.visibilityState==='visible')void markSeen(uid);};beat();const timer=setInterval(beat,SEEN_EVERY);document.addEventListener('visibilitychange',beat);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',beat);};},[user?.uid,access]);
   // The owner takes access back while the app is open: the access screen shows at once, saying so.
   useEffect(()=>{if(!user||admin||access!=='granted')return;return watchOwnGrant(user.uid,()=>{setRevoked(true);setAccess('needs-code');});},[user?.uid,admin,access]);
   useEffect(()=>{if(!admin||access!=='granted'){setAccessRequests(0);return;}return watchRequests(list=>setAccessRequests(list.length));},[admin,access]);
