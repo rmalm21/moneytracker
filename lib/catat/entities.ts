@@ -48,6 +48,7 @@ const DATE_WORDS = /^(?:tadi|td|barusan|kemarin|kemaren|kmrn|kmarin|lusa|besok|h
 const NOT_PLACE = new Set(`bungkus bks porsi pcs biji buah butir liter ltr kg kilo gram gr ons gelas cup botol kotak dus pack sachet saset renteng lusin lembar set item kali orang org
   pertalite pertamax turbo dexlite solar premium bbm full penuh motor mobil sepeda matic
   cash tunai qris debit debet kredit cc transfer tf cod ovo dana shopeepay spay linkaja gopay kartu emoney flazz brizzi tapcash paylater cicil cicilan
+  bca bni bri bsi btn bjb cimb permata danamon seabank blu ocbc jenius jago mandiri rupiah idr
   pagi siang sore malam malem subuh tadi td kemarin kemaren besok lusa barusan
   aku gue gw saya kita kami dia doi temen teman sendiri berdua bertiga patungan traktir traktiran nitip titip titipan
   doang aja saja semua semuanya total lunas kembalian kurang lebih sisa dp diskon promo murah mahal enak banget bgt lagi juga udah sudah belum deh dong ya nih sih kok nya an

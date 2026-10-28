@@ -422,8 +422,28 @@ export function knownPlaces(ctx: Pick<QuickContext, 'history' | 'merchants'>) {
 }
 /** 6.9: a wallet that is not set up, named after "pake / via": how it was paid. */
 const PAID_WITH = /\b(?:pake|pakai|pakek|pk|via|lewat|bayar pake|bayar pakai)\s+(ovo|shopeepay|spay|linkaja|dana|gopay|jenius|qris|debit|debet|kredit|cc|flazz|brizzi|emoney|e-money|tapcash|paylater|kartu)\b/g;
-/** 6.9: small words around an amount and the period of a bill: never part of what was bought. */
-const SMALL_WORDS = /\b(?:abis|habis|kena|kepake|kepakai|ngabisin|ngehabisin|harganya|totalnya|total|sekitar|kurleb|kira kira|(?:bulan|minggu|tahun|pekan) (?:ini|lalu|kemarin))\b/g;
+/** 6.9: small words around an amount and the period of a bill: never part of what was bought. 6.10: the currency
+ *  ("50 ribu rupiah") and "nitip" (somebody else bought it for you). */
+const SMALL_WORDS = /\b(?:abis|habis|kena|kepake|kepakai|ngabisin|ngehabisin|harganya|totalnya|total|sekitar|kurleb|kira kira|(?:bulan|minggu|tahun|pekan) (?:ini|lalu|kemarin)|rupiah|idr|nitip|titip)\b/g;
+/** 6.10: a wallet or bank that is not set up, written bare after the amount: how it was paid. */
+const PAID_BARE = /\b(ovo|dana|shopeepay|spay|linkaja|gopay|jenius|jago|bca|bni|bri|bsi|btn|bjb|cimb|permata|danamon|seabank|blu|ocbc|mandiri|flazz|brizzi|tapcash|emoney|e-money|qris|debit|debet)\b/;
+/** 6.10: how it felt and words that weigh the price: never what was bought or received. */
+const FEELING = /\b(?:duh|aduh|haduh|wah|waduh|wih|wuih|astaga|astagfirullah|astaghfirullah|alhamdulillah|buset|busyet|gila|gilak|ya ampun|yaampun|yaallah|ya allah|hadeh|hadeuh|huft|hufft|akhirnya|cuma|cuman|doang|aja|saja|lumayan|mahal|murah|boros|banget|bgt|amat|juga|eh|btw)\b/g;
+/** 6.10: the time of day said with "ini" ("pagi ini") and dawn ("subuh"): the date, not the thing. */
+const DAY_TIME = /\b(?:(?:pagi|siang|sore|malam|malem|subuh) ini|subuh)\b/g;
+/** Names of money that keep their "uang" ("uang saku", "uang kaget"); the second word alone means something else. */
+const MONEY_NAME = /\b(?:uang|duit)\s+(jajan|saku|kaget|bulanan|mingguan|pangkal|muka|lelah|duka|receh|keamanan|kebersihan|sampah|sekolah|kuliah|gedung|semester)\b/g;
+/** 6.10: "<thing> sama / dan / & <thing>" (one or two words each side). */
+const PAIRED = /((?:\p{L}+ )?\p{L}+) (sama|ama|sm|dan|&|\+|plus) (\p{L}+(?: \p{L}+)?)/gu;
+/** People, never one of two things bought ("makan sama temen", "jajan sama anak"). */
+const PEOPLE_WORD = /^(?:temen|teman|temen2|pacar|ayang|istri|suami|anak|anak2|adek|adik|ade|kakak|abang|mama|mamah|mami|papa|papah|papi|ibu|bapak|ayah|bunda|ortu|keluarga|fam|family|bos|boss|klien|client|tim|team|nenek|kakek|om|tante|ponakan|keponakan|bocil|bestie|gebetan)$/;
+/** A thing the category reader knows (one word or two), not a person. */
+function isThing(phrase: string) {
+  const words = phrase.split(' ');
+  if (words.some(w => PEOPLE_WORD.test(w))) return false;
+  const tries = [phrase, words[words.length - 1], words[0]];
+  return tries.some(t => readConcepts(t, 0, 'expense').size > 0 || readConcepts(t, 0, 'income').size > 0);
+}
 /** 6.9: "beliin adek susu": the person after a "buy for" verb. */
 const BOUGHT_FOR = /\b(?:beliin|belikan|beliim|beli|bawain|bawakan|pesenin|pesanin|traktir)\s+(adek|adik|ade|mama|mamah|mami|papa|papah|papi|ibu|bapak|ayah|bunda|istri|suami|anak|pacar|ayang|kakak|abang|nenek|kakek|ortu|temen|teman|ponakan|keponakan|om|tante|bos|boss)\s+(?=\p{L})/u;
 /** 6.9: food delivery apps (where it was ordered). */
@@ -431,6 +451,8 @@ const DELIVERY_APP = /\b(gofood|go-food|go food|grabfood|grab food|shopeefood|sh
 const APP_NAMES: Record<string, string> = { gofood: 'GoFood', grabfood: 'GrabFood', shopeefood: 'ShopeeFood', maximfood: 'Maxim Food' };
 /** 6.9: a ride or a train with where it went ("gojek ke kantor", "grab pulang", "krl ke bogor"). */
 const RIDE_TRIP = /\b(?:gojek|goride|go-ride|gocar|go-car|grab|grabbike|grabcar|maxim|indrive|ojol|ojek|taksi|taxi|bluebird|krl|mrt|lrt|kereta|transjakarta|busway|bus|angkot|damri)(?: (?:ke|dari) [\p{L}'’-]+(?: [\p{L}'’-]+)?| (?:pulang|balik|pergi|berangkat)(?: (?:ke|dari) [\p{L}'’-]+)?)/u;
+/** 6.10: places to eat and drink where "<name> 45rb" means a meal or a drink there (the description it gets). */
+const EATERY: Record<string, string> = { "McDonald's": 'makan', KFC: 'makan', HokBen: 'makan', Hokben: 'makan', 'Burger King': 'makan', 'Pizza Hut': 'makan', Domino: 'makan', Richeese: 'makan', Gacoan: 'makan', Solaria: 'makan', Yoshinoya: 'makan', Wingstop: 'makan', 'Sushi Tei': 'makan', "D'Besto": 'makan', 'Kopi Kenangan': 'kopi', 'Janji Jiwa': 'kopi', Starbucks: 'kopi', Fore: 'kopi', Tomoro: 'kopi', 'Point Coffee': 'kopi', 'Cotti Coffee': 'kopi', Chatime: 'minuman', Mixue: 'minuman' };
 /** 6.9: chains where "<name> 87rb" means shopping there. */
 const STORE = /^(?:indomaret|alfamart|alfamidi|alfa express|lawson|circle k|family ?mart|superindo|hypermart|transmart|giant|hero|lotte ?mart|ranch market|grand lucky|carrefour|yomart|toserba|guardian|watsons)$/;
 /** Meal times and snacking: the category of a food purchase, not part of its description (6.8). */
@@ -462,7 +484,7 @@ function oneEditAway(a: string, b: string) {
   return edits + (a.length - i) + (b.length - j) <= 1;
 }
 /** How people write some chains without punctuation or in short. */
-const PLACE_ALIASES: Record<string, string> = { dbesto: 'D\'Besto', 'd besto': 'D\'Besto', cotti: 'Cotti Coffee', 'cotti kopi': 'Cotti Coffee' };
+const PLACE_ALIASES: Record<string, string> = { dbesto: 'D\'Besto', 'd besto': 'D\'Besto', cotti: 'Cotti Coffee', 'cotti kopi': 'Cotti Coffee', kopken: 'Kopi Kenangan', 'kopi kenangan': 'Kopi Kenangan', mcdonald: "McDonald's", mcdonalds: "McDonald's" };
 /** Chains and brands people write without "di" ("kopi fore", "roti indomaret"). */
 const EXTRA_PLACES = ['D\'Besto', 'Cotti Coffee', 'Fore', 'Kopi Kenangan', 'Janji Jiwa', 'Tomoro', 'Point Coffee', 'Chatime', 'Mixue', 'Family Mart', 'Lawson', 'Circle K', 'Burger King', 'Pizza Hut', 'Domino', 'Richeese', 'Gacoan', 'Solaria', 'Hokben', 'Yoshinoya', 'Wingstop', 'Sushi Tei', 'Guardian', 'Watsons', 'Ace Hardware', 'Informa', 'IKEA', 'Uniqlo', 'Gramedia', 'Lotte Mart', 'Giant', 'Carrefour', 'Lion Parcel', 'JNE', 'J&T', 'SiCepat', 'Shell', 'Kimia Farma', 'Apotek K24', 'Century'];
 
@@ -741,6 +763,8 @@ function counterpartyIn(text: string, ctx: QuickContext): { word: string; at: nu
   for (const [re, cue] of tries) {
     const m = re.exec(text); if (!m) continue;
     let word = m[1], at = (m.index ?? 0) + m[0].length - word.length;
+    // 6.10 "bayar spaylater", "bayar kredivo": a thing the category reader knows is a bill, not somebody.
+    if (cue === 'pay' && readConcepts(word, 0, 'expense').size) continue;
     // "ke kak dina" → Dina; "ke ibu" → Ibu.
     if (HONORIFIC.has(word)) { const after = text.slice(at + word.length).match(/^\s+(\p{L}+)/u); if (after && ok(after[1])) { at += word.length + after[0].length - after[1].length; word = after[1]; } else return { word, at, end: at + word.length, cue }; }
     if (ok(word)) return { word, at, end: at + word.length, cue };
@@ -1075,10 +1099,23 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   for (const word of known) rest = rest.replace(new RegExp(`\\b${escape(word)}\\b`, 'g'), ' ');
   rest = rest.replace(DATE_PHRASES, ' ').replace(/\b\d{1,2}\s*hari\s*(lalu|yang lalu|yg lalu)\b|\b(tgl|tanggal)\s*\d{1,2}\b/g, ' ');
   if (kind === 'recurring_new' || kind === 'plan_new') rest = rest.replace(FREQ_PHRASES, ' ').replace(PLAN_FILLERS, ' ');
-  // "uang jajan anak": pocket money is a thing, not the act of snacking ("jajan" alone is a verb here).
-  rest = rest.replace(/\b(?:uang|duit)\s+jajan\b/g, ' uangjajan ');
-  rest = rest.replace(VERBS, ' ').replace(FILLERS, ' ').replace(/\buangjajan\b/g, 'uang jajan')
+  // "uang jajan anak", "uang saku", "uang kaget": the money's own name, not the act of snacking ("jajan" alone is a verb
+  // here) and not the filler "uang" (6.10); "jajan anak": the child's snack money.
+  rest = rest.replace(MONEY_NAME, ' uang_$1 ').replace(/\bjajan\s+(?=(?:anak|anak2|adek|adik|bocil|ponakan|keponakan)\b)/g, ' jajan_ ');
+  // 6.10 "pagi ini sarapan", "tadi subuh beli bubur": the time of day belongs to the date.
+  if (flow === 'expense' || flow === 'income') rest = rest.replace(DAY_TIME, ' ');
+  // 6.10 "kopi sama roti", "bensin dan parkir": two things bought together are both the description.
+  if (flow === 'expense' || flow === 'income') rest = rest.replace(/\s+/g, ' ').replace(PAIRED, (all, left: string, _join: string, right: string) => isThing(left) && isThing(right) ? `${left} & ${right}` : all);
+  rest = rest.replace(VERBS, ' ').replace(FILLERS, ' ').replace(/\buang_(\p{L}+)/gu, 'uang $1').replace(/\bjajan_/g, 'jajan')
     .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|reimburse|direimburse|diklaim|klaim|claim|nanti|diganti|ganti|rembes)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  // 6.10: how it felt ("duh boros banget", "akhirnya", "cuma") and how it was paid with a wallet that is not set up,
+  // written bare after the amount ("nasi goreng 15rb ovo", "bensin 30rb bca"), are not what was bought or received.
+  if (flow === 'expense' || flow === 'income') {
+    rest = rest.replace(FEELING, ' ').replace(/(?:^|\s)-?an(?=\s|$)/g, ' ').replace(/^(?:\s*&)+|(?:&\s*)+$/g, ' ').replace(/&(?:\s*&)+/g, '&');
+    const after = main && main.text === amountText ? text.slice(main.index + main.text.length) : '';
+    for (const m of after.matchAll(new RegExp(PAID_BARE.source, 'g'))) if (!wallets.some(w => w.word === m[1])) rest = rest.replace(new RegExp(`\\b${escape(m[1])}\\b`), ' ');
+    rest = rest.replace(/\s+/g, ' ').trim();
+  }
   // 6.9: everyday words around the thing bought (spending only).
   if (flow === 'expense') {
     // Paid with a wallet that is not set up ("pake ovo", "via shopeepay"): how it was paid, never what was bought.
@@ -1094,9 +1131,10 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     // "gojek ke kantor", "grab pulang": the trip is the description; the destination is not where it was bought.
     const trip = blankOut(text, bounds.blank).match(RIDE_TRIP);
     if (trip) { rest = trip[0].replace(/\s+/g, ' ').trim(); if (preset.merchant && lower(trip[0]).includes(lower(preset.merchant))) delete preset.merchant; }
-    // "indomaret 87rb": a store alone is where it was bought.
+    // "indomaret 87rb": a store alone is where it was bought; "mcd 45rb", "kopken 22rb": so is a place to eat (6.10).
     const store = !preset.merchant && rest.replace(/\s+/g, ' ').trim() ? knownPlaces(ctx).get(rest.replace(/\s+/g, ' ').trim()) : undefined;
     if (store && STORE.test(lower(store))) { preset.merchant = store; rest = 'belanja'; }
+    else if (store && EATERY[store]) { preset.merchant = store; rest = EATERY[store]; }
     rest = rest.replace(/\s+/g, ' ').trim();
   }
   // 6.8: a meal time is the category and the food is the description: "nasi padang buat makan malam", "sarapan bubur

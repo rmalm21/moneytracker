@@ -54,3 +54,43 @@ test('bought for someone, delivery apps, a store alone, family and game top-ups'
   assert.equal(await kindOf('top up game 30rb'), 'expense');
   assert.equal(await kindOf('top up gopay 100rb dari jago'), 'transfer');
 });
+
+// 6.10 — everyday language, third round.
+test('a wallet written short is that wallet; a wallet or bank that is not set up is how it was paid', async () => {
+  for (const [text, wallet] of [['nasgor 15rb gpy', 'gopay'], ['kopi 18rb mndr', 'mandiri'], ['bensin 30rb jns', 'jenius'], ['makan 20rb jgo', 'jago'], ['parkir 5rb pke gpy', 'gopay']]) {
+    const r = await read(text); assert.equal(r.wallet, wallet, text); assert.equal(r.merchant, '', text);
+  }
+  for (const text of ['sabun mandi 15rb', 'jus alpukat 15rb', 'kirim paket 20rb']) assert.equal((await read(text)).wallet, '', text);
+  for (const [text, want] of [['nasi goreng 15rb ovo', 'Nasi Goreng'], ['bensin 30rb bca', 'Bensin'], ['beli pulsa 20rb dana', 'Pulsa']]) {
+    const r = await read(text); assert.equal(r.description, want, text); assert.equal(r.merchant, '', text); assert.equal(r.wallet, '', text);
+  }
+});
+
+test('feelings, the time of day and the currency stay out of the description', async () => {
+  for (const [text, want] of [['duh boros banget jajan 50rb', 'Jajan'], ['akhirnya beli sepatu 300rb', 'Sepatu'], ['anjir mahal parkir 10rb', 'Parkir'], ['cuma jajan 10rb', 'Jajan'], ['bensin rp 30.000 aja', 'Bensin'],
+    ['pagi ini sarapan 15rb', 'Sarapan'], ['malam ini beli martabak 35rb', 'Martabak'], ['tadi subuh beli bubur 10rb', 'Bubur'], ['15k-an parkir', 'Parkir']]) assert.equal((await read(text)).description, want, text);
+  assert.equal((await read('pulsa 50 ribu rupiah')).merchant, '');
+});
+
+test('pocket money keeps its name; uang kaget and prizes are income; two things are both the description', async () => {
+  assert.equal((await read('uang saku adek 50rb')).description, 'Uang Saku Adek');
+  assert.equal(await kindOf('uang kaget 20rb'), 'income');
+  assert.equal(await kindOf('uang saku dari mama 200rb'), 'income');
+  assert.equal(await kindOf('kirim uang kaget 50rb'), 'expense');
+  assert.equal((await read('menang giveaway 100rb')).cat, C('Hadiah Uang'));
+  assert.equal((await read('kopi sama roti 30rb')).description, 'Kopi & Roti');
+  assert.equal((await read('bensin sama parkir 35rb')).description, 'Bensin & Parkir');
+  assert.equal((await read('makan sama temen 50rb')).description, 'Makan');
+});
+
+test('places to eat by name, fast food, a typo of a food word, paylater and fines', async () => {
+  const mcd = await read('mcd 45rb'); assert.equal(mcd.merchant, "McDonald's"); assert.equal(mcd.cat, C('Fast Food'));
+  assert.equal((await read('kopken 22rb')).merchant, 'Kopi Kenangan');
+  assert.equal((await read('kopken 22rb')).cat, C('Kopi & Minuman'));
+  assert.equal((await read('nasi padang 25rb')).cat, 'expense.makan-minum');
+  assert.equal((await read('bakzo 15rb')).cat, 'expense.makan-minum');
+  assert.equal((await read('beli tuna kaleng 30rb')).cat, '');
+  const late = (await parseQuickPlanV3('bayar spaylater 150rb', ctx)).actions[0].result;
+  assert.equal(late.person || '', ''); assert.equal(late.preset.subcategoryId, C('Tagihan Lainnya'));
+  assert.equal((await read('waduh kena tilang 100rb')).cat, C('Denda'));
+});

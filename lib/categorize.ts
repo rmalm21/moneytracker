@@ -19,13 +19,15 @@ type ConceptDef = { id: string; type: Flow; parent?: string; label: string; name
 /** id, type, parent, how it's called in a reason, words in category names (a leading "~" = weak), typical icons. */
 const C = (id: string, type: Flow, parent: string, label: string, names: string, icons = ''): ConceptDef => ({ id, type, parent: parent || undefined, label, names: names.split('|'), icons });
 const CONCEPTS: ConceptDef[] = [
-  C('food', 'expense', '', 'makanan', 'makan|makanan|kuliner|konsumsi|food|resto|restoran|fast food|dining', '🍜🍱🍽️🍔🍕🍗🥡🍝🍛🍲'),
+  C('food', 'expense', '', 'makanan', 'makan|makanan|kuliner|konsumsi|food|fast food', '🍜🍱🍽️🍔🍕🍗🥡🍝🍛🍲'),
+  C('restaurant', 'expense', 'food', 'restoran', 'resto|restoran|restaurant|rumah makan|dining', ''),
   C('breakfast', 'expense', 'food', 'sarapan', 'sarapan|breakfast|makan pagi', '🥐🍳'),
   C('lunch', 'expense', 'food', 'makan siang', 'makan siang|lunch|maksi', '🍱'),
   C('dinner', 'expense', 'food', 'makan malam', 'makan malam|dinner', '🌙'),
   C('snack', 'expense', 'food', 'jajanan', 'jajan|jajanan|camilan|cemilan|snack|ngemil', '🍿🍩🍪🍫'),
   C('drink', 'expense', 'food', 'minuman', 'minum|minuman|drink|drinks|beverage|air minum|air mineral|galon|jus|juice', '🥤🧃🧋🍹'),
   C('coffee', 'expense', 'drink', 'kopi', 'kopi|coffee|ngopi|cafe|kafe', '☕'),
+  C('fastfood', 'expense', 'food', 'fast food', 'fast food|fastfood|cepat saji|junk food', '🍔🍟'),
   C('delivery', 'expense', 'food', 'pesan antar', 'delivery|pesan antar|gofood|grabfood|shopeefood|online food', '🥡🛵'),
   C('groceries', 'expense', 'food', 'bahan makanan', 'bahan makanan|bahan masakan|belanja dapur|groceries|grocery|sembako|belanja bulanan|kebutuhan pokok|pasar|sayur|sayuran', '🛒🥬🥕'),
   C('transport', 'expense', '', 'transportasi', 'transport|transportasi|perjalanan|mobilitas|ongkos jalan', '🚗🚙'),
@@ -98,6 +100,7 @@ const CONCEPTS: ConceptDef[] = [
   C('hotel', 'expense', 'travel', 'hotel', 'hotel|penginapan|akomodasi|villa|homestay', '🏨'),
   C('souvenir', 'expense', 'travel', 'oleh-oleh', 'oleh-oleh|oleh oleh|souvenir|cenderamata', ''),
   C('fees', 'expense', '', 'biaya', 'biaya|admin|biaya admin|admin bank|biaya transfer|biaya kartu|fee|charge|denda|biaya keuangan', '💸🏦'),
+  C('fine', 'expense', 'fees', 'denda', 'denda|tilang|penalti|sanksi', ''),
   C('tax', 'expense', 'fees', 'pajak', 'pajak|pbb|pph|tax', ''),
   C('other', 'expense', '', 'lainnya', 'lainnya|lain-lain|lain lain|other|others|tak terduga|belum dikategorikan|misc', '📦❓'),
   C('salary', 'income', '', 'gaji', 'gaji|salary|payroll|upah|gaji bulanan|gaji pokok|penghasilan utama', '💼💰'),
@@ -156,7 +159,10 @@ const RULES: Rule[] = [
   R(/\b(air minum|air mineral|air putih|air galon|galon|aqua|le ?minerale|cleo|ades|isi ulang galon)\b/, 'drink', 4.6),
   R(/\bair\b/, 'drink', 1.5, { plus: DRINKING, hint: SHOPS, minus: WATER_BILL, veto: NOT_WATER, max: 60000, cheap: 25000 }),
   R(/\bair\b/, 'water', 2, { plus: WATER_BILL, hint: /\b(bayar|bulan ini|bulanan|langganan)\b/, minus: DRINKING, veto: NOT_WATER, min: 30000, big: 90000 }),
-  R(/\b(kopi|coffee|ngopi|latte|cappuccino|kapucino|espresso|americano|mocha|kopi susu|starbucks|sbux|fore|tomoro|point coffee|janji jiwa|kenangan|excelso|anomali|cafe|kafe|coffee shop)\b/, 'coffee', 4),
+  R(/\b(kopi|coffee|ngopi|latte|cappuccino|kapucino|espresso|americano|mocha|kopi susu|starbucks|sbux|fore|tomoro|point coffee|janji jiwa|kenangan|kopken|excelso|anomali|cafe|kafe|coffee shop)\b/, 'coffee', 4),
+  R(/\b(kfc|mcd|mekdi|mcdonald'?s?|mc donald'?s?|hokben|burger king|richeese factory|a&w|texas chicken|popeyes|wendy'?s|jollibee|carl'?s jr|fast food|fastfood|cepat saji)\b/, 'fastfood', 4.8),
+  R(/\b(gacoan|mie gacoan|solaria|yoshinoya|wingstop|sushi tei|d'?besto)\b/, 'food', 4.2),
+  R(/\b(resto|restoran|restaurant|rumah makan|fine dining)\b/, 'restaurant', 4.4),
   R(/\b(gofood|go-?food|grabfood|grab ?food|shopeefood|shopee ?food|pesan antar|delivery)\b|\b(gojek|grab|shopee|maxim)\s+(?:makan|makanan|food)\b/, 'delivery', 4.6),
   // Transport and vehicles
   R(/\b(bensin|pertalite|pertamax|pertamax turbo|dexlite|solar|bbm|spbu|shell|bp akr|isi bensin)\b/, 'fuel', 4.6, { veto: /\bshell (?:kerang|laut)\b|\b(?:bbm|bensin|solar|shell|spbu)\s+(?:cafe|kafe|coffee|resto|restoran|kitchen|bakery|bar|grill|store|shop)\b/ }),
@@ -186,7 +192,7 @@ const RULES: Rule[] = [
   R(/\b(kos|kost|kosan|kontrakan|sewa rumah|sewa kamar|sewa apartemen|apartemen|kpr|cicilan rumah|ipl|uang sewa|bayar sewa)\b/, 'housing', 4.6),
   R(/\b(asuransi|premi|bpjs|prudential|allianz|axa|manulife|sequis)\b/, 'insurance', 4.6),
   R(/\b(iuran|iuran rt|iuran rw|uang keamanan|keamanan|uang sampah|sampah|ronda|kas rt|kas rw)\b/, 'dues', 3.8, { veto: /\b(iuran (?:kantor|kelas|arisan)|kas kantor)\b/ }),
-  R(/\b(cicilan|angsuran|kredit|paylater|kredivo|akulaku|spaylater)\b/, 'installment', 3.4),
+  R(/\b(cicilan|angsuran|kredit|paylater|kredivo|akulaku|spaylater|gopaylater|atome|indodana|home credit|kredit pintar|adakami|easycash|julo)\b/, 'installment', 3.4),
   R(/\b(tagihan|bayar tagihan)\b/, 'bills', 2.2),
   // Home
   R(/\b(sabun|detergen|deterjen|rinso|so klin|molto|softener|pewangi|pembersih|karbol|wipol|sunlight|mama lemon|sapu|alat pel|pel|tisu|tissue|pengharum|kamper|obat nyamuk|baygon|sikat|spons|kantong sampah|plastik sampah|lampu|bohlam|baterai|batre|korek|lilin|ember|hanger|gantungan baju)\b/, 'household', 3.2, { veto: /\b(sabun muka|facial wash|sabun cuci muka|sikat gigi)\b/ }),
@@ -242,6 +248,7 @@ const RULES: Rule[] = [
   R(/\b(oleh-oleh|oleh oleh|souvenir|cenderamata)\b/, 'souvenir', 4.6),
   // Fees
   R(/\b(biaya admin|admin bank|biaya transfer|biaya tarik|tarik tunai|biaya layanan|service fee|biaya kartu|iuran kartu|annual fee|denda|penalti|bunga pinjaman|bunga kartu|bunga kredit|admin fee|potongan admin)\b/, 'fees', 4.6),
+  R(/\b(denda|tilang|kena tilang|e-?tilang|etle|penalti|sanksi)\b/, 'fine', 4.8),
   R(/\badmin\b/, 'fees', 3),
   R(/\b(pajak|pbb|pph|ppn|spt)\b/, 'tax', 4, { minus: /\bpajak (?:motor|mobil|kendaraan)\b/ }),
   // Income
@@ -258,7 +265,8 @@ const RULES: Rule[] = [
   R(/\b(cashback|cash back|reward|poin|koin|gopay coins|ovo points)\b/, 'cashback', 4.8),
   R(/\b(refund|pengembalian dana|dana kembali|uang kembali|retur|pengembalian)\b/, 'refund', 4.6),
   R(/\b(patungan|urunan|split bill|splitbill)\b/, 'split', 3.6),
-  R(/\b(angpao|angpau|hadiah|kado uang|kiriman|uang saku|uang jajan|warisan|dikasih|pemberian|dikirim|dikirimi|dikirimin)\b/, 'gift_in', 3.6),
+  R(/\b(angpao|angpau|hadiah|kado uang|kiriman|uang saku|uang jajan|uang kaget|warisan|dikasih|pemberian|dikirim|dikirimi|dikirimin)\b/, 'gift_in', 3.6),
+  R(/\bmenang\s+(?:giveaway|ga|lomba|undian|kuis|quiz|doorprize|door prize|lotre|lottery|turnamen|kompetisi|hadiah|taruhan)\b/, 'gift_in', 4.2),
   R(/\b(dari|dr|sama|ama)\s+(mama|mamah|mami|papa|papah|papi|ibu|bapak|ayah|ortu|orang tua|om|tante|nenek|kakek|kakak|abang|adik|mertua|pacar|suami|istri)\b/, 'gift_in', 3.4),
   R(/\b(sewa|kos|kost|kosan|kontrakan)\b/, 'rent_in', 3),
   R(/\b(reimburse|reimbursement|klaim|claim|penggantian)\b/, 'reimbursement', 3.6),
@@ -316,6 +324,10 @@ const INCOME_CUES: [RegExp, number][] = [
   [/\b(transferan|kiriman|dikirim|dikasih|dapat|dapet)\b.{0,24}\b(dari|dr|sama|ama)\b/, 2],
   [/\b(transferan masuk|uang masuk|dana masuk|masuk (?:ke )?(?:rekening|rek|dompet|saldo|tabungan))\b/, 3.5],
   [/\bmasuk\b(?!\s+(?:angin|kerja|kantor|sekolah|kuliah|kelas|rumah sakit|rs|tol|kos))/, 1.5],
+  // 6.10: "uang kaget" is only ever received; pocket money "dari mama" came in; a prize was won.
+  [/\buang kaget\b/, 3.5],
+  [/\b(?:uang|duit)\s+(?:saku|jajan|bulanan)\b.{0,16}\b(?:dari|dr)\b/, 3],
+  [/\bmenang\s+(?:giveaway|ga|lomba|undian|kuis|quiz|doorprize|door prize|lotre|lottery|turnamen|kompetisi|hadiah|taruhan)\b/, 3.5],
 ];
 const EXPENSE_CUES: [RegExp, number][] = [
   [/\b(beli|bayar|byr|jajan|belanja|habis|abis|keluar|traktir|nraktir|kasih|ngasih|kirim|ngirim|transfer ke|tf ke|donasi|sedekah|nyumbang|order|pesan|pesen|checkout|sewa|servis|service|isi|top ?up|potong|langganan)\b/, 3],
@@ -434,6 +446,51 @@ const title = (text: string) => text.replace(/(^|\s)\S/g, s => s.toUpperCase());
  * `text`: the whole sentence (lowercase); `item`: what is left after amount, place, wallet and verbs are taken out.
  */
 export function suggestCategory(input: { text: string; item: string; merchant?: string; amount: number; type: Flow }, ctx: { categories: CatLike[]; history: HistoryTx[] }): CategoryGuess | null {
+  const guess = guessCategory(input, ctx);
+  if (guess) return guess;
+  // 6.10: nothing read, but a word is one letter away from a word the reader knows ("bakzo" → bakso, "martabk" →
+  // martabak): read again with that word. Only as a last resort, so a word that reads already never changes.
+  const fixes = typoFixes(input.text);
+  if (!fixes.length) return null;
+  let text = input.text, item = input.item;
+  for (const [raw, word] of fixes) { const re = new RegExp(`(^|[^\\p{L}])${escapeRe(raw)}(?![\\p{L}])`, 'gu'); text = text.replace(re, `$1${word}`); item = item.replace(re, `$1${word}`); }
+  const again = guessCategory({ ...input, text, item }, ctx);
+  return again ? { ...again, why: fixes.map(([raw, word]) => `“${raw}” dibaca “${word}”`).join(', ') } : null;
+}
+
+let typoTargets: { known: Set<string>; byLetter: Map<string, string[]> } | null = null;
+/** Known words, and by first letter the ones of five letters or more, for reading a typo of one of them. */
+const knownByLetter = () => {
+  if (typoTargets) return typoTargets;
+  const known = conceptWords(), byLetter = new Map<string, string[]>();
+  for (const w of known) if (w.length >= 5 && /^\p{Ll}+$/u.test(w)) (byLetter.get(w[0]) || byLetter.set(w[0], []).get(w[0])!).push(w);
+  return (typoTargets = { known, byLetter });
+};
+/** Keys next to each other on a phone keyboard, and letters that sound alike ("bakzo", "kopi/copi"). */
+const NEAR_KEYS: Record<string, string> = { q: 'wask', w: 'qeasd', e: 'wrsdf', r: 'etdfg', t: 'ryfgh', y: 'tughji', u: 'yihjk', i: 'uojkly', o: 'ipkl', p: 'olfv', a: 'qwszx', s: 'qweadzxc', d: 'wersfxcv', f: 'ertdgcvbpv', g: 'rtyfhvbn', h: 'tyugjbnm', j: 'yuihknm', k: 'uiojlmcq', l: 'iopk', z: 'asx', x: 'zsdca', c: 'xdfvsk', v: 'cfgbdpf', b: 'vghnf', n: 'bhjmg', m: 'njkh' };
+/** One mistyped key (a neighbour or a letter that sounds alike), one letter added or dropped, or two neighbours swapped. */
+function oneTypo(a: string, b: string) {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  if (a.length === b.length) {
+    const diff = [...a].map((c, i) => c !== b[i] ? i : -1).filter(i => i >= 0);
+    return diff.length === 1 && (NEAR_KEYS[b[diff[0]]] || '').includes(a[diff[0]]) || diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+  }
+  const [long, short] = a.length > b.length ? [a, b] : [b, a];
+  for (let i = 0; i < long.length; i++) if (long.slice(0, i) + long.slice(i + 1) === short) return true;
+  return false;
+}
+/** Unknown words (five letters or more) with exactly one known word a typo away, same first letter. */
+function typoFixes(text: string): [string, string][] {
+  const { known, byLetter } = knownByLetter(), out: [string, string][] = [];
+  for (const raw of new Set(text.match(/\p{L}{5,}/gu) || [])) {
+    if (known.has(raw)) continue;
+    const near = (byLetter.get(raw[0]) || []).filter(w => oneTypo(raw, w));
+    if (near.length === 1) out.push([raw, near[0]]);
+  }
+  return out;
+}
+
+function guessCategory(input: { text: string; item: string; merchant?: string; amount: number; type: Flow }, ctx: { categories: CatLike[]; history: HistoryTx[] }): CategoryGuess | null {
   const { text, item, merchant = '', amount, type } = input;
   const infos = categoryInfo(ctx.categories, type);
   if (!infos.length) return null;

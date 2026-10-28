@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.10', date: '28 Okt 2026', title: 'Catat otomatis paham singkatan dan obrolan santai', items: [
+    ['💳', 'Dompet yang ditulis singkat sekarang dikenali: “nasgor 15rb gpy” masuk GoPay, “mndr” Mandiri, “jns” Jenius. Nama bank atau e-wallet yang belum jadi dompet (“15rb ovo”, “30rb bca”) tidak lagi nyangkut di keterangan atau dikira tempat.'],
+    ['📝', 'Keterangan makin bersih: kata seru dan komentar seperti “duh boros banget”, “akhirnya”, “cuma”, dan “aja”, waktu seperti “pagi ini” dan “tadi subuh”, serta “rupiah” tidak ikut masuk. “kopi sama roti 30rb” jadi Kopi & Roti.'],
+    ['🎁', '“uang kaget” dan “uang saku dari mama” jadi pemasukan, menang giveaway atau lomba masuk Hadiah Uang, dan “uang saku adek” tetap utuh namanya.'],
+    ['🍔', 'Tempat makan langsung dikenali dari namanya: “mcd 45rb” jadi makan di McDonald’s (Fast Food), “kopken 22rb” jadi Kopi Kenangan. Salah ketik kecil seperti “bakzo” tetap terbaca bakso, dan “bayar spaylater” jadi tagihan, bukan nama orang.'],
+    ['🤖', 'Diuji dengan 60 kalimat sehari-hari dan 47 kalimat uji terpisah: yang benar seluruhnya naik dari 22% ke 100% dan dari 23% ke 100%. Dari 1.114 kalimat lama, tidak ada yang jadi salah.'],
+  ] },
   { version: '6.9', date: '28 Okt 2026', title: 'Catat otomatis makin paham obrolan sehari-hari', items: [
     ['🛵', 'Perjalanan dicatat utuh: “gojek ke kantor 15rb” jadi Gojek ke Kantor (Transportasi). Tujuannya tidak lagi dikira tempat belanja.'],
     ['📝', 'Kata kecil tidak lagi nyangkut di keterangan: “abis 30rb buat makan”, “kena 25rb parkir”, “wifi bulan ini 330rb”, “keluar 50rb buat bensin”.'],

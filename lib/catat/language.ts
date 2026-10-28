@@ -46,7 +46,7 @@ export const commonAbbreviations: Record<string, string> = {
 };
 /** Function words and pronouns as typed in chat. */
 export const commonSlang: Record<string, string> = {
-  pake: 'pakai', pakek: 'pakai', pk: 'pakai', dr: 'dari', gw: 'aku', gue: 'aku', gua: 'aku', w: 'aku', sy: 'saya',
+  pake: 'pakai', pakek: 'pakai', pk: 'pakai', pke: 'pakai', pkai: 'pakai', dr: 'dari', gw: 'aku', gue: 'aku', gua: 'aku', w: 'aku', sy: 'saya',
   ntar: 'nanti', ntr: 'nanti', udh: 'sudah', udah: 'sudah', sdh: 'sudah', blm: 'belum', belom: 'belum', dgn: 'dengan', dg: 'dengan', jg: 'juga',
   trs: 'terus', trus: 'terus', krn: 'karena', karna: 'karena', lsg: 'langsung', tp: 'tapi', tpi: 'tapi', lg: 'lagi', tdk: 'tidak',
   yg: 'yang', utk: 'untuk', untk: 'untuk', bwt: 'buat', sm: 'sama', sma: 'sama', sblm: 'sebelum', stlh: 'setelah', jln: 'jalan',

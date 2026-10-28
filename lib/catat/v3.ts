@@ -21,6 +21,7 @@ import { catchBugs } from './bug-catcher.ts';
 import { conceptWords } from '../categorize.ts';
 import { decorate, personalize, type PersonalInput } from './personal.ts';
 import { analyzeSemantics, kindOfIntent, type SemanticEngineResult } from './nlp-engine.ts';
+import { compileLanguagePack, curatedReading } from './language.ts';
 
 export type ConsensusNote = { role: 'intent' | 'wallet' | 'merchant' | 'person' | 'amount'; outcome: 'agree' | 'rescued' | 'rejected' | 'escalated' | 'both-silent'; detail: string };
 export type V3Action = ActionCandidate & { consensus?: ConsensusNote[]; semantic?: SemanticEngineResult };
@@ -37,6 +38,24 @@ const SERVICE = /^(?:gojek|go-?jek|grab|maxim|indrive|uber|gocar|go-?car|goride|
 let words: Set<string> | undefined;
 /** Words the category reader knows ("ojek", "bensin", "kopi"): ordinary words, never typos of a place. */
 const everydayWords = () => (words ??= conceptWords());
+const VOWEL = /[aiueo]/;
+const inOrder = (short: string, word: string) => { let i = 0; for (const c of word) if (c === short[i]) i++; return i === short.length; };
+type Respelling = { raw: string; value: string; type: 'WALLET' | 'MERCHANT'; id?: string; short?: boolean };
+/**
+ * 6.10: a configured wallet written short: its letters in order without the vowels ("gpy" GoPay, "mndr" Mandiri, "jns"
+ * Jenius), or its name with one vowel left out ("jgo" Jago, "gopy" GoPay). Never an ordinary word, a chat abbreviation
+ * ("krm" is kirim), a known place, or a form two wallets share.
+ */
+function shortWallets(text: string, ctx: QuickContext): Respelling[] {
+  const names = ctx.wallets.filter(w => !w.isArchived).flatMap(w => lower(w.name).split(/\s+/).filter(n => n.length >= 4 && /^\p{L}+$/u.test(n)).map(n => ({ id: w.id, n })));
+  const places = knownPlaces(ctx), out: Respelling[] = [];
+  for (const raw of new Set(lower(text).match(/\p{L}{3,}/gu) || [])) {
+    if (walletsIn(raw, ctx.wallets).length || everydayWords().has(raw) || curatedReading(raw) || compileLanguagePack().variants.has(raw) || places.has(raw)) continue;
+    const hits = names.filter(({ n }) => raw[0] === n[0] && raw !== n && (VOWEL.test(raw) ? raw.length === n.length - 1 && [...n].some((c, i) => i > 0 && VOWEL.test(c) && n.slice(0, i) + n.slice(i + 1) === raw) : inOrder(raw, n)));
+    if (hits.length && hits.every(h => h.id === hits[0].id)) out.push({ raw, value: hits[0].n, type: 'WALLET', id: hits[0].id, short: true });
+  }
+  return out;
+}
 
 export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode: QuickGroup | QuickKind = 'auto', personal?: PersonalInput): Promise<V3Result> {
   const t0 = performance.now();
@@ -48,7 +67,7 @@ export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode:
   let grammarMs = performance.now() - t0, nlpMs = 0, nlpLoadMs: number | undefined;
   // Respelling: NLP.js recognises a configured wallet or a known place written with a typo ("mandri", "famili mart");
   // the grammar then reads the message again with the right spelling (it validates the result; NLP.js decides nothing).
-  const respelled: { raw: string; value: string; type: 'WALLET' | 'MERCHANT'; id?: string }[] = [];
+  const respelled: Respelling[] = [];
   try {
     const whole = await analyzeSemantics(normalizeQuick(input), ctx);
     nlpMs += whole.ms; nlpLoadMs = whole.loadMs;
@@ -65,6 +84,7 @@ export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode:
       if (!oneTypoPerWord(raw, value)) continue;
       respelled.push({ raw, value, type: e.type, id: e.id });
     }
+    for (const r of shortWallets(input, ctx)) if (!respelled.some(x => x.raw === r.raw)) respelled.push(r);
     if (respelled.length) {
       let fixed = input;
       for (const r of respelled) fixed = fixed.replace(new RegExp(`(^|[^\\p{L}])${r.raw.split(/\s+/).map(esc).join('\\s+')}(?![\\p{L}])`, 'iu'), (_m, pre: string) => `${pre}${r.value}`);
@@ -79,7 +99,7 @@ export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode:
           if (r.type === 'WALLET') { const name = ctx.wallets.find(w => w.id === r.id)?.name; a.evidence = a.evidence.filter(e => !(name && e.startsWith(`${name} dikenali sebagai dompet karena cocok`))); }
           if (lower(a.text).includes(r.value) && (r.type === 'MERCHANT' ? lower(a.result.preset.merchant || '') === r.value : Boolean(r.id) && [a.result.preset.walletId, a.result.preset.destinationWalletId].includes(r.id))) { a.evidence.push(`${note}.`); (a.consensus ||= []).push({ role: r.type === 'WALLET' ? 'wallet' : 'merchant', outcome: 'rescued', detail: `ejaan ${r.raw} → ${r.value}` }); }
         }
-        again.trace.unshift(...respelled.map(r => `NLP.js: ejaan “${r.raw}” → “${r.value}” (${r.type === 'WALLET' ? 'dompet' : 'tempat'}), dibaca ulang oleh tata bahasa`));
+        again.trace.unshift(...respelled.map(r => `${r.short ? 'Singkatan' : 'NLP.js: ejaan'} “${r.raw}” → “${r.value}” (${r.type === 'WALLET' ? 'dompet' : 'tempat'}), dibaca ulang oleh tata bahasa`));
         if (pre.plan.personal) decorate(again, pre.plan.personal, typed, input, ctx, personal?.session);
         plan = again;
       }

@@ -1,0 +1,796 @@
+{
+ "summary": {
+  "set": "v610heldout",
+  "cases": 47,
+  "exact": {
+   "before": 11,
+   "after": 47
+  },
+  "segmentation": {
+   "before": 47,
+   "after": 47
+  },
+  "fields": {
+   "kind": {
+    "before": "5/8",
+    "after": "8/8"
+   },
+   "amount": {
+    "before": "47/47",
+    "after": "47/47"
+   },
+   "wallet": {
+    "before": "9/13",
+    "after": "13/13"
+   },
+   "date": {
+    "before": "5/5",
+    "after": "5/5"
+   },
+   "description": {
+    "before": "14/37",
+    "after": "37/37"
+   },
+   "cat": {
+    "before": "29/33",
+    "after": "33/33"
+   },
+   "merchant": {
+    "before": "7/18",
+    "after": "18/18"
+   },
+   "person": {
+    "before": "1/2",
+    "after": "2/2"
+   }
+  },
+  "confidentWrong": {
+   "before": 31,
+   "after": 0
+  },
+  "regressions": [],
+  "rescues": [
+   "x1",
+   "x3",
+   "x4",
+   "x5",
+   "x6",
+   "x7",
+   "x8",
+   "x10",
+   "x11",
+   "x12",
+   "x13",
+   "x14",
+   "x15",
+   "x16",
+   "x17",
+   "x18",
+   "x19",
+   "x20",
+   "x21",
+   "x23",
+   "x24",
+   "x25",
+   "x26",
+   "x27",
+   "x28",
+   "x29",
+   "x30",
+   "x31",
+   "x33",
+   "x34",
+   "x35",
+   "x36",
+   "x37",
+   "x39",
+   "x40",
+   "x42"
+  ],
+  "latencyMs": {
+   "before": {
+    "avg": 32.4,
+    "p95": 18.9
+   },
+   "after": {
+    "avg": 13.8,
+    "p95": 17.7
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "x1",
+   "group": "dompet disingkat",
+   "text": "soto 18rb mdr",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "wallet: ∅ ≠ mandiri",
+     "tempat palsu: mdr"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x2",
+   "group": "dompet disingkat",
+   "text": "roti 10rb gopy",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x3",
+   "group": "dompet disingkat",
+   "text": "parkir 2rb jns",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "wallet: ∅ ≠ jenius",
+     "tempat palsu: jns"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x4",
+   "group": "dompet disingkat",
+   "text": "mie ayam 15rb via gpy",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: mie ayam gpy ≠ mie ayam",
+     "wallet: ∅ ≠ gopay"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x5",
+   "group": "dompet disingkat",
+   "text": "teh tarik 12rb jgo",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "wallet: ∅ ≠ jago",
+     "tempat palsu: jgo"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x6",
+   "group": "dompet lain",
+   "text": "bakso 15rb dana",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: bakso dana ≠ bakso"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x7",
+   "group": "dompet lain",
+   "text": "parkir 4rb ovo",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: parkir ovo ≠ parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x8",
+   "group": "dompet lain",
+   "text": "kopi 25rb bni",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "tempat palsu: bni"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x9",
+   "group": "dompet lain",
+   "text": "pulsa 25rb pake dana",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x10",
+   "group": "kata seru",
+   "text": "astaga mahal banget bensin 50rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: astaga mahal banget bensin ≠ bensin"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x11",
+   "group": "kata seru",
+   "text": "akhirnya beli helm 250rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: akhirnya helm ≠ helm"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x12",
+   "group": "kata seru",
+   "text": "cuma beli air mineral 5rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: cuma air mineral ≠ air mineral"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x13",
+   "group": "kata seru",
+   "text": "yaampun parkir 15rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: yaampun parkir ≠ parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x14",
+   "group": "kata seru",
+   "text": "gila mahal amat kopi 45rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: gila mahal amat kopi ≠ kopi"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x15",
+   "group": "kata seru",
+   "text": "lumayan dapet bonus 500rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: lumayan bonus ≠ bonus"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x16",
+   "group": "kata seru",
+   "text": "huft bayar listrik 300rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: huft listrik ≠ listrik"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x17",
+   "group": "waktu",
+   "text": "pagi ini beli nasi uduk 12rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ini nasi uduk ≠ nasi uduk"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x18",
+   "group": "waktu",
+   "text": "malam ini beli pecel lele 20rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ini pecel lele ≠ pecel lele"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x19",
+   "group": "waktu",
+   "text": "subuh tadi beli kopi 8rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: subuh kopi ≠ kopi"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x20",
+   "group": "waktu",
+   "text": "sore ini parkir 3rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ini parkir ≠ parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x21",
+   "group": "waktu",
+   "text": "barusan aja beli pulsa 10rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: aja pulsa ≠ pulsa"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x22",
+   "group": "nominal",
+   "text": "10rb-an parkir",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x23",
+   "group": "nominal",
+   "text": "token listrik 100 ribu rupiah",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "tempat palsu: rupiah"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x24",
+   "group": "nominal",
+   "text": "galon 20 ribu rupiah",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "tempat palsu: rupiah"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x25",
+   "group": "uang saku",
+   "text": "uang saku anak 100rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: saku anak ≠ uang saku anak"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x26",
+   "group": "uang saku",
+   "text": "lumayan uang kaget 10rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: expense ≠ income",
+     "description: lumayan kaget ≠ uang kaget"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x27",
+   "group": "uang saku",
+   "text": "uang jajan dari papa 100rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: expense ≠ income",
+     "description: uang jajan papa ≠ uang jajan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x28",
+   "group": "uang saku",
+   "text": "menang lomba 200rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: expense ≠ income",
+     "cat: ∅ ≠ income.penghasilan-tambahan.hadiah-uang"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x29",
+   "group": "dua barang",
+   "text": "nasi sama ayam goreng 25rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: nasi ayam goreng ≠ nasi & ayam goreng"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x30",
+   "group": "dua barang",
+   "text": "roti dan susu 20rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: roti susu ≠ roti & susu"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x31",
+   "group": "dua barang",
+   "text": "oli sama tambal ban 60rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: oli tambal ban ≠ oli & tambal ban"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x32",
+   "group": "dua barang",
+   "text": "ngopi sama temen 30rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x33",
+   "group": "merek",
+   "text": "hokben 55rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ hokben",
+     "cat: expense.makan-minum ≠ expense.makan-minum.fast-food"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x34",
+   "group": "merek",
+   "text": "pizza hut 120rb jago",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ pizza hut"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x35",
+   "group": "merek",
+   "text": "janji jiwa 20rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ janji jiwa"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x36",
+   "group": "merek",
+   "text": "es kopi susu kopken 20rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: es kopi susu kopken ≠ es kopi susu",
+     "merchant: ∅ ≠ kopi kenangan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x37",
+   "group": "merek",
+   "text": "mekdi 40rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ mcdonald's",
+     "cat: expense.makan-minum ≠ expense.makan-minum.fast-food"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x38",
+   "group": "merek",
+   "text": "martabk 30rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x39",
+   "group": "merek",
+   "text": "seblack 15rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ expense.makan-minum"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x40",
+   "group": "paylater",
+   "text": "bayar akulaku 250rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "person: akulaku ≠ "
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x41",
+   "group": "paylater",
+   "text": "cicilan spaylater 200rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x42",
+   "group": "nitip",
+   "text": "nitip beli martabak 30rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: nitip martabak ≠ martabak"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "x43",
+   "group": "kontrol",
+   "text": "makan siang di warteg 15rb gopay",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x44",
+   "group": "kontrol",
+   "text": "sabun cuci 12rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x45",
+   "group": "kontrol",
+   "text": "jual hp bekas 1,5jt",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x46",
+   "group": "kontrol",
+   "text": "grab ke stasiun 20rb jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "x47",
+   "group": "kontrol",
+   "text": "kopi 15rb kantin",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  }
+ ]
+}

@@ -121,3 +121,11 @@ Tempat setelah nominal tanpa “di”, waktu makan sebagai kategori, jajanan dan
 Small words and periods, rides with a destination, buying for someone, delivery apps, payment apps that are not
 wallets, a store alone, family transfers, game top-ups. Sets `fixtures-v69dev.mjs` / `fixtures-v69heldout.mjs`
 (state `fixtures-v68state.mjs`), runner `run-v69.mjs` against `baseline-v68/`. Report: `REPORT-v69.md`.
+
+## Catat otomatis 6.10 (bahasa sehari-hari, putaran ketiga)
+
+Wallets written short, wallets or banks that are not set up written bare after the amount, exclamations and price
+comments, the time of day, amount forms, names of money ("uang saku", "uang kaget"), two things joined by "sama / dan",
+places to eat by name with Fast Food / Restoran / Denda concepts, a typo of a food word as a last resort, paylater as a
+bill. Sets `fixtures-v610dev.mjs` / `fixtures-v610heldout.mjs` (state `fixtures-v68state.mjs`), runner `run-v610.mjs`
+against `baseline-v69/`. Report: `REPORT-v610.md`.
