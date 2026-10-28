@@ -118,3 +118,10 @@ test('not "sure" when less cash was handed over than the total, unless the cash 
   const misreadCash = readReceiptText('KOPI   1   20,000   20,000\nTEH   1   5,000   5,000\nTOTAL   25,000\nTunai   20,000\nKembali   5,000');
   assert.equal(checkReceipt(misreadCash).confidence, 'tinggi');
 });
+test('a weighed row whose amount went elsewhere is no item; a non-round total a digit off the round items is not "sure"', () => {
+  const read = readReceiptText('PISANG CAVENDISH\n0.385 KG x 24,900\n9,587\nTOTAL 9,587');
+  assert.ok(!read.items.some(i => /^KG/.test(i.name)));
+  const off = readReceiptText('KOPI   1   54,200   54,200\nBISKUIT   1   39,900   39,900\nTOTAL   94,109\nQRIS   94,108');
+  const check = checkReceipt(off);
+  assert.equal(check.total, 94100); assert.notEqual(check.confidence, 'tinggi');
+});

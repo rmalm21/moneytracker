@@ -682,6 +682,8 @@ function readPaperText(text: string): ReceiptRead {
     if (amount.value < 100 || out.items.length >= 150) { out.skipped++; return; }
     // 7.2 — a weighed item's row ("0.582 KG x 59,900   34,862") under its name: one item at the printed amount.
     const weighed = /^\s*\d+[.,]\d{1,3}\s*(?:kg|kgs|gr|g)\s*[x×@*]\s*(?:rp\.?\s*)?\d[\d.,]*\s*$/i.test(label);
+    // 7.3 — the weight and price per kilo whose amount went to another row ("0.385 KG x   24,900"): a detail, not an item.
+    if (/^\s*\d+[.,]\d{1,3}\s*(?:kg|kgs|gr|g)\s*[x×@*]?\s*$/i.test(label)) { kinds[position] = 'meta'; return; }
     const read = weighed ? { name: '', qty: 1, price: amount.value, unitPrinted: false } as ReturnType<typeof readItem> : readItem(label, amount.value);
     // Punctuation alone ("—", "•") is not a name; then the name is on the line above.
     const own = /[a-z]{2,}/i.test(read.name) ? read.name : '';
@@ -971,6 +973,9 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
     source = read.total && (read.totals || [read.total]).includes(best.target) ? 'printed' : 'paid';
     notes.push(best.left.length ? `Item dan biaya cocok dengan totalnya (${best.left.map(k => CHARGE_LABELS[k]).join(', ')} sudah termasuk atau hanya info).` : 'Item, pajak, dan service cocok dengan totalnya.');
     if (best.target !== read.total && read.total) notes.push(`Dipakai ${rp(best.target)} karena cocok dengan isi struk; total lain yang terbaca ${rp(read.total)}.`);
+    // 7.3 — a printed total a few rupiah off ("94,109") when the items and the amount paid both say 94,100: those two agree.
+    const paidExact = read.paid && !read.change ? read.paid : read.paid && read.change ? read.paid - read.change : 0;
+    if (best.value !== best.target && (best.value === paidExact || best.target % 100 && best.value % 100 === 0 && lookalikes(best.target).includes(best.value))) { notes.push(best.value === paidExact ? `Total terbaca ${rp(best.target)}, dipakai ${rp(best.value)} karena sama dengan jumlah item dan yang dibayar.` : `Total terbaca ${rp(best.target)}, kemungkinan ${rp(best.value)} (angkanya mirip dan sama dengan jumlah item). Pastikan lagi.`); total = best.value; }
   } else if (read.total) { total = read.total; source = 'printed'; }
   else if (byPayment) { total = byPayment; source = 'paid'; notes.push(read.change ? `Total dihitung dari bayar ${rp(read.paid)} dikurangi kembalian ${rp(read.change)}.` : `Total diambil dari jumlah yang dibayar (${rp(read.paid)}).`); }
   else if (all) { total = all; source = read.subtotal || all === itemsTotal ? 'items' : 'computed'; notes.push('Total tidak tertulis jelas; dihitung dari item dan biaya.'); }
@@ -988,7 +993,10 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   // total while 90,000 − 2,900 = 87,100): nobody pays less than they owe. (More can be a misread change.) When the total
   // and the change make a whole thousand, the cash handed over was the misread one (100,000 read for 200,000).
   const paidSaysOther = Boolean(byPayment && read.change && byPayment < total - 100 && (total + read.change) % 1000 !== 0);
-  const crossChecked = !circular && !paidSaysOther && (Boolean(best && tight(best.value, best.target)) || Boolean(source === 'printed' && byPayment && tight(read.total, byPayment)));
+  // A difference is a rounding only when the printed total is the round one (or Rp1-2 of tax rounding); "94,109" against
+  // items of 94,100 is a misread digit, not a rounding.
+  const rounding = (value: number, target: number) => tight(value, target) && (Math.abs(value - target) <= 2 || target % 100 === 0);
+  const crossChecked = !circular && !paidSaysOther && (Boolean(best && rounding(best.value, best.target)) || Boolean(source === 'printed' && byPayment && tight(read.total, byPayment)));
   const lonely = source === 'printed' && !all && !byPayment;
   const tiny = total > 0 && total < 1000;
   if (lonely && !tiny) notes.push('Tidak ada item atau subtotal untuk mencocokkan total. Pastikan nominalnya benar.');
