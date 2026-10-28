@@ -44,7 +44,7 @@ export function score(t, result) {
     merchant: t.merchant ? ([t.merchant, ...(t.merchantAlt || [])].some(m => similar(m, read.merchant) >= .85) ? 1 : 0) : null,
     date: t.date ? (read.date === t.date ? 1 : 0) : null,
     time: t.time ? (times.includes(read.time) ? 1 : 0) : null,
-    total: total === t.total ? 1 : 0,
+    total: t.total ? (total === t.total ? 1 : 0) : null,
     itemRecall: matches.length / t.items.length,
     itemAmount: matches.filter(m => m.read.total === m.truth.total).length / t.items.length,
     qty: matches.length ? matches.filter(m => m.read.qty === m.truth.qty).length / matches.length : null,
@@ -52,8 +52,12 @@ export function score(t, result) {
     payment: t.payment ? (read.payment === t.payment ? 1 : 0) : null,
     reconciled: check.matches ? 1 : 0,
     falseItems: items.length - used.size,
-    falseTotal: total && total !== t.total ? 1 : 0,
-    confidentWrong: total !== t.total && check.confidence === 'tinggi' ? 1 : 0,
+    falseTotal: t.total && total && total !== t.total ? 1 : 0,
+    confidentWrong: t.total && total !== t.total && check.confidence === 'tinggi' ? 1 : 0,
+    // Paid and change, when the truth has them (CORD prints cash and change on most receipts).
+    paid: t.paid ? (read.paid === t.paid ? 1 : 0) : null,
+    change: t.change ? (read.change === t.change ? 1 : 0) : null,
+    subtotal: t.subtotal ? (read.subtotal === t.subtotal ? 1 : 0) : null,
     relations: rel.all ? rel.ok / rel.all : null,
     // V3 safety: a forbidden text (address, phone, payment, help button) read as an item.
     phantomForbidden: (t.forbidden || []).filter(f => items.some(i => squash(i.name).includes(squash(f)))).length,
@@ -63,7 +67,7 @@ export function score(t, result) {
     passes: result?.passes || 0,
   };
 }
-export const METRICS = [['merchant', 'Merchant'], ['date', 'Tanggal'], ['time', 'Jam'], ['total', 'Grand total persis'], ['itemRecall', 'Item terdeteksi (recall)'], ['itemAmount', 'Nominal item persis'], ['qty', 'Jumlah (qty)'], ['charges', 'Biaya tambahan tepat'], ['payment', 'Cara bayar'], ['reconciled', 'Struk cocok (rekonsiliasi)'], ['relations', 'Relasi tepat (modifier/diskon/SKU)']];
+export const METRICS = [['merchant', 'Merchant'], ['date', 'Tanggal'], ['time', 'Jam'], ['total', 'Grand total persis'], ['itemRecall', 'Item terdeteksi (recall)'], ['itemAmount', 'Nominal item persis'], ['qty', 'Jumlah (qty)'], ['charges', 'Biaya tambahan tepat'], ['payment', 'Cara bayar'], ['subtotal', 'Subtotal persis'], ['paid', 'Dibayar persis'], ['change', 'Kembalian persis'], ['reconciled', 'Struk cocok (rekonsiliasi)'], ['relations', 'Relasi tepat (modifier/diskon/SKU)']];
 export function summarize(scores) {
   const avg = key => { const v = scores.map(s => s[key]).filter(x => x !== null && x !== undefined); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   const out = Object.fromEntries(METRICS.map(([k]) => [k, avg(k)]));

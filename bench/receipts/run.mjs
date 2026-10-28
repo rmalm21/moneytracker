@@ -9,16 +9,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const here = path.dirname(new URL(import.meta.url).pathname), out = path.join(here, 'out');
+// RESULTS_DIR: where result-<label>.json goes. Outside the project, a dev server does not recompile (and reload the
+// benchmark page) every time a result is written.
+const results_dir = process.env.RESULTS_DIR || out;
 // SET=v25 reads truth-v25.json (the V2.5 structure set); without it, the original set.
 // SET=realworld-dev / realworld-heldout: genuine images in bench/realworld/<set>/ with hand-written truth <set>.json.
-const real = (process.env.SET || '').startsWith('realworld'), realDir = path.join(here, '..', 'realworld');
+// SET_DIR (with SET=cord-dev …): a dataset kept outside the repository, truth <SET_DIR>/<SET>.json, images <SET_DIR>/<SET>/.
+const external = Boolean(process.env.SET_DIR);
+const real = external || (process.env.SET || '').startsWith('realworld'), realDir = external ? process.env.SET_DIR : path.join(here, '..', 'realworld');
 const truth = JSON.parse(fs.readFileSync(real ? path.join(realDir, `${process.env.SET}.json`) : path.join(out, process.env.SET ? `truth-${process.env.SET}.json` : 'truth.json'), 'utf8'));
 const imageDir = real ? path.join(realDir, process.env.SET) : out;
 
 import { METRICS, pct, score, summarize } from './score.mjs';
 
 if (process.argv[2] === '--compare') {
-  const [a, b] = process.argv.slice(3), A = JSON.parse(fs.readFileSync(path.join(out, `result-${a}.json`))), B = JSON.parse(fs.readFileSync(path.join(out, `result-${b}.json`)));
+  const [a, b] = process.argv.slice(3), A = JSON.parse(fs.readFileSync(path.join(results_dir, `result-${a}.json`))), B = JSON.parse(fs.readFileSync(path.join(results_dir, `result-${b}.json`)));
   const ids = Object.keys(truth).filter(id => A[id] && B[id]);
   const sa = summarize(ids.map(id => score(truth[id], A[id]))), sb = summarize(ids.map(id => score(truth[id], B[id])));
   console.log(`${ids.length} foto\n${'Ukuran'.padEnd(30)}${a.padStart(8)}${b.padStart(8)}`);
@@ -39,12 +44,23 @@ const page = await browser.newPage();
 page.on('console', m => { if (m.type() === 'error') console.log('  [page]', m.text().slice(0, 200)); });
 await page.route('**/bench-fixture/**', route => { const name = decodeURIComponent(route.request().url().split('/bench-fixture/')[1]); return route.fulfill({ path: path.join(imageDir, name), contentType: /\.png$/i.test(name) ? 'image/png' : 'image/jpeg' }); });
 await page.goto(`${base}/ocr-bench/`); await page.waitForSelector('#bench-ready', { timeout: 180000 });
-const file = path.join(out, `result-${label}.json`), results = fs.existsSync(file) && filter ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+// A dev server that recompiles reloads the page: wait until the reader is back (reloading once if the page broke).
+async function ensureReady() {
+  if (await page.evaluate(() => typeof window.__readReceipt === 'function').catch(() => false)) return;
+  try { await page.waitForSelector('#bench-ready', { timeout: 30000 }); } catch { await page.goto(`${base}/ocr-bench/`); await page.waitForSelector('#bench-ready', { timeout: 180000 }); }
+}
+const read = async (url, engine) => page.evaluate(([u, e]) => window.__readReceipt(u, e ? { engine: e } : {}), [url, engine]);
+const file = path.join(results_dir, `result-${label}.json`), results = fs.existsSync(file) && filter ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 for (const id of Object.keys(truth).filter(id => !filter || id.includes(filter))) {
   const started = Date.now();
   // ENGINE=tesseract | paddle-tiny | paddle-small | auto (default: the app's own choice).
-  try { results[id] = await page.evaluate(([url, engine]) => window.__readReceipt(url, engine ? { engine } : {}), [`${base}/bench-fixture/${real ? id : `${id}.jpg`}`, process.env.ENGINE || '']); }
-  catch (e) { results[id] = { error: String(e).slice(0, 300) }; }
+  const url = `${base}/bench-fixture/${real ? id : `${id}.jpg`}`;
+  try { await ensureReady(); results[id] = await read(url, process.env.ENGINE || ''); }
+  catch (e) {
+    // The page reloaded in the middle of a reading: once more, after it is ready again.
+    if (/not a function|context was destroyed|navigat|Target closed/i.test(String(e))) { try { await ensureReady(); results[id] = await read(url, process.env.ENGINE || ''); } catch (again) { results[id] = { error: String(again).slice(0, 300) }; } }
+    else results[id] = { error: String(e).slice(0, 300) };
+  }
   const s = score(truth[id], results[id]);
   console.log(`${id.padEnd(28)} total ${s.total ? 'ok' : 'X '} items ${pct(s.itemRecall).padStart(4)} amount ${pct(s.itemAmount).padStart(4)} rel ${pct(s.relations)} date ${s.date ?? '-'} pay ${s.payment ?? '-'} passes ${results[id].passes ?? '-'}${results[id].failure?.length ? ` [${results[id].failure.join('; ')}]` : ''} ${((Date.now() - started) / 1000).toFixed(1)}s`);
   fs.writeFileSync(file, JSON.stringify(results));
