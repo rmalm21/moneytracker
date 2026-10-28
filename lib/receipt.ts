@@ -180,15 +180,20 @@ function pairColumnLines(lines: SourceLine[]) {
   // 7.2 — "17,700" / "KEMBALIAN :": an amount printed (or read) just above its summary label, which has none of its own.
   // 7.3 — also a run of them ("120.000 / Bayar / 6.300 / Kembali"), when the run ends on a label: the right column of a
   // tilted receipt sits half a row higher, so each amount comes before its label.
-  const summaryLabel = (text = '') => labelOnly(text) && ['total', 'paid', 'change', 'subtotal'].includes(keyOf(text.replace(/[:=]\s*$/, '').trim()) || '');
+  const summaryLabel = (text = '') => { const label = text.replace(/[:=]\s*$/, '').trim(); return labelOnly(text) && (['total', 'paid', 'change', 'subtotal'].includes(keyOf(label) || '') || paymentOnly(label)); };
+  const runEnd = (i: number) => {
+    if (!AMOUNT_ONLY.test(lines[i]?.text || '') || !summaryLabel(lines[i + 1]?.text)) return -1;
+    let end = i; while (AMOUNT_ONLY.test(lines[end]?.text || '') && summaryLabel(lines[end + 1]?.text)) end += 2;
+    return AMOUNT_ONLY.test(lines[end]?.text || '') ? -1 : end;
+  };
   for (let i = 0; i < lines.length;) {
-    if (AMOUNT_ONLY.test(lines[i].text) && summaryLabel(lines[i + 1]?.text)) {
-      let end = i; while (AMOUNT_ONLY.test(lines[end]?.text || '') && summaryLabel(lines[end + 1]?.text)) end += 2;
-      if (!AMOUNT_ONLY.test(lines[end]?.text || '')) {
-        for (let m = i; m < end; m += 2) out.push({ text: `${lines[m + 1].text} ${lines[m].text}`, origin: [...lines[m + 1].origin, ...lines[m].origin] });
-        i = end; continue;
-      }
+    const end = runEnd(i);
+    if (end > 0) {
+      for (let m = i; m < end; m += 2) out.push({ text: `${lines[m + 1].text} ${lines[m].text}`, origin: [...lines[m + 1].origin, ...lines[m].origin] });
+      i = end; continue;
     }
+    // A count row with its count ("Total Item : 4") right before such a run takes none of its amounts.
+    if (/\b(?:item|items|qty|pcs|barang)\s*[:=]\s*\d{1,3}\s*$/i.test(lines[i].text) && runEnd(i + 1) > 0) { out.push(lines[i]); i++; continue; }
     if (!labelOnly(lines[i].text)) { out.push(lines[i]); i++; continue; }
     let j = i; while (j < lines.length && labelOnly(lines[j].text)) j++;
     let k = j; while (k < lines.length && AMOUNT_ONLY.test(lines[k].text)) k++;

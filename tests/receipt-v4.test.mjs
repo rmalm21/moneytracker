@@ -125,3 +125,8 @@ test('a weighed row whose amount went elsewhere is no item; a non-round total a 
   const check = checkReceipt(off);
   assert.equal(check.total, 94100); assert.notEqual(check.confidence, 'tinggi');
 });
+test('a count row before amounts read above their labels takes none of them; "ITEMS:1 / 41,000" still pairs', () => {
+  const read = readReceiptText('ULTRA MILK\n2 x 6.200   12.400\nTotal Item : 4\n156.200\nTOTAL\n156.200\nTRANSFER\nTerima Kasih');
+  assert.deepEqual([read.total, read.paid, read.payment], [156200, 156200, 'transfer']);
+  assert.equal(readReceiptText('NASI 41,000\nITEMS:1\n41,000\nTotal.\n41,000\n41,000').subtotal, 41000);
+});
