@@ -192,18 +192,18 @@ body, .sidebar-scroll, .modal-body, .app-select-menu, .table-scroll, .quick-edit
    4. Forms
    ========================================================================== */
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; color: var(--ink); font-weight: 700; font-size: .86rem; }
-.field > span:first-child { line-height: 1.3; padding-left: 16px; font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 72%, var(--muted)); }
+.field > span:first-child { line-height: 1.3; padding-left: 14px; font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 72%, var(--muted)); }
 .field small { font-weight: 400; }
 /* 6.6: text and amount boxes as white floating capsules: no outline, a soft shadow tinted by the theme, and a clear
    ring while typing. Amounts are larger and bolder; labels sit small and in capitals above the text. */
-.input { background: var(--paper); color: var(--ink); border: 1px solid color-mix(in srgb, var(--ink) 32%, transparent); border-radius: 999px; padding: 12px 20px; width: 100%; min-height: 52px; outline: none; font-weight: 600; letter-spacing: -.005em; box-shadow: 0 1px 2px rgba(16, 42, 54, .06), 0 6px 18px -8px color-mix(in srgb, var(--accent) 35%, rgba(16, 42, 54, .25)); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.input { background: var(--paper); color: var(--ink); border: 1px solid color-mix(in srgb, var(--ink) 32%, transparent); border-radius: 999px; padding: 9px 18px; width: 100%; min-height: 44px; outline: none; font-weight: 500; letter-spacing: -.005em; box-shadow: 0 1px 2px rgba(16, 42, 54, .06), 0 6px 18px -8px color-mix(in srgb, var(--accent) 35%, rgba(16, 42, 54, .25)); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
 @media (hover: hover) { .input:hover:not(:focus):not(:disabled) { border-color: color-mix(in srgb, var(--ink) 55%, transparent); } }
 .input:focus, .input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent), 0 10px 24px -10px color-mix(in srgb, var(--accent) 60%, transparent); outline: none; }
 .input::placeholder { color: color-mix(in srgb, var(--muted) 68%, transparent); font-weight: 500; }
 .input[readonly] { background: var(--paper-2); box-shadow: none; }
 .input:disabled { opacity: .65; cursor: not-allowed; }
-.input[inputmode='numeric'], .input[inputmode='decimal'] { font: 800 1.18rem var(--font-head); font-variant-numeric: tabular-nums; letter-spacing: -.015em; }
-textarea.input { border-radius: 22px; font-weight: 500; line-height: 1.5; padding-block: 12px; }
+.input[inputmode='numeric'], .input[inputmode='decimal'] { font-family: var(--font-head); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+textarea.input { border-radius: 20px; font-weight: 500; line-height: 1.5; padding-block: 10px; }
 /* On dark screens a card shadow barely shows, so the box gets a faint edge and a slightly lifted surface. */
 :root[data-theme='dark'] .input:not(:focus) { background: color-mix(in srgb, var(--paper-2) 70%, var(--paper)); border-color: color-mix(in srgb, var(--ink) 26%, transparent); box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .55); }
 input[type='file'].input { padding: 8px; font-size: .85rem; }
@@ -947,7 +947,7 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
   html, body { max-width: 100%; overflow-x: clip; }
   h1 { font-size: 1.5rem; }
   /* 16px inputs stop iOS Safari from zooming into the form. */
-  .input { font-size: max(16px, 1rem); min-height: 52px; }
+  .input { font-size: 16px; min-height: 44px; }
 
   .login-shell { display: block; }
   .login-art { display: none; }
