@@ -9,6 +9,14 @@ export const themes: { value: ThemePreset; label: string; color: string }[] = [
   { value: 'ocean', label: 'Samudra', color: '#386e9a' },
   { value: 'rose', label: 'Mawar', color: '#a35170' },
   { value: 'monochrome', label: 'Monokrom', color: '#3d5059' },
+  { value: 'matcha', label: 'Matcha', color: '#58772a' },
+  { value: 'kopi', label: 'Kopi Susu', color: '#8a5a3b' },
+  { value: 'senja', label: 'Senja', color: '#b14e1e' },
+  { value: 'malam', label: 'Malam', color: '#3f48a8' },
+  { value: 'madu', label: 'Madu', color: '#8a6200' },
+  { value: 'ceri', label: 'Ceri', color: '#b42a46' },
+  { value: 'langit', label: 'Langit', color: '#1767b8' },
+  { value: 'anggur', label: 'Anggur', color: '#8a3a8f' },
 ];
 export type FontChoice = NonNullable<Profile['fontFamily']>;
 /** Typefaces the user can pick. The default pair ships with the app; the others load only when chosen. */

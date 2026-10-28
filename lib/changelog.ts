@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.7', date: '28 Okt 2026', title: 'Delapan warna baru', items: [
+    ['🌙', 'Delapan palet warna baru di Pengaturan › Tampilan: Matcha, Kopi Susu, Senja, Malam, Madu, Ceri, Langit, dan Anggur. Totalnya sekarang 16 pilihan.'],
+    ['⭐', 'Setiap warna baru punya versi terang dan gelap, dan tulisannya tetap jelas dibaca.'],
+  ] },
   { version: '6.6', date: '28 Okt 2026', title: 'Lebih segar dan lebih rapi', items: [
     ['🎨', 'Kotak isian teks dan nominal di semua menu tampil baru: kartu putih melayang dengan bayangan lembut, sudut lebih bulat, cincin warna tema saat diketik, dan angka nominal lebih besar dan tegas.'],
     ['👥', 'Daftar “Yang punya akses” sekarang realtime: yang sedang membuka aplikasi tampil “Aktif sekarang” dengan titik hijau, dan waktu aktifnya terus diperbarui.'],
