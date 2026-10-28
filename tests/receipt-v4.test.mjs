@@ -30,3 +30,30 @@ test('a number at the end of a code after a slash is not a price', () => {
   const read = readReceiptText('No. InvoiceINV/20260915/XYZ/551\nKabel Data 45.000\nTotal 45.000');
   assert.deepEqual(read.items.map(i => [i.name, i.total]), [['Kabel Data', 45000]]);
 });
+
+// 7.1 — no confident wrong totals, fewer fake items (measured on real receipts: bench/cord).
+import { checkReceipt } from '../lib/receipt.ts';
+test('the total that explains tax and service wins over a stronger-worded total printed before them', () => {
+  const read = readReceiptText('1 Mango Lemon Tea Rp29,090\n1 Sliders Set Rp113,636\nNet Total: Rp142,726\nSrv Ch Rp7,136\nTAX Rp14,986\nTOTAL: Rp164,848\nVisa Rp164,848');
+  const check = checkReceipt(read);
+  assert.equal(check.total, 164848);
+  assert.equal(check.confidence, 'tinggi');
+});
+test('two printed totals that disagree, with nothing paid to settle it, are never "sure"', () => {
+  const read = readReceiptText('NASI GORENG 20.000\nTOTAL 20.000\nGRAND TOTAL 25.000');
+  assert.notEqual(checkReceipt(read).confidence, 'tinggi');
+});
+test('summary words as receipts print or the OCR misreads them are not items', () => {
+  const read = readReceiptText('KOREAN CURRY M 40,909\nSUB.TOTAL 40,909\nSUC CHG 6% 2,455\nP.Rest 10 % 4,336\nITEMS:1 40,909\nFOOD 40,909\nDUE 47,700\nCASH 50,000\nCHANGE 2,300');
+  assert.deepEqual(read.items.map(i => i.name), ['KOREAN CURRY M']);
+  assert.equal(read.service, 2455); assert.equal(read.tax, 4336); assert.equal(read.subtotal, 40909);
+  assert.equal(checkReceipt(read).total, 47700);
+});
+test('a choice under a name, printed after a dash with the price, belongs to that item', () => {
+  const read = readReceiptText('BBQ Chicken\n-Sedang 41,000\nTotal 41,000');
+  assert.deepEqual(read.items.map(i => [i.name, i.total, i.modifiers]), [['BBQ Chicken', 41000, ['Sedang']]]);
+});
+test('a minus after the amount (rounding) is a negative amount, and "Pet Food" stays an item', () => {
+  assert.equal(readReceiptText('IKAN 55,834\nSubtotal 55,834\nRounding 34-\nTotal 55,800').rounding, -34);
+  assert.deepEqual(readReceiptText('Pet Food 45.000\nTotal 45.000').items.map(i => i.name), ['Pet Food']);
+});

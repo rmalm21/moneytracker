@@ -125,6 +125,8 @@ function cleanLine(raw: string) {
     line = line.replace(/(\d)\s*([.,])\s+(\d{3})(?!\d)/g, '$1$2$3').replace(/(\d)\s+([.,]\d{3})(?!\d)/g, '$1$2');
     line = line.replace(/(^|[\s:=@x×])(\d{1,3}) (\d{2}0)(?=\s|$|[.,]\d{3})/g, '$1$2$3');
     // "12.000,-" / "12.000 IDR" → "12.000"; "(5.000)" → "-5.000"; a tax flag after the price ("50.000 T", "50.000 *").
+    // V4.1: a minus printed after the amount ("Simple Rounding 34-", "5.000-") is a negative amount.
+    line = line.replace(/(\s)(\d{1,3}(?:[.,]\d{3})*|\d+)-\s*$/, '$1-$2');
     line = line.replace(/(\d)[.,]-(?=\s|$)/g, '$1').replace(/(\d)\s*(?:IDR|idr)\b/g, '$1').replace(/\(\s*(?:rp\.?\s*)?(\d[\d.,]*)\s*\)\s*$/i, '-$1');
     line = line.replace(/(\d[.,]\d{3})\s+(?:[A-WYZa-wyz]|[*#]{1,2})$/, '$1');
     // Noise the camera picked up after the price ("28.000 im", "11.025 |.", "121.275 Bi").
@@ -231,7 +233,31 @@ function editDistance(a: string, b: string) {
 }
 /** Digits read in place of letters inside words: T0TAL → TOTAL, KEMBAL1 → KEMBALI, 5ERVICE → SERVICE. */
 const lettersOf = (text: string) => text.toLowerCase().replace(/0/g, 'o').replace(/[1|!]/g, 'l').replace(/5/g, 's').replace(/8/g, 'b').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+/** V4.1: summary labels as real receipts print (and the OCR misreads) them, checked before the usual words. */
+const SUMMARY_V41: [Key, RegExp][] = [
+  // "SUC CHG 6%", "Servi Chargi", "Serui Char", "Srv Ch": a service charge.
+  ['service', /^\W*(?:s[ue]r?[vuy][a-z]{0,4}|suc|svc|srv)\.?\s*ch[a-z]{0,4}\b/i],
+  // "P.Rest 10%", "F.Rest 10", "P.Rast 10": pajak restoran.
+  ['tax', /^\W*[pf]\.?\s*r[ae]st[a-z]*\.?\s*\d{1,2}\b/i],
+  // "FOOD 797,000", "BEVERAGES 83,000": a restaurant's total per kind of item, not an item.
+  // Printed in capitals, alone (an OCR crumb of one or two letters before it at most): "Pet Food" stays an item.
+  ['ignore', /^\W*(?:[A-Za-z]{1,2}\s+)?(?:FOODS?|BEVERAGES?|DRINKS?|MAKANAN|MINUMAN|DESSERTS?)\s*:?\s*$/],
+  // "Resto 10%", "Rest0 10": the restaurant tax with its word lost.
+  ['tax', /^\W*rest[o0]\s*\d{1,2}\s*%?\s*$/i],
+  // "ITEMS:13", "Qty : 4": a count of what was bought, never an item.
+  ['subtotal', /^\W*(?:items?|qty)\s*[:=]\s*\d{1,3}\s*$/i],
+  // "NETT AMT", "NETI AMOUNT": the amount before tax.
+  ['subtotal', /^\W*ne[t1][a-z]?\s*(?:amt|amount)\b/i],
+  // "OTHERS": an added charge.
+  ['fee', /^\W*others?\s*$/i],
+  // "SUB.TOTAL", "SB Total", "S/B TOTAL": the subtotal with its punctuation or letters lost.
+  ['subtotal', /^\W*(?:sub|sb|s\/b)\W{0,2}t[o0]ta[l1i]\b/i],
+  // "DUE", "BALANCE DUE", "NETTO", "TL": what is to be paid.
+  ['total', /^\W*(?:balance\s*)?due\s*:?\s*$|^\W*netto\s*:?\s*$|^\W*tl\s*:?\s*$/i],
+];
 function keyOf(label: string): Key | undefined {
+  const early = SUMMARY_V41.find(([, pattern]) => pattern.test(label))?.[0];
+  if (early) return early;
   // "Total Incl. PPN", "Total termasuk PPN": the total, with the tax already inside it.
   if (/^\s*(?:grand\s*)?t[o0]ta[l1i]\b/i.test(label) && /\b(incl\.?|include[sd]?|termasuk|sudah\s*termasuk)\b/i.test(label)) return 'total';
   const direct = KEYS.find(([, pattern]) => pattern.test(label))?.[0];
@@ -247,7 +273,7 @@ function keyOf(label: string): Key | undefined {
   return undefined;
 }
 /** How strongly a total line is the amount to pay. */
-const totalStrength = (label: string) => /grand|tagihan|harus|bayar|akhir|due|net|belanja/i.test(lettersOf(label)) ? 3 : /t[o0]ta[l1i]|ttl|tot\b/i.test(label) ? 2 : 1;
+const totalStrength = (label: string) => /grand|tagihan|harus|bayar|akhir|due|net|belanja|balance/i.test(lettersOf(label)) ? 3 : /t[o0]ta[l1i]|ttl|tot\b/i.test(label) ? 2 : 1;
 
 const PAYMENTS: [PaymentMethod, RegExp][] = [
   ['gopay', /\bgo\s*-?\s*pay\b/i], ['ovo', /\b[o0]vo\b/i], ['shopeepay', /\bshopee\s*pay\b|\bspay\b/i], ['linkaja', /\blink\s*aja\b/i], ['dana', /\bdana\b(?!\s*(darurat|pensiun))/i],
@@ -526,7 +552,8 @@ function readPaperText(text: string): ReceiptRead {
         // company and its outlet, scored after the whole receipt is read.
         // Not when a price row follows (right under it, or under a product code): then it is the first item's name, even
         // with the date only at the bottom of the receipt.
-        const priceRow = (l?: string) => { const a = l && !readReceiptDate(l) && !timeOf(l) ? readAmount(l) : null; return Boolean(l && a && a.value >= 100 && !keyOf(l.slice(0, a.start)) && !notTransaction(l, l) && !/[a-z]{3,}/i.test(l.slice(0, a.start).replace(/\b(?:rp|pcs|x)\b/gi, ''))); };
+        // A price row: an amount with no name of its own, or with only an item's choice after a dash ("-Sedang 41,000").
+        const priceRow = (l?: string) => { const a = l && !readReceiptDate(l) && !timeOf(l) ? readAmount(l) : null; return Boolean(l && a && a.value >= 100 && !keyOf(l.slice(0, a.start)) && !notTransaction(l, l) && (!/[a-z]{3,}/i.test(l.slice(0, a.start).replace(/\b(?:rp|pcs|x)\b/gi, '')) || /^\s*-\s*[a-z][a-z ]{1,20}$/i.test(l.slice(0, a.start).trim()))); };
         const codeLine = (l?: string) => Boolean(l && l.length <= 28 && /\d/.test(l) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(l.trim()) && /[\-/]/.test(l) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(l) && (l.match(/[a-z]/gi) || []).length <= 6);
         const itemAhead = priceRow(lines[position + 1]) || codeLine(source[position + 1]?.raw || lines[position + 1]) && priceRow(lines[position + 2]);
         const headerLike = (line.match(/[a-z]/gi) || []).length >= 3 && !quantityLine(lines[position + 1]) && !keyOf(line) && !itemAhead && !/^[a-z][a-z .]{1,20}\s*:\s*\S/i.test(line);
@@ -596,16 +623,21 @@ function readPaperText(text: string): ReceiptRead {
     if (underItem && pendingName.length <= 32 && modifierScore(pendingName) >= 2) {
       (lastItem!.modifiers ||= []).push(pendingName); (lastItem!.modifiersUnsure ||= []).push(pendingName); lastItem!.lines?.push(...origin(pendingPos)); kinds[pendingPos] = 'modifier'; pendingName = '';
     }
-    const joinAbove = Boolean(own && pendingName && pendingPos === position - 1 && /[a-z]{3,}/i.test(pendingName) && !HEADERISH.test(pendingName) && !MODIFIER.test(pendingName) && !quantityLine(pendingName));
-    const usedAbove = Boolean(pendingName) && (!own || joinAbove);
+    const plainName = (text: string) => /[a-z]{3,}/i.test(text) && !HEADERISH.test(text) && !MODIFIER.test(text) && !quantityLine(text);
+    // V4.1 "BBQ Chicken" / "-Sedang 41,000": a line that starts with a dash under a name is that item's choice (size,
+    // level, sauce) printed with the item's price; the name above is the item.
+    const dashNote = Boolean(own && pendingName && pendingPos === position - 1 && /^\s*-\s*[a-z]/i.test(label) && plainName(pendingName));
+    const joinAbove = !dashNote && Boolean(own && pendingName && pendingPos === position - 1 && plainName(pendingName));
+    const usedAbove = Boolean(pendingName) && (!own || joinAbove || dashNote);
     const addOn = Boolean(lastItem && lastItemPos >= position - 3 && ADD_ON.test(own || label));
-    let name = (joinAbove ? `${pendingName} ${own}` : own || pendingName).replace(/^\d{4,}\s+/, '').replace(/^[-+*•.\s\d]*\s(?=[a-z])|^[-+*•.\s]+|[-*•.:\s]+$/gi, '').slice(0, 60);
+    let name = (dashNote ? pendingName : joinAbove ? `${pendingName} ${own}` : own || pendingName).replace(/^\d{4,}\s+/, '').replace(/^[-+*•.\s\d]*\s(?=[a-z])|^[-+*•.\s]+|[-*•.:\s]+$/gi, '').slice(0, 60);
     if (!/[a-z]{2,}/i.test(name)) { out.skipped++; if (amount.value >= 1000) gaps++; pendingName = ''; return; }
     const tokens = name.split(' ');
     if (tokens.filter(t => /^[A-Z0-9]{2,}$/.test(t)).length >= 2) while (tokens.length > 2 && !/^[A-Z0-9&]{2,}$/.test(tokens[0]) && tokens[0].length <= 5) tokens.shift();
     name = tokens.join(' ');
     const item: ReceiptLine = { name, qty: read.qty, price: read.price, total: read.qty * read.price, unitPrinted: read.unitPrinted, lines: [...(usedAbove ? origin(pendingPos) : []), ...origin(position)] };
-    if (addOn) item.addOnOf = lastItem!.name;
+    if (addOn && !dashNote) item.addOnOf = lastItem!.name;
+    if (dashNote) item.modifiers = [own.replace(/^[\s-]+/, '').trim()];
     if (usedAbove) kinds[pendingPos] = 'item';
     if (usedAbove && pendingCode) {
       item.variant = pendingCode; item.lines = [...origin(pendingPos - 1), ...(item.lines || [])];
@@ -832,19 +864,30 @@ function solve(read: ReceiptRead, itemsTotal: number) {
   const byPayment = read.paid && read.change && read.paid > read.change ? read.paid - read.change : read.paid && !read.change && !read.total ? read.paid : 0;
   const targets = [...(read.totals?.length ? read.totals : read.total ? [read.total] : []), ...(byPayment ? [byPayment] : [])];
   let best: { target: number; base: number; left: string[]; value: number; rank: number } | null = null;
+  const fitting = new Set<number>();
+  // What was handed over: paid − change, or the card / e-wallet amount when nothing came back.
+  const handed = byPayment || (read.paid && !read.change ? read.paid : 0), confirmed = (target: number) => Boolean(handed && near(target, handed));
   targets.forEach((target, t) => bases.forEach((base, b) => {
     for (let mask = 0; mask < 1 << charges.length; mask++) {
       const used = charges.filter((_, i) => mask & (1 << i)), value = base + used.reduce((n, [, v]) => n + v, 0);
       if (!near(value, target)) continue;
-      const rank = (t === 0 ? 100 : 0) + used.length * 10 + (b === 0 ? 1 : 0);
+      if (t < targets.length - (byPayment ? 1 : 0)) fitting.add(target);
+      // V4.1: the total that explains every printed charge wins over a stronger-worded one that leaves tax and service
+      // out ("Net Total" before them); the amount paid agreeing with it counts too.
+      const rank = used.length * 20 + (confirmed(target) ? 15 : 0) + (t === 0 ? 10 : 0) + (b === 0 ? 1 : 0);
       if (!best || rank > best.rank) best = { target, base, left: charges.filter((_, i) => !(mask & (1 << i))).map(([k]) => k), value, rank };
     }
   }));
-  return { best: best as { target: number; base: number; left: string[]; value: number; rank: number } | null, byPayment, all: (bases[0] || 0) ? bases[0] + charges.reduce((n, [, v]) => n + v, 0) : 0 };
+  // Two different printed totals that both add up, or another printed total that disagrees: which one was paid is not
+  // certain unless the payment says so.
+  const chosen = best ? (best as { target: number }).target : 0;
+  const disagree = (read.totals || []).some(v => !near(v, chosen));
+  const ambiguous = (fitting.size > 1 || disagree) && !(best && confirmed(chosen));
+  return { best: best as { target: number; base: number; left: string[]; value: number; rank: number } | null, byPayment, ambiguous, all: (bases[0] || 0) ? bases[0] + charges.reduce((n, [, v]) => n + v, 0) : 0 };
 }
 export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   const itemsTotal = itemsNet(read.items);
-  const { best, byPayment, all } = solve(read, itemsTotal);
+  const { best, byPayment, all, ambiguous } = solve(read, itemsTotal);
   const notes: string[] = [...(read.fixes || [])];
   let total = 0, source: ReceiptCheck['source'] = 'none', computed = all;
   if (best) {
@@ -865,7 +908,8 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   const tiny = total > 0 && total < 1000;
   if (lonely && !tiny) notes.push('Tidak ada item atau subtotal untuk mencocokkan total. Pastikan nominalnya benar.');
   if (tiny) notes.push('Nominal sangat kecil; mungkin angka depannya tidak terbaca. Periksa lagi dengan struknya.');
-  const confidence: ReceiptCheck['confidence'] = !total || tiny ? 'rendah' : crossChecked ? 'tinggi' : lonely ? 'rendah' : source === 'printed' || source === 'paid' ? 'sedang' : 'rendah';
+  const confidence: ReceiptCheck['confidence'] = !total || tiny ? 'rendah' : crossChecked && !ambiguous ? 'tinggi' : lonely ? 'rendah' : source === 'printed' || source === 'paid' ? 'sedang' : 'rendah';
+  if (ambiguous) notes.push('Ada dua total tercetak yang sama-sama cocok; pastikan yang dibayar.');
   if (!total) notes.push('Total belum terbaca. Isi nominalnya sendiri.');
   return { total, itemsTotal, computed, source, confidence, matches, notes, included: (best?.left || []) as ChargeKey[] };
 }
