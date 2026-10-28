@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.9', date: '28 Okt 2026', title: 'Catat otomatis makin paham obrolan sehari-hari', items: [
+    ['🛵', 'Perjalanan dicatat utuh: “gojek ke kantor 15rb” jadi Gojek ke Kantor (Transportasi). Tujuannya tidak lagi dikira tempat belanja.'],
+    ['📝', 'Kata kecil tidak lagi nyangkut di keterangan: “abis 30rb buat makan”, “kena 25rb parkir”, “wifi bulan ini 330rb”, “keluar 50rb buat bensin”.'],
+    ['🛒', '“beliin adek susu” jadi Susu (catatan: untuk Adek), “gofood ayam geprek” jadi Ayam Geprek dari GoFood, dan “indomaret 87rb” langsung jadi belanja di Indomaret.'],
+    ['💳', '“pake ovo” atau “via shopeepay” yang belum jadi dompet tidak masuk keterangan; dompet bawaan tetap dipakai.'],
+    ['🎮', 'Top up game jadi pengeluaran Gaming, bukan transfer. Kirim uang ke mama atau adek otomatis masuk kategori Keluarga.'],
+  ] },
   { version: '6.8', date: '28 Okt 2026', title: 'Catat otomatis paham bahasa sehari-hari', items: [
     ['🏪', 'Tempat tanpa “di” sekarang terbaca: “soyjoy jajan 25k bedeng” jadi Soyjoy, kategori Jajan, tempat Bedeng, dompet bawaan. Satuan, jenis bensin, kendaraan, dan cara bayar tidak dikira tempat.'],
     ['🍽️', 'Waktu makan jadi kategori, makanannya jadi keterangan: “nasi padang buat makan malam” jadi Nasi Padang di Makan Malam. Berlaku juga untuk “sarapan bubur”, “lunch mie ayam”, dan “ngemil keripik”.'],

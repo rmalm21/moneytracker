@@ -1,0 +1,561 @@
+{
+ "summary": {
+  "set": "v69heldout",
+  "cases": 32,
+  "exact": {
+   "before": 5,
+   "after": 32
+  },
+  "segmentation": {
+   "before": 32,
+   "after": 32
+  },
+  "fields": {
+   "kind": {
+    "before": "6/8",
+    "after": "8/8"
+   },
+   "amount": {
+    "before": "32/32",
+    "after": "32/32"
+   },
+   "wallet": {
+    "before": "9/9",
+    "after": "9/9"
+   },
+   "description": {
+    "before": "2/24",
+    "after": "24/24"
+   },
+   "cat": {
+    "before": "21/24",
+    "after": "24/24"
+   },
+   "merchant": {
+    "before": "4/9",
+    "after": "9/9"
+   }
+  },
+  "confidentWrong": {
+   "before": 19,
+   "after": 0
+  },
+  "regressions": [],
+  "rescues": [
+   "k1",
+   "k2",
+   "k3",
+   "k4",
+   "k5",
+   "k6",
+   "k7",
+   "k8",
+   "k9",
+   "k10",
+   "k11",
+   "k12",
+   "k13",
+   "k14",
+   "k15",
+   "k16",
+   "k17",
+   "k18",
+   "k19",
+   "k20",
+   "k21",
+   "k22",
+   "k23",
+   "k24",
+   "k25",
+   "k27",
+   "k28"
+  ],
+  "latencyMs": {
+   "before": {
+    "avg": 41.9,
+    "p95": 14.4
+   },
+   "after": {
+    "avg": 14.4,
+    "p95": 12.7
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "k1",
+   "group": "kata kecil",
+   "text": "abis 25rb buat ngopi",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ngopi abis ≠ ngopi"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k2",
+   "group": "kata kecil",
+   "text": "keluar 15rb buat parkir",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ∅ ≠ parkir",
+     "cat: ∅ ≠ expense.transportasi.parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k3",
+   "group": "kata kecil",
+   "text": "soto harganya 18rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: soto harganya ≠ soto"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k4",
+   "group": "kata kecil",
+   "text": "tol kena 12rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: tol kena ≠ tol"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k5",
+   "group": "kata kecil",
+   "text": "habis 40rb buat bensin",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ∅ ≠ bensin",
+     "cat: ∅ ≠ expense.transportasi.bensin"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k6",
+   "group": "periode",
+   "text": "netflix bulan ini 54rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: netflix bulan ini ≠ netflix"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k7",
+   "group": "periode",
+   "text": "internet bulan ini 300rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: internet bulan ini ≠ internet"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k8",
+   "group": "periode",
+   "text": "paket data bulan ini 75rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: paket data bulan ini ≠ paket data"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k9",
+   "group": "perjalanan",
+   "text": "gojek ke stasiun 18rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: stasiun ≠ gojek ke stasiun",
+     "tempat palsu: gojek"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k10",
+   "group": "perjalanan",
+   "text": "grab ke kantor 22rb jago",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: kantor ≠ grab ke kantor",
+     "tempat palsu: grab"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k11",
+   "group": "perjalanan",
+   "text": "ojek pulang 15rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: pulang ≠ ojek pulang",
+     "tempat palsu: gojek"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k12",
+   "group": "perjalanan",
+   "text": "gocar ke mall 45rb gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: gocar mall ≠ gocar ke mall"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k13",
+   "group": "perjalanan",
+   "text": "ojol ke kampus 11rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: ojol kampus ≠ ojol ke kampus"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k14",
+   "group": "untuk orang",
+   "text": "beliin bapak rokok 30rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: bapak rokok ≠ rokok"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k15",
+   "group": "untuk orang",
+   "text": "beliin anak susu 25rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: anak susu ≠ susu"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k16",
+   "group": "untuk orang",
+   "text": "beliin pacar boba 30rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: pacar boba ≠ boba"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k17",
+   "group": "pesan antar",
+   "text": "gofood seblak 23rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: gofood seblak ≠ seblak"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k18",
+   "group": "pesan antar",
+   "text": "grabfood sate ayam 35rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: grabfood sate ayam ≠ sate ayam"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k19",
+   "group": "pesan antar",
+   "text": "shopeefood mie ayam 20rb gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: shopeefood mie ayam ≠ mie ayam"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k20",
+   "group": "cara bayar",
+   "text": "parkir 3rb pake linkaja",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: parkir linkaja ≠ parkir"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k21",
+   "group": "cara bayar",
+   "text": "es teh 5rb via ovo",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: es teh ovo ≠ es teh"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k22",
+   "group": "cara bayar",
+   "text": "bakso 15rb pakai shopeepay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: bakso shopeepay ≠ bakso"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k23",
+   "group": "toko saja",
+   "text": "lawson 32rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ lawson"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k24",
+   "group": "toko saja",
+   "text": "alfamidi 28rb jago",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "merchant: ∅ ≠ alfamidi"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k25",
+   "group": "keluarga",
+   "text": "tf ke papa 300rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ expense.sosial-sedekah.keluarga"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k26",
+   "group": "keluarga",
+   "text": "kirim ke ortu 1jt",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "k27",
+   "group": "top up",
+   "text": "top up free fire 25rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: transfer ≠ expense"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k28",
+   "group": "top up",
+   "text": "topup steam 100rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": true,
+   "trace": [],
+   "errors": {
+    "before": [
+     "kind: transfer ≠ expense"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "k29",
+   "group": "top up",
+   "text": "top up ovo 50rb dari jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "k30",
+   "group": "kontrol",
+   "text": "beli kopi 20rb di fore pake jago",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "k31",
+   "group": "kontrol",
+   "text": "bensin 30rb pertalite",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "k32",
+   "group": "kontrol",
+   "text": "sarapan lontong 8rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  }
+ ]
+}

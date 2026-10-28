@@ -18,6 +18,7 @@
 import { normalizeQuick, parseQuickPlan, refreshAction, type ActionCandidate, type QuickParseResult } from '../quick-plan.ts';
 import { knownPlaces, walletsIn, type QuickContext, type QuickGroup, type QuickKind } from '../quick-entry.ts';
 import { catchBugs } from './bug-catcher.ts';
+import { conceptWords } from '../categorize.ts';
 import { decorate, personalize, type PersonalInput } from './personal.ts';
 import { analyzeSemantics, kindOfIntent, type SemanticEngineResult } from './nlp-engine.ts';
 
@@ -30,6 +31,12 @@ const wordsOf = (s?: string) => lower(s || '').split(/\s+/).filter(Boolean);
 const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const titleCase = (s: string) => s.replace(/(^|\s)(\S)/g, (_, sp: string, c: string) => sp + c.toLocaleUpperCase('id-ID'));
 const SPENDING = new Set<QuickKind>(['expense', 'income', 'plan_new', 'recurring_new']);
+/** 6.9: ride and delivery services are how someone travelled or ordered, not where they bought ("gojek ke kantor"). */
+const SERVICE = /^(?:gojek|go-?jek|grab|maxim|indrive|uber|gocar|go-?car|goride|go-?ride|grabcar|grabbike|bluebird|blue bird|gofood|grabfood|shopeefood)$/;
+
+let words: Set<string> | undefined;
+/** Words the category reader knows ("ojek", "bensin", "kopi"): ordinary words, never typos of a place. */
+const everydayWords = () => (words ??= conceptWords());
 
 export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode: QuickGroup | QuickKind = 'auto', personal?: PersonalInput): Promise<V3Result> {
   const t0 = performance.now();
@@ -52,6 +59,8 @@ export async function parseQuickPlanV3(typed: string, ctxIn: QuickContext, mode:
       if (raw === value || raw.replace(/\s+/g, '') === value.replace(/\s+/g, '')) continue;
       if (e.type === 'WALLET' && walletsIn(raw, ctx.wallets).length) continue;
       if (e.type === 'MERCHANT' && places.has(raw)) continue;
+      // "ojek" is a word, not a typo of "Gojek"; a service is never respelled into a place.
+      if (e.type === 'MERCHANT' && (SERVICE.test(value) || everydayWords().has(raw))) continue;
       // One typo per word at most ("famili mart", "indomart", "mandri"); "barber king" is not "Burger King".
       if (!oneTypoPerWord(raw, value)) continue;
       respelled.push({ raw, value, type: e.type, id: e.id });
@@ -145,7 +154,7 @@ function resolve(action: V3Action, sem: SemanticEngineResult, clause: string, ct
 
   // Merchant (known places only).
   const place = sem.entityCandidates.find(e => e.type === 'MERCHANT' && e.confidence >= 0.85);
-  if (SPENDING.has(kind) && place) {
+  if (SPENDING.has(kind) && place && !SERVICE.test(lower(place.value))) {
     const a = lower(r.preset.merchant || ''), canonical = place.value;
     if (a && a === lower(canonical)) note('merchant', 'agree', canonical);
     else if (!a && r.preset.description && wordsOf(r.preset.description).length > wordsOf(place.rawText).length && containsWords(r.preset.description, place.rawText) && !wordsOf(place.rawText).some(x => used.has(x))) {

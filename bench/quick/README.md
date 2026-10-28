@@ -115,3 +115,9 @@ author against the same small ledger, so real questions will miss more often tha
 Tempat setelah nominal tanpa “di”, waktu makan sebagai kategori, jajanan dan minuman bermerek. Sets
 `fixtures-v68dev.mjs` / `fixtures-v68heldout.mjs` on the real default taxonomy (`fixtures-v68state.mjs`), runner
 `run-v68.mjs` against `baseline-v67/`. Report: `REPORT-v68.md`.
+
+## Catat otomatis 6.9 (bahasa sehari-hari, putaran kedua)
+
+Small words and periods, rides with a destination, buying for someone, delivery apps, payment apps that are not
+wallets, a store alone, family transfers, game top-ups. Sets `fixtures-v69dev.mjs` / `fixtures-v69heldout.mjs`
+(state `fixtures-v68state.mjs`), runner `run-v69.mjs` against `baseline-v68/`. Report: `REPORT-v69.md`.

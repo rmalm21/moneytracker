@@ -32,3 +32,25 @@ test('snacks and drinks are known by their names', async () => {
   for (const text of ['beli soyjoy 12rb di indomaret', 'oreo 9rb alfamart', 'silverqueen 18rb', 'beng beng 3rb', 'martabak 35rb']) assert.equal((await read(text)).cat, C('Jajan'), text);
   for (const text of ['aqua 4rb', 'teh pucuk 4rb', 'yakult 10rb']) assert.equal((await read(text)).cat, C('Kopi & Minuman'), text);
 });
+
+// 6.9 — everyday language, second round.
+const kindOf = async text => (await parseQuickPlanV3(text, ctx)).actions[0].result.kind;
+test('small words, the period and the payment app stay out of the description', async () => {
+  for (const [text, want] of [['abis 30rb buat makan', 'Makan'], ['keluar 50rb buat bensin', 'Bensin'], ['kena 25rb parkir', 'Parkir'], ['nasi padang harganya 25rb', 'Nasi Padang'], ['wifi bulan ini 330rb', 'Wifi'], ['jajan 20rb pake ovo', 'Jajan'], ['parkir 5rb via shopeepay', 'Parkir']]) assert.equal((await read(text)).description, want, text);
+  assert.equal((await read('keluar 50rb buat bensin')).cat, C('Bensin'));
+});
+
+test('a ride keeps its destination in the description and is never a place', async () => {
+  for (const [text, want] of [['gojek ke kantor 15rb', 'Gojek ke Kantor'], ['grab pulang 25rb gopay', 'Grab Pulang'], ['naik ojek ke pasar 10rb', 'Ojek ke Pasar'], ['krl ke bogor 5rb', 'KRL ke Bogor']]) {
+    const r = await read(text); assert.equal(r.description.toLowerCase(), want.toLowerCase(), text); assert.equal(r.merchant, '', text);
+  }
+});
+
+test('bought for someone, delivery apps, a store alone, family and game top-ups', async () => {
+  assert.equal((await read('beliin adek susu 20rb')).description, 'Susu');
+  const food = await read('gofood ayam geprek 25rb'); assert.equal(food.description, 'Ayam Geprek'); assert.equal(food.cat, C('Delivery')); assert.equal(food.merchant, 'GoFood');
+  assert.equal((await read('indomaret 87rb')).merchant, 'Indomaret');
+  assert.equal((await read('tf ke mama 500rb')).cat, C('Keluarga'));
+  assert.equal(await kindOf('top up game 30rb'), 'expense');
+  assert.equal(await kindOf('top up gopay 100rb dari jago'), 'transfer');
+});

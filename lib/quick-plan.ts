@@ -283,6 +283,8 @@ export function applyCorrections(input: string, ctx: QuickContext) {
 
 const CONNECT = 'lalu|terus|kemudian|habis itu|abis itu|abis tu|habis tu|setelah itu|sama|dan|tapi|sedangkan|plus|\\+';
 const BOUNDARY = new RegExp(`\\s*(?:\\n|;|,(?!\\d)|\\.(?=\\s))\\s*(?:(?:${CONNECT}|trus|trs|tp)\\s+)?|\\s+(?:${CONNECT}|trus|trs|tp)\\s+`, 'gi');
+/** 6.9: what a game top-up buys (spending, never a transfer between wallets). */
+const GAME_TOPUP = /\b(game|games|diamond|diamonds|dm|ml|mlbb|mobile legends?|free ?fire|ff|pubg|uc|steam|genshin|valorant|valo|roblox|robux|codm|google play|play ?store|voucher game|battle pass)\b/;
 const TX_CUE = /\b(ngutang|utang|hutang|minjemin|pinjamin|ngutangin|talangin|nalangin|bayarin|balikin|ngembaliin|dibayar|beli|bayar|tf|transfer|topup|top up|isi saldo|tarik tunai|setor tunai|terima|pinjam|pinjem|minjem|pinjemin|nabung|sisihkan|klaim|reimburse|kirim|gaji|gajian|lunasin|lunasi|jual)\b/;
 const VERB_START = /^(beli|bayar|tf|transfer|topup|top up|terima|pinjam|pinjem|pinjemin|nabung|klaim|isi|tarik|setor|ingetin|ingatkan|budget|anggaran|gaji|gajian|buka|catat|kirim|jual)\b/;
 const OWN_KIND = /\b(beli|bayar|tf|transfer|topup|terima|pinjam|pinjem|pinjemin|nabung|klaim|gaji|gajian|kirim|ingetin|ingatkan|rencana|target|buka|jual|dapat|dapet|saldo|langganan)\b/;
@@ -472,7 +474,8 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     if (moved?.kind === 'transfer') { result = moved; kindNote = 'dikirim ke dompetmu sendiri = transfer'; }
   }
   if (result.kind === 'expense' && !walletsIn(text, ctx.wallets).length) {
-    const asked: QuickKind | null = /\b(tf|transfer|pindahin|topup|top up)\b/.test(text) && !/\b(?:ke|kepada|buat|untuk)\s+\p{L}/u.test(text) ? 'transfer'
+    // 6.9: "top up game / diamond / steam" buys something; only a wallet top-up is a transfer.
+    const asked: QuickKind | null = /\b(tf|transfer|pindahin|topup|top up)\b/.test(text) && !/\b(?:ke|kepada|buat|untuk)\s+\p{L}/u.test(text) && !GAME_TOPUP.test(text) ? 'transfer'
       : /\bsaldo(?:nya)?\b/.test(text) && (/\b(sekarang|tinggal|sisa|jadi|aktual|real)\b/.test(text) || /^saldo\b/.test(text)) ? 'balance' : null;
     const again = asked && parseQuickText(text, ctx, asked);
     if (again) result = again;

@@ -66,6 +66,8 @@ const INTRODUCER = /(?<![\p{L}])(beli|beliin|pesan|pesen|order|orderin|ambil|che
 /** Sentences that belong to the relationship / operation engines (V3.2–V3.3): never recomposed. */
 const HANDS_OFF = /(?<![\p{L}])(ngutang|utang|hutang|minjem|pinjem|pinjam|minjam|minjemin|pinjemin|talangin|nalangin|bayarin|dibayarin|balikin|dibalikin|lunasin|nyicil|cicil|cicilan|klaim|claim|reimburse|transfer|transferin|tf|topup|top up|patungan|split|bagi dua|traktir|nabung|tabung|menabung|budget|anggaran|target|rencana|ingetin|ingatkan|pengingat|catatan|hapus|ubah|ganti|batal|batalin|tiap|setiap|langganan|gaji|gajian|bonus|refund|kembalian|piutang|ditalangin)(?![\p{L}])/iu;
 const PURPOSE = /(?<![\p{L}])(buat|untuk|utk|bwt)\s+/iu;
+/** 6.9: words that only say money went out ("keluar 50rb buat bensin"). */
+const SPENT = new Set('keluar habis abis kepake kepakai ngabisin ngehabisin bayar byr beli spend spent total tadi td barusan kemarin kemaren aku gue gw saya'.split(' '));
 const STOP_WORD = /^(di|@|at|buat|untuk|utk|bwt|pake|pakai|via|lewat|kategori|masuk|masukin|catat|terus|trus|lalu|kemudian|abis|habis|kemarin|kemaren|tadi|besok|lusa|barusan|jam)$/i;
 const BOUNDARY = /(?<![\p{L}])(terus|trus|lalu|kemudian|abis itu|habis itu|setelah itu)(?![\p{L}])/iu;
 const ITEM_SPLIT = /\s*(?:,|(?<![\p{L}])(?:dan|sama|ama|plus|and)(?![\p{L}])|&|\+)\s*/iu;
@@ -228,7 +230,12 @@ export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | '
       const what = part.slice(from, end).trim().replace(/[,.]$/, '');
       const words = lower(what).split(/\s+/);
       const isPerson = words.some(w => people.has(w) || PEOPLE_WORDS.has(w));
-      if (what && words.length <= 5 && !walletsIn(lower(what), ctx.wallets).length) {
+      // 6.9 "keluar 50rb buat bensin", "habis 100rb buat belanja bulanan": nothing else was said, so what follows "buat" is
+      // the thing itself, not a purpose next to it.
+      const outside = (plow.slice(0, pm.index!) + ' ' + plow.slice(end)).replace(new RegExp(DATE_PHRASES.source, 'g'), ' ');
+      const said = [...outside.matchAll(/[\p{L}][\p{L}'’-]*/gu)].map(m => m[0]).filter(w => !SPENT.has(w) && !walletsIn(w, ctx.wallets).length && !/^(?:rb|ribu|k|jt|juta|rp|ceban|goceng|gocap|noban|cepek|gopek|seceng)$/.test(w));
+      if (what && !said.length && words.length <= 5 && !walletsIn(lower(what), ctx.wallets).length) { cut(pm.index!, from); trace.push(`“${pm[1]} ${what}” → yang dibeli`); }
+      else if (what && words.length <= 5 && !walletsIn(lower(what), ctx.wallets).length) {
         const act = what.match(ACTIVITY_RE);
         const before = plow.slice(0, pm.index!) + ' ' + plow.slice(end);
         if (act && act[0].length === what.length && !ACTIVITY_RE.test(before)) { slot.activity = lower(act[0]); cut(pm.index!, end); trace.push(`“buat ${what}” → aktivitas`); }

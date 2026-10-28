@@ -420,6 +420,19 @@ export function knownPlaces(ctx: Pick<QuickContext, 'history' | 'merchants'>) {
   for (const name of [...EXTRA_PLACES, ...(ctx.merchants || []), ...ctx.history.map(t => t.merchant).filter(Boolean)]) if (name && name.length >= 3) map.set(lower(name).replace(/\s+/g, ' ').trim(), name);
   return map;
 }
+/** 6.9: a wallet that is not set up, named after "pake / via": how it was paid. */
+const PAID_WITH = /\b(?:pake|pakai|pakek|pk|via|lewat|bayar pake|bayar pakai)\s+(ovo|shopeepay|spay|linkaja|dana|gopay|jenius|qris|debit|debet|kredit|cc|flazz|brizzi|emoney|e-money|tapcash|paylater|kartu)\b/g;
+/** 6.9: small words around an amount and the period of a bill: never part of what was bought. */
+const SMALL_WORDS = /\b(?:abis|habis|kena|kepake|kepakai|ngabisin|ngehabisin|harganya|totalnya|total|sekitar|kurleb|kira kira|(?:bulan|minggu|tahun|pekan) (?:ini|lalu|kemarin))\b/g;
+/** 6.9: "beliin adek susu": the person after a "buy for" verb. */
+const BOUGHT_FOR = /\b(?:beliin|belikan|beliim|beli|bawain|bawakan|pesenin|pesanin|traktir)\s+(adek|adik|ade|mama|mamah|mami|papa|papah|papi|ibu|bapak|ayah|bunda|istri|suami|anak|pacar|ayang|kakak|abang|nenek|kakek|ortu|temen|teman|ponakan|keponakan|om|tante|bos|boss)\s+(?=\p{L})/u;
+/** 6.9: food delivery apps (where it was ordered). */
+const DELIVERY_APP = /\b(gofood|go-food|go food|grabfood|grab food|shopeefood|shopee food|maximfood)\b/;
+const APP_NAMES: Record<string, string> = { gofood: 'GoFood', grabfood: 'GrabFood', shopeefood: 'ShopeeFood', maximfood: 'Maxim Food' };
+/** 6.9: a ride or a train with where it went ("gojek ke kantor", "grab pulang", "krl ke bogor"). */
+const RIDE_TRIP = /\b(?:gojek|goride|go-ride|gocar|go-car|grab|grabbike|grabcar|maxim|indrive|ojol|ojek|taksi|taxi|bluebird|krl|mrt|lrt|kereta|transjakarta|busway|bus|angkot|damri)(?: (?:ke|dari) [\p{L}'’-]+(?: [\p{L}'’-]+)?| (?:pulang|balik|pergi|berangkat)(?: (?:ke|dari) [\p{L}'’-]+)?)/u;
+/** 6.9: chains where "<name> 87rb" means shopping there. */
+const STORE = /^(?:indomaret|alfamart|alfamidi|alfa express|lawson|circle k|family ?mart|superindo|hypermart|transmart|giant|hero|lotte ?mart|ranch market|grand lucky|carrefour|yomart|toserba|guardian|watsons)$/;
 /** Meal times and snacking: the category of a food purchase, not part of its description (6.8). */
 const MEAL_TIME = /\b(?:sarapan|breakfast|makan pagi|makan siang|maksi|lunch|makan malam|makan malem|makmal|dinner|ngemil|nyemil)\b/g;
 /** Who someone eats with: never the thing bought. */
@@ -1066,6 +1079,26 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   rest = rest.replace(/\b(?:uang|duit)\s+jajan\b/g, ' uangjajan ');
   rest = rest.replace(VERBS, ' ').replace(FILLERS, ' ').replace(/\buangjajan\b/g, 'uang jajan')
     .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|reimburse|direimburse|diklaim|klaim|claim|nanti|diganti|ganti|rembes)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  // 6.9: everyday words around the thing bought (spending only).
+  if (flow === 'expense') {
+    // Paid with a wallet that is not set up ("pake ovo", "via shopeepay"): how it was paid, never what was bought.
+    for (const m of text.matchAll(PAID_WITH)) rest = rest.replace(new RegExp(`\\b${escape(m[1])}\\b`), ' ');
+    // "abis 30rb", "kena 25rb", "harganya 25rb", "wifi bulan ini": small words and the period.
+    rest = rest.replace(SMALL_WORDS, ' ');
+    // "beliin adek susu": who it was for is not the thing.
+    const forWhom = text.match(BOUGHT_FOR);
+    if (forWhom) { rest = rest.replace(new RegExp(`\\b${escape(forWhom[1])}\\b`), ' '); preset.notes = [preset.notes, `Untuk ${title(forWhom[1])}`].filter(Boolean).join(' · '); }
+    // "gofood ayam geprek": the app is where it was ordered; the food is the description.
+    const app = text.match(DELIVERY_APP);
+    if (app) { const left = rest.replace(new RegExp(DELIVERY_APP.source, 'g'), ' ').replace(/\s+/g, ' ').trim(); if (left) { rest = left; if (!preset.merchant) preset.merchant = APP_NAMES[app[1].replace(/[\s-]/g, '')] || title(app[1]); } }
+    // "gojek ke kantor", "grab pulang": the trip is the description; the destination is not where it was bought.
+    const trip = blankOut(text, bounds.blank).match(RIDE_TRIP);
+    if (trip) { rest = trip[0].replace(/\s+/g, ' ').trim(); if (preset.merchant && lower(trip[0]).includes(lower(preset.merchant))) delete preset.merchant; }
+    // "indomaret 87rb": a store alone is where it was bought.
+    const store = !preset.merchant && rest.replace(/\s+/g, ' ').trim() ? knownPlaces(ctx).get(rest.replace(/\s+/g, ' ').trim()) : undefined;
+    if (store && STORE.test(lower(store))) { preset.merchant = store; rest = 'belanja'; }
+    rest = rest.replace(/\s+/g, ' ').trim();
+  }
   // 6.8: a meal time is the category and the food is the description: "nasi padang buat makan malam", "sarapan bubur
   // ayam", "lunch mie ayam", "ngemil keripik" → Nasi Padang, Bubur Ayam, Mie Ayam, Keripik (with Makan Malam, Sarapan,
   // Makan Siang, Jajan as the category, read from the whole text). A meal time alone ("makan malam 30rb") stays.
@@ -1079,7 +1112,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
 
   if (flow === 'expense' || flow === 'income') {
     const verb = /\b(kirim|ngirim|kirimin)\b/.test(text) ? 'Kirim' : /\b(tf|transfer|trf|transferin)\b/.test(text) ? 'Transfer' : 'Bayar';
-    if (item) preset.description = title(item);
+    if (item) preset.description = /\b(?:ke|dari)\b/.test(item) && RIDE_TRIP.test(item) ? item.split(' ').map(w => /^(?:ke|dari)$/.test(w) ? w : title(w)).join(' ') : title(item);
     else if (flow === 'income' && /\bgaji|gajian\b/.test(text)) preset.description = 'Gaji';
     // "jajan 15rb": the word is both the act and the thing. With nothing else bought it stays the description
     // (the category still reads it as evidence: Makan & Minum › Jajanan).
