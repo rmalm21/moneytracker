@@ -8216,3 +8216,16 @@ button.int-more { justify-self: start; font-size: .74rem; }
 @keyframes access-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--positive) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
 @media (prefers-reduced-motion: reduce) { .access-online { animation: none; } }
 .access-now { color: var(--positive); font-weight: 700; }
+/* 6.7: Beranda header, white and elegant: a clean white card, dark figures, and the palette colour only on the payday
+   ring and a soft glow in the corner. */
+.home-hero.hh { color: var(--ink); background: var(--paper); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(16, 42, 54, .05), 0 16px 36px -24px color-mix(in srgb, var(--accent) 50%, rgba(16, 42, 54, .4)); }
+.home-hero.hh .home-hero-glow { background: radial-gradient(260px 170px at 100% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%); }
+.hh-avatar { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+:is(.hh-hello small, .hh-figure > small, .hh-days small, .hh-payday-label) { color: var(--muted); }
+.hh .home-hero-edit { background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.hh-ring { background: conic-gradient(var(--accent) var(--pct), color-mix(in srgb, var(--accent) 14%, var(--paper)) 0); }
+.home-hero-delta .delta { background: var(--paper-2) !important; color: var(--ink) !important; box-shadow: inset 0 0 0 1px var(--line); }
+.home-hero-delta .delta em { color: var(--muted); }
+.hh .home-hero-chips button { background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); backdrop-filter: none; }
+.home-hero-chips span { color: var(--muted); opacity: 1; }
+.hh .home-hero-edit:hover, .hh .home-hero-edit.active { background: var(--accent-soft); color: var(--accent); }

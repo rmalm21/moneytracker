@@ -2,7 +2,8 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '6.7', date: '28 Okt 2026', title: 'Delapan warna baru', items: [
+  { version: '6.7', date: '28 Okt 2026', title: 'Header baru dan delapan warna baru', items: [
+    ['🏠', 'Header Beranda tampil baru: kartu putih yang bersih dan elegan, angka lebih tegas, dan warna palet hanya di lingkaran hari gajian.'],
     ['🌙', 'Delapan palet warna baru di Pengaturan › Tampilan: Matcha, Kopi Susu, Senja, Malam, Madu, Ceri, Langit, dan Anggur. Totalnya sekarang 16 pilihan.'],
     ['⭐', 'Setiap warna baru punya versi terang dan gelap, dan tulisannya tetap jelas dibaca.'],
   ] },
