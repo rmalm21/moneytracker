@@ -115,6 +115,8 @@ function cleanLine(raw: string) {
     line = line.replace(/^[\s|_~'"*•·]+|[\s|_~'"]+$/g, '').replace(/^[.,:;=~—-]{2,}\s*|^[.,:;=~]\s+/, '').replace(/["'](?=\d)|(?<=\d)["']/g, '');
     // Tokens that are mostly digits: fix look-alike letters ("35.0O0", "l2.500", "S.170").
     line = line.replace(/[0-9OoDQlIi|SsBZz][0-9OoDQlIi|SsBZz.,]{2,}/g, token => {
+      // 7.2 — a pack size in a product's name ("TISU 250S", "PROMAG 12S"), not an amount ending in a 5.
+      if (/^\d{1,3}[Ss]$/.test(token)) return token;
       const digits = (token.match(/\d/g) || []).length, letters = token.replace(/[\d.,]/g, '').length;
       // "25.OOO": a thousands group of O's is still money (the shape decides, not the letter count).
       const grouped = /\d/.test(token) && /^[0-9OoDQlI|SB]{1,3}(?:[.,][0-9OoDQ]{3})+$/.test(token);
@@ -168,6 +170,11 @@ export function pairColumns(lines: string[]) {
 function pairColumnLines(lines: SourceLine[]) {
   const out: SourceLine[] = [];
   for (let i = 0; i < lines.length;) {
+    // 7.2 — "17,700" / "KEMBALIAN :": an amount printed (or read) just above its summary label, which has none of its own.
+    const next = lines[i + 1]?.text || '', after = lines[i + 2]?.text || '';
+    if (AMOUNT_ONLY.test(lines[i].text) && labelOnly(next) && ['total', 'paid', 'change', 'subtotal'].includes(keyOf(next.replace(/[:=]\s*$/, '').trim()) || '') && !AMOUNT_ONLY.test(after)) {
+      out.push({ text: `${next} ${lines[i].text}`, origin: [...lines[i + 1].origin, ...lines[i].origin] }); i += 2; continue;
+    }
     if (!labelOnly(lines[i].text)) { out.push(lines[i]); i++; continue; }
     let j = i; while (j < lines.length && labelOnly(lines[j].text)) j++;
     let k = j; while (k < lines.length && AMOUNT_ONLY.test(lines[k].text)) k++;
@@ -252,6 +259,8 @@ const SUMMARY_V41: [Key, RegExp][] = [
   ['fee', /^\W*others?\s*$/i],
   // "SUB.TOTAL", "SB Total", "S/B TOTAL": the subtotal with its punctuation or letters lost.
   ['subtotal', /^\W*(?:sub|sb|s\/b)\W{0,2}t[o0]ta[l1i]\b/i],
+  // 7.2 — "ANDA HEMAT : 7,500" (minimarket): what the item discounts saved, already in the total.
+  ['ignore', /^\W*(?:anda\s*hemat|hemat\s*anda|you\s*saved?|total\s*penghematan)\b/i],
   // "DUE", "BALANCE DUE", "NETTO", "TL": what is to be paid.
   ['total', /^\W*(?:balance\s*)?due\s*:?\s*$|^\W*netto\s*:?\s*$|^\W*tl\s*:?\s*$/i],
 ];
@@ -310,6 +319,10 @@ function readItem(label: string, total: number): { name: string; qty: number; pr
   if (lead && +lead[1] >= 1 && +lead[1] <= 99 && total % +lead[1] === 0) return { name: label.slice(lead[0].length).trim(), qty: +lead[1], price: total / +lead[1], unitPrinted: +lead[1] === 1 };
   const tail = label.match(/\s[x×]\s*(\d{1,3})$/i) || label.match(/\s(\d{1,3})\s*(?:[x×]|pcs)$/i);
   if (tail && +tail[1] >= 1 && total % +tail[1] === 0) return { name: label.slice(0, tail.index).trim(), qty: +tail[1], price: total / +tail[1], unitPrinted: +tail[1] === 1 };
+  // 7.2 — the unit price printed but its quantity lost ("AUTAN LOTION 50ML   9,900 59,400", the "6" not read): the
+  // line total is a whole number of unit prices.
+  const unitOnly = label.match(/(?:^|\s)(?:rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+)\s*$/i), unit = unitOnly ? readNumber(unitOnly[1]) : 0;
+  if (unitOnly && unit >= 100 && total % unit === 0 && total / unit >= 2 && total / unit <= 99 && /[a-z]{3,}/i.test(label.slice(0, unitOnly.index))) return { name: label.slice(0, unitOnly.index).trim(), qty: total / unit, price: unit, unitPrinted: true };
   return { name: label, qty: 1, price: total, unitPrinted: true };
 }
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
@@ -369,6 +382,8 @@ function knownShop(lines: string[]) {
   }
   return '';
 }
+/** A size printed in a product's name: "600ML", "1.5L", "5X65ML", "250S", "10BTR". */
+const SIZE = /\b\d+(?:[.,]\d+)?\s*(?:x\s*\d+(?:[.,]\d+)?\s*)?(?:ml|l|lt|ltr|liter|g|gr|gram|kg|mg|cc|s|pcs|pc|btr|butir|pck|pack|sachet|sct|cm|mm)\b/gi;
 /** A shop name: mostly letters, at least four of them (not OCR noise like "0 ERA" or "Se"), and not a greeting. */
 const looksLikeName = (line: string) => { const letters = (line.match(/[a-z]/gi) || []).length, visible = line.replace(/\s/g, '').length, words = line.split(/\s+/); return letters >= 4 && letters / visible >= .7 && (words.some(w => /^[a-z&'.-]{4,}$/i.test(w)) || words.every(w => /^[A-Z0-9&'.-]{2,}$/.test(w))) && !/^(selamat|welcome|struk|receipt|nota|invoice|bukti|terima kasih|thank)/i.test(line); };
 
@@ -481,7 +496,7 @@ export function notTransaction(line: string, raw: string) {
   return false;
 }
 const BRANCHISH = /\b(mall|plaza|square|town|city|center|centre|store|outlet|cabang|branch|station|stasiun|terminal|bandara|airport|tower|park|residence|junction|walk|point)\b/i;
-const DISCOUNT_WORDS = /^(item|d[i1l]sk[o0]n|disc|discount|dsc|potongan|promo|hemat|rabat|off)$/i;
+const DISCOUNT_WORDS = /^(item|d[i1l]sk[o0]n|disc|discount|dsc|potongan|pot|promo|hemat|rabat|off)$/i;
 /** Discount words that say nothing about which item ("Member Discount"): the place decides (see below). */
 const GENERIC_DISCOUNT_WORDS = /^(member|members|anggota|special|spesial|produk|harga|price|markdown)$/i;
 type LineKind = 'item' | 'modifier' | 'charge' | 'subtotal' | 'total' | 'paid' | 'change' | 'meta' | 'other';
@@ -520,6 +535,9 @@ function readPaperText(text: string): ReceiptRead {
   const dates: { date: string; time: string; position: number; score: number }[] = [], times: { time: string; position: number }[] = [];
   const fuelDetail = type === 'fuel' ? /\b(harga\s*\/?\s*(l|liter|ltr)|\/\s*(l|liter|ltr)\b|volume|liter|ltr|pompa|pulau|nozzle|shift|spbu)\b/i : null;
   const nearItem = (position: number) => Boolean(lastItem && !summary && (lastItemPos === position - 1 || kinds[position - 1] === 'modifier'));
+  // A price row: an amount with no name of its own, or with only an item's choice after a dash ("-Sedang 41,000").
+  const priceRow = (l?: string) => { const a = l && !readReceiptDate(l) && !timeOf(l) ? readAmount(l) : null; return Boolean(l && a && a.value >= 100 && !keyOf(l.slice(0, a.start)) && !notTransaction(l, l) && (!/[a-z]{3,}/i.test(l.slice(0, a.start).replace(/\b(?:rp|pcs|x)\b/gi, '')) || /^\s*-\s*[a-z][a-z ]{1,20}$/i.test(l.slice(0, a.start).trim()))); };
+  const codeLine = (l?: string) => Boolean(l && l.length <= 28 && /\d/.test(l) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(l.trim()) && /[\-/]/.test(l) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(l) && (l.match(/[a-z]/gi) || []).length <= 6);
   lines.forEach((line, position) => {
     // "Tgl.07-28-202613:40:27": the year and the time printed (or read) without a space between them.
     const dated = line.replace(/(\b\d{1,2}[-/.]\d{1,2}[-/.]20\d{2})(?=[01]?\d[:.][0-5]\d)/, '$1 ');
@@ -541,25 +559,31 @@ function readPaperText(text: string): ReceiptRead {
     // A product code under a pending name ("DB024 - 12/60", "SKU-88/XL") is that item's variant, kept as printed.
     const printed = (source[position]?.raw || line).trim();
     if (pendingName && position === pendingPos + 1 && !pendingCode && printed.length <= 28 && /\d/.test(printed) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(printed) && /[\-/]/.test(printed) && !/rp|\d{1,3}[.,]\d{3}\b/i.test(printed) && (printed.match(/[a-z]/gi) || []).length <= 6 && !quantityLine(line)) { pendingCode = printed; pendingPos = position; kinds[position] = 'item'; return; }
-    const amount = readAmount(line);
+    // 7.2 — a shop's name with a small number in it ("BINTANG 24", "TOKO 88") at the top is the name, not money.
+    const found = readAmount(line);
+    // A name ending in its size without the unit ("ULTRA MILK CKLT 250") over its price row is a name, not a price of 250.
+    const sizeTail = Boolean(found && found.value < 1000 && /^[^\d]*[a-z]{3,}[^\d]*\s\d{2,3}\s*$/i.test(line) && !keyOf(line) && priceRow(lines[position + 1]));
+    const amount = found && (sizeTail || found.value < 100 && position < 4 && !out.items.length && !lastItem && looksLikeName(line) && !keyOf(line)) ? null : found;
     if (!amount) {
       // A name alone: its quantity and price may be on the next line ("ES TEH" / "2 x 6.000 12.000").
       // A name may carry sizes and codes ("AUTO FOLD UMBRELLA 535MM*8K Y201#", "MIRROR 12*3*14.7CM"): enough letters and
       // no amount written like money still make it a name.
       const lettersCount = (line.match(/[a-z]/gi) || []).length;
-      if (/[a-z]{2,}/i.test(line) && (!/\d{3,}/.test(line.replace(/[\s.,]/g, '')) || lettersCount >= 8 && /[a-z]{4,}/i.test(line) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(line) && !/^\s*\d{5,}/.test(line))) {
+      // 7.2 — a short name whose only long number is its size ("AQUA 600ML", "CLEO 1500ML", "TISU 250S").
+      const sized = lettersCount >= 3 && /[a-z]{3,}/i.test(line) && !/\d{3,}/.test(line.replace(SIZE, ' ').replace(/[\s.,]/g, '')) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(line);
+      // 7.2 — a cashier or terminal code alone on a row ("2J08/DEWI") is not a name.
+      const code = /^\S*\d\S*\/\S+$|^\S+\/\S*\d\S*$/.test(line.trim());
+      if (/[a-z]{2,}/i.test(line) && !code && (!/\d{3,}/.test(line.replace(/[\s.,]/g, '')) || sized || sizeTail || lettersCount >= 8 && /[a-z]{4,}/i.test(line) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(line) && !/^\s*\d{5,}/.test(line))) {
         // The header (before any item, and before the date unless nothing is found yet): candidates for the shop, its
         // company and its outlet, scored after the whole receipt is read.
         // Not when a price row follows (right under it, or under a product code): then it is the first item's name, even
         // with the date only at the bottom of the receipt.
-        // A price row: an amount with no name of its own, or with only an item's choice after a dash ("-Sedang 41,000").
-        const priceRow = (l?: string) => { const a = l && !readReceiptDate(l) && !timeOf(l) ? readAmount(l) : null; return Boolean(l && a && a.value >= 100 && !keyOf(l.slice(0, a.start)) && !notTransaction(l, l) && (!/[a-z]{3,}/i.test(l.slice(0, a.start).replace(/\b(?:rp|pcs|x)\b/gi, '')) || /^\s*-\s*[a-z][a-z ]{1,20}$/i.test(l.slice(0, a.start).trim()))); };
-        const codeLine = (l?: string) => Boolean(l && l.length <= 28 && /\d/.test(l) && /^[A-Z0-9][A-Z0-9 ./\-]*$/i.test(l.trim()) && /[\-/]/.test(l) && !/\d{1,3}[.,]\d{3}\b|\brp\b/i.test(l) && (l.match(/[a-z]/gi) || []).length <= 6);
         const itemAhead = priceRow(lines[position + 1]) || codeLine(source[position + 1]?.raw || lines[position + 1]) && priceRow(lines[position + 2]);
         const headerLike = (line.match(/[a-z]/gi) || []).length >= 3 && !quantityLine(lines[position + 1]) && !keyOf(line) && !itemAhead && !/^[a-z][a-z .]{1,20}\s*:\s*\S/i.test(line);
         if (!out.items.length && !lastItem && position < 7 && headerLike && (!dates.length || (!header.length && looksLikeName(line))) && !/^(selamat|welcome|struk|receipt|nota|invoice|bukti|terima kasih|thank)/i.test(line)) { header.push({ text: line.slice(0, 60), position }); kinds[position] = 'meta'; return; }
         // The rest of an item's name printed under its price row ("5 x 65 ml", "Original 500 ml"): a size or volume.
-        if (nearItem(position) && line.length <= 32 && /\b\d+(?:[.,]\d+)?\s*(?:ml|l|ltr|liter|gr|g|gram|kg|pcs|pack|sachet|cm|mm|oz)\b/i.test(line) && !keyOf(line)) {
+        // Not when a price row follows: then it is the next item's name ("COCA COLA 390ML" / "2 x 6.500 13.000").
+        if (nearItem(position) && line.length <= 32 && /\b\d+(?:[.,]\d+)?\s*(?:ml|l|ltr|liter|gr|g|gram|kg|pcs|pack|sachet|cm|mm|oz)\b/i.test(line) && !keyOf(line) && !itemAhead) {
           lastItem!.name = `${lastItem!.name} ${line.trim()}`.slice(0, 80); lastItem!.lines?.push(...origin(position)); kinds[position] = 'item'; lastItemPos = position; pendingName = ''; return;
         }
         // A note under an item ("NO ICE", "1 hangat 2 ice") belongs to that item.
@@ -583,6 +607,11 @@ function readPaperText(text: string): ReceiptRead {
     // "Total Item 1   9,600": the count of items and, at the end of the row, the amount to pay.
     if (key === 'ignore' && /^\s*t[o0]ta[l1i]\s*(?:item|items|qty|barang)\b/i.test(label) && amount.value >= 100) key = 'total';
     if (key === 'ignore') { pendingName = ''; return; }
+    // 7.2 — "2 9,900" right under "AUTAN LOTION 50ML 19,800": the quantity and unit price of that item, moved a row down.
+    const detail = label.match(/^\s*(\d{1,2})\s*[x×@]?\s*$/);
+    if (detail && !key && nearItem(position) && +detail[1] >= 2 && +detail[1] * amount.value === lastItem!.total) {
+      lastItem!.qty = +detail[1]; lastItem!.price = amount.value; lastItem!.unitPrinted = true; lastItem!.lines?.push(...origin(position)); kinds[position] = 'item'; lastItemPos = position; return;
+    }
     // A discount printed right under an item ("DISC MINYAK -5.000", "DISKON 20% -90.000") is that item's discount.
     if (nearItem(position) && (key === 'discount' || (!key && amount.value < 0))) {
       const value = Math.abs(amount.value), item = lastItem!;
@@ -614,7 +643,9 @@ function readPaperText(text: string): ReceiptRead {
     if (summary) { out.skipped++; unplaced++; pendingName = ''; return; }
     if (amount.value < 0) { out.discount += -amount.value; add('discount', position); out.charges!.push({ type: 'discount', key: 'discount', label: label.slice(0, 40), amount: -amount.value, line: origin(position)[0] ?? position }); kinds[position] = 'charge'; pendingName = ''; return; }
     if (amount.value < 100 || out.items.length >= 150) { out.skipped++; return; }
-    const read = readItem(label, amount.value);
+    // 7.2 — a weighed item's row ("0.582 KG x 59,900   34,862") under its name: one item at the printed amount.
+    const weighed = /^\s*\d+[.,]\d{1,3}\s*(?:kg|kgs|gr|g)\s*[x×@*]\s*(?:rp\.?\s*)?\d[\d.,]*\s*$/i.test(label);
+    const read = weighed ? { name: '', qty: 1, price: amount.value, unitPrinted: false } as ReturnType<typeof readItem> : readItem(label, amount.value);
     // Punctuation alone ("—", "•") is not a name; then the name is on the line above.
     const own = /[a-z]{2,}/i.test(read.name) ? read.name : '';
     // Hard item boundary: a priceless line right under an item, followed by a row with its own name and price, is not
@@ -671,6 +702,10 @@ function readPaperText(text: string): ReceiptRead {
   // the subtotal or the items (the reader lost its first digits: "5.00" for "85.800") is not a total.
   const itemSum = itemsNet(out.items), floor = Math.max(out.subtotal, itemSum) * .3;
   for (let i = totals.length - 1; i >= 0; i--) if (floor && totals[i].value < floor) { totals.splice(i, 1); out.skipped++; }
+  // 7.2 — "Total Item 4   56,200" followed by its discounts and another total ("Total Belanja 49,800"): the count row
+  // is what the items cost before the discounts, the subtotal. Alone, it stays the total (Alfamidi).
+  const countRow = totals.find(t => /^\s*t[o0]ta[l1i]\s*(?:item|items|qty|barang)\b/i.test(lines[t.position] || ''));
+  if (countRow && !out.subtotal && totals.some(t => t.position > countRow.position && t.value < countRow.value)) { out.subtotal = countRow.value; add('subtotal', countRow.position); totals.splice(totals.indexOf(countRow), 1); }
   totals.sort((a, b) => b.strength - a.strength || b.position - a.position);
   if (!out.subtotal && totals.length > 1) { const sub = totals.find(t => t !== totals[0] && t.value === itemSum && t.value !== totals[0].value); if (sub) { out.subtotal = sub.value; subtotalPos = sub.position; sources.subtotal = origin(sub.position); kinds[sub.position] = 'subtotal'; totals.splice(totals.indexOf(sub), 1); } }
   out.totals = [...new Set(totals.map(t => t.value))];
@@ -680,7 +715,8 @@ function readPaperText(text: string): ReceiptRead {
   // or larger than it.
   const money = new Set([out.total, out.subtotal, out.paid, ...out.totals].filter(Boolean));
   while (out.items.length > 1 && money.has(out.items[out.items.length - 1].total) && out.items.slice(0, -1).reduce((n, i) => n + i.total, 0) > 0) { out.items.pop(); out.skipped++; }
-  if (out.total) { const before = out.items.length; out.items = out.items.filter(item => netOf(item) <= out.total * 1.02); out.skipped += before - out.items.length; }
+  // Not an item larger than the subtotal either: a voucher can make the total smaller than the one item bought.
+  if (out.total) { const before = out.items.length, cap = Math.max(out.total, out.subtotal) * 1.02; out.items = out.items.filter(item => netOf(item) <= cap); out.skipped += before - out.items.length; }
   // Shop name from the header candidates: the brand, not the company (PT/CV), an address, a payment brand or the outlet.
   if (header.length) {
     const roles = header.map((h, index) => {
@@ -730,7 +766,7 @@ function readPaperText(text: string): ReceiptRead {
   const chosen = method as { value: PaymentMethod; score: number; position: number } | null;
   if (chosen && chosen.score > 0) { out.payment = chosen.value; sources.payment = origin(chosen.position); }
   // Change is only given on a cash payment.
-  else if (out.change > 0 || lines.some(line => /^[a-z ]{4,20}$/i.test(line.trim()) && keyOf(line.trim()) === 'change')) { out.payment = 'cash'; if (changePos >= 0) sources.payment = origin(changePos); }
+  else if (out.change > 0 || changePos >= 0 && out.paid > 0 || lines.some(line => /^[a-z ]{4,20}$/i.test(line.trim()) && keyOf(line.trim()) === 'change')) { out.payment = 'cash'; if (changePos >= 0) sources.payment = origin(changePos); }
 
   out.identifiers = readIdentifiers(lines);
   if (type === 'fuel') {

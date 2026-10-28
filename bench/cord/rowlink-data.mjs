@@ -4,7 +4,9 @@ import fs from 'node:fs';
 const S = (process.env.CORD_WORK || '/tmp/cord-work');
 const { linkFeatures, tiltOf, candidates } = await import(new URL('../../lib/receipt-rowlink.ts', import.meta.url).href);
 const [set = 'cord-train'] = process.argv.slice(2);
-const data = JSON.parse(fs.readFileSync(`${process.env.CORD_DIR || '/tmp/cord'}/${set}-lines.json`));
+// 7.2: the minimarket sets (bench/minimarket, same format) live in MINI_DIR.
+const dir = set.startsWith('mini') ? (process.env.MINI_DIR || '/tmp/mini') : (process.env.CORD_DIR || '/tmp/cord');
+const data = JSON.parse(fs.readFileSync(`${dir}/${set}-lines.json`));
 const rawFile = `${S}/raw-${set}-1280.json`, raw = fs.existsSync(rawFile) ? JSON.parse(fs.readFileSync(rawFile)) : {};
 const median = v => { const s = [...v].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] || 0; };
 const X = [], y = [], g = [], src = [];
@@ -32,7 +34,7 @@ for (const [id, rec] of Object.entries(data)) {
   const merged = [];
   for (const [row, list] of byRow) { list.sort((a, b) => a.x0 - b.x0); let cur = null; for (const w of list) { if (cur && w.x0 - cur.x1 < h * .9) { cur.x1 = Math.max(cur.x1, w.x1); cur.y0 = Math.min(cur.y0, w.y0); cur.y1 = Math.max(cur.y1, w.y1); } else { cur && merged.push(cur); cur = { ...w }; } } cur && merged.push(cur); }
   add(merged, merged.map(m => m.row), r, 'merged');
-  if (set === 'cord-train') for (let k = 0; k < 2; k++) add(merged, merged.map(m => m.row), r, 'shear', (rand() - .5) * .2);
+  if (/-train$/.test(set)) for (let k = 0; k < 2; k++) add(merged, merged.map(m => m.row), r, 'shear', (rand() - .5) * .2);
   // Real OCR segments: each labelled by the true row of the words it covers (unlabelled text, e.g. the shop's header, is left out).
   const items = raw[id];
   if (items) {

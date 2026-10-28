@@ -1,4 +1,4 @@
-"""Trains the row-link model on CORD train pairs; reports dev accuracy (all pairs and real-OCR pairs); writes the model."""
+"""Trains the row-link model on CORD (and minimarket) train pairs; reports dev accuracy (all pairs and real-OCR pairs); writes the model."""
 import json, sys
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -7,15 +7,26 @@ from sklearn.preprocessing import StandardScaler
 
 import os
 S = os.environ.get('CORD_WORK', '/tmp/cord-work')
-tr = json.load(open(f'{S}/rowlink-cord-train.json'))
-dv = json.load(open(f'{S}/rowlink-cord-dev.json'))
-Xt, yt = np.array(tr['X']), np.array(tr['y'])
-Xd, yd, sd = np.array(dv['X']), np.array(dv['y']), np.array(dv['src'])
+# 7.2: INCLUDE_MINI=1 adds the minimarket receipts (bench/minimarket). Tried for 7.2 (with 16-8, 32-16 and 48-24
+# networks, several seeds and a 5-model average): none was better on both CORD and the minimarket rows, so the app keeps
+# the CORD-only model; the minimarket dev pairs are still reported when they exist.
+def sets(kind):
+    names = ('cord', 'mini') if kind == 'dev' or os.environ.get('INCLUDE_MINI') == '1' else ('cord',)
+    files = [(f'{S}/rowlink-{name}-{kind}.json', '' if name == 'cord' else 'mini-') for name in names]
+    return [(json.load(open(f)), tag) for f, tag in files if os.path.exists(f)]
+tr, dv = sets('train'), sets('dev')
+# The minimarket receipts print many words per row; at most as many of their pairs as CORD's, so CORD keeps its weight.
+if len(tr) == 2 and len(tr[1][0]['y']) > len(tr[0][0]['y']):
+    keep = np.random.default_rng(7).choice(len(tr[1][0]['y']), len(tr[0][0]['y']), replace=False)
+    tr[1] = ({k: [tr[1][0][k][i] for i in keep] for k in ('X', 'y', 'src')}, tr[1][1])
+Xt, yt = np.concatenate([np.array(d['X']) for d, _ in tr]), np.concatenate([np.array(d['y']) for d, _ in tr])
+Xd, yd = np.concatenate([np.array(d['X']) for d, _ in dv]), np.concatenate([np.array(d['y']) for d, _ in dv])
+sd = np.concatenate([np.array([tag + k for k in d['src']]) for d, tag in dv])
 scaler = StandardScaler().fit(Xt)
 
 def report(name, model):
     p = model.predict(scaler.transform(Xd))
-    for kind in ('all', 'word', 'merged', 'ocr'):
+    for kind in ('all', 'word', 'merged', 'ocr', 'mini-word', 'mini-merged', 'mini-ocr'):
         m = np.ones(len(yd), bool) if kind == 'all' else sd == kind
         if not m.any():
             continue

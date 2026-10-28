@@ -5,8 +5,9 @@ const { groupRows } = await import(new URL('../../lib/receipt-rowlink.ts', impor
 const { rowsOfSegments, segmentWords, rowsByModel } = await import(new URL('../../lib/ocr-paddle.ts', import.meta.url).href);
 const { slopeOf } = await import(new URL('../../lib/receipt-rows.ts', import.meta.url).href);
 const [set = 'cord-dev'] = process.argv.slice(2);
-const model = JSON.parse(fs.readFileSync(`${S}/rowlink-model.json`));
-const data = JSON.parse(fs.readFileSync(`${process.env.CORD_DIR || '/tmp/cord'}/${set}-lines.json`)), raw = JSON.parse(fs.readFileSync(`${S}/raw-${set}-1280.json`));
+const model = JSON.parse(fs.readFileSync(process.env.ROWLINK_MODEL || `${S}/rowlink-model.json`));
+const dir = set.startsWith('mini') ? (process.env.MINI_DIR || '/tmp/mini') : (process.env.CORD_DIR || '/tmp/cord');
+const data = JSON.parse(fs.readFileSync(`${dir}/${set}-lines.json`)), raw = JSON.parse(fs.readFileSync(`${S}/raw-${set}-1280.json`));
 const pts = poly => (poly || []).map(q => Array.isArray(q) ? { x: q[0], y: q[1] } : q);
 // A rebuilt row's token → its segment: same text and left edge, and the word's middle inside the row's height.
 const segOf = (segWords, t) => { const hits = segWords.map((ws, i) => ws.some(w => Math.abs(w.x0 - t.box.x) < .5 && w.text === t.text && (w.y0 + w.y1) / 2 >= t.box.y - 1 && (w.y0 + w.y1) / 2 <= t.box.y + t.box.height + 1) ? i : -1).filter(i => i >= 0); return hits.length === 1 ? hits[0] : -1; };

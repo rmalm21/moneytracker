@@ -2,10 +2,11 @@
 import fs from 'node:fs'; import path from 'node:path';
 const S = (process.env.CORD_WORK || '/tmp/cord-work');
 const [set = 'cord-dev', side = '1280', limit = '100'] = process.argv.slice(2);
-const truth = JSON.parse(fs.readFileSync(`${process.env.CORD_DIR || '/tmp/cord'}/${set}.json`)), dir = `${process.env.CORD_DIR || '/tmp/cord'}/${set}`;
+const base = set.startsWith('mini') ? (process.env.MINI_DIR || '/tmp/mini') : (process.env.CORD_DIR || '/tmp/cord');
+const truth = JSON.parse(fs.readFileSync(`${base}/${set}.json`)), dir = `${base}/${set}`;
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch(); const page = await browser.newPage();
-await page.route('**/bench-fixture/**', r => r.fulfill({ path: path.join(dir, decodeURIComponent(r.request().url().split('/bench-fixture/')[1])), contentType: 'image/png' }));
+await page.route('**/bench-fixture/**', r => r.fulfill({ path: path.join(dir, decodeURIComponent(r.request().url().split('/bench-fixture/')[1])), contentType: /\.jpe?g$/i.test(r.request().url()) ? 'image/jpeg' : 'image/png' }));
 await page.goto(`${process.env.BASE || 'http://localhost:3000'}/ocr-bench/`); await page.waitForSelector('#bench-ready', { timeout: 180000 });
 const inText = (t, n) => t.replace(/[.,\s]/g, '').includes(String(n));
 let prices = 0, pricesSeen = 0, totals = 0, totalsSeen = 0, ms = 0, n = 0; const out = {};

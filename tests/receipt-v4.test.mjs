@@ -57,3 +57,21 @@ test('a minus after the amount (rounding) is a negative amount, and "Pet Food" s
   assert.equal(readReceiptText('IKAN 55,834\nSubtotal 55,834\nRounding 34-\nTotal 55,800').rounding, -34);
   assert.deepEqual(readReceiptText('Pet Food 45.000\nTotal 45.000').items.map(i => i.name), ['Pet Food']);
 });
+
+// 7.2 — minimarket receipts (measured on bench/minimarket): two-line items with sizes, weighed items, item discounts.
+test('a name with its size over its quantity row is that row\'s item ("CLEO 1500ML" / "1 x 6.000 6.000")', () => {
+  const read = readReceiptText('CLEO 1500ML\n   1 x 6.000      6.000\nCOCA COLA 390ML\n   2 x 6.500     13.000\nULTRA MILK CKLT 250\n   2 x 6.200     12.400\nTISU PASEO 250S\n   1 x 18.900    18.900\nTotal : 50.300');
+  assert.deepEqual(read.items.map(i => [i.name, i.qty, i.total]), [['CLEO 1500ML', 1, 6000], ['COCA COLA 390ML', 2, 13000], ['ULTRA MILK CKLT 250', 2, 12400], ['TISU PASEO 250S', 1, 18900]]);
+});
+test('a shop name with a small number is the name; a weighed item survives a voucher; "Kembalian 0" means cash', () => {
+  const read = readReceiptText('BINTANG 24\nJL. MERPATI BLOK C2\nMALANG\nAYAM FILLET\n   0.582 KG x 59,900      34,862\nSUBTOTAL 34,862\nVOUCHER -5,000\nTOTAL 29,862\nBayar : 29,862\nKembalian : 0');
+  assert.equal(read.merchant, 'BINTANG 24');
+  assert.deepEqual(read.items.map(i => [i.name, i.qty, i.total]), [['AYAM FILLET', 1, 34862]]);
+  assert.equal(checkReceipt(read).total, 29862); assert.equal(read.payment, 'cash');
+});
+test('"Total Item 3" before the discounts and "Total Belanja" is the subtotal; "POT. HARGA" belongs to its item; "ANDA HEMAT" is not counted again', () => {
+  const read = readReceiptText('POCARI SWEAT 500ML    1   7,900    7,900\n   POT. HARGA                    -1,600\nKINDER JOY            2  13,500   27,000\nTotal Item       3               34,900\nTotal Disc.                      -1,600\nTotal Belanja                    33,300\nTunai                            50,000\nKembalian                        16,700\nANDA HEMAT :                      1,600');
+  assert.deepEqual(read.items.map(i => [i.name, i.total, i.discount || 0]), [['POCARI SWEAT 500ML', 7900, 1600], ['KINDER JOY', 27000, 0]]);
+  assert.equal(read.subtotal, 34900); assert.equal(read.discount, 0);
+  const check = checkReceipt(read); assert.equal(check.total, 33300); assert.equal(check.matches, true);
+});
