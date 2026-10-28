@@ -27,7 +27,7 @@
  */
 import type { AskData } from './catat/ask.ts';
 import type { Budget, Category, Claim, Debt, Fund, LedgerTx, PlannedTransaction, Receivable, Recurring, TxType, Wallet, WishItem } from './types';
-import { flowOf, suggestCategory } from './categorize.ts';
+import { flowOf, readConcepts, suggestCategory } from './categorize.ts';
 import { blankOut, resolveBoundaries, type BoundaryResult } from './catat/entities.ts';
 import { findTimes, timeSpans } from './catat/temporal.ts';
 
@@ -419,6 +419,34 @@ export function knownPlaces(ctx: Pick<QuickContext, 'history' | 'merchants'>) {
   for (const [alias, name] of Object.entries(PLACE_ALIASES)) map.set(alias, name);
   for (const name of [...EXTRA_PLACES, ...(ctx.merchants || []), ...ctx.history.map(t => t.merchant).filter(Boolean)]) if (name && name.length >= 3) map.set(lower(name).replace(/\s+/g, ' ').trim(), name);
   return map;
+}
+/** Meal times and snacking: the category of a food purchase, not part of its description (6.8). */
+const MEAL_TIME = /\b(?:sarapan|breakfast|makan pagi|makan siang|maksi|lunch|makan malam|makan malem|makmal|dinner|ngemil|nyemil)\b/g;
+/** Who someone eats with: never the thing bought. */
+const COMPANY = new Set('fam family keluarga temen teman temen2 pacar ayang istri suami anak ortu bos boss client klien tim team rekan kolega bestie gebetan'.split(' '));
+/** Words that name the kind of place itself (a canteen, a stall, a market): a place after the amount even though the
+ *  category reader also takes them as food evidence ("es teh 5rb kantin", "jajan 30rb pasar"). */
+const PLACE_KIND = /\b(kantin|warteg|warung|warkop|resto|restoran|rumah makan|rm|kedai|depot|pasar|toko|kios|minimarket|supermarket|mall|kafe|cafe|angkringan|foodcourt|food court|spbu|pom|bengkel|apotek|apotik|klinik|kampus|kantor|sekolah|stasiun|terminal|bandara)\b/;
+/** 6.8: whether a phrase after the amount names a thing or a category (not a place): "jajan", "makan malam", "snack",
+ *  "pertalite", or the name of one of the person's categories. A kind of place ("kantin", "pasar") is a place. */
+function thingOrCategory(phrase: string, ctx: Pick<QuickContext, 'categories' | 'wallets'>) {
+  // A wallet written short or with a typo ("mand", "mandri") is how it was paid, never a place.
+  const squeezed = phrase.replace(/\s+/g, '');
+  if (squeezed.length >= 3 && ctx.wallets.some(w => { const n = lower(w.name).replace(/\s+/g, ''); return n.startsWith(squeezed) || squeezed.length >= 4 && n.length >= 4 && oneEditAway(squeezed, n); })) return true;
+  if (PLACE_KIND.test(phrase)) return false;
+  if (ctx.categories.some(c => !c.isArchived && lower(c.name) === phrase)) return true;
+  return readConcepts(phrase, 0, 'expense').size > 0 || readConcepts(phrase, 0, 'income').size > 0;
+}
+/** Whether two words differ by one letter at most (one change, insertion or deletion). */
+function oneEditAway(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
 }
 /** How people write some chains without punctuation or in short. */
 const PLACE_ALIASES: Record<string, string> = { dbesto: 'D\'Besto', 'd besto': 'D\'Besto', cotti: 'Cotti Coffee', 'cotti kopi': 'Cotti Coffee' };
@@ -1000,7 +1028,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   // Dates and times are owned by their fields: protected boundaries for the merchant, blanked out of the description.
   const dateSpans = [...text.matchAll(new RegExp(DATE_PHRASES.source, 'g'))].map(m => ({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
   const times = findTimes(text).map(t => ({ start: t.start, end: t.end, raw: t.raw }));
-  const bounds = resolveBoundaries({ text, amount: main && main.text === amountText ? { index: main.index, text: main.text } : null, wallets, dates: dateSpans, times, flow, knownPlaces: knownPlaces(ctx) });
+  const bounds = resolveBoundaries({ text, amount: main && main.text === amountText ? { index: main.index, text: main.text } : null, wallets, dates: dateSpans, times, flow, knownPlaces: knownPlaces(ctx), notPlace: phrase => thingOrCategory(phrase, ctx) });
   result.entities = bounds;
   let rest = ` ${blankOut(text, spending ? bounds.blank : bounds.blank.filter(b => bounds.owned.some(o => o.start === b.start && o.end === b.end)))} `;
   if (!(main && main.text === amountText)) rest = rest.replace(amountText.toLowerCase(), ' ');
@@ -1038,6 +1066,15 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   rest = rest.replace(/\b(?:uang|duit)\s+jajan\b/g, ' uangjajan ');
   rest = rest.replace(VERBS, ' ').replace(FILLERS, ' ').replace(/\buangjajan\b/g, 'uang jajan')
     .replace(flow.startsWith('claim') ? /\b(kantor|reimbursement|reimburse|direimburse|diklaim|klaim|claim|nanti|diganti|ganti|rembes)\b/g : /$^/, ' ').replace(flow === 'expense' || flow === 'income' ? /\b(pelunasan|lunasi|tabungan|target|wishlist|wish list)\b/g : /\b(pelunasan|lunasi|pinjaman|cicilan|angsuran|kredit|paylater|tabungan|target|wishlist|wish list)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  // 6.8: a meal time is the category and the food is the description: "nasi padang buat makan malam", "sarapan bubur
+  // ayam", "lunch mie ayam", "ngemil keripik" → Nasi Padang, Bubur Ayam, Mie Ayam, Keripik (with Makan Malam, Sarapan,
+  // Makan Siang, Jajan as the category, read from the whole text). A meal time alone ("makan malam 30rb") stays.
+  if (flow === 'expense') {
+    const food = rest.replace(MEAL_TIME, ' ').replace(/\bw\/|\b(?:pas|waktu|wkt|for|with|bareng|bersama)\b/g, ' ').replace(/[^\p{L}\p{N}&'’\s-]/gu, ' ').replace(/\s+/g, ' ').trim();
+    // What is left must be something bought, not only who it was with ("dinner w/ fam" stays "Dinner W/ Fam").
+    const words = food.split(' ').filter(w => /\p{L}{2,}/u.test(w));
+    if (food !== rest.replace(/\s+/g, ' ').trim() && words.length && !words.every(w => COMPANY.has(w))) rest = ` ${food} `;
+  }
   const item = rest;
 
   if (flow === 'expense' || flow === 'income') {

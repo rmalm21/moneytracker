@@ -1106,7 +1106,13 @@ function compose(plain: QuickParseResult, text: string, ctx: QuickContext): Quic
     const r = a.result;
     const notes = slotNotes(slot);
     if (notes) r.preset.notes = [r.preset.notes, notes].filter(Boolean).join(' · ');
-    if (slot.items?.length) {
+    // 6.8 "beli nasi padang buat makan malam": with a meal time as the activity, the one thing bought is the description
+    // (Nasi Padang, category Makan Malam), not a detail under "Makan Malam".
+    const mealOnly = /^(?:sarapan|breakfast|makan pagi|makan siang|maksi|lunch|makan malam|makan malem|dinner|ngemil)$/;
+    if (slot.items?.length === 1 && !slot.inline && !slot.items[0].amount && !slot.items[0].qty && mealOnly.test((r.preset.description || '').toLocaleLowerCase('id-ID').trim())) {
+      a.evidence.push(`${slot.items[0].name} dibaca sebagai yang dibeli; ${r.preset.description} sebagai kategorinya.`);
+      r.preset.description = slot.items[0].name.replace(/(^|\s)(\S)/g, (_m: string, sp: string, c: string) => sp + c.toLocaleUpperCase('id-ID'));
+    } else if (slot.items?.length) {
       r.details = slot.items;
       const priced = slot.items.every(i => i.amount) && slot.items.reduce((n, i) => n + (i.amount || 0), 0) === r.amount;
       if (priced && !r.composition) r.preset.receipt = { ...(r.preset.merchant ? { merchant: r.preset.merchant } : {}), items: slot.items.map(i => ({ name: i.name, qty: i.qty || 1, price: Math.round((i.amount || 0) / (i.qty || 1)), total: i.amount || 0 })), charges: [], subtotal: r.amount, total: r.amount };

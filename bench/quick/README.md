@@ -109,3 +109,9 @@ and comparisons. Ledger and truth helpers in `fixtures-v60askstate.mjs`; sets `f
 `fixtures-v60askheldout.mjs` (22, written before the engine; first run frozen in `heldout-first/v60-ask-heldout-first.json`).
 Runner `run-ask.mjs`. First results: dev 32/32, held-out 22/22, 0 confident-wrong. The held-out was written by the same
 author against the same small ledger, so real questions will miss more often than these numbers say.
+
+## Catat otomatis 6.8 (bahasa sehari-hari)
+
+Tempat setelah nominal tanpa “di”, waktu makan sebagai kategori, jajanan dan minuman bermerek. Sets
+`fixtures-v68dev.mjs` / `fixtures-v68heldout.mjs` on the real default taxonomy (`fixtures-v68state.mjs`), runner
+`run-v68.mjs` against `baseline-v67/`. Report: `REPORT-v68.md`.

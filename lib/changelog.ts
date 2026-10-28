@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '6.8', date: '28 Okt 2026', title: 'Catat otomatis paham bahasa sehari-hari', items: [
+    ['🏪', 'Tempat tanpa “di” sekarang terbaca: “soyjoy jajan 25k bedeng” jadi Soyjoy, kategori Jajan, tempat Bedeng, dompet bawaan. Satuan, jenis bensin, kendaraan, dan cara bayar tidak dikira tempat.'],
+    ['🍽️', 'Waktu makan jadi kategori, makanannya jadi keterangan: “nasi padang buat makan malam” jadi Nasi Padang di Makan Malam. Berlaku juga untuk “sarapan bubur”, “lunch mie ayam”, dan “ngemil keripik”.'],
+    ['🍿', 'Lebih banyak jajanan dan minuman dikenali namanya: Soyjoy, Oreo, SilverQueen, Beng-Beng, Taro, Pocky, martabak, Yakult, Ultra Milk, dan banyak lagi.'],
+    ['🤖', 'Diuji dengan 60 kalimat sehari-hari dan 37 kalimat uji terpisah: yang benar seluruhnya naik dari 40% ke 100% dan dari 46% ke 97%, tanpa mengubah hasil kalimat lama.'],
+  ] },
   { version: '6.7', date: '28 Okt 2026', title: 'Header baru dan delapan warna baru', items: [
     ['🏠', 'Header Beranda tampil baru: kartu putih yang bersih dan elegan, angka lebih tegas, dan warna palet hanya di lingkaran hari gajian.'],
     ['🌙', 'Delapan palet warna baru di Pengaturan › Tampilan: Matcha, Kopi Susu, Senja, Malam, Madu, Ceri, Langit, dan Anggur. Totalnya sekarang 16 pilihan.'],

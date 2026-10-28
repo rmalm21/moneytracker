@@ -1,0 +1,632 @@
+{
+ "summary": {
+  "set": "v68heldout",
+  "cases": 37,
+  "exact": {
+   "before": 17,
+   "after": 36
+  },
+  "segmentation": {
+   "before": 37,
+   "after": 37
+  },
+  "fields": {
+   "amount": {
+    "before": "39/39",
+    "after": "39/39"
+   },
+   "wallet": {
+    "before": "5/5",
+    "after": "5/5"
+   },
+   "date": {
+    "before": "4/4",
+    "after": "4/4"
+   },
+   "description": {
+    "before": "13/32",
+    "after": "31/32"
+   },
+   "cat": {
+    "before": "35/38",
+    "after": "37/38"
+   },
+   "merchant": {
+    "before": "11/17",
+    "after": "16/17"
+   }
+  },
+  "confidentWrong": {
+   "before": 18,
+   "after": 1
+  },
+  "regressions": [],
+  "rescues": [
+   "h2",
+   "h3",
+   "h4",
+   "h5",
+   "h7",
+   "h8",
+   "h9",
+   "h10",
+   "h11",
+   "h12",
+   "h13",
+   "h14",
+   "h15",
+   "h16",
+   "h17",
+   "h18",
+   "h19",
+   "h36",
+   "h37"
+  ],
+  "latencyMs": {
+   "before": {
+    "avg": 36.1,
+    "p95": 24.6
+   },
+   "after": {
+    "avg": 14,
+    "p95": 26.8
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "h1",
+   "group": "tempat",
+   "text": "taro jajan 7rb alfamidi",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h2",
+   "group": "tempat",
+   "text": "pocky 12k indomaret gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "cat: ∅ ≠ expense.makan-minum.jajan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h3",
+   "group": "tempat",
+   "text": "es jeruk 6rb kantin kantor",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "aksi a0: expense Rp6.000 dari “es jeruk 6rb kantin kantor”",
+    "mutasi a0: CREATE · dompet utama −Rp6.000"
+   ],
+   "errors": {
+    "before": [
+     "description: es jeruk kantin kantor ≠ es jeruk",
+     "merchant: ∅ ≠ kantin kantor"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h4",
+   "group": "tempat",
+   "text": "siomay 15rb mang ujang",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: siomay mang ujang ≠ siomay",
+     "merchant: ∅ ≠ mang ujang"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h5",
+   "group": "tempat",
+   "text": "roti bakar jajan 18rb bedeng jago",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: roti bakar bedeng ≠ roti bakar",
+     "merchant: ∅ ≠ bedeng"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h6",
+   "group": "tempat",
+   "text": "kemarin beli richeese 10rb alfamart",
+   "before": false,
+   "after": false,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: alfamart ≠ richeese",
+     "cat: expense.makan-minum ≠ expense.makan-minum.jajan",
+     "merchant: richeese ≠ alfamart"
+    ],
+    "after": [
+     "description: alfamart ≠ richeese",
+     "cat: expense.makan-minum ≠ expense.makan-minum.jajan",
+     "merchant: richeese ≠ alfamart"
+    ]
+   }
+  },
+  {
+   "id": "h7",
+   "group": "tempat",
+   "text": "thai tea 15rb dum dum",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: thai tea dum dum ≠ thai tea",
+     "merchant: ∅ ≠ dum dum"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h8",
+   "group": "tempat",
+   "text": "jajan 30rb pasar",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: pasar ≠ jajan",
+     "merchant: ∅ ≠ pasar"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h9",
+   "group": "waktu makan",
+   "text": "ayam penyet buat makan malem 23rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “makan malam ayam penyet 23rb” · “buat makan malam” → aktivitas",
+    "V3.5 slot #1: ACTIVITY “Ayam Penyet” · AMOUNT 23000 · CATEGORY Makan & Minum › Makan Malam"
+   ],
+   "errors": {
+    "before": [
+     "description: makan malam ayam penyet ≠ ayam penyet"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h10",
+   "group": "waktu makan",
+   "text": "lontong sayur sarapan 10rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: lontong sayur sarapan ≠ lontong sayur"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h11",
+   "group": "waktu makan",
+   "text": "sarapan roti 8rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: sarapan roti ≠ roti"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h12",
+   "group": "waktu makan",
+   "text": "makan siang nasi goreng 20rb gopay",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: makan siang nasi goreng ≠ nasi goreng"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h13",
+   "group": "waktu makan",
+   "text": "gado gado buat makan siang 15rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “makan siang gado gado 15rb” · “buat makan siang” → aktivitas",
+    "V3.5 slot #1: ACTIVITY “Gado Gado” · AMOUNT 15000 · CATEGORY Makan & Minum › Makan Siang"
+   ],
+   "errors": {
+    "before": [
+     "description: makan siang gado gado ≠ gado gado"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h14",
+   "group": "waktu makan",
+   "text": "nasi kuning 12rb buat sarapan",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “sarapan nasi kuning 12rb” · “buat sarapan” → aktivitas",
+    "V3.5 slot #1: ACTIVITY “Nasi Kuning” · AMOUNT 12000 · CATEGORY Makan & Minum › Sarapan"
+   ],
+   "errors": {
+    "before": [
+     "description: sarapan nasi kuning ≠ nasi kuning"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h15",
+   "group": "waktu makan",
+   "text": "dinner sate ayam 30rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: dinner sate ayam ≠ sate ayam"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h16",
+   "group": "waktu makan",
+   "text": "breakfast nasi uduk 12rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: breakfast nasi uduk ≠ nasi uduk"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h17",
+   "group": "waktu makan",
+   "text": "beli bakso untuk makan malam 20rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "V3.5 komposisi: “makan malam 20rb” · “buat makan malam” → aktivitas · rincian: Bakso",
+    "V3.5 slot #1: ACTIVITY “Bakso” · AMOUNT 20000 · CATEGORY Makan & Minum › Makan Malam"
+   ],
+   "errors": {
+    "before": [
+     "description: makan malam ≠ bakso"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h18",
+   "group": "waktu makan",
+   "text": "mie goreng makan siang 13rb di warung",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: mie goreng makan siang ≠ mie goreng"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h19",
+   "group": "waktu makan",
+   "text": "tadi sarapan bubur 10rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "description: sarapan bubur ≠ bubur"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h20",
+   "group": "waktu makan",
+   "text": "makan malam 45rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h21",
+   "group": "waktu makan",
+   "text": "nasi rames 15rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h22",
+   "group": "barang",
+   "text": "chiki 5rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h23",
+   "group": "barang",
+   "text": "le minerale 4rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h24",
+   "group": "barang",
+   "text": "teh botol 5rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h25",
+   "group": "barang",
+   "text": "beli wafer tango 6rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "aksi a0: expense Rp6.000 dari “beli wafer tango 6rb”",
+    "mutasi a0: CREATE · dompet utama −Rp6.000"
+   ],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h26",
+   "group": "barang",
+   "text": "cilok 5rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h27",
+   "group": "barang",
+   "text": "ultra milk 6rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [
+    "aksi a0: expense Rp6.000 dari “ultra milk 6rb”",
+    "mutasi a0: CREATE · dompet utama −Rp6.000"
+   ],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h28",
+   "group": "barang",
+   "text": "es krim 10rb",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h29",
+   "group": "bukan tempat",
+   "text": "bensin 40rb pertamax",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h30",
+   "group": "bukan tempat",
+   "text": "roti 8rb 2 bungkus",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h31",
+   "group": "bukan tempat",
+   "text": "pocari 8rb tunai",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h32",
+   "group": "bukan tempat",
+   "text": "jajan 10rb aja",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h33",
+   "group": "bukan tempat",
+   "text": "parkir 3rb motor tadi",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h34",
+   "group": "bukan tempat",
+   "text": "nasi goreng 20rb 1 porsi",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h35",
+   "group": "bukan tempat",
+   "text": "es kopi susu 20rb kemarin",
+   "before": true,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [],
+    "after": []
+   }
+  },
+  {
+   "id": "h36",
+   "group": "beberapa",
+   "text": "taro 7rb alfamidi, aqua 4rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "#1 cat: ∅ ≠ expense.makan-minum.jajan"
+    ],
+    "after": []
+   }
+  },
+  {
+   "id": "h37",
+   "group": "beberapa",
+   "text": "sarapan lontong 8rb terus makan siang gado gado 15rb",
+   "before": false,
+   "after": true,
+   "meaningMoved": false,
+   "trace": [],
+   "errors": {
+    "before": [
+     "#1 description: sarapan lontong ≠ lontong",
+     "#2 description: makan siang gado gado ≠ gado gado"
+    ],
+    "after": []
+   }
+  }
+ ]
+}

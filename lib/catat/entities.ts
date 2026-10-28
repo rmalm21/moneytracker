@@ -40,6 +40,19 @@ const PLACE_OPEN = new Set(['di', '@', 'at']);
 /** Small words that never end a span on their own but are trimmed from its edges. */
 const EDGE_FILLERS = new Set(['aja', 'saja', 'ya', 'dong', 'nih', 'sih', 'deh', 'tuh', 'yang', 'yg', 'juga', 'lagi', 'tadi', 'td']);
 const DATE_WORDS = /^(?:tadi|td|barusan|kemarin|kemaren|kmrn|kmarin|lusa|besok|hari|ini|pagi|siang|sore|malam|minggu|bulan|lalu|kemarinnya)$/;
+/**
+ * 6.8: words that follow an amount without being where it was bought: units and portions, fuel types, the vehicle, ways
+ * to pay, parts of the day, people, corrections and small talk ("bensin 30rb pertalite", "parkir 2rb motor",
+ * "nasi 25rb 2 bungkus", "soyjoy 25k qris", "jajan 15rb doang").
+ */
+const NOT_PLACE = new Set(`bungkus bks porsi pcs biji buah butir liter ltr kg kilo gram gr ons gelas cup botol kotak dus pack sachet saset renteng lusin lembar set item kali orang org
+  pertalite pertamax turbo dexlite solar premium bbm full penuh motor mobil sepeda matic
+  cash tunai qris debit debet kredit cc transfer tf cod ovo dana shopeepay spay linkaja gopay kartu emoney flazz brizzi tapcash paylater cicil cicilan
+  pagi siang sore malam malem subuh tadi td kemarin kemaren besok lusa barusan
+  aku gue gw saya kita kami dia doi temen teman sendiri berdua bertiga patungan traktir traktiran nitip titip titipan
+  doang aja saja semua semuanya total lunas kembalian kurang lebih sisa dp diskon promo murah mahal enak banget bgt lagi juga udah sudah belum deh dong ya nih sih kok nya an
+  ralat salah eh maksudnya bukan nggak ngga gak ga enggak no
+  satu dua tiga empat lima enam tujuh delapan sembilan sepuluh se satuan per each perbiji perporsi seporsi sebungkus sebiji segelas sebotol sepiring`.split(/\s+/).filter(Boolean));
 
 export type BoundaryInput = {
   /** The clause, lower case, as parseQuickText reads it. */
@@ -54,6 +67,8 @@ export type BoundaryInput = {
   flow: string;
   /** Known places, lower case → display name (built-in names, history, confirmed memory). */
   knownPlaces: Map<string, string>;
+  /** 6.8: whether a phrase names a thing or a category rather than a place ("jajan", "makan malam", "pertalite"). */
+  notPlace?: (raw: string) => boolean;
 };
 export type BoundaryResult = {
   merchant?: { value: string; raw: string; span: Span; opener?: Span; reason: string; confidence: number; known: boolean };
@@ -149,7 +164,10 @@ export function resolveBoundaries(input: BoundaryInput): BoundaryResult {
     for (const t of tokens) { if (t.tag === 'content') cur.push(t); else { if (cur.length) runs.push(cur); cur = []; } }
     if (cur.length) runs.push(cur);
     let best: { from: number; to: number; run: Token[]; value: string } | null = null;
-    for (const run of runs) for (let n = Math.min(3, run.length); n >= 1 && !best; n--) for (let from = 0; from + n <= run.length && !best; from++) {
+    // 6.8: with two known names ("beli richeese 10rb alfamart"), the one right after the amount is the place and the
+    // one before it is the thing bought.
+    const afterAmount = (run: Token[]) => input.amount ? run[0].start > input.amount.index : false;
+    for (const run of [...runs.filter(afterAmount), ...runs.filter(r => !afterAmount(r))]) for (let n = Math.min(3, run.length); n >= 1 && !best; n--) for (let from = 0; from + n <= run.length && !best; from++) {
       const raw = run.slice(from, from + n).map(t => t.word).join(' '), value = lookup(raw);
       // "kopi fore", "roti indomaret": the place follows the thing bought; a known name first ("grab waktu liburan") is the
       // thing itself and stays in the description.
@@ -159,6 +177,28 @@ export function resolveBoundaries(input: BoundaryInput): BoundaryResult {
       const s = best.run[best.from], e = best.run[best.to - 1];
       merchant = { value: best.value, raw: input.text.slice(s.start, e.end), span: { start: s.start, end: e.end }, reason: 'nama tempat yang dikenal', confidence: 0.9, known: true };
     }
+  }
+  // 3. 6.8: no "di" and no known name: the words right after the amount, closing the clause, are where it was bought
+  //    ("soyjoy jajan 25k bedeng", "es teh 5rb kantin", "bakso 15rb pak kumis"). The thing comes before the amount and
+  //    the place after it; only a wallet, a date or a connector may follow. Never a number, a unit, the fuel, the
+  //    vehicle, a way to pay, a time word, a category or a thing (NOT_PLACE, notPlace); at most three words.
+  if (input.flow === 'expense' && !merchant && input.amount) {
+    let last = -1;
+    tokens.forEach((t, i) => { if (t.tag === 'amount') last = i; });
+    const first = tokens.findIndex(t => t.tag === 'amount');
+    const run: Token[] = [];
+    let j = last + 1;
+    for (; last >= 0 && j < tokens.length && tokens[j].tag === 'content'; j++) run.push(tokens[j]);
+    const tail = tokens.slice(j), span = trim(run);
+    const before = tokens.slice(0, first).some(t => t.tag === 'content');
+    const raw = span.length ? input.text.slice(span[0].start, span[span.length - 1].end) : '';
+    const words = span.map(t => t.word.toLocaleLowerCase('id-ID'));
+    const ok = before && span.length >= 1 && span.length <= 3 && span.length === run.length && raw.replace(/\s+/g, '').length >= 3
+      && tail.every(t => t.tag === 'wallet' || t.tag === 'date' || t.tag === 'marker')
+      && words.every(w => /^\p{L}[\p{L}'’.&-]*$/u.test(w) && !NOT_PLACE.has(w))
+      && !input.notPlace?.(raw.toLocaleLowerCase('id-ID')) && !(span.length > 1 && words.some(w => input.notPlace?.(w)));
+    if (ok) merchant = { value: titleCase(raw), raw, span: { start: span[0].start, end: span[span.length - 1].end }, reason: 'kata setelah nominal (tempat)', confidence: 0.75, known: false };
+    else if (span.length && before) rejected.push({ text: titleCase(raw), type: 'MERCHANT', reason: 'setelah nominal, tapi bukan nama tempat' });
   }
   if (merchant) {
     blank.push(merchant.opener ? { start: merchant.opener.start, end: merchant.span.end } : merchant.span);

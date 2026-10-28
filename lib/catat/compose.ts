@@ -57,7 +57,7 @@ export type ComposedSlot = {
 export type Composed = { core: string; slots: ComposedSlot[]; trace: string[] };
 
 /** Activities: what happened (category evidence, description), never a place or an item. */
-const ACTIVITIES = ['nongkrong', 'ngopi', 'jajan', 'makan siang', 'makan malam', 'makan', 'sarapan', 'nonton', 'karaoke', 'gaming', 'main game', 'liburan', 'traveling', 'travelling', 'jalan-jalan', 'jalan jalan', 'belanja', 'servis motor', 'service motor', 'servis mobil', 'isi bensin', 'gym', 'nge-gym', 'laundry', 'ngemil', 'hangout', 'healing', 'nyalon', 'potong rambut', 'staycation', 'kondangan', 'piknik', 'rekreasi', 'olahraga', 'futsal', 'badminton', 'renang', 'watch movie', 'maksi', 'makmal'];
+const ACTIVITIES = ['nongkrong', 'ngopi', 'jajan', 'ngemil', 'makan siang', 'makan malam', 'makan malem', 'makan pagi', 'lunch', 'dinner', 'breakfast', 'maksi', 'makan', 'sarapan', 'nonton', 'karaoke', 'gaming', 'main game', 'liburan', 'traveling', 'travelling', 'jalan-jalan', 'jalan jalan', 'belanja', 'servis motor', 'service motor', 'servis mobil', 'isi bensin', 'gym', 'nge-gym', 'laundry', 'ngemil', 'hangout', 'healing', 'nyalon', 'potong rambut', 'staycation', 'kondangan', 'piknik', 'rekreasi', 'olahraga', 'futsal', 'badminton', 'renang', 'watch movie', 'maksi', 'makmal'];
 const ACT_ALT = ACTIVITIES.map(a => a.replace(/[-]/g, '[- ]?')).sort((a, b) => b.length - a.length).join('|');
 const ACTIVITY_RE = new RegExp(`(?<![\\p{L}])(${ACT_ALT})(?![\\p{L}])`, 'iu');
 /** Activities whose bare object is usually a place ("nongkrong kongsi tiam", "ngopi cotti", "makan solaria"). */
