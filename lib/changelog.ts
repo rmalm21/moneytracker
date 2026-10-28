@@ -2,11 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.1', date: '28 Okt 2026', title: 'Scan struk lebih jujur soal total', items: [
+    ['🎯', 'Kalau struk mencetak dua total yang beda, yang dipilih adalah total yang cocok dengan pajak, service, dan pembayaran. Kalau masih belum jelas, hasil scan tidak ditandai yakin dan kamu diminta cek dulu.'],
+    ['🧾', 'Tulisan ringkasan struk tidak lagi jadi item palsu, misalnya “SUC CHG 6%”, “P.Rest 10%”, “ITEMS:1”, “FOOD”, atau “Balance Due”. Pilihan seperti “-Sedang” di bawah nama menu ikut ke menunya.'],
+    ['✅', 'Diuji pada 200 struk asli lain: total persis naik dari 93% ke 95%, item palsu turun dari 56 ke 36, dan total salah yang ditandai yakin tinggal 1 (selisih Rp3).'],
+  ] },
   { version: '7.0', date: '28 Okt 2026', title: 'Scan struk V4: belajar dari struk asli', items: [
     ['🧾', 'Mesin Scan struk naik ke V4. Sekarang dilatih dan diuji dengan ratusan foto struk asli dari toko dan restoran di Indonesia, bukan cuma contoh buatan.'],
     ['🤖', 'Baris struk disusun oleh model kecil yang belajar dari struk asli, jadi harga tidak lagi nyasar ke nama barang lain walau fotonya miring atau kertasnya melengkung.'],
     ['📸', 'Kalau potongan kertas memotong tulisan di pinggir, seluruh foto ikut dibaca. Total dan harga di tepi struk jadi lebih jarang hilang.'],
-    ['✅', 'Diuji pada 100 struk asli yang tidak dipakai saat melatih: total yang terbaca persis naik dari 78% ke 86%, item yang terbaca dari 82% ke 90%, dan item palsu berkurang. Struk tetap dibaca di HP, tanpa unggahan.'],
+    ['✅', 'Diuji pada 100 struk asli yang tidak dipakai saat melatih: total yang terbaca persis naik dari 80% ke 88%, item yang terbaca dari 82% ke 90%, dan item palsu berkurang. Struk tetap dibaca di HP, tanpa unggahan.'],
   ] },
   { version: '6.10', date: '28 Okt 2026', title: 'Catat otomatis paham singkatan dan obrolan santai', items: [
     ['💳', 'Dompet yang ditulis singkat sekarang dikenali: “nasgor 15rb gpy” masuk GoPay, “mndr” Mandiri, “jns” Jenius. Nama bank atau e-wallet yang belum jadi dompet (“15rb ovo”, “30rb bca”) tidak lagi nyangkut di keterangan atau dikira tempat.'],
