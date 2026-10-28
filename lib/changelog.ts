@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.2', date: '28 Okt 2026', title: 'Scan struk minimarket makin jago', items: [
+    ['🛒', 'Struk minimarket dan toko kelontong lebih rapi terbaca: nama barang dengan ukuran seperti “AQUA 600ML” atau “TISU 250S”, barang timbangan, dan diskon per barang sekarang masuk ke barang yang benar.'],
+    ['🧾', 'Baris yang bergeser waktu difoto tetap dipasangkan dengan benar, misalnya jumlah dan harga yang turun ke baris bawah atau kembalian yang tercetak di atas labelnya.'],
+    ['✅', 'Diuji pada 60 foto struk minimarket buatan yang tidak dipakai saat memperbaiki: struk yang hitungannya cocok naik dari 90% ke 100%, harga barang dari 93% ke 99%, dan item palsu turun dari 6 ke 2. Bacanya juga lebih cepat.'],
+  ] },
   { version: '7.1', date: '28 Okt 2026', title: 'Scan struk lebih jujur soal total', items: [
     ['🎯', 'Kalau struk mencetak dua total yang beda, yang dipilih adalah total yang cocok dengan pajak, service, dan pembayaran. Kalau masih belum jelas, hasil scan tidak ditandai yakin dan kamu diminta cek dulu.'],
     ['🧾', 'Tulisan ringkasan struk tidak lagi jadi item palsu, misalnya “SUC CHG 6%”, “P.Rest 10%”, “ITEMS:1”, “FOOD”, atau “Balance Due”. Pilihan seperti “-Sedang” di bawah nama menu ikut ke menunya.'],
