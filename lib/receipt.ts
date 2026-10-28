@@ -79,6 +79,8 @@ export type ReceiptRead = {
   rates?: Partial<Record<'tax' | 'service' | 'discount', number>>;
   /** Amounts corrected because they did not add up (shown to the user). */
   fixes?: string[];
+  /** 7.3: a value was changed only so that the receipt reaches its printed total, so the total did not check itself. */
+  fittedToTotal?: boolean;
   /** Receipt Intelligence 2.0 (all optional; older readings do not have them). */
   merchantRaw?: string;
   /** The company behind the shop ("PT Daya Indah Anugerah") and the outlet ("Depok Town Square"), when printed. */
@@ -131,6 +133,10 @@ function cleanLine(raw: string) {
     line = line.replace(/(\s)(\d{1,3}(?:[.,]\d{3})*|\d+)-\s*$/, '$1-$2');
     line = line.replace(/(\d)[.,]-(?=\s|$)/g, '$1').replace(/(\d)\s*(?:IDR|idr)\b/g, '$1').replace(/\(\s*(?:rp\.?\s*)?(\d[\d.,]*)\s*\)\s*$/i, '-$1');
     line = line.replace(/(\d[.,]\d{3})\s+(?:[A-WYZa-wyz]|[*#]{1,2})$/, '$1');
+    // 7.3 — a lone digit of noise after the line's amount ("211,800   8"), when two amounts come before it.
+    line = line.replace(/(\d[.,]\d{3}\s+\S*\d[.,]\d{3})\s+\d$/, '$1');
+    // 7.3 — "Diskon -500)": a bracket left after a negative amount.
+    line = line.replace(/(\s-\s*\d[\d.,]*)\s*\)\s*$/, '$1');
     // Noise the camera picked up after the price ("28.000 im", "11.025 |.", "121.275 Bi").
     { const tokens = line.split(/\s+/); while (tokens.length > 2 && (tokens[tokens.length - 1].length <= 2 || /^[A-Za-z]{3}$/.test(tokens[tokens.length - 1]) && /\d[.,]\d{3}$/.test(tokens[tokens.length - 2])) && !/^\d+$/.test(tokens[tokens.length - 1]) && tokens.slice(0, -1).some(t => /\d[.,]\d{3}/.test(t))) tokens.pop(); line = tokens.join(' ').replace(/(\d[.,]\d{3})[^\d\s]{1,2}$/, '$1'); }
     // One digit too many in the last group ("16.5600" → "16.560"); the item check below may correct it further.
@@ -169,11 +175,17 @@ export function pairColumns(lines: string[]) {
 }
 function pairColumnLines(lines: SourceLine[]) {
   const out: SourceLine[] = [];
+  // 7.2 — "17,700" / "KEMBALIAN :": an amount printed (or read) just above its summary label, which has none of its own.
+  // 7.3 — also a run of them ("120.000 / Bayar / 6.300 / Kembali"), when the run ends on a label: the right column of a
+  // tilted receipt sits half a row higher, so each amount comes before its label.
+  const summaryLabel = (text = '') => labelOnly(text) && ['total', 'paid', 'change', 'subtotal'].includes(keyOf(text.replace(/[:=]\s*$/, '').trim()) || '');
   for (let i = 0; i < lines.length;) {
-    // 7.2 — "17,700" / "KEMBALIAN :": an amount printed (or read) just above its summary label, which has none of its own.
-    const next = lines[i + 1]?.text || '', after = lines[i + 2]?.text || '';
-    if (AMOUNT_ONLY.test(lines[i].text) && labelOnly(next) && ['total', 'paid', 'change', 'subtotal'].includes(keyOf(next.replace(/[:=]\s*$/, '').trim()) || '') && !AMOUNT_ONLY.test(after)) {
-      out.push({ text: `${next} ${lines[i].text}`, origin: [...lines[i + 1].origin, ...lines[i].origin] }); i += 2; continue;
+    if (AMOUNT_ONLY.test(lines[i].text) && summaryLabel(lines[i + 1]?.text)) {
+      let end = i; while (AMOUNT_ONLY.test(lines[end]?.text || '') && summaryLabel(lines[end + 1]?.text)) end += 2;
+      if (!AMOUNT_ONLY.test(lines[end]?.text || '')) {
+        for (let m = i; m < end; m += 2) out.push({ text: `${lines[m + 1].text} ${lines[m].text}`, origin: [...lines[m + 1].origin, ...lines[m].origin] });
+        i = end; continue;
+      }
     }
     if (!labelOnly(lines[i].text)) { out.push(lines[i]); i++; continue; }
     let j = i; while (j < lines.length && labelOnly(lines[j].text)) j++;
@@ -182,8 +194,8 @@ function pairColumnLines(lines: SourceLine[]) {
     if (!n) { out.push(...lines.slice(i, j)); i = j; continue; }
     out.push(...lines.slice(i, j - n));
     for (let m = 0; m < n; m++) out.push({ text: `${lines[j - n + m].text} ${lines[j + m].text}`, origin: [...lines[j - n + m].origin, ...lines[j + m].origin] });
-    out.push(...lines.slice(j + n, k));
-    i = k;
+    // Amounts left over are looked at again (one may be the first of a run above its label).
+    i = j + n;
   }
   return out;
 }
@@ -293,7 +305,7 @@ const UNITS = 'sak|kg|kilo|gr|gram|ons|pcs|bh|buah|btl|botol|pck|pack|bks|bungku
 const NUMBER = String.raw`(\d{1,3}(?:[.,]\d{3})+|\d{3,})`;
 const readNumber = (text: string) => Number(text.replace(/[.,]/g, ''));
 /** Name, quantity and unit price from the text before a line's total; a reading counts only when quantity × price = total. */
-function readItem(label: string, total: number): { name: string; qty: number; price: number; alt?: number; unitPrinted?: boolean } {
+function readItem(label: string, total: number): { name: string; qty: number; price: number; alt?: number; unitPrinted?: boolean; readAs?: number } {
   label = label.replace(/(\s+[^\w\s.,]{1,2})+$/, '').trim();
   // "2 x 5.000 AQUA 600": quantity and unit price printed before the name.
   const front = label.match(new RegExp(String.raw`^(\d{1,3})\s*[x×@]\s*(?:rp\.?\s*)?${NUMBER}\s+(?=[a-z])`, 'i'));
@@ -311,6 +323,12 @@ function readItem(label: string, total: number): { name: string; qty: number; pr
   }
   // "ROTI 1 16.560 16.500": the quantity is clear but the unit price was misread; the line total decides.
   const unclear = label.match(new RegExp(String.raw`(?:^|\s)(\d{1,2})\s*(?:x|×|@|pcs)?\s+(?:rp\.?\s*)?${NUMBER}\s*$`, 'i'));
+  // 7.3 — a faded thermal print reads 0 as 8 or 6 ("1 25,980 25,968" for 25,900): the unit price and line total that
+  // agree with the fewest look-alike digits changed, a round amount preferred; the printed total stays an alternative.
+  if (unclear && +unclear[1] >= 1) {
+    const fit = agreeingLookalikes(+unclear[1], readNumber(unclear[2]), total);
+    if (fit) return { name: label.slice(0, unclear.index).trim(), qty: +unclear[1], price: fit.unit, alt: total, readAs: total };
+  }
   if (unclear && +unclear[1] >= 1 && total % +unclear[1] === 0 && Math.abs(readNumber(unclear[2]) - total / +unclear[1]) <= total / +unclear[1] * .15) return { name: label.slice(0, unclear.index).trim(), qty: +unclear[1], price: total / +unclear[1], alt: +unclear[1] * readNumber(unclear[2]) };
   // Quantity and unit price that do not give the line total: one of them was misread; kept as an alternative.
   if (unclear && +unclear[1] >= 1 && /[a-z]{2,}/i.test(label.slice(0, unclear.index))) { const qty = +unclear[1], unit = readNumber(unclear[2]); return { name: label.slice(0, unclear.index).trim(), qty: total % qty === 0 ? qty : 1, price: total % qty === 0 ? total / qty : total, alt: qty * unit }; }
@@ -324,6 +342,15 @@ function readItem(label: string, total: number): { name: string; qty: number; pr
   const unitOnly = label.match(/(?:^|\s)(?:rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+)\s*$/i), unit = unitOnly ? readNumber(unitOnly[1]) : 0;
   if (unitOnly && unit >= 100 && total % unit === 0 && total / unit >= 2 && total / unit <= 99 && /[a-z]{3,}/i.test(label.slice(0, unitOnly.index))) return { name: label.slice(0, unitOnly.index).trim(), qty: total / unit, price: unit, unitPrinted: true };
   return { name: label, qty: 1, price: total, unitPrinted: true };
+}
+/** Up to two digits of each changed to a look-alike: the pair with qty × unit = total and the lowest cost, if only one. */
+function agreeingLookalikes(qty: number, unit: number, total: number) {
+  if (!unit || qty * unit === total) return null;
+  const variants = (value: number) => { const out = new Map([[value, 0]]); for (const a of lookalikes(value)) { if (!out.has(a)) out.set(a, 1); for (const b of lookalikes(a)) if (!out.has(b)) out.set(b, 2); } return out; };
+  const fits: { unit: number; total: number; cost: number }[] = [];
+  for (const [u, cu] of variants(unit)) for (const [t, ct] of variants(total)) if (u >= 100 && qty * u === t) fits.push({ unit: u, total: t, cost: cu + ct + (t % 100 ? 1.5 : 0) });
+  fits.sort((a, b) => a.cost - b.cost);
+  return fits.length && fits[0].cost <= 3 && (fits.length === 1 || fits[1].cost > fits[0].cost) ? fits[0] : null;
 }
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
 const MONTHS_EN = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -496,9 +523,10 @@ export function notTransaction(line: string, raw: string) {
   return false;
 }
 const BRANCHISH = /\b(mall|plaza|square|town|city|center|centre|store|outlet|cabang|branch|station|stasiun|terminal|bandara|airport|tower|park|residence|junction|walk|point)\b/i;
-const DISCOUNT_WORDS = /^(item|d[i1l]sk[o0]n|disc|discount|dsc|potongan|pot|promo|hemat|rabat|off)$/i;
+// 7.3 — a price cut ("POT. HARGA", "DISKON HARGA", "MARKDOWN") belongs to the item above it, even the last one.
+const DISCOUNT_WORDS = /^(item|d[i1l]sk[o0]n|disc|discount|dsc|potongan|pot|promo|hemat|rabat|off|harga|price|markdown)$/i;
 /** Discount words that say nothing about which item ("Member Discount"): the place decides (see below). */
-const GENERIC_DISCOUNT_WORDS = /^(member|members|anggota|special|spesial|produk|harga|price|markdown)$/i;
+const GENERIC_DISCOUNT_WORDS = /^(member|members|anggota|special|spesial|produk)$/i;
 type LineKind = 'item' | 'modifier' | 'charge' | 'subtotal' | 'total' | 'paid' | 'change' | 'meta' | 'other';
 
 /** Items, charges, totals and payment from receipt text, for the user to check. */
@@ -562,7 +590,7 @@ function readPaperText(text: string): ReceiptRead {
     // 7.2 — a shop's name with a small number in it ("BINTANG 24", "TOKO 88") at the top is the name, not money.
     const found = readAmount(line);
     // A name ending in its size without the unit ("ULTRA MILK CKLT 250") over its price row is a name, not a price of 250.
-    const sizeTail = Boolean(found && found.value < 1000 && /^[^\d]*[a-z]{3,}[^\d]*\s\d{2,3}\s*$/i.test(line) && !keyOf(line) && priceRow(lines[position + 1]));
+    const sizeTail = Boolean(found && found.value < 1000 && /^[^\d]*[a-z]{3,}[^\d]*\s\d{1,3}\s*$/i.test(line) && !keyOf(line) && priceRow(lines[position + 1]));
     const amount = found && (sizeTail || found.value < 100 && position < 4 && !out.items.length && !lastItem && looksLikeName(line) && !keyOf(line)) ? null : found;
     if (!amount) {
       // A name alone: its quantity and price may be on the next line ("ES TEH" / "2 x 6.000 12.000").
@@ -621,6 +649,8 @@ function readPaperText(text: string): ReceiptRead {
         item.discount = (item.discount || 0) + value; item.lines?.push(...origin(position)); kinds[position] = 'item'; pendingName = ''; return;
       }
     }
+    // 7.3 — "HEMAT : 1,000" after the total: what the discounts above already saved, not one more discount.
+    if (key === 'discount' && totals.length && position > Math.max(...totals.map(t => t.position)) && Math.abs(amount.value) === out.items.reduce((n, i) => n + (i.discount || 0), 0) + out.discount) { kinds[position] = 'meta'; pendingName = ''; return; }
     if (key) {
       const value = Math.abs(amount.value);
       pendingName = '';
@@ -667,6 +697,7 @@ function readPaperText(text: string): ReceiptRead {
     if (tokens.filter(t => /^[A-Z0-9]{2,}$/.test(t)).length >= 2) while (tokens.length > 2 && !/^[A-Z0-9&]{2,}$/.test(tokens[0]) && tokens[0].length <= 5) tokens.shift();
     name = tokens.join(' ');
     const item: ReceiptLine = { name, qty: read.qty, price: read.price, total: read.qty * read.price, unitPrinted: read.unitPrinted, lines: [...(usedAbove ? origin(pendingPos) : []), ...origin(position)] };
+    if (read.readAs && read.readAs !== item.total) (out.fixes ||= []).push(`${name}: terbaca ${rp(read.readAs)}, dibetulkan jadi ${rp(item.total)} (jumlah × harga satuan).`);
     if (addOn && !dashNote) item.addOnOf = lastItem!.name;
     if (dashNote) item.modifiers = [own.replace(/^[\s-]+/, '').trim()];
     if (usedAbove) kinds[pendingPos] = 'item';
@@ -704,8 +735,9 @@ function readPaperText(text: string): ReceiptRead {
   for (let i = totals.length - 1; i >= 0; i--) if (floor && totals[i].value < floor) { totals.splice(i, 1); out.skipped++; }
   // 7.2 — "Total Item 4   56,200" followed by its discounts and another total ("Total Belanja 49,800"): the count row
   // is what the items cost before the discounts, the subtotal. Alone, it stays the total (Alfamidi).
-  const countRow = totals.find(t => /^\s*t[o0]ta[l1i]\s*(?:item|items|qty|barang)\b/i.test(lines[t.position] || ''));
-  if (countRow && !out.subtotal && totals.some(t => t.position > countRow.position && t.value < countRow.value)) { out.subtotal = countRow.value; add('subtotal', countRow.position); totals.splice(totals.indexOf(countRow), 1); }
+  // 7.3 — the same for "Total Harga 373,700" before "TOTAL 373,200", and when the later total is the same amount.
+  const countRow = totals.find(t => /^\s*t[o0]ta[l1i]\s*(?:item|items|qty|barang|harga)\b/i.test(lines[t.position] || ''));
+  if (countRow && !out.subtotal && totals.some(t => t.position > countRow.position && t.value <= countRow.value)) { out.subtotal = countRow.value; add('subtotal', countRow.position); totals.splice(totals.indexOf(countRow), 1); }
   totals.sort((a, b) => b.strength - a.strength || b.position - a.position);
   if (!out.subtotal && totals.length > 1) { const sub = totals.find(t => t !== totals[0] && t.value === itemSum && t.value !== totals[0].value); if (sub) { out.subtotal = sub.value; subtotalPos = sub.position; sources.subtotal = origin(sub.position); kinds[sub.position] = 'subtotal'; totals.splice(totals.indexOf(sub), 1); } }
   out.totals = [...new Set(totals.map(t => t.value))];
@@ -716,7 +748,7 @@ function readPaperText(text: string): ReceiptRead {
   const money = new Set([out.total, out.subtotal, out.paid, ...out.totals].filter(Boolean));
   while (out.items.length > 1 && money.has(out.items[out.items.length - 1].total) && out.items.slice(0, -1).reduce((n, i) => n + i.total, 0) > 0) { out.items.pop(); out.skipped++; }
   // Not an item larger than the subtotal either: a voucher can make the total smaller than the one item bought.
-  if (out.total) { const before = out.items.length, cap = Math.max(out.total, out.subtotal) * 1.02; out.items = out.items.filter(item => netOf(item) <= cap); out.skipped += before - out.items.length; }
+  if (out.total) { const before = out.items.length, cap = Math.max(out.total + out.discount, out.subtotal) * 1.02; out.items = out.items.filter(item => netOf(item) <= cap); out.skipped += before - out.items.length; }
   // Shop name from the header candidates: the brand, not the company (PT/CV), an address, a payment brand or the outlet.
   if (header.length) {
     const roles = header.map((h, index) => {
@@ -831,6 +863,7 @@ function repairItems(read: ReceiptRead, alts: Map<ReceiptLine, number>, unexplai
       items[i] = { ...item, qty, price: value / qty, total: value };
     }
     read.fixes = fixes;
+    if (target !== read.subtotal) read.fittedToTotal = true;
     return;
   }
 }
@@ -879,7 +912,7 @@ function repairChargeDigit(read: ReceiptRead) {
   if (fits.length !== 1) return;
   const [key, value] = fits[0];
   (read.fixes ||= []).push(`${CHARGE_LABELS[key][0].toUpperCase()}${CHARGE_LABELS[key].slice(1)} terbaca ${rp(read[key] || 0)}, dibetulkan jadi ${rp(value)} agar cocok dengan total.`);
-  read[key] = value;
+  read[key] = value; read.fittedToTotal = true;
   const charge = read.charges?.find(c => c.key === key); if (charge) charge.amount = value;
 }
 
@@ -939,7 +972,12 @@ export function checkReceipt(read: ReceiptRead): ReceiptCheck {
   if (!best && read.total && all) notes.push(`Item dan biaya berjumlah ${rp(all)}, total tertulis ${rp(read.total)} (selisih ${rp(Math.abs(read.total - all))}). Mungkin ada item yang terlewat atau salah baca.`);
   const itemsGross = read.items.reduce((n, i) => n + i.qty * i.price, 0);
   if (read.subtotal && itemsTotal && !near(read.subtotal, itemsTotal) && !near(read.subtotal, itemsTotal - read.discount) && !near(read.subtotal, itemsGross)) notes.push(`Jumlah item ${rp(itemsTotal)} belum sama dengan subtotal ${rp(read.subtotal)}; periksa itemnya.`);
-  const crossChecked = matches || Boolean(source === 'printed' && byPayment && near(read.total, byPayment));
+  // 7.3 — "sure" only when the numbers agree to within a rounding (Rp100): the 0.2% that lets a reading count as adding up
+  // is Rp746 on a Rp373.209 receipt, enough for a misread digit ("373,766" for 373,700).
+  const tight = (a: number, b: number) => a > 0 && b > 0 && Math.abs(a - b) <= 100;
+  // Nor when a digit was changed only to reach the total, unless what was paid says the same.
+  const handed = byPayment || (read.paid && !read.change ? read.paid : 0), circular = read.fittedToTotal && !tight(total, handed);
+  const crossChecked = !circular && (Boolean(best && tight(best.value, best.target)) || Boolean(source === 'printed' && byPayment && tight(read.total, byPayment)));
   const lonely = source === 'printed' && !all && !byPayment;
   const tiny = total > 0 && total < 1000;
   if (lonely && !tiny) notes.push('Tidak ada item atau subtotal untuk mencocokkan total. Pastikan nominalnya benar.');

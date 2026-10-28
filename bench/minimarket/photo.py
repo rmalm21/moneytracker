@@ -13,6 +13,8 @@ from scipy import ndimage
 flat, out, lines_path, seed = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 words = json.load(open(os.path.join(flat, 'words.json')))
 rng = np.random.default_rng(seed)
+# PHOTO_STYLE=thermal (7.3): the defects of a thermal printer too; the sets built without it stay as they were.
+THERMAL = os.environ.get('PHOTO_STYLE') == 'thermal'
 LEVELS = {  # rotation (deg), tilt, bow and crumple (line heights), faded ink floor, blur, noise, JPEG, paper size in frame
     'easy': dict(rot=3, tilt=.05, bow=.1, crumple=.05, fade=.8, blur=.6, noise=.015, jpeg=(75, 92), frac=(.75, .93), shadow=.1, glare=.05, motion=0, lowres=0),
     'medium': dict(rot=7, tilt=.12, bow=.35, crumple=.15, fade=.55, blur=1.2, noise=.03, jpeg=(60, 85), frac=(.65, .9), shadow=.3, glare=.15, motion=.1, lowres=.1),
@@ -57,9 +59,17 @@ for name in sorted(words):
     h, w = paper.shape[:2]
     lh = float(np.median([b['box'][3] - b['box'][1] for b in info['words']]) or 40)
     # Thermal ink fades unevenly; the paper is a little yellow.
-    floor = rng.uniform(L['fade'], 1)
+    floor = rng.uniform(L['fade'] * (.6 if THERMAL else 1), 1)
     fade = floor + (1 - floor) * field(h, w, max(2, int(h / 300)), 3)
-    paper = 1 - (1 - paper) * fade[..., None]
+    if THERMAL:
+        # 7.3: what a thermal printer does. Bands of weaker heat across the paper, dead dots of the print head (white
+        # lines along the paper through every row), grainy dots, and the shading of wrinkles.
+        fade *= 1 - rng.uniform(0, .4) * field(h, 1, max(3, int(h / 90)), 2)
+        for _ in range(rng.poisson(1.5)):
+            x0 = int(rng.uniform(0, w - 4)); fade[:, x0:x0 + int(rng.integers(1, 4))] *= .1
+        fade *= .7 + .3 * ndimage.gaussian_filter(rng.random((h, w)), .7) * 2
+        paper = paper * (1 - .12 * field(h, w, max(3, int(h / (lh * 3))), 6))[..., None]
+    paper = 1 - (1 - paper) * fade.clip(0, 1)[..., None]
     paper *= np.array([1, .985, .95]) * rng.uniform(.9, 1)
     # Frame, size and place.
     H, W = (2133, 1200) if h / w > 2.4 else (1600, 1200)

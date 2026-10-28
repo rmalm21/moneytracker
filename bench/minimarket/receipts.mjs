@@ -6,7 +6,7 @@
  *
  * makeSet(name, seed, count, split) → [{ id, style, lines: [{ text, kind }], truth }]; the same seed gives the same set.
  * Line kinds: 'l' as printed, 'bold', and the shop's name centred ('head') or in large letters ('big').
- * split 'hold' also draws products, shops and labels that 'dev' and 'train' never see.
+ * split 'hold' also draws products, shops and labels that 'dev' and 'train' never see; 'hold2' (7.3) its own other ones.
  */
 export function rng(seed) { let s = seed >>> 0 || 1; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
 
@@ -43,6 +43,22 @@ const SHOPS = {
   cvs: [['BINTANG 24', 'PT. BINTANG CEPAT INDONESIA'], ['KILAT MART', 'PT. KILAT JAYA RITEL']],
   toko: [['TOKO BAROKAH JAYA', ''], ['TOKO SUMBER REJEKI', ''], ['MINIMARKET AMANAH', '']],
 };
+// 7.3: a second hold-out set ('hold2') with products, shops, labels and payments no other set uses.
+const PRODUCTS_HOLD2 = [
+  ['SUSU INDOMILK 190ML', 5500], ['KOPI GOOD DAY 10S', 13900], ['SABUN GIV 76G', 3500], ['SHAMPO CLEAR 160ML', 26900], ['PASTA GIGI CLOSE UP', 13500],
+  ['BISKUIT KHONG GUAN', 39900], ['WAFER TANGO 176G', 9800], ['SARDEN BOTAN 155G', 12500], ['MIE SUKSES ISI 2', 3900], ['AIR VIT 600ML', 3000],
+  ['TEH GELAS 170ML', 1500], ['SUSU BEAR BRAND GOLD', 11500], ['TISU MULTI 250S', 15900], ['DETERJEN DAIA 850G', 19900], ['PEMBALUT LAURIER 20S', 14900],
+  ['KECAP ABC 520ML', 19900], ['MARGARIN BLUEBAND 200G', 10900], ['KEJU KRAFT 165G', 22900], ['SOSIS KANZLER 65G', 9900], ['ROTI SOBEK ROMA', 12500],
+];
+const SHOPS_HOLD2 = { idm: [['JAYAMART', 'PT. JAYA RITEL SEJAHTERA']], alfa: [['MAKMURMART', 'PT. MAKMUR ALFA SENTOSA, TBK']], midi: [['SWALAYAN BAHAGIA', 'PT. BAHAGIA PANGAN UTAMA']], cvs: [['TERANG 24', 'PT. TERANG MALAM RITEL']], toko: [['TOKO SINAR ABADI', '']] };
+const LABELS_HOLD2 = {
+  idm: { gross: ['JUMLAH HARGA'], total: ['TOTAL PEMBAYARAN'], change: ['KEMBALIAN UANG'], disc: ['DISKON ITEM'], saved: ['TOTAL HEMAT'] },
+  alfa: { gross: ['Total Qty'], total: ['Total Pembelian'], change: ['Uang Kembali'], disc: ['Disc Item'], sumDisc: ['Total Potongan'] },
+  midi: { gross: ['JUMLAH'], total: ['TOTAL BAYAR'], change: ['UANG KEMBALI'], disc: ['HEMAT'], member: ['DISC MEMBER CARD'] },
+  cvs: { gross: ['Sub-Total'], cash: ['Uang Tunai'], change: ['Kembali'], disc: ['Promo'], sumDisc: ['Hemat Total'] },
+  toko: { total: ['Grand Total'], cash: ['Uang'], change: ['Sisa'], disc: ['Disc'] },
+};
+const CARDS_HOLD2 = [['LINKAJA', 'linkaja'], ['DEBET BRI', 'debit'], ['KREDIT MANDIRI', 'credit'], ['QRIS BCA', 'qris']];
 const SHOPS_HOLD = { idm: [['BERKAHMART', 'PT. BERKAH RITEL INDONESIA']], alfa: [['NUSAMART', 'PT. NUSA ALFA PRIMA, TBK']], midi: [['PASAR SEGAR', 'PT. PASAR SEGAR NIAGA']], cvs: [['MALAM 24', 'PT. MALAM TERANG RITEL']], toko: [['TOKO LANCAR MAKMUR', '']] };
 const STREETS = ['JL. KENANGA RAYA NO.17', 'JL. ANGGREK NO.3', 'JL. MERPATI BLOK C2', 'JL. SUDIRMAN KM 4', 'JL. MELATI NO.21', 'RUKO MAWAR BLOK B5', 'JL. RAYA BOGOR NO.88'];
 const CITIES = ['SLEMAN', 'KOTA BEKASI', 'DEPOK', 'TANGERANG SELATAN', 'BANDUNG', 'SURABAYA', 'BANTUL', 'MALANG'];
@@ -59,14 +75,14 @@ const LABELS = {
 const CARDS = [['DEBIT BCA', 'debit'], ['KARTU DEBIT', 'debit'], ['DEBIT MANDIRI', 'debit'], ['KARTU KREDIT', 'credit'], ['QRIS', 'qris'], ['GOPAY', 'gopay'], ['OVO', 'ovo'], ['DANA', 'dana'], ['SHOPEEPAY', 'shopeepay']];
 
 export function makeSet(name, seed, count, split = 'dev') {
-  const r = rng(seed), hold = split === 'hold';
+  const r = rng(seed), hold = split === 'hold', hold2 = split === 'hold2';
   const pick = list => list[Math.floor(r() * list.length)];
-  const label = (style, key) => { const all = LABELS[style][key].filter(l => hold || !Array.isArray(l)); const l = pick(all); return Array.isArray(l) ? l[0] : l; };
-  const products = hold ? [...PRODUCTS, ...PRODUCTS_HOLD, ...PRODUCTS_HOLD] : PRODUCTS;
+  const label = (style, key) => { const all = [...LABELS[style][key].filter(l => hold || !Array.isArray(l)), ...(hold2 ? LABELS_HOLD2[style][key] || [] : [])]; const l = pick(hold2 && LABELS_HOLD2[style][key] && r() < .6 ? LABELS_HOLD2[style][key] : all); return Array.isArray(l) ? l[0] : l; };
+  const products = hold ? [...PRODUCTS, ...PRODUCTS_HOLD, ...PRODUCTS_HOLD] : hold2 ? [...PRODUCTS, ...PRODUCTS_HOLD2, ...PRODUCTS_HOLD2] : PRODUCTS;
   const out = [];
   for (let n = 0; n < count; n++) {
     const style = pick(['idm', 'idm', 'alfa', 'alfa', 'midi', 'cvs', 'toko', 'toko']);
-    const [shop, company] = pick([...SHOPS[style], ...(hold ? SHOPS_HOLD[style] : [])]);
+    const [shop, company] = pick([...SHOPS[style], ...(hold ? SHOPS_HOLD[style] : []), ...(hold2 ? SHOPS_HOLD2[style] : [])]);
     const width = style === 'toko' ? (r() < .6 ? 32 : 40) : style === 'cvs' ? 42 : 40;
     const sep = style === 'toko' || style === 'cvs' ? '.' : ',', rp = style === 'cvs' && r() < .7 ? 'Rp ' : '';
     const num = v => (v < 0 ? '-' : '') + Math.abs(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
@@ -95,7 +111,7 @@ export function makeSet(name, seed, count, split = 'dev') {
     const total = gross - itemDisc - memberDisc;
     // Payment.
     let payment = 'cash', payLabel = label(style, 'cash'), paid, change = 0;
-    if (r() < .45) { const [l, p] = pick(style === 'toko' ? [['QRIS', 'qris'], ['TRANSFER', 'transfer']] : CARDS); payLabel = l; payment = p; paid = total; }
+    if (r() < .45) { const [l, p] = pick(style === 'toko' ? [['QRIS', 'qris'], ['TRANSFER', 'transfer']] : hold2 ? [...CARDS, ...CARDS_HOLD2] : CARDS); payLabel = l; payment = p; paid = total; }
     else { const note = pick([1000, 5000, 10000, 20000, 50000, 50000, 100000]); paid = r() < .1 ? total : Math.ceil(total / note) * note; change = paid - total; }
     const dpp = Math.round(total / 1.11), ppn = total - dpp;
     const cashier = pick(CASHIERS), street = pick(STREETS), city = pick(CITIES);

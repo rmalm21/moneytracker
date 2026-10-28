@@ -75,3 +75,31 @@ test('"Total Item 3" before the discounts and "Total Belanja" is the subtotal; "
   assert.equal(read.subtotal, 34900); assert.equal(read.discount, 0);
   const check = checkReceipt(read); assert.equal(check.total, 33300); assert.equal(check.matches, true);
 });
+
+// 7.3 — thermal minimarket photos (bench/minimarket, PHOTO_STYLE=thermal) and "sure" only when the numbers agree.
+test('amounts read just above their labels pair with them ("120.000 / Bayar / 6.300 / Kembali")', () => {
+  const read = readReceiptText('ROTI TAWAR\n   1 x 113.700      113.700\nTOTAL\n113.700\n120.000\nBayar\n6.300\nKembali');
+  assert.deepEqual([read.total, read.paid, read.change], [113700, 120000, 6300]);
+});
+test('"Total Item" or "Total Harga" before another total is the subtotal, even when the two are the same', () => {
+  assert.equal(readReceiptText('KOPI   1   9,600   9,600\nTotal Item   1   9,600\nTotal Belanja   9,600\nTunai   10,000').subtotal, 9600);
+  const read = readReceiptText('KOPI   1   9,600   9,600\nTOTAL HARGA :   9,600\nPOT. HARGA   -100\nTOTAL :   9,500');
+  assert.equal(read.subtotal, 9600); assert.equal(checkReceipt(read).total, 9500);
+});
+test('a price cut under the last item is that item\'s; "HEMAT" after the total is not counted again', () => {
+  const read = readReceiptText('TEH   1   5,000   5,000\nKOPI   2   9,900   19,800\n   POT. HARGA   -1,500\nTOTAL   23,300\nTUNAI   50,000\nKEMBALI   26,700\nHEMAT :   1,500');
+  assert.deepEqual(read.items.map(i => i.discount || 0), [0, 1500]); assert.equal(read.discount, 0);
+  assert.equal(checkReceipt(read).total, 23300);
+});
+test('0 read as 8 or 6 on a faded print: the unit price and line total that agree, with a note', () => {
+  const read = readReceiptText('SUNSILK SHMP 170ML   1 25,980 25,968\nTELUR AYAM 10BTR   2 27,908 55,880\nTOTAL 81,700');
+  assert.deepEqual(read.items.map(i => [i.qty, i.price, i.total]), [[1, 25900, 25900], [2, 27900, 55800]]);
+  assert.ok(read.fixes.some(f => /SUNSILK/.test(f)));
+  assert.deepEqual(readReceiptText('Mango Tea 1 29,090 29,890\nTOTAL 29,090').items.map(i => i.total), [29090]);
+});
+test('"sure" only when the numbers agree within Rp100, and not when a digit was changed just to reach the total', () => {
+  const off = readReceiptText('RINSO   3 23,960   71,760\nBERAS   4 72,500 290,000\nHARGA JUAL :   373,766\nTOTAL :   373,209');
+  assert.notEqual(checkReceipt(off).confidence, 'tinggi');
+  const fitted = readReceiptText('Nasi Goreng 20.000\nEs Teh 5.000\nPB1 2.500\nTOTAL 32.500');
+  assert.ok(fitted.fittedToTotal); assert.equal(checkReceipt(fitted).total, 32500); assert.notEqual(checkReceipt(fitted).confidence, 'tinggi');
+});
