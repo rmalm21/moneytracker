@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.3', date: '28 Okt 2026', title: 'Scan struk lebih teliti, tanda yakin lebih jujur', items: [
+    ['🧾', 'Struk thermal yang pudar lebih rapi terbaca: angka 0 yang terbaca 8 atau 6 dibetulkan lewat jumlah × harga satuan, dan nominal yang tercetak sedikit di atas labelnya (Bayar, Kembali, QRIS) tetap dipasangkan dengan benar.'],
+    ['✅', 'Tanda “yakin” makin ketat: tidak diberikan kalau total beda sedikit dari jumlah barang tanpa alasan pembulatan, kalau ada angka yang diubah hanya supaya pas, atau kalau uang yang dibayar kurang dari totalnya.'],
+    ['🛒', 'Diuji pada 60 foto struk minimarket buatan yang baru: percobaan pertama menaikkan subtotal dari 71% ke 89%. Setelah kelemahannya diperbaiki, kembalian naik dari 81% ke 96% dan total salah yang ditandai yakin jadi nol.'],
+  ] },
   { version: '7.2', date: '28 Okt 2026', title: 'Scan struk minimarket makin jago', items: [
     ['🛒', 'Struk minimarket dan toko kelontong lebih rapi terbaca: nama barang dengan ukuran seperti “AQUA 600ML” atau “TISU 250S”, barang timbangan, dan diskon per barang sekarang masuk ke barang yang benar.'],
     ['🧾', 'Baris yang bergeser waktu difoto tetap dipasangkan dengan benar, misalnya jumlah dan harga yang turun ke baris bawah atau kembalian yang tercetak di atas labelnya.'],
