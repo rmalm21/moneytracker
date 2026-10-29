@@ -16,7 +16,7 @@ import { buildReceiptSnapshot, receiptMoneyRows } from '@/lib/receipt-snapshot';
 import type { ReceiptSnapshot } from '@/lib/types';
 import { buildIntelligence, findDuplicate, mergeReceiptReads, reconcileAmounts, regionFor, STATUS_LABELS, type Duplicate, type FieldStatus } from '@/lib/receipt-intel';
 import { analyzeReceiptPhoto, cancelReceiptRead, ocrAvailable, readReceiptPhoto, rereadField, type OcrProgress, type OcrResult } from '@/lib/receipt-ocr';
-import { quadTarget, straightenedPreview, uprightPreview, type Prepared, type Straightened } from '@/lib/receipt-prep';
+import { editorStart, quadTarget, straightenedPreview, uprightPreview, type Prepared, type Straightened } from '@/lib/receipt-prep';
 import type { Matrix, Quad } from '@/lib/receipt-image';
 import type { Box } from '@/lib/receipt-rows';
 import { walletAllows } from '@/lib/wallet-capabilities';
@@ -121,7 +121,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     setProgress({ stage: 'prepare', progress: 0, label: 'Menyiapkan foto…' });
     // While reading, the chosen area already shows cut and straightened.
     const target = upright && quarter === turn ? prepared || (corners ? quadTarget(corners, upright.width, upright.height) : null) : null;
-    const cut = target && upright ? straightenedPreview(upright.url, target) : null;
+    const cut = target && upright ? straightenedPreview({ photo: source, turn: quarter }, target) : null;
     showCrop(cut);
     try {
       const next = await readReceiptPhoto(source, value => { if (job.current === id) setProgress(value); }, { turn: quarter, corners, prepared });
@@ -226,7 +226,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
   /* ---------------- where a value was read, and reading it again */
   const mapping = result && upright ? { toPhoto: result.prepared.toPhoto, photoWidth: result.prepared.photoWidth, photoHeight: result.prepared.photoHeight } : null;
   // Once read (and again when the photo is turned): the cut exactly as it was read.
-  useEffect(() => { if (result && upright) showCrop(straightenedPreview(upright.url, result.prepared)); }, [result, upright?.url]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (result && upright) showCrop(straightenedPreview(photo ? { photo, turn } : upright.url, result.prepared)); }, [result, upright?.url]); // eslint-disable-line react-hooks/exhaustive-deps
   // The cut image is the read image itself, only smaller: a plain scale maps what was read onto it.
   const flatMapping = result && cropped ? { toPhoto: [cropped.width / result.prepared.width, 0, 0, 0, cropped.height / result.prepared.height, 0, 0, 0, 1] as Matrix, photoWidth: cropped.width, photoHeight: cropped.height } : null;
   const boxFor = (field: string): Box | null => {
@@ -362,9 +362,9 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
     </div>}
 
     {area && !busy && upright && <section className="rs-area" aria-label="Area struk">
-      <div className="rs-area-head"><strong>Tentukan area struk</strong><small>Hanya bagian di dalam garis yang dibaca.</small></div>
+      <div className="rs-area-head"><strong>Tentukan area struk</strong><small>Pastikan semua bagian struk masuk ke dalam garis.</small></div>
       {area.prepared.quality.warnings[0] && <p className="sb-note is-warn" role="status"><AlertTriangle size={15}/> {area.prepared.quality.warnings[0]}</p>}
-      <ReceiptCorners key={upright.url} upright={upright} corners={area.prepared.corners} applyLabel="Baca struk" fitVh={40} onRetake={retake} onRotate={rotateArea} onCancel={retake}
+      <ReceiptCorners key={upright.url} upright={upright} corners={editorStart(area.prepared)} applyLabel="Baca struk" fitVh={40} onRetake={retake} onRotate={rotateArea} onCancel={retake}
         onApply={(corners, changed) => { const { prepared, quarter } = area; setArea(null); if (photo) void scan(photo, quarter, changed ? corners : undefined, changed ? undefined : prepared); }}/>
     </section>}
 
@@ -542,7 +542,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
       {source && !(cropped && flatMapping) && (!upright || !mapping) && photoUrl && <img className="rs-source-plain" src={photoUrl} alt="Foto struk"/>}
     </DialogContent></Dialog>
     <Dialog open={cornersOpen} onOpenChange={setCornersOpen}><DialogContent title="Atur sudut struk" className="mobile-sheet rs-corners-dialog">
-      {cornersOpen && upright && result && <ReceiptCorners upright={upright} corners={result.prepared.corners} onCancel={() => setCornersOpen(false)} onApply={corners => { setCornersOpen(false); if (photo) void scan(photo, turn, corners); }}/>}
+      {cornersOpen && upright && result && <ReceiptCorners upright={upright} corners={editorStart(result.prepared)} onCancel={() => setCornersOpen(false)} onApply={corners => { setCornersOpen(false); if (photo) void scan(photo, turn, corners); }}/>}
     </DialogContent></Dialog>
     <Dialog open={Boolean(duplicate)} onOpenChange={value => { if (!value) setDuplicate(null); }}><DialogContent title="Struk ini mirip transaksi yang sudah dicatat" className="mobile-sheet rs-dup-dialog">
       {duplicate && <div className="rs-dup">

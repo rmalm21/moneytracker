@@ -12,8 +12,8 @@ import { AppIcon, IdentityBadge, categoryColor, emojiOrFallback } from './visual
 import { usePeriodTransactions } from './period-selector';
 import { budgetCurrent, budgetIconCategoryId, budgetMatcher, budgetSpent, budgetSubcategories, budgetWindow, rupiah } from '@/lib/accounting';
 import { budgetCommitted, commitments } from '@/lib/finance-control';
-import { budgetDetail, previousWindows } from '@/lib/budget-detail';
-import { dateInTimeZone, formatDate, periodLabel, todayInTimeZone } from '@/lib/period';
+import { budgetDetail, previousWindows, projectSpend } from '@/lib/budget-detail';
+import { dateInTimeZone, formatDate, periodLabel, todayInTimeZone, parseDate } from '@/lib/period';
 import type { Budget, LedgerTx } from '@/lib/types';
 
 const shortMoney = (value: number) => { const abs = Math.abs(value); return abs >= 1e6 ? `${(value / 1e6).toFixed(1).replace('.', ',')}jt` : abs >= 1e3 ? `${Math.round(value / 1e3)}rb` : `${value}`; };
@@ -58,7 +58,10 @@ export function BudgetDetail({ budget, onClose, onEdit, onToggle, onCopy, onDele
   const pastWithData = historyRows.filter(w => w.spent > 0), pastAverage = pastWithData.length ? Math.round(pastWithData.reduce((n, w) => n + w.spent, 0) / pastWithData.length) : 0;
   // A few days in, the pace says little; lean on the average of earlier periods instead.
   const early = detail.elapsed < Math.min(7, Math.ceil(detail.totalDays / 4)) && pastAverage > 0 && !past.loading;
-  const projected = early ? Math.max(detail.spent, pastAverage) : detail.projected;
+  // 7.4: by the share earlier periods had spent at this day (bills paid early), else the even pace.
+  const byDay = (w: { start: string; end: string }) => { const cut = new Date(parseDate(w.start)); cut.setDate(cut.getDate() + detail.elapsed); const last = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, '0')}-${String(cut.getDate()).padStart(2, '0')}`; return budgetSpent(budget, past.items.filter(t => t.date >= w.start && t.date < last && t.date < w.end), data.categories); };
+  const paced = past.loading ? detail.projected : projectSpend(detail.spent, detail.elapsed, detail.totalDays, historyRows.map(w => ({ total: w.spent, byDay: byDay(w) })));
+  const projected = early ? Math.max(detail.spent, pastAverage) : paced;
   const projectedOver = projected - status.available;
   const matches = budgetMatcher(budget, data.categories);
   const pending = [...commitments(data, window), ...commitments(data).filter(item => item.date < window.start)].filter(item => matches(item.categoryId, item.subcategoryId));

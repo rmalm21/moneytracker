@@ -48,6 +48,13 @@ export default function OcrBench() {
       const t = performance.now(), [r] = await (await raw[tier]).predict(blob, { textDetLimitSideLen: side, textDetLimitType: 'max' });
       return { ms: Math.round(performance.now() - t), items: r.items.map(i => ({ text: i.text, poly: i.poly, score: i.score })) };
     };
+    // 7.4: what the corner editor would start with (diagnostics of the paper outline), no reading.
+    w.__prepare = async (url: string) => {
+      const blob = await (await fetch(url)).blob();
+      const { preparePhoto } = await import('@/lib/receipt-prep');
+      const p = await preparePhoto(blob);
+      return { method: p.method, cornerConfidence: p.cornerConfidence, corners: p.corners, outline: p.outline || null, width: p.photoWidth, height: p.photoHeight, warnings: p.quality.warnings };
+    };
     setReady(true);
   }, []);
   return <main style={{ padding: 24 }}>{ready ? <p id="bench-ready">Siap</p> : <p>Halaman ini hanya untuk pengembangan.</p>}</main>;

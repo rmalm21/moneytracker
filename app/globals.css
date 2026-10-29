@@ -8229,3 +8229,31 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .hh .home-hero-chips button { background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); backdrop-filter: none; }
 .home-hero-chips span { color: var(--muted); opacity: 1; }
 .hh .home-hero-edit:hover, .hh .home-hero-edit.active { background: var(--accent-soft); color: var(--accent); }
+/* 7.4: corner editor outline — white L-shaped corners and side grips along the receipt's edges, with a thin accent line. */
+.rs-corners .rs-corner::after, .rs-edge::after { content: none; }
+.rs-corners .rs-corner:focus-visible, .rs-edge:focus-visible { outline: 2px solid var(--accent); outline-offset: -10px; border-radius: 99px; }
+.rs-crop-svg { overflow: visible; }
+.rs-crop-svg .rs-corners-dim { fill: rgba(6, 14, 18, .55); }
+.rs-crop-svg .rs-crop-marks { filter: drop-shadow(0 0 1.2px rgba(0, 0, 0, .5)) drop-shadow(0 1px 3px rgba(0, 0, 0, .22)); }
+.rs-crop-svg .rs-crop-line { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; }
+.rs-crop-svg .rs-crop-mark { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.rs-crop-svg .rs-crop-accent { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: stroke .15s; }
+.rs-crop-svg .rs-crop-grid { fill: none; stroke: rgba(255, 255, 255, .55); stroke-width: 1; }
+.rs-corners.is-snapped .rs-crop-svg .rs-crop-accent { stroke: #34d399; }
+.rs-corners .rs-corners-frame img { border-radius: 10px; }
+/* 7.4: small text on tinted chips reads at WCAG AA (4.5:1) in every palette and mode: the accent leans a little toward
+   the ink colour (darker on light screens, lighter on dark ones). */
+:root { --accent-text: color-mix(in srgb, var(--accent) 80%, var(--ink)); --amber-text: color-mix(in srgb, var(--amber) 78%, var(--ink)); }
+.tag, .bm-pct, .hh-avatar, .eyebrow.ink, .ix-subtabs button.active, .forecast-presets button.active, .financial-days button.active strong, .kantong-mini.is-add span { color: var(--accent-text); }
+.bm-pct.warn { color: var(--amber-text); }
+.wallet-solid .tag, .settings-hero .tag { color: #fff; }
+.bottom-nav button.add .bn-label, .bottom-nav button.active .bn-label { color: var(--accent-text); }
+.qa-count { color: color-mix(in srgb, var(--qa-tone) 75%, var(--ink)); }
+.gl-tag { background: color-mix(in srgb, var(--tone) 82%, #000); }
+.wallet-tab small { color: color-mix(in srgb, var(--muted) 85%, var(--ink)); }
+/* Chart legends: the coloured mark shows the series; the words stay in the text colour. */
+.recharts-legend-item-text { color: var(--ink) !important; }
+.ix-hint { color: var(--accent-text); }
+.cy-ready-note { color: #8a5000 !important; }
+[data-theme='dark'] .cy-ready-note { color: #f2b55e !important; }
+.wallet-tab small, .wallet-tab.is-operational small { color: color-mix(in srgb, var(--muted) 80%, var(--ink)) !important; }

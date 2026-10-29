@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.4', date: '29 Okt 2026', title: 'Audit menyeluruh: Tanya, potong struk, dan kerapian', items: [
+    ['🧭', 'Tanya lebih tepat: “makan siang minggu ini berapa?” sekarang menghitung subkategori Makan Siang (sebelumnya Rp0), “sisa anggaran makan” membuka anggaran Makan & Minum, dan “transport bulan ini” masuk Transportasi. Jawaban dihitung dari semua catatanmu, tidak hanya bulan berjalan.'],
+    ['📸', 'Layar potong struk baru: garisnya langsung menempel di tepi kertas, sudut siku putih dengan aksen tipis tanpa pegangan kapsul. Hasil potongan diambil dari foto asli dan dihaluskan, jadi tulisannya tetap tajam.'],
+    ['📈', 'Perkiraan akhir anggaran belajar dari periode sebelumnya. Tagihan yang biasa dibayar di awal siklus tidak lagi dikira bakal jebol, jadi Insight tidak memberi peringatan palsu.'],
+    ['🎨', 'Teks kecil di label, persentase anggaran, legenda grafik, dan menu bawah dibuat lebih kontras di semua palet, terang maupun gelap. Seluruh menu diperiksa di layar 360 px, 390 px, mode gelap, dan desktop.'],
+    ['✅', 'Notifikasi anggaran langsung membuka rincian anggarannya. Di Jadwal, kalau rentang kosong, “Berikutnya” juga menampilkan tagihan rutin, bukan hanya rencana.'],
+  ] },
   { version: '7.3', date: '28 Okt 2026', title: 'Scan struk lebih teliti, tanda yakin lebih jujur', items: [
     ['🧾', 'Struk thermal yang pudar lebih rapi terbaca: angka 0 yang terbaca 8 atau 6 dibetulkan lewat jumlah × harga satuan, dan nominal yang tercetak sedikit di atas labelnya (Bayar, Kembali, QRIS) tetap dipasangkan dengan benar.'],
     ['✅', 'Tanda “yakin” makin ketat: tidak diberikan kalau total beda sedikit dari jumlah barang tanpa alasan pembulatan, kalau ada angka yang diubah hanya supaya pas, atau kalau uang yang dibayar kurang dari totalnya.'],

@@ -34,10 +34,11 @@ function Ring({ used, committed, icon, color }: { used: number; committed: numbe
   </span>;
 }
 
-export function BudgetsView({ notify, navigate, openTx }: { notify: (message: string) => void; navigate?: (view: string, focus?: string) => void; openTx?: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void }) {
+export function BudgetsView({ notify, navigate, openTx, focus }: { notify: (message: string) => void; navigate?: (view: string, focus?: string) => void; openTx?: (preset?: Partial<LedgerTx>, editing?: LedgerTx) => void; /** 7.4: a budget id to open its details at once (from a notification). */ focus?: string }) {
   const { data, user, profile, cycle } = useApp(); const { track } = useNotify(); const undo = useUndoDelete();
   const [open, setOpen] = useState(false), [editing, setEditing] = useState<Budget | null>(null), [name, setName] = useState(''), [nameTouched, setNameTouched] = useState(false), [category, setCategory] = useState(''), [subs, setSubs] = useState<string[]>([]), [amount, setAmount] = useState(0), [classification, setClassification] = useState<Budget['classification']>('living'), [period, setPeriod] = useState<Budget['cycleType']>('salary'), [day, setDay] = useState(24), [warning, setWarning] = useState(80), [notes, setNotes] = useState(''), [rollover, setRollover] = useState(false), [active, setActive] = useState(true), [error, setError] = useState(''), [busy, setBusy] = useState(false), [detail, setDetail] = useState<string | null>(null), [sortMode, setSortMode] = useState<SortMode>('manual'), [order, setOrder] = useState<string[]>([]);
   const today = dateInTimeZone(new Date(), profile?.timeZone), salaryDay = profile?.salaryCycleStartDay || 24;
+  useEffect(() => { if (focus && data.budgets.some(b => b.id === focus)) setDetail(focus); }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { const saved = localStorage.getItem(sortKey) as SortMode | null; if (saved && sortModes.some(([k]) => k === saved)) setSortMode(saved); } catch { /* Sorting preference is optional. */ } }, []);
   useEffect(() => { setOrder([]); }, [data.budgets]);
   function chooseSort(mode: SortMode) { setSortMode(mode); try { localStorage.setItem(sortKey, mode); } catch { /* Sorting preference is optional. */ } }

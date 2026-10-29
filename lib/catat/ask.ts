@@ -117,7 +117,9 @@ export function readPeriod(text: string, today: string, salaryDay = 24): Period 
 /** A sentence that asks something (for a friendly reply when it cannot be answered from the records). */
 export const looksLikeQuestion = (text: string) => /^\s*(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana|siapa|kenapa)\b|\?\s*$/i.test(text) && !findAmounts(text).some(a => a.marked);
 const QUESTION = /\b(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana)\b|\?\s*$/;
-const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b/u;
+/** 7.4: a sentence askMoney may answer (so the whole ledger is worth reading before it does). */
+export const mayAsk = (text: string) => { const t = lower(text.trim()); return (QUESTION.test(t) || LEAD.test(t)) && !findAmounts(t).some(a => a.marked); };
+const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b|^(?:total\s+)?(?:pengeluaran|pemasukan)\p{L}*\s+(?:bulan|minggu|pekan|siklus|periode|tahun|hari\s+ini|kemarin)\b/u;
 const SPEND_CUE = /\b(?:pengeluaran\p{L}*|keluar|keluarin|habis|abis|kepake|kepakai|terpakai|belanja|bayar|beli|jajan|boros|spend|spending|biaya|ongkos)\b/u;
 function intentOf(t: string): Exclude<AskIntent, 'owed'> {
   if (/\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat|banyak|sedikit|gede|besar|kecil))\b/.test(t)) return 'compare';
@@ -138,15 +140,29 @@ habis abis keluar keluarin kepake kepakai terpakai pengeluaran spend spending du
 siklus periode lalu kemarin sebelumnya paling terbesar tergede termahal gede besar boros mahal banyak rata rata-rata rata2 rerata sehari per tiap
 sekali harian kategori dibanding dibandingkan dibandingin banding vs versus lebih hemat sedikit kecil sisa anggaran budget bujet saldo dompet isi masih
 tinggal pemasukan pendapatan penghasilan masuk dapat dapet diterima income bayar beli catat dicatat transaksi sih kah`.split(/\s+/));
-type Subject = { walletId?: string; walletName?: string; merchant?: string; text?: string; category?: { id: string; name: string } };
+/** `orText`: a category named by a phrase that the notes also say ("makan siang"); either one counts. */
+type Subject = { walletId?: string; walletName?: string; merchant?: string; text?: string; category?: { id: string; name: string }; orText?: string };
 
 function catalog(ctx: QuickContext, flow: 'expense' | 'income') { return ctx.categories.filter(c => c.type === flow && !c.isArchived); }
-/** A category the person named: the whole name ("nongkrong" → Nongkrong), then a word of it ("hiburan" → Nongkrong & Hiburan). */
+/**
+ * A category the person named by one word: a main category of that name, then a main category with that word in its
+ * name ("hiburan" → Nongkrong & Hiburan, "makan" → Makan & Minum; its own subcategory of that name wins: "nongkrong" →
+ * Nongkrong), then a subcategory of that name in another branch (Travel & Liburan › Makan only when no main category
+ * says "makan"), then a main category that starts with it, then a word of any name.
+ */
 function namedCategory(word: string, ctx: QuickContext, flow: 'expense' | 'income') {
   const cats = catalog(ctx, flow), parts = (c: { name: string }) => lower(c.name).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  return cats.find(c => lower(c.name) === word) || cats.find(c => !c.parentId && parts(c).includes(word)) || cats.find(c => parts(c).includes(word))
-    || (word.length >= 5 ? cats.find(c => parts(c).some(p => p.startsWith(word))) : undefined);
+  const exact = cats.filter(c => lower(c.name) === word), main = cats.filter(c => !c.parentId);
+  const exactMain = exact.find(c => !c.parentId);
+  if (exactMain) return exactMain;
+  const partMain = main.find(c => parts(c).includes(word));
+  if (partMain) return exact.find(c => c.parentId === partMain.id) || partMain;
+  const prefix = (list: typeof cats) => word.length >= 5 ? list.find(c => parts(c).some(p => p.startsWith(word))) : undefined;
+  // "transport" → Transportasi, not Kerja › Transport Kerja.
+  return exact[0] || prefix(main) || cats.find(c => parts(c).includes(word)) || prefix(cats);
 }
+/** A category whose whole name is these words ("makan siang" → Makan Siang, "kopi minuman" → Kopi & Minuman). */
+const phraseName = (c: { name: string }) => lower(c.name).split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(' ');
 const noteOf = (t: LedgerTx) => lower(`${t.description || ''} ${t.merchant || ''}`);
 
 function subjectOf(text: string, ctx: QuickContext, data: AskData, flow: 'expense' | 'income', intent: AskIntent): { subject: Subject; leftover: boolean } {
@@ -160,6 +176,11 @@ function subjectOf(text: string, ctx: QuickContext, data: AskData, flow: 'expens
   const words = rest.split(/[^\p{L}\p{N}-]+/u).map(x => x.replace(/(?:ku|nya)$/u, m => (STOP.has(x) ? m : ''))).filter(x => x.length >= 3 && !STOP.has(x) && !/^\d/.test(x));
   if (!words.length) return { subject, leftover: false };
   const pool = data.transactions.filter(t => (flow === 'expense' ? transactionExpense(t) > 0 : transactionIncome(t) > 0));
+  // Two or three words that are a category's whole name, longest first; the notes that say the same also count.
+  for (let n = Math.min(3, words.length); n >= 2; n--) for (let i = 0; i + n <= words.length; i++) {
+    const said = words.slice(i, i + n).join(' '), c = catalog(ctx, flow).find(x => phraseName(x) === said);
+    if (c) { subject.category = { id: c.id, name: c.name }; if (pool.some(t => has(noteOf(t), said))) subject.orText = said; return { subject, leftover: false }; }
+  }
   const phrase = words.join(' ');
   if (words.length >= 2 && pool.some(t => has(noteOf(t), phrase))) { subject.text = phrase; return { subject, leftover: false }; }
   for (const word of words) {
@@ -180,17 +201,19 @@ function amountFor(t: LedgerTx, s: Subject, flow: 'expense' | 'income') {
   if (s.walletId && t.walletId !== s.walletId) return 0;
   if (s.merchant && !lower(t.merchant || '').includes(lower(s.merchant))) return 0;
   if (s.text && !has(noteOf(t), s.text)) return 0;
-  if (flow === 'income') return s.category && t.categoryId !== s.category.id && t.subcategoryId !== s.category.id ? 0 : transactionIncome(t);
+  const noted = Boolean(s.orText && has(noteOf(t), s.orText));
+  if (flow === 'income') return s.category && t.categoryId !== s.category.id && t.subcategoryId !== s.category.id && !noted ? 0 : transactionIncome(t);
   if (!s.category) return transactionExpense(t);
   const id = s.category.id;
-  return expenseAllocations(t).filter(l => l.categoryId === id || l.subcategoryId === id).reduce((n, l) => n + l.amount, 0);
+  const inCategory = expenseAllocations(t).filter(l => l.categoryId === id || l.subcategoryId === id).reduce((n, l) => n + l.amount, 0);
+  return inCategory || (noted ? transactionExpense(t) : 0);
 }
-const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}` : '', s.text ? `catatan yang ada kata “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `pakai ${s.walletName}` : ''].filter(Boolean).join(' · ');
+const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}${s.orText ? ` atau catatan yang ada kata “${s.orText}”` : ''}` : '', s.text ? `catatan yang ada kata “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `pakai ${s.walletName}` : ''].filter(Boolean).join(' · ');
 const nameOf = (s: Subject) => s.category?.name || (s.text ? `“${s.text}”` : '') || s.merchant || '';
 /** The Transaksi filter that shows exactly the entries counted. */
 function focusOf(s: Subject, ids: string[], flow: 'expense' | 'income', start?: string, end?: string) {
   const range = start && end ? `@${start}..${end}` : '';
-  const parts = [s.category, s.text || s.merchant, s.walletId].filter(Boolean).length;
+  const parts = [s.category, s.orText, s.text || s.merchant, s.walletId].filter(Boolean).length;
   if (parts > 1) return ids.length ? `tx:${ids.join(',')}${range}` : undefined;
   if (s.category) return `category:${s.category.id}${range}`;
   if (s.text || s.merchant) return `search:${s.text || lower(s.merchant!)}${range}`;

@@ -27,6 +27,11 @@ export type Prepared = {
   skew: number; landscape: boolean; cropped: boolean; quality: Quality; ms: number;
   /** A phone screenshot (read as it is), not a photo of paper. */
   digital?: boolean;
+  /**
+   * 7.4: where the paper itself is, 0..1 of the upright photo, for the corner editor's starting outline: the found
+   * corners even when not sure enough to straighten by, else the paper's box turned by the tilt. Absent: no paper.
+   */
+  outline?: Quad;
 };
 
 type Canvas2D = { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D };
@@ -130,19 +135,27 @@ export async function preparePhoto(photo: Blob, options: PrepareOptions = {}): P
     // A screenshot has no paper, light, glare or angle: only a small resolution is worth saying.
     const quality = digital ? { ...judged, warnings: judged.warnings.filter(w => /^Resolusi/.test(w)), retake: false } : judged;
     const { clean, even, bw } = variants(grey, outW, outH, outside);
+    // The paper for the editor: found corners (any confidence), else its box turned by the tilt, in 0..1.
+    const lw = lowGrey.width, lh = lowGrey.height;
+    const outline: Quad | undefined = options.corners ? options.corners : found ? scaleQuad(found.quad, 1 / lw, 1 / lh) : paper ? (() => {
+      const rad = (geometry.method === 'rotate' ? skew : 0) * Math.PI / 180, cx = (paper.x0 + paper.x1 + 1) / 2, cy = (paper.y0 + paper.y1 + 1) / 2, hw = (paper.x1 - paper.x0 + 1) / 2, hh = (paper.y1 - paper.y0 + 1) / 2;
+      const c = Math.cos(rad), sn = Math.sin(rad), at = (dx: number, dy: number) => ({ x: (cx + dx * c - dy * sn) / lw, y: (cy + dx * sn + dy * c) / lh });
+      return [at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh)] as Quad;
+    })() : undefined;
     return {
-      width: outW, height: outH, clean, even, bw, toPhoto, photoWidth: W, photoHeight: H,
+      width: outW, height: outH, clean, even, bw, toPhoto, photoWidth: W, photoHeight: H, ...(outline ? { outline } : {}),
       corners: scaleQuad(geometry.quad, 1 / W, 1 / H), cornerConfidence: method === 'manual' ? 'manual' : cutFound ? 'low' : found ? found.confidence : 'none', method,
       skew, landscape: size.width > size.height * 1.25, cropped: Boolean(paper) || method === 'manual', quality, ms: Date.now() - started, ...(digital ? { digital } : {}),
     };
   } finally { bitmap.close(); }
 }
 
-/** A small upright copy of the photo (for the corner editor and "where was this read"), as an object URL. */
 /**
- * The receipt as it was read: the upright photo cut to the chosen area and straightened (what the reading used), as a
- * small JPEG. `target` maps the straightened image (width × height) onto the photo (photoWidth × photoHeight), like
- * a prepared photo does; `quadTarget` builds one from four corners (0..1 of the photo) before anything is read.
+ * The receipt as it was read: the photo cut to the chosen area and straightened (what the reading used), as a JPEG.
+ * `target` maps the straightened image (width × height) onto the upright photo (photoWidth × photoHeight), like a
+ * prepared photo does; `quadTarget` builds one from four corners (0..1 of the photo) before anything is read.
+ * 7.4: cut from the original photo (not the small upright copy), with bilinear sampling, up to `longSide` pixels and
+ * never larger than the photo holds, so the cut keeps the photo's own sharpness.
  */
 export type Straightened = { url: string; blob: Blob; width: number; height: number };
 export function quadTarget(corners: Quad, photoWidth: number, photoHeight: number) {
@@ -151,38 +164,82 @@ export function quadTarget(corners: Quad, photoWidth: number, photoHeight: numbe
   const toPhoto = homography(rectQuad(width, height), q);
   return toPhoto ? { toPhoto, photoWidth, photoHeight, width, height } : null;
 }
-export async function straightenedPreview(uprightUrl: string, target: { toPhoto: Matrix; photoWidth: number; photoHeight: number; width: number; height: number }, longSide = 1000): Promise<Straightened> {
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(Error('Foto belum bisa ditampilkan.')); img.src = uprightUrl; });
-  const iw = image.naturalWidth, ih = image.naturalHeight;
-  const src = document.createElement('canvas'); src.width = iw; src.height = ih;
-  const sctx = src.getContext('2d', { willReadFrequently: true }); if (!sctx) throw Error('Foto belum bisa ditampilkan.');
-  sctx.drawImage(image, 0, 0); const pixels = sctx.getImageData(0, 0, iw, ih).data; src.width = 1; src.height = 1;
+/** The upright photo's pixels: the original turned a quarter at a time, at most `cap` pixels on its long side. */
+async function uprightPixels(source: string | { photo: Blob; turn: number }, cap: number) {
+  let draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, W: number, H: number, close = () => {};
+  if (typeof source === 'string') {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(Error('Foto belum bisa ditampilkan.')); img.src = source; });
+    W = image.naturalWidth; H = image.naturalHeight; draw = (ctx, w, h) => ctx.drawImage(image, 0, 0, w, h);
+  } else {
+    const bitmap = await loadBitmap(source.photo), quarter = ((source.turn % 4) + 4) % 4, sideways = quarter % 2 === 1;
+    W = sideways ? bitmap.height : bitmap.width; H = sideways ? bitmap.width : bitmap.height; close = () => bitmap.close();
+    draw = (ctx, w, h) => { ctx.scale(w / W, h / H); ctx.translate(W / 2, H / 2); ctx.rotate(quarter * Math.PI / 2); ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2); };
+  }
+  try {
+    const scale = Math.min(1, cap / Math.max(W, H)), iw = Math.max(1, Math.round(W * scale)), ih = Math.max(1, Math.round(H * scale));
+    const canvas = document.createElement('canvas'); canvas.width = iw; canvas.height = ih;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true }); if (!ctx) throw Error('Foto belum bisa ditampilkan.');
+    ctx.imageSmoothingQuality = 'high'; draw(ctx, iw, ih);
+    const pixels = ctx.getImageData(0, 0, iw, ih).data; canvas.width = 1; canvas.height = 1;
+    return { pixels, iw, ih };
+  } finally { close(); }
+}
+export async function straightenedPreview(source: string | { photo: Blob; turn: number }, target: { toPhoto: Matrix; photoWidth: number; photoHeight: number; width: number; height: number }, longSide = 2400): Promise<Straightened> {
+  const { pixels, iw, ih } = await uprightPixels(source, 3200);
   // As large as the photo holds (no blow-up), long side at most `longSide`.
   const detail = Math.min(iw / target.photoWidth, ih / target.photoHeight);
   const scale = Math.min(longSide / Math.max(target.width, target.height), detail);
   const w = Math.max(1, Math.round(target.width * scale)), h = Math.max(1, Math.round(target.height * scale));
   const out = document.createElement('canvas'); out.width = w; out.height = h;
   const ctx = out.getContext('2d'); if (!ctx) throw Error('Foto belum bisa ditampilkan.');
-  const data = ctx.createImageData(w, h), sx = iw / target.photoWidth, sy = ih / target.photoHeight;
+  const data = ctx.createImageData(w, h), sx = iw / target.photoWidth, sy = ih / target.photoHeight, m = target.toPhoto;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const p = mapPoint(target.toPhoto, (x + .5) / scale, (y + .5) / scale), px = Math.min(iw - 1, Math.max(0, Math.round(p.x * sx))), py = Math.min(ih - 1, Math.max(0, Math.round(p.y * sy)));
-    const from = (py * iw + px) * 4, to = (y * w + x) * 4;
-    data.data[to] = pixels[from]; data.data[to + 1] = pixels[from + 1]; data.data[to + 2] = pixels[from + 2]; data.data[to + 3] = 255;
+    // Bilinear: the four photo pixels around the point, weighted by distance (smooth letters instead of jagged ones).
+    const u = (x + .5) / scale, v = (y + .5) / scale, d = m[6] * u + m[7] * v + m[8];
+    const px = Math.min(iw - 1.001, Math.max(0, ((m[0] * u + m[1] * v + m[2]) / d) * sx - .5)), py = Math.min(ih - 1.001, Math.max(0, ((m[3] * u + m[4] * v + m[5]) / d) * sy - .5));
+    const x0 = Math.floor(px), y0 = Math.floor(py), fx = px - x0, fy = py - y0, a = (y0 * iw + x0) * 4, b = a + 4, c = a + iw * 4, e = c + 4, to = (y * w + x) * 4;
+    for (let k = 0; k < 3; k++) data.data[to + k] = (pixels[a + k] * (1 - fx) + pixels[b + k] * fx) * (1 - fy) + (pixels[c + k] * (1 - fx) + pixels[e + k] * fx) * fy;
+    data.data[to + 3] = 255;
   }
   ctx.putImageData(data, 0, 0);
-  const blob = await new Promise<Blob>((resolve, reject) => out.toBlob(b => b ? resolve(b) : reject(Error('Foto belum bisa ditampilkan.')), 'image/jpeg', .88));
+  const blob = await new Promise<Blob>((resolve, reject) => out.toBlob(b => b ? resolve(b) : reject(Error('Foto belum bisa ditampilkan.')), 'image/jpeg', .92));
   out.width = 1; out.height = 1;
   return { url: URL.createObjectURL(blob), blob, width: w, height: h };
 }
-export async function uprightPreview(photo: Blob, turn = 0, longSide = 1100): Promise<{ url: string; width: number; height: number }> {
+/**
+ * 7.4: the outline the corner editor starts with. The paper's own outline when it is a plausible receipt shape (near
+ * right angles, opposite sides alike, not tiny); otherwise the reading's crop (which can be generous, up to the whole
+ * photo). A shadow across the paper cuts the found shape at a slant, and that is not offered as the receipt.
+ */
+export function editorStart(prepared: Pick<Prepared, 'corners' | 'outline' | 'photoWidth' | 'photoHeight'>): Quad {
+  const o = prepared.outline;
+  if (!o) return prepared.corners;
+  const q = o.map(p => ({ x: p.x * prepared.photoWidth, y: p.y * prepared.photoHeight }));
+  const side = (i: number) => Math.hypot(q[(i + 1) % 4].x - q[i].x, q[(i + 1) % 4].y - q[i].y);
+  const angle = (i: number) => { const a = q[(i + 3) % 4], b = q[i], c = q[(i + 1) % 4], u = { x: a.x - b.x, y: a.y - b.y }, v = { x: c.x - b.x, y: c.y - b.y }; return Math.acos(Math.max(-1, Math.min(1, (u.x * v.x + u.y * v.y) / ((Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y)) || 1)))) * 180 / Math.PI; };
+  const area = Math.abs(q.reduce((n, p, i) => n + p.x * q[(i + 1) % 4].y - q[(i + 1) % 4].x * p.y, 0)) / 2;
+  const alike = (a: number, b: number) => Math.min(a, b) / (Math.max(a, b) || 1) >= .75;
+  const turns = q.map((p, i) => { const b = q[(i + 1) % 4], c = q[(i + 2) % 4]; return Math.sign((b.x - p.x) * (c.y - b.y) - (b.y - p.y) * (c.x - b.x)); });
+  // Top and bottom stay nearly parallel on a photographed receipt (the phone tilts along it, so the sides may meet).
+  const heading = (i: number) => Math.atan2(q[(i + 1) % 4].y - q[i].y, q[(i + 1) % 4].x - q[i].x) * 180 / Math.PI;
+  const apart = (a: number, b: number) => { const d = Math.abs(((a - b) % 180 + 180) % 180); return Math.min(d, 180 - d); };
+  const plausible = [0, 1, 2, 3].every(i => angle(i) >= 72 && angle(i) <= 108) && alike(side(0), side(2)) && alike(side(1), side(3))
+    && apart(heading(0), heading(2)) <= 6 && apart(heading(1), heading(3)) <= 14
+    // A whole side on the photo's edge: the paper runs off the frame there, so what was found may be only part of it.
+    && !o.some((p, i) => { const n = o[(i + 1) % 4]; return (p.x < .02 && n.x < .02) || (p.x > .98 && n.x > .98) || (p.y < .02 && n.y < .02) || (p.y > .98 && n.y > .98); })
+    && area >= prepared.photoWidth * prepared.photoHeight * .08 && turns.every(t => t === turns[0]);
+  return plausible ? o : prepared.corners;
+}
+/** A smaller upright copy of the photo (for the corner editor and "where was this read"), as an object URL. */
+export async function uprightPreview(photo: Blob, turn = 0, longSide = 1600): Promise<{ url: string; width: number; height: number }> {
   const bitmap = await loadBitmap(photo);
   try {
     const quarter = ((turn % 4) + 4) % 4, sideways = quarter % 2 === 1;
     const W = sideways ? bitmap.height : bitmap.width, H = sideways ? bitmap.width : bitmap.height, scale = Math.min(1, longSide / Math.max(W, H));
     const canvas = document.createElement('canvas'); canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale);
     const ctx = canvas.getContext('2d'); if (!ctx) throw Error('Foto belum bisa ditampilkan.');
-    ctx.scale(scale, scale); ctx.translate(W / 2, H / 2); ctx.rotate(quarter * Math.PI / 2); ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
-    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(Error('Foto belum bisa ditampilkan.')), 'image/jpeg', .85));
+    ctx.imageSmoothingQuality = 'high'; ctx.scale(scale, scale); ctx.translate(W / 2, H / 2); ctx.rotate(quarter * Math.PI / 2); ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(Error('Foto belum bisa ditampilkan.')), 'image/jpeg', .9));
     canvas.width = 1; canvas.height = 1;
     return { url: URL.createObjectURL(blob), width: W, height: H };
   } finally { bitmap.close(); }

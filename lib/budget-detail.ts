@@ -42,6 +42,22 @@ export function budgetDetail(budget: Budget, txs: LedgerTx[], categories: Catego
   return { items, spent, totalDays, elapsed, daysLeft, dailyAvg, ideal, projected, pace, weeks, bySub, unassigned, byWallet, places: [...places.values()].sort((a, b) => b.amount - a.amount).slice(0, 5), largest: [...items].sort((a, b) => transactionExpense(b) - transactionExpense(a)).slice(0, 3) };
 }
 
+/**
+ * 7.4: where a budget period's spending is heading. Earlier periods tell how much of their total was usually spent by
+ * this day (rent and bills are paid early, a weekly market is lumpy); the spending so far is scaled by that share. With
+ * fewer than two earlier periods it is the even pace (spent per day × days). Never below what is already spent.
+ */
+export function projectSpend(spent: number, elapsed: number, totalDays: number, past: { total: number; byDay: number }[]) {
+  const usable = past.filter(p => p.total > 0);
+  if (usable.length >= 2) {
+    const share = usable.reduce((n, p) => n + Math.min(1, p.byDay / p.total), 0) / usable.length;
+    // Little of it was spent by this day before: the earlier totals say more than scaling a small number.
+    if (share < .15) return Math.max(spent, Math.round(usable.reduce((n, p) => n + p.total, 0) / usable.length));
+    return Math.max(spent, Math.round(spent / share));
+  }
+  return Math.max(spent, Math.round(spent / Math.max(1, elapsed) * totalDays));
+}
+
 /** The periods before the current one, oldest first, for the history strip. */
 export function previousWindows(window: { start: string }, count: number, windowFor: (date: Date) => { start: string; end: string }) {
   const list: { start: string; end: string }[] = [];

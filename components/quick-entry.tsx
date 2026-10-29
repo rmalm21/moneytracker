@@ -12,7 +12,7 @@ import { compositionReceipt } from '@/lib/catat/composition';
 import { aliasKey, learnFromChoice, learnFromSave, learnOverrides, personalize, readTeach, teach, TYPE_LABEL, type AliasType, type Contact, type PersonalAction, type PersonalAlias, type PersonalAsk, type PersonalInput, type PersonalPlan, type SavedFacts } from '@/lib/catat/personal';
 import { rememberSaved, sessionView } from '@/lib/catat/session';
 import { planMutation } from '@/lib/catat/mutation';
-import { looksLikeQuestion, type AskMeta } from '@/lib/catat/ask';
+import { looksLikeQuestion, mayAsk, type AskMeta } from '@/lib/catat/ask';
 import { FIELD_LABELS, FIELD_STATUS, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
 import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveLexicon, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
@@ -176,13 +176,25 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const [contacts, setContacts] = useState<Contact[]>([]);
   useEffect(() => { if (!user) { setContacts([]); return; } let off: (() => void) | undefined, live = true; void import('@/lib/split-bill-store').then(m => { if (live) off = m.subscribeSplitContacts(user.uid, v => setContacts(v.people.map(p => ({ id: p.id, name: p.name }))), () => {}); }); return () => { live = false; off?.(); }; }, [user]);
   const people = useMemo(() => [...contacts.map(c => c.name), ...(lexicon?.on === false ? [] : Object.values(lexicon?.aliases || {}).filter(a => a.type === 'person' && (a.status === 'learned' || a.status === 'provisional')).map(a => a.label))], [contacts, lexicon]);
-  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), people, ask: { transactions: data.transactions, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent, people]);
   /**
    * The whole message read as a plan: one card per action. Read from a deferred copy of the text, so typing stays
    * instant: the letters appear first, and the reading and the cards follow when the phone has a moment (a reading
    * still running when the next letter comes is dropped).
    */
   const typed = useDeferredValue(text);
+  // 7.4: Tanya answers from every entry, not only the ones the screens keep live (this cycle, this month, the latest
+  // 60): the whole ledger is read once per opening, from this device's copy when it is current, at the first question.
+  // Until it is there, no answer is shown (an answer from part of the ledger would be wrong without saying so).
+  const [ledger, setLedger] = useState<LedgerTx[] | null>(null);
+  const asking = Boolean(user) && Boolean(typed.trim()) && mayAsk(typed), readingLedger = asking && !ledger;
+  useEffect(() => {
+    if (!user || ledger || !asking) return;
+    let live = true;
+    void import('@/lib/firestore').then(m => m.loadAllTransactions(user.uid)).then(all => { if (live) setLedger(all); }).catch(() => { if (live) setLedger([]); });
+    return () => { live = false; };
+  }, [user, ledger, asking]);
+  const askLedger = useMemo(() => { if (!ledger) return data.transactions; const byId = new Map(ledger.map(t => [t.id, t])); for (const t of data.transactions) byId.set(t.id, t); return [...byId.values()]; }, [ledger, data.transactions]);
+  const ctx = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), recent, plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), people, ask: readingLedger ? undefined : { transactions: askLedger, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone, typedMinute, recent, people, readingLedger, askLedger]);
   // V3.4: answers to "“besto” maksudnya …?" for this sentence, and the short session (what was just saved here).
   const [choose, setChoose] = useState<Record<string, string>>({}), [sessionTick, setSessionTick] = useState(0);
   useEffect(() => { setChoose(c => Object.keys(c).length ? {} : c); }, [typed, mode]);
@@ -333,7 +345,9 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       <div className="qp-actions"><Button type="button" onClick={saveTeach} disabled={Boolean(teachRead.problem)}><Check size={15}/> Simpan ke Kamus Pribadi</Button></div>
     </div>}
     {!teaching && pAsks.map(a => <div key={a.raw + a.kind} className="qp-ask qp-personal-ask" role="group" aria-label={a.question}><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>{a.question}</span><span className="qp-picks">{a.choices.map(c => <button type="button" key={c.id} className="sb-chip" onClick={() => pickPersonal(a, c.id)}>{c.label}</button>)}<button type="button" className="sb-chip" onClick={() => pickPersonal(a, 'none')}>{a.kind === 'pronoun' ? 'Orang lain' : 'Bukan keduanya'}</button></span></div>)}
-    {!teaching && text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && (!error && !plan?.references[0] && looksLikeQuestion(typed)
+    {!teaching && text.trim() && typed.trim() && !actions.length && !plan?.cancelled.length && (!error && readingLedger
+      ? <small className="quick-entry-hint" role="status">Membaca semua catatanmu…</small>
+      : !error && !plan?.references[0] && looksLikeQuestion(typed)
       ? <div className="quick-preview qa-card qa-help" role="status"><div className="qa-head"><span className="qp-icon" aria-hidden="true"><MessageCircleQuestion size={18}/></span><span className="qa-kicker">Tanya</span></div><p className="qa-sentence">Yang itu belum bisa dijawab dari catatanmu. Coba tanya soal uangmu sendiri, misalnya:</p><div className="qa-next">{['berapa pengeluaranku bulan ini', 'kapan terakhir isi bensin', 'sisa anggaran makan berapa', 'saldo semua dompet berapa'].map(n => <button type="button" key={n} className="qa-chip" onClick={() => askAgain(n)}>{n}</button>)}</div></div>
       : <small className="quick-entry-hint" role="alert">{error || plan?.references[0] || 'Tambahkan nominalnya, misalnya 8rb, 25k, atau 1,5jt.'}</small>)}
     {text.trim() && typed.trim() && !actions.length && (plan?.cancelled.length || 0) > 0 && <small className="qp-cancelled">Dibatalkan: {plan!.cancelled.map(c => `“${c}”`).join(', ')}. Tidak ada yang disimpan.</small>}

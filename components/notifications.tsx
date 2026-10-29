@@ -165,7 +165,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
   const attention = useMemo<Attention[]>(() => {
     if (!profile) return [];
     const list: Attention[] = [];
-    const go = (view: string) => ({ label: 'Buka', run: () => { setOpen(false); navigate(view); } });
+    const go = (view: string, focus?: string) => ({ label: 'Buka', run: () => { setOpen(false); navigate(view, focus); } });
     if (pwa.updateReady) list.push({ id: 'update', title: 'Versi baru tersedia', body: 'Muat ulang untuk memakai versi terbaru.', kind: 'info', action: { label: 'Muat ulang', run: applyUpdate } });
     if (pwa.canInstall) list.push({ id: 'install', title: 'Pasang Dompet Ajaib', body: 'Buka lebih cepat dari layar utama, bisa dipakai offline.', kind: 'info', action: { label: 'Pasang', run: () => void promptInstall() } });
     if (sync === 'offline') list.push({ id: 'offline', title: 'Sedang offline', body: 'Perubahan akan dikirim saat koneksi kembali.', kind: 'warning' });
@@ -178,7 +178,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
       const pct = Math.round(row.spent / row.available * 100);
       // Spent exactly the limit is "habis" (used up), only more than the limit is "terlewati".
       const state = row.spent > row.available ? 'over' : row.spent === row.available ? 'done' : 'warn';
-      list.push({ id: `budget-${budget.id}-${row.start}-${state}`, title: state === 'over' ? `Anggaran ${budget.name} terlewati` : state === 'done' ? `Anggaran ${budget.name} sudah habis` : `Anggaran ${budget.name} terpakai ${pct}%`, body: state === 'over' ? `Lebih ${rupiah(row.spent - row.available)}` : state === 'done' ? 'Terpakai pas di batas, sisa Rp0' : `Sisa ${rupiah(row.remaining)}`, kind: state === 'over' ? 'error' : 'warning', action: go('budgets') });
+      list.push({ id: `budget-${budget.id}-${row.start}-${state}`, title: state === 'over' ? `Anggaran ${budget.name} terlewati` : state === 'done' ? `Anggaran ${budget.name} sudah habis` : `Anggaran ${budget.name} terpakai ${pct}%`, body: state === 'over' ? `Lebih ${rupiah(row.spent - row.available)}` : state === 'done' ? 'Terpakai pas di batas, sisa Rp0' : `Sisa ${rupiah(row.remaining)}`, kind: state === 'over' ? 'error' : 'warning', action: go('budgets', budget.id) });
     }
     const today = todayInTimeZone(profile.timeZone); let end = today; for (let i = 0; i < 3; i++) end = nextDate(end);
     for (const event of upcomingEvents(data, profile, { start: today, end }).filter(e => e.kind !== 'note' && e.amount < 0).slice(0, 5)) list.push({ id: `due-${event.id}-${event.date}`, title: `${event.title} · ${rupiah(Math.abs(event.amount))}`, body: event.date === today ? 'Jatuh tempo hari ini' : `Jatuh tempo ${formatDate(event.date, false)}`, kind: 'info', action: go('upcoming') });

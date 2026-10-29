@@ -2,7 +2,8 @@
  * Insight V2.5 — budget pressure for the running window, read with lib/accounting.ts budgetCurrent
  * (the same spent / available numbers the Anggaran page shows). A budget belongs to its category's story.
  */
-import { budgetCurrent, budgetIconCategoryId, countedBudgets } from '../../accounting.ts';
+import { budgetCurrent, budgetIconCategoryId, budgetSpent, countedBudgets } from '../../accounting.ts';
+import { projectSpend } from '../../budget-detail.ts';
 import { confidence } from '../confidence.ts';
 import { daysBetween, parse, type InsightContext } from '../context.ts';
 import type { InsightSignal } from '../types.ts';
@@ -15,7 +16,15 @@ export function budgetSignals(ctx: InsightContext): InsightSignal[] {
     if (!now.available) continue;
     const fresh = Boolean(budget.createdDate && budget.createdDate >= now.start);
     const length = Math.max(1, daysBetween(now.start, now.end)), passed = Math.min(1, (daysBetween(now.start, ctx.today) + 1) / length);
-    const usage = now.spent / now.available, projected = passed >= .2 ? now.spent / passed : now.spent;
+    // 7.4: projected by the share earlier periods had spent at this day (bills paid early), else the even pace.
+    const elapsed = daysBetween(now.start, ctx.today) + 1, past: { total: number; byDay: number }[] = [];
+    for (let i = 1, at = parse(now.start); i <= 3; i++) {
+      at = new Date(at.getFullYear(), at.getMonth(), at.getDate() - 1, 12);
+      const w = budgetCurrent(budget, history, data.categories, at, ctx.salaryDay), cut = new Date(parse(w.start).getTime() + elapsed * 86_400_000), last = cut.toISOString().slice(0, 10);
+      past.push({ total: w.spent, byDay: budgetSpent(budget, history.filter(t => t.date >= w.start && t.date < last && t.date < w.end), data.categories) });
+      at = parse(w.start);
+    }
+    const usage = now.spent / now.available, projected = passed >= .2 ? projectSpend(now.spent, elapsed, length, past) : now.spent;
     const over = now.spent > now.available, heading = !over && passed >= .2 && projected > now.available * 1.05 && usage >= .5;
     if (!over && !heading) continue;
     const name = budget.name || ctx.nameOf(budgetIconCategoryId(budget));

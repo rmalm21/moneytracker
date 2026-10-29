@@ -59,7 +59,7 @@ export function ReceiptSource({ upright, mapping, box, label }: { upright: Uprig
 
 /**
  * Setting the receipt's four corners by hand, like a document scanner: a clean outline over the photo with the
- * outside dimmed, four large corner handles and four edge handles (an edge moves both its corners), a loupe while
+ * outside dimmed, four L-shaped corners and a grip on each side (an edge moves both its corners), a loupe while
  * dragging, snapping back to the detected corner when close, and a straightened preview of the result.
  * "Ulangi" returns to the detected outline; "Gunakan" reads the receipt again with these corners.
  */
@@ -69,9 +69,11 @@ const SNAP = .025;
  * (`onRetake`) it decides what is read at all, with a turn and a retake beside it.
  */
 export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel, applyLabel = 'Gunakan', onRetake, onRotate, fitVh = 58 }: { upright: Upright; corners: Quad; onApply: (corners: Quad, changed: boolean) => void; onCancel: () => void; applyLabel?: string; onRetake?: () => void; onRotate?: () => void; /** Tallest the photo may be, in % of the screen height. */ fitVh?: number }) {
-  const [points, setPoints] = useState<Quad>(corners), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
+  // A detected outline can reach a little past the photo; on screen (and as the start) it stays on the photo.
+  const inside = (q: Quad) => q.map(p => ({ x: Math.max(0, Math.min(1, p.x)), y: Math.max(0, Math.min(1, p.y)) })) as Quad;
+  const [points, setPoints] = useState<Quad>(() => inside(corners)), frame = useRef<HTMLDivElement>(null), drag = useRef<{ kind: 'corner' | 'edge'; index: number; from: Point; start: Quad } | null>(null);
   const [active, setActive] = useState<{ x: number; y: number } | null>(null), preview = useRef<HTMLCanvasElement>(null), source = useRef<ImageData | null>(null);
-  const initial = useRef(corners);
+  const initial = useRef(inside(corners));
   // Magnet: corners stick to real corners of the paper, sides to its border (lib/crop-magnet.ts). On by default.
   const [magnet, setMagnet] = useState(true), [snapped, setSnapped] = useState(false), field = useRef<EdgeField | null>(null), targets = useRef<Point[]>([]);
   const stick = (on: boolean) => { setSnapped(current => { if (on && !current) try { navigator.vibrate?.(8); } catch { /* optional */ } return on; }); };
@@ -127,14 +129,34 @@ export function ReceiptCorners({ upright, corners, onApply, onCancel: _onCancel,
   }
   useEffect(() => { if (!drag.current) drawPreview(); }, [points]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 7.4: the outline is drawn in screen pixels: L-shaped corners that follow the receipt's own angles and a short grip
+  // on each side, white with a thin accent line and a soft shadow (no capsules), and a thirds grid while dragging.
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = frame.current; if (!el || typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(([entry]) => setBox({ w: entry.contentRect.width, h: entry.contentRect.height })); watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
   const ratio = upright.width / upright.height;
-  const path = `M0 0H100V100H0Z M${points.map(p => `${p.x * 100} ${p.y * 100}`).join(' L')}Z`;
+  const P = points.map(p => ({ x: p.x * box.w, y: p.y * box.h }));
+  const toward = (a: Point, b: Point, length: number) => { const d = Math.hypot(b.x - a.x, b.y - a.y) || 1; return { x: a.x + (b.x - a.x) / d * length, y: a.y + (b.y - a.y) / d * length }; };
+  const lerp = (a: Point, b: Point, t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const xy = (p: Point) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  const outline = `M${P.map(xy).join(' L')}Z`;
+  const brackets = P.map((c, i) => { const prev = P[(i + 3) % 4], next = P[(i + 1) % 4], L = Math.min(24, Math.hypot(prev.x - c.x, prev.y - c.y) * .4, Math.hypot(next.x - c.x, next.y - c.y) * .4); return `M${xy(toward(c, prev, L))} L${xy(c)} L${xy(toward(c, next, L))}`; }).join(' ');
+  const grips = P.map((a, i) => { const b = P[(i + 1) % 4], m = lerp(a, b, .5), half = Math.min(12, Math.hypot(b.x - a.x, b.y - a.y) * .15); return `M${xy(toward(m, a, half))} L${xy(toward(m, b, half))}`; }).join(' ');
+  const grid = active ? [1 / 3, 2 / 3].map(t => `M${xy(lerp(P[0], P[1], t))} L${xy(lerp(P[3], P[2], t))} M${xy(lerp(P[0], P[3], t))} L${xy(lerp(P[1], P[2], t))}`).join(' ') : '';
+  const dim = `M0 0H${box.w}V${box.h}H0Z ${outline}`;
   const changed = points.some((p, i) => Math.abs(p.x - initial.current[i].x) > .001 || Math.abs(p.y - initial.current[i].y) > .001);
   return <div className={`rs-corners ${snapped ? 'is-snapped' : ''}`}>
     <div className="rs-corners-stage">
       <div className="rs-corners-frame" ref={frame} style={{ aspectRatio: `${upright.width} / ${upright.height}`, width: `min(100%, calc(${fitVh}vh * ${ratio.toFixed(4)}))` }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
         <img src={upright.url} alt="Foto struk asli" draggable={false}/>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d={path} fillRule="evenodd" className="rs-corners-dim"/><polygon points={points.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}/></svg>
+        {box.w > 0 && <svg className="rs-crop-svg" viewBox={`0 0 ${box.w} ${box.h}`} preserveAspectRatio="none" aria-hidden="true">
+          <path d={dim} fillRule="evenodd" className="rs-corners-dim"/>
+          {grid && <path d={grid} className="rs-crop-grid"/>}
+          <g className="rs-crop-marks"><path d={outline} className="rs-crop-line"/><path d={`${brackets} ${grips}`} className="rs-crop-mark"/><path d={`${brackets} ${grips}`} className="rs-crop-accent"/></g>
+        </svg>}
         {[0, 1, 2, 3].map(i => { const p = mid(i); return <button type="button" key={`e${i}`} className="rs-edge" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Geser sisi ${edges[i]}`}
           onPointerDown={event => { drag.current = { kind: 'edge', index: i, from: at(event), start: points }; (event.target as HTMLElement).setPointerCapture?.(event.pointerId); event.preventDefault(); }}/>; })}
         {points.map((p, i) => <button type="button" key={i} className="rs-corner" style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }} aria-label={`Sudut ${names[i]}`}
