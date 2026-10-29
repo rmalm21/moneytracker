@@ -147,7 +147,7 @@ test('chat 7.7: every budget at once, days to payday, a kind word when money wor
   const [m] = await talk('aduh lagi bokek');
   assert.equal(m.intent, 'mood'); assert.match(m.reply.text, /Wajar/); assert.equal(m.reply.steps.length, 3);
   const [soft] = await talk('lagi galau nih');
-  assert.equal(soft.intent, 'smalltalk');
+  assert.equal(soft.intent, 'curhat');
 });
 
 test('chat 7.7: saving goals become a fund to create; small talk; a greeting with more after it', async () => {
@@ -173,4 +173,59 @@ test('chat 7.7: saving goals become a fund to create; small talk; a greeting wit
     const [r] = await talk({ voice }, 'gajian masih berapa hari');
     assert.ok(r.reply.text.length > 5, voice);
   }
+});
+
+test('chat 7.8: jokes go on ("lagi") and explain themselves ("maksudnya?"); banter; serious mode answers the rest', async () => {
+  const [j1, j2, why, b] = await talk('kasih jokes dong', 'lagi', 'maksudnya?', 'wkwk garing');
+  assert.deepEqual([j1.intent, j2.intent, why.intent, b.intent], ['joke', 'joke', 'explain', 'banter']);
+  assert.notEqual(j1.reply.text, j2.reply.text);
+  assert.match(why.reply.text, /Lucunya|gini/);
+  const [s] = await talk('udah ah serius, ringkasan bulan ini');
+  assert.equal(s.intent, 'summary'); assert.equal(s.memory.serious, true);
+  const [s2] = await talk('serius dong');
+  assert.equal(s2.intent, 'serious');
+});
+
+test('chat 7.8: anger gets a sorry and an offer to be taught; apologies; venting is listened to; offers answered', async () => {
+  const [a, p] = await talk('kamu bego ya', 'maaf ya tadi aku kasar');
+  assert.equal(a.intent, 'angry'); assert.ok(a.reply.chips.includes('ajari aku')); assert.equal(p.intent, 'apology');
+  // Self-blame is not anger at the assistant.
+  const [self] = await talk('aku bodoh banget soal uang');
+  assert.notEqual(self.intent, 'angry');
+  const [c1, c2, yes] = await talk('aku lagi sedih', 'kerjaan numpuk terus atasan marah', 'boleh');
+  assert.deepEqual([c1.intent, c2.intent, yes.intent], ['curhat', 'curhat', 'joke']);
+  const [sleep, ok] = await talk('aku ngantuk', 'boleh');
+  assert.deepEqual([sleep.intent, ok.intent], ['smalltalk', 'question']);
+  const [, no] = await talk('aku ngantuk', 'ga usah');
+  assert.equal(no.intent, 'decline');
+  const [harm] = await talk('aku pengen mati aja');
+  assert.equal(harm.intent, 'curhat'); assert.match(harm.reply.text, /119/);
+  // Money worries stay "mood" (with an offer of tips).
+  const [m, tips] = await talk('lagi stres soal tagihan', 'boleh');
+  assert.deepEqual([m.intent, tips.intent], ['mood', 'tips']);
+});
+
+test('chat 7.8: after two messages not understood the person can teach it; explicit teaching; learned words inside sentences', async () => {
+  const learned = {};
+  let mem = {};
+  const say = async text => { const r = await chatReply(text, mem, { ...chatCtx, learned }); mem = r.memory; if (r.learn) learned[r.learn.phrase] = r.learn.as; return r; };
+  assert.equal((await say('blablabla qwerty')).intent, 'unknown');
+  const second = await say('zxcv asdf');
+  assert.equal(second.intent, 'unknown'); assert.ok(second.reply.chips.includes('ajari aku'));
+  const ask = await say('ajari aku');
+  assert.equal(ask.intent, 'teach'); assert.match(ask.reply.text, /zxcv asdf/);
+  const taught = await say('ringkasan bulan ini');
+  assert.equal(taught.intent, 'summary'); assert.equal(learned['zxcv asdf'], 'ringkasan bulan ini');
+  assert.equal((await say('zxcv asdf')).intent, 'summary');
+  const t = await say('kalau aku bilang boncos artinya boros');
+  assert.equal(t.intent, 'teach'); assert.equal(learned.boncos, 'boros');
+  assert.equal((await say('aku boncos banget bulan ini')).intent, 'tips');
+  const bad = await say('kalau aku bilang zzz artinya qqq www');
+  assert.equal(bad.intent, 'teach'); assert.equal(learned.zzz, undefined);
+});
+
+test('chat 7.8: "jadi 50rb" on "gue cuma 45k" changes your part, not the bill', async () => {
+  const [rec, edit] = await talk('290k hokben kemarin gue cuma 45k', 'jadi 50rb');
+  assert.equal(rec.intent, 'plan'); assert.equal(edit.intent, 'edit');
+  assert.equal(edit.reply.text, '290k hokben kemarin gue cuma 50rb');
 });

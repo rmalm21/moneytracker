@@ -1,19 +1,19 @@
 /**
- * Chat intents on a held-out set: 7.6 (frozen in bench/chat/baseline-v76, rules + its model) vs now (rules alone, and
- * rules with the trained model).
- *   SET=heldout|heldout2 node bench/chat/run.mjs [--fails] [--first]
+ * Chat intents on a held-out set: the frozen previous release (bench/chat/baseline-v76 or baseline-v77, rules + its
+ * model) vs now (rules alone, and rules with the trained model).
+ *   SET=heldout|heldout2|heldout3 [BASE=v76|v77] node bench/chat/run.mjs [--fails] [--first]
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import { chatReply } from '../../lib/chat/engine.ts';
 import { classifyChat } from '../../lib/chat/model.ts';
-import * as old from './baseline-v76/engine.ts';
-import * as oldModel from './baseline-v76/model.ts';
 import { chatCtx } from './state.mjs';
-const SET = process.env.SET || 'heldout';
+const SET = process.env.SET || 'heldout', BASE = process.env.BASE || (SET === 'heldout3' ? 'v77' : 'v76');
+const old = await import(`./baseline-${BASE}/engine.ts`), oldModel = await import(`./baseline-${BASE}/model.ts`);
+const label = BASE.replace(/^v(\d)(\d)$/, '$1.$2');
 const { cases } = await import(`./fixtures-${SET}.mjs`);
 
 const runs = {};
-for (const [name, reply, ctx] of [['7.6', old.chatReply, { ...chatCtx, classify: oldModel.classifyChat }], ['aturan', chatReply, chatCtx], ['aturan + model', chatReply, { ...chatCtx, classify: classifyChat }]]) {
+for (const [name, reply, ctx] of [[label, old.chatReply, { ...chatCtx, classify: oldModel.classifyChat }], ['aturan', chatReply, chatCtx], ['aturan + model', chatReply, { ...chatCtx, classify: classifyChat }]]) {
   const rows = [];
   for (const c of cases) { const r = await reply(c.text, {}, ctx); rows.push({ ...c, got: r.intent, by: r.by }); }
   runs[name] = rows;

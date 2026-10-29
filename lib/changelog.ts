@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.8', date: '30 Okt 2026', title: 'Asisten chat v2: diajak bercanda, curhat, dan bisa kamu ajari', items: [
+    ['🤖', 'Asisten bisa diajak bercanda (minta jokes, pantun, atau gombalan, lalu “lagi” atau “maksudnya?”), dimarahi (ia minta maaf dan menawarkan untuk diajari), diminta serius (“serius dong”), dan diajak curhat (ia mendengarkan sesuai topiknya: kerja, cinta, kuliah, atau keluarga). Obrolannya berlanjut: “boleh” atau “nggak usah” menjawab tawarannya, “kenapa?” menjelaskan jawaban terakhir, dan “yang lain?” memberi tips berikutnya.'],
+    ['💡', 'Kalau asisten dua kali belum paham, ia menawarkan “Ajari aku”. Kamu juga bisa menulis “kalau aku bilang boncos artinya boros”. Ungkapan yang diajarkan tersimpan di HP ini dan bisa dihapus satu per satu di pengaturan chat.'],
+    ['🤝', 'Catat otomatis paham bagian sendiri: “290k hokben kemarin gue cuma 45k” dicatat Rp45.000 saja, sisanya tidak dicatat. Totalnya tetap bisa dicatat dengan satu ketukan.'],
+    ['✅', 'Model chat dilatih dengan sekitar 5.000 kalimat (13.000 dengan variasi ejaan) untuk 26 maksud, dan paham singkatan seperti “km bs ngapain aj”. Pada 71 pesan uji baru, ketepatannya naik dari 39% ke 93% di percobaan pertama. Pada 13 percakapan berlanjut, dari 8% ke 100%.'],
+    ['🔧', 'Membuka chat atau Catat otomatis tidak lagi memunculkan keyboard sendiri. Kapsul di kartu hasil dirapikan: tingginya sama, teksnya di tengah, dan nominal tidak terpotong.'],
+  ] },
   { version: '7.7', date: '29 Okt 2026', title: 'Kartu hasil baru, asisten makin pintar, pesan chat bisa dihapus', items: [
     ['🎨', 'Kartu hasil tampil baru di Catat otomatis dan chat: garis warna di atas, ikon sesuai jenisnya, nominal besar, dan tombol Simpan yang lebar. Jawaban chat seperti ringkasan, anggaran, gajian, tips, dan hitungan kini berupa kartu berwarna dengan angka utama, kotak angka, dan bar progres.'],
     ['🤖', 'Asisten bisa menjawab “anggaranku gimana” (semua anggaran sekaligus), “kapan gajian?” (sisa hari dan jatah per hari), dan “pengen nabung buat nikah” (saran target yang tinggal diketuk untuk membuat tujuan dana). Kalau kamu bilang “lagi bokek”, asisten menenangkan dulu lalu memberi langkah kecil. Obrolan ringan seperti “apa kabar” juga dijawab.'],

@@ -4,7 +4,7 @@
  * not catch.
  */
 import model from './chat-model.ts';
-import { chatFeature, type ChatModelIntent } from './corpus.ts';
+import { chatFeature, type ChatModelIntent } from './feature.ts';
 
 type NlpLike = { import(json: string): void; process(locale: string, text: string): Promise<{ intent: string; score: number }>; settings: Record<string, unknown> };
 let loading: Promise<NlpLike> | null = null;

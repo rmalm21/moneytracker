@@ -10,6 +10,10 @@
  *   - a calculator, a summary of the period, "aman nggak beli …?", tips from the person's own records;
  *   - 7.7: every budget at a glance, days to payday with the daily allowance, a kind reply when money worries, saving
  *     goals turned into a fund to create, and small talk;
+ *   - 7.8 (chatbot v2): a personality (lib/chat/persona.ts: jokes and pantun, banter, anger, apologies, listening when
+ *     the person vents, a serious mode) and a conversation that goes on: "lagi" / "yang lain?" continue the topic,
+ *     "kenapa?" / "maksudnya?" explain the last answer, "boleh" / "nggak usah" answer the assistant's offer, and after
+ *     two messages not understood the person can teach it ("ajari aku", "kalau aku bilang boncos artinya boros");
  *   - four ways of talking (lib/chat/voice.ts), greetings, help, templates;
  *   - a trained intent model (NLP.js, lib/chat/model.ts) for sentences the rules do not catch, and phrases learned from
  *     the person: a message not understood, followed by one that is, is remembered (on this device).
@@ -19,11 +23,13 @@
 import { budgetCurrent, countedBudgets, expenseAllocations, metrics, transactionExpense, transactionIncome } from '../accounting.ts';
 import { readPeriod } from '../catat/ask.ts';
 import { suggestCategory } from '../categorize.ts';
+import { readOwnPart } from '../catat/math.ts';
 import { findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
 import type { Data } from '../types';
 import { calculate, calcText } from './calc.ts';
-import type { ChatModelIntent } from './corpus.ts';
+import { normalizeWords, type ChatModelIntent } from './feature.ts';
 import type { AskField, Inspection } from './inspect.ts';
+import { CURHAT_TOPICS, JOKES, SELF_HARM, curhatReply, curhatTopic, persona as P, pickVar, safety } from './persona.ts';
 import { say as V, you, yours, type Voice } from './voice.ts';
 
 export type ChatData = Pick<Data, 'wallets' | 'transactions' | 'budgets' | 'categories' | 'funds' | 'debts' | 'receivables' | 'claims'>;
@@ -49,6 +55,18 @@ export type ChatMemory = {
   asking?: { field: AskField; choices: string[] };
   /** The last message that was not understood (to learn from the next one). */
   unknown?: string;
+  /** 7.8: replies so far (wordings rotate with it), and what the talk is about now. */
+  turn?: number; topic?: string;
+  /** The message the assistant offered ("Mau cek pengeluaran hari ini?"): "boleh" sends it, "nggak" declines. */
+  offer?: string;
+  /** A phrase the person is teaching: their next message is what it means. */
+  teaching?: string;
+  /** Messages not understood in a row (two → the assistant asks to be taught). */
+  misses?: number;
+  /** Jokes told lately (not repeated), venting turns in a row, serious mode, the page of tips shown. */
+  jokes?: number[]; curhat?: number; serious?: boolean; tipsPage?: number;
+  /** How the last answer was worked out, for "kenapa?" / "maksudnya?". */
+  explain?: string;
 };
 export type SayTone = 'up' | 'down' | 'warn' | 'good';
 export type SayLine = { label: string; value: string; tone?: SayTone };
@@ -60,9 +78,12 @@ export type ChatReply =
   /** Read by Catat otomatis: cards to save, an answer, a change to a record. `intro` is said before the card. */
   | { kind: 'plan'; text: string; intro?: string; chips?: string[] }
   /** An answer: the sentence, then (each optional) one big figure, small figure tiles, bars, numbered steps, and rows. */
-  | { kind: 'say'; text: string; title?: string; card?: SayCard; hero?: { label: string; value: string; note?: string; tone?: SayTone }; stats?: SayLine[]; bars?: SayBar[]; steps?: string[]; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string };
+  | { kind: 'say'; text: string; title?: string; card?: SayCard; hero?: { label: string; value: string; note?: string; tone?: SayTone }; stats?: SayLine[]; bars?: SayBar[]; steps?: string[]; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string;
+    /** 7.8: how this answer was worked out, said when the person asks "kenapa?" (not shown on the card). */
+    why?: string };
 export type ChatIntent = 'greet' | 'thanks' | 'ack' | 'help' | 'examples' | 'about' | 'voice' | 'edit' | 'fill' | 'cancel' | 'undo' | 'followup' | 'calc' | 'summary' | 'afford' | 'tips' | 'plan' | 'question' | 'unknown'
-  | 'smalltalk' | 'mood' | 'budget' | 'payday' | 'goal';
+  | 'smalltalk' | 'mood' | 'budget' | 'payday' | 'goal'
+  | 'joke' | 'banter' | 'angry' | 'curhat' | 'serious' | 'teach' | 'apology' | 'explain' | 'decline';
 export type ChatResult = {
   intent: ChatIntent; reply: ChatReply; memory: ChatMemory;
   /** The record waiting to be saved is dropped. */ dismiss?: boolean;
@@ -97,6 +118,7 @@ export const TEMPLATES: TemplateGroup[] = [
   { key: 'hitung', title: 'Hitung', hint: 'Kalkulator di dalam chat', items: ['hitung 128181 dibagi 3 dikali 2', 'berapa 15% dari 2,5jt', 'diskon 50% makan 80rb'] },
   { key: 'tanya', title: 'Tanya', hint: 'Dijawab dari catatanmu', items: ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'sisa anggaran makan berapa'] },
   { key: 'saran', title: 'Ringkasan & saran', hint: 'Kondisi keuangan, anggaran, gajian', items: ['ringkasan bulan ini', 'cek semua anggaran', 'kapan gajian?', 'aman nggak beli sepatu 500rb?', 'kasih tips hemat', 'pengen nabung buat liburan'] },
+  { key: 'ngobrol', title: 'Ngobrol', hint: 'Bercanda, curhat, ajari aku', items: ['kasih jokes dong', 'pantun soal duit dong', 'boleh curhat?', 'kalau aku bilang boncos artinya boros'] },
   { key: 'ubah', title: 'Ubah & batal', hint: 'Setelah mencatat', items: ['jadi 45rb', 'pakai {other}', 'kemarin', 'batalin yang tadi'] },
   { key: 'rencana', title: 'Rencana', hint: 'Anggaran, pengingat, rutin', items: ['anggaran makan 2jt', 'ingatkan bayar listrik tgl 20', 'bayar wifi 300rb tiap tanggal 5'] },
 ];
@@ -117,13 +139,13 @@ export function templatesFor(wallets: QuickContext['wallets']): TemplateGroup[] 
 const GREET = /^(?:halo+|hal+o|hai+|hay|hi+|hello|helo|hey|hei|pagi|siang|sore|malam|met (?:pagi|siang|sore|malam)|selamat (?:pagi|siang|sore|malam)|assalamu.?alaikum|asw|permisi|p|yo)(?:\s+(?:min|kak|bro|sis|bot|asisten|dompet|ajaib|semua|apa kabar))*$/;
 /** A greeting with a little more after it: "pagi min, apa kabar", "malam kak, masih bangun?" (7.7, post-hoc). */
 const GREET_LEAD = /^(?:halo+|hai+|hi+|hello|hey|pagi|siang|sore|malam|met (?:pagi|siang|sore|malam)|selamat (?:pagi|siang|sore|malam)|assalamu.?alaikum)(?:\s+(?:min|kak|bro|sis|bot|asisten|dompet|ajaib|semua))*\s*[,!.]\s*(.+)$/;
-const THANKS = /^(?:makasih+|makasi|mksh|maksih|terima ?kasih|trims|thanks|thank you|thx|tq|ty|nuhun|suwun|tengkyu)\b/;
-const ACK = /^(?:ok(?:e|ay|ey)?|okk+|sip+|siap|mantap|mantul|good|nice|keren|baik|oke deh|okedeh|ya|iya|yoi|noted|wkwk+|haha+|hehe+|hihi|👍|🙏)$/;
+const THANKS = /^(?:(?:iya|ya|oke|ok|sip|nah|wah|wih|mantap)\s+)?(?:makasih+|makasi|mksh|maksih|terima ?kasih|trims|thanks|thank you|thx|tq|ty|nuhun|suwun|tengkyu)\b/;
+const ACK = /^(?:ok(?:e|ay|ey)?|okk+|sip+|siap|mantap|mantul|good|nice|keren|baik|oke deh|okedeh|ya|iya|yoi|noted|wkwk+|haha+|hehe+|hihi|👍|🙏|(?:baik|aman|sehat|lumayan|alhamdulillah|biasa)(?:\s+(?:kok|aja|banget|bgt|baik|alhamdulillah|sih))*|so far so good|fine)$/;
 const HELP = /^(?:bantuan|help|tolong|menu|fitur|panduan|cara ?pakai|caranya)$|\b(?:bisa apa(?: aja| saja)?|bisa ngapain|ngapain aja|bisa bantu apa|apa (?:aja|saja) yang bisa|fitur(?:nya|mu)? apa|apa (?:aja|saja) fitur(?:nya|mu)?|cara (?:pakai|make|makenya|pakainya|menggunakan)(?! \p{L}+ (?:\d|rp)))\b/u;
-const ABOUT = /\b(?:kamu siapa|siapa kamu|kamu itu apa|kamu apa|ini apa|ini siapa)\b/;
-const EXAMPLES = /^(?:contoh(?:nya)?|template|kasih contoh|minta contoh|ide)(?:\s+(?:dong|lagi|chat|kalimat))*$/;
+const ABOUT = /\b(?:kamu siapa|siapa kamu|kamu itu apa|kamu apa|ini apa|ini siapa)\b|^kamu\s+(?:(?:tuh|itu|ini)\s+)?(?:sebenarnya\s+)?(?:apa|siapa)$/;
+const EXAMPLES = /^(?:(?:liat|lihat|minta|kasih|mau liat|mau lihat|tunjukin|tampilin)\s+)?(?:contoh(?:nya)?|template(?:nya)?|ide)(?:\s+(?:nya|dong|lagi|chat|kalimat|apa aja|yang ada))*$/;
 const VOICE_WORDS: [RegExp, Voice][] = [[/\b(?:formal|baku|sopan|anda)\b/, 'sopan'], [/\b(?:lo[- ]?gue|lu[- ]?gue|gue[- ]?lo|gaul)\b/, 'gaul'], [/\b(?:singkat|pendek|ringkas|to the point)\b/, 'singkat'], [/\b(?:santai|kayak temen|jangan kaku|ga kaku|nggak kaku|biasa aja)\b/, 'santai']];
-const VOICE_TALK = /\b(?:bahasa|gaya|ngomong|jawab(?:nya)?|ngobrol|bicara|pakai|pake)\b/;
+const VOICE_TALK = /\b(?:bahasa|gaya|ngomong|jawab(?:nya)?|ngobrol|bicara|pakai|pake|balas(?:nya)?|bales(?:nya)?|respon(?:nya)?)\b/;
 
 function partOfDay(hour = 12) { return hour < 11 ? 'pagi' : hour < 15 ? 'siang' : hour < 18 ? 'sore' : 'malam'; }
 
@@ -152,25 +174,83 @@ const PAYDAY = /\b(?:gajian|gaji(?:nya)? (?:turun|masuk|cair)|tanggal muda|payda
 const PAYDAY_ASK = /\b(?:kapan|berapa|brp|brapa|lama|dekat|deket|kurang|mundur|sisa|tanggal|tgl)\b/;
 const ALLOWANCE = /\bjatah (?:harian|per ?hari|sehari)\b|\b(?:sehari|per ?hari) (?:boleh|bisa|aman)\b/;
 /** Money worries: strong words alone, softer ones only next to money. */
-const MOOD_STRONG = /\b(?:bokek|boke|kere|bangkrut|tanggal tua|kanker|seret|kalap|dompet tipis|krisis)\b|\b(?:uang|duit)(?:ku)? (?:abis|habis|tinggal (?:dikit|sedikit)|menipis)\b|\b(?:abis|habis) terus\b|\bcepet (?:abis|habis)\b|\b(?:ga|gak|nggak|tidak) punya (?:uang|duit|tabungan)\b/;
+const MOOD_STRONG = /\b(?:bokek|boke|kere|bangkrut|tanggal tua|kanker|seret|kalap|dompet tipis|krisis)\b|\b(?:uang|duit)(?:ku|\s+(?:gue|aku|saya|ku))?\s+(?:abis|habis|tinggal\s+(?:dikit|sedikit)|menipis)\b|\b(?:abis|habis) terus\b|\bcepet (?:abis|habis)\b|\b(?:ga|gak|nggak|tidak) punya (?:uang|duit|tabungan)\b/;
 const MOOD_SOFT = /\b(?:pusing|puyeng|stres|stress|sedih|galau|panik|khawatir|cemas|takut|nyesel|menyesal|capek|cape|lelah|frustasi|kesel|sebel|bad mood)\b/;
 const MONEY_WORD = /\b(?:uang(?:ku)?|duit(?:ku)?|keuangan(?:ku)?|finansial|tagihan|cicilan|utang|hutang|gaji(?:ku)?|belanja|tabungan|dompet|bayar|checkout|boros|kantong)\b/;
 const SMALL: [RegExp, 'kabar' | 'bosan' | 'tidur' | 'puji' | 'kamu' | 'galau'][] = [
   [/\b(?:apa kabar|kabar(?:mu|nya)? (?:gimana|bagaimana|baik)|gimana kabar(?:mu|nya)?|how are you)\b/, 'kabar'],
   [/\b(?:bosen|bosan|gabut|bete|boring|kesepian|temenin|temani|ceritain)\b/, 'bosan'],
-  [/\b(?:ngantuk|selamat tidur|good night|met bobo|mau tidur|bobo dulu|capek|cape|lelah)\b/, 'tidur'],
-  [/\b(?:kamu|lo|lu|anda) (?:lucu|keren|hebat|pintar|pinter|baik|mantap|asik|asyik)\b|\b(?:pinter|hebat|lucu) (?:banget|juga)\b|\bgood job\b/, 'puji'],
+  [/\b(?:ngantuk|selamat tidur|good night|met bobo|mau tidur|bobo dulu)\b/, 'tidur'],
+  [/\b(?:kamu|lo|lu|anda) (?:keren|hebat|pintar|pinter|baik|mantap|asik|asyik)\b|\b(?:pinter|hebat) (?:banget|juga)\b|\bgood job\b/, 'puji'],
   [/\b(?:lagi (?:apa|ngapain|sibuk)|ngapain|udah makan|sudah makan|kamu (?:tidur|suka|sayang|cewek|cowok|laki|perempuan|punya nama|capek)|nama (?:kamu|mu)|namamu)\b/, 'kamu'],
-  [/\b(?:galau|sedih|kangen|bad mood|pusing)\b/, 'galau'],
 ];
 /** A saving goal: "pengen nabung buat nikah", "mau siapin dana darurat", "target beli motor tahun depan". */
 const DESIRE = /\b(?:pengen|pengin|pingin|ingin|mau|target|rencana|berencana|niat|cita.?cita|impian)\b/;
 const SAVE_WORD = /\b(?:nabung|menabung|ngumpulin|ngumpulkan|kumpulin|nyisihin|sisihin|menyisihkan|nyiapin|siapin|menyiapkan)\b|\bdana (?:darurat|pendidikan|pensiun|nikah|menikah|haji|umroh|kuliah)\b|\bpunya (?:rumah|mobil|motor|tabungan)\b|\b(?:target|tujuan) (?:nabung|tabungan)\b/;
 const LATER = /\b(?:tahun depan|bulan depan|tahun ini|akhir tahun|nanti|suatu hari)\b/;
-const LEARNABLE = new Set<ChatIntent>(['summary', 'tips', 'help', 'examples', 'about', 'greet', 'thanks', 'budget', 'payday', 'mood', 'smalltalk']);
+const LEARNABLE = new Set<ChatIntent>(['summary', 'tips', 'help', 'examples', 'about', 'greet', 'thanks', 'budget', 'payday', 'mood', 'smalltalk', 'joke', 'banter', 'serious']);
+
+/* ------------------------------------------------------------------ 7.8 conversation */
+
+const LAUGH = String.raw`wk(?:wk)+k*|w+k+w+k*|ha(?:ha)+h*|he(?:he)+h*|hi(?:hi)+|xixi+|ngakak|lol|lmao|anjay|anjir|anjrit`;
+const JOKE_NOUN = String.raw`jokes?|lelucon|lawak(?:an)?|candaan|bercandaan|humor|pantun|tebak[\s-]?tebakan|tebakan|teka[\s-]?teki|gombal(?:an|in)?|cerita\s+lucu|cerita\s+kocak|plesetan|dad\s+jokes?`;
+/** Asking for a joke: "kasih jokes dong", "pantun dong", "tebak-tebakan yuk", "bikin aku ketawa", "gombalin aku". */
+const JOKE = new RegExp(String.raw`\b(?:kasih|ceritain|cerita|ceritakan|bikin|bikinin|buatin|minta|mau|pengen|pengin|ada|punya|bagi|share|sebutin|coba|tolong|yuk|ayo|lagi|satu)\b.*\b(?:${JOKE_NOUN})\b|^(?:${JOKE_NOUN})\b|\b(?:${JOKE_NOUN})\s+(?:dong|donk|yuk|yg|yang|receh|lucu|lagi|please|plis|pls|soal|tentang|biar)\b|\bgombalin\b|\b(?:bikin|buat)\s+(?:aku|gue|gw|saya|ku)\s+(?:ketawa|ngakak|senyum|tertawa)\b|\bhibur\s+(?:aku|gue|gw|saya)\b`, 'u');
+/** Laughing, teasing, playing along: "wkwk receh", "garing ah", "bisa aja kamu", "kamu ngelawak ya". */
+const BANTER = new RegExp(String.raw`\b(?:${LAUGH})\b|\b(?:garing|jayus|krik(?:\s*krik)?|receh|kocak|ngelawak|melawak|lawak)\b|\bbisa\s+aja\b|\blucu\s+(?:juga|jg|banget|bgt|amat|sih)\b|^lucu\b`, 'u');
+const FLAT = /\b(?:garing|jayus|krik|ga lucu|gak lucu|nggak lucu|kurang lucu|ga ada lucunya)\b/;
+/** Anger at the assistant (not at oneself): insults, "salah mulu", "ga guna", "nyebelin". */
+const INSULT = /\b(?:bego|bodoh|bodo|goblok|goblog|tolol|idiot|dongo|bloon|oon|bebal|lemot|lelet|payah|jelek|sampah|bacot|berisik|ngaco|ngawur|nyebelin|ngeselin|menyebalkan|menjengkelkan)\b/;
+const AT_BOT = /\b(?:kamu|km|kau|lu|lo|loe|elu|elo|bot|botnya|asisten|asistennya|aplikasi|aplikasinya|app|dasar|ini)\b/;
+const ANGRY = /\b(?:salah\s+(?:mulu|terus|melulu|lagi|lg|trs)|(?:ga|gak|nggak|ngga|tidak|kagak)\s+(?:guna|berguna|becus|bisa\s+apa\s+apa|ngerti\s+apa\s+apa)|useless|(?:kesel|kesal|sebel|sebal|benci|muak|bete)\s+(?:sama|ama|dengan|ma)\s+(?:kamu|lu|lo|kau|bot|asisten|aplikasi\w*)|nyebelin|ngeselin|menyebalkan|jawabannya\s+(?:ngaco|salah|ngawur)|asal\s+(?:jawab|aja))\b/;
+const SELF_BLAME = /^(?:aku|gue|gw|saya|ku)\b|\b(?:aku|gue|gw|saya)\s+(?:emang\s+|memang\s+)?(?:bego|bodoh|tolol|payah)\b/;
+/** Sorry: "maaf ya tadi aku kasar", "iya maaf aku emosi", "sori td kelepasan". */
+const APOLOGY = /^(?:(?:iya|ya|oke|ok|eh|duh)\s+)?(?:maaf|maap|mf|maafin|maafkan|sori|sorry|sory|sorri|punten|ampun)\b/;
+/** Venting about life (money worries are "mood"). */
+const CURHAT = /\b(?:curhat|patah hati|diputusin|ditinggal(?:in)?|ninggalin|selingkuh|berantem|bertengkar|ribut|marahan|marahin|dimarahin|kesepian|sendirian|nangis|galau|kecewa|stres|stress|depresi|cemas|overthinking|capek|cape|capai|lelah|burnout|tertekan|hancur|down|bad mood|sedih|sakit hati|insecure|minder|putus asa|frustasi|kangen|rindu)\b|\b(?:hari ini|minggu ini|hidup|hidupku)\s+(?:berat|kacau|hancur|ancur|capek|nyebelin|buruk)\b|\b(?:berat|kacau)\s+banget\b|\b(?:skripsi\w*|kerjaan\w*|tugas\w*)\s+(?:gak|ga|nggak|tidak|ngga)\s+(?:kelar|selesai|beres)/;
+/** Be serious: "serius dong", "jangan bercanda", "udah becandanya, fokus", "mode serius". */
+const SERIOUS = /\b(?:serius(?:in)?|jangan\s+(?:ber)?canda|jgn\s+(?:ber)?canda|ga\s+usah\s+(?:ber)?canda|udah(?:an)?\s+(?:ber)?canda(?:nya)?|stop\s+(?:ber)?canda|fokus|mode\s+serius|yang\s+bener|yg\s+bener)\b/;
+const SERIOUS_WORDS = /\b(?:udah(?:an)?|ah|dong|deh|sekarang|oke|ok|ya|nih|mode|serius(?:in)?|jangan|jgn|ga\s+usah|stop|(?:ber)?canda(?:nya)?|fokus|yang\s+bener|yg\s+bener|aja|kita|lah|sih)\b/g;
+/** Teaching: "ajari aku", "aku mau ngajarin kamu", "aku ajarin ya", "boleh aku ajarin?". */
+const TEACH_START = /^(?:(?:aku|gue|gw|saya)\s+(?:mau\s+|pengen\s+|pengin\s+)?)?(?:ajari|ajarin|ngajarin|mengajari|ngajari)(?:\s+(?:aku|kamu|km|lu|lo|gue|dong|ya|deh|boleh|bisa|sini|mau))*(?:\s+boleh)?$|^(?:boleh|bisa)\s+(?:aku\s+|gue\s+|saya\s+)?(?:ajari|ajarin|ngajarin)(?:\s+(?:kamu|km|lu|lo|ga|gak|nggak|ya))*$|^(?:aku|gue|saya)\s+(?:mau|pengen)\s+(?:ngajarin|ngajari|mengajari|ajarin)\s+(?:kamu|km|lu|lo)(?:\s+\p{L}+)?$/u;
+/** "kalau aku bilang boncos artinya boros", "inget ya, cekidot itu artinya ringkasan", "boncos itu artinya boros". */
+const TEACH_SAID = /^(?:(?:kalau|kalo|klo|kl|jika|misal|misalnya)\s+(?:aku|gue|gw|saya)\s+(?:bilang|nulis|ngetik|ketik|tulis|ngomong)|(?:inget|ingat|catet|catat|tolong\s+inget)(?:\s+(?:ya|yah|dong|baik\s+baik))?)\s*,?\s*["“']?(.+?)["”']?\s*,?\s+(?:itu\s+)?(?:artinya|maksudnya|berarti|sama\s+dengan|sama\s+aja\s+(?:dengan|kayak|kaya)|=)\s+["“']?(.+?)["”']?$|^["“']?([\p{L}\d\s]{2,30}?)["”']?\s+(?:itu\s+)?(?:artinya|=)\s+["“']?(.+?)["”']?$/u;
+const TEACH_CHIPS = ['ringkasan bulan ini', 'kasih tips hemat', 'pengeluaran bulan ini berapa', 'cek semua anggaran', 'kapan gajian?', 'kasih jokes dong'];
+/** Yes / no to the assistant's offer. */
+const YES = /^(?:iya+|ya+|yap|yup|yoi|boleh|bole|oke+|ok+|okay|sip+|gas+|ayo+|yuk+|mau|lanjut|cus|hayuk|siap|bener|betul|setuju|bisa|silakan|monggo|tentu|pastinya|pasti)(?:\s+(?:dong|deh|aja|ya|lah|banget|bgt|kak|min|bot|boleh|mau|yuk|gas|kok|sih))*$/;
+const NO = /^(?:ng?ga+k?|ngga+|enggak|gak|ga|tidak|no|nope|engga|gausah|gausa|ntar|nanti|lain\s+kali|skip|jangan)(?:\s+(?:usah|dulu|deh|aja|ya|makasih|mksh|thanks|perlu|mau|kok|sih|lah|kali|nanti))*$/;
+/** "kenapa?", "kok bisa?", "kok gitu?", "maksudnya apa?", "jelasin dong", "dari mana angkanya?". */
+const EXPLAIN = /^(?:kenapa|knp|napa|ngapa|kok|lho|loh|lah|terus)?\s*(?:kenapa|knp|napa|kok\s+(?:bisa|gitu|gt|begitu|segitu|gtu)|kok|maksud(?:nya|mu)?(?:\s+(?:apa|apaan|gimana|gmn|gmana))?|jelasin|jelaskan|terangin|gimana\s+(?:bisa|itungannya|hitungannya|ngitungnya|caranya)|dari\s+mana\s+(?:itu|angkanya|hitungannya|tuh)|alasannya(?:\s+apa)?|kok\s+gitu\s+sih|lucunya\s+(?:dimana|di\s+mana|apa))(?:\s+(?:tuh|itu|dong|sih|ya|kak|nya|deh|lagi))*$/;
+/** "lagi", "satu lagi", "lagi dong", "yang lain?", "lanjut", "terus?", "ada lagi?". */
+const MORE = /^(?:(?:satu|1|sekali)\s+)?(?:lagi|lg|lagii+|lanjut|lanjutin|terus|trus|next|another|ada\s+lagi|yang\s+lain|yg\s+lain|lainnya|yang\s+lainnya|tambah|tambahin)(?:\s+(?:dong|donk|deh|ya|nya|lagi|kak|bot|sih|gak|ga|nggak|ngga|yang\s+lain|lah))*$/;
+/** General tips, a page at a time after the ones from the person's records ("yang lain?"). */
+const MORE_TIPS = [
+  'Pakai aturan 50/30/20: separuh untuk kebutuhan, 30% keinginan, 20% tabungan. Sesuaikan angkanya dengan kondisimu.',
+  'Tunggu 24 jam sebelum checkout barang yang bukan kebutuhan. Kalau besok masih pengen, baru pertimbangkan.',
+  'Matikan notifikasi promo dari aplikasi belanja. Lebih sedikit godaan, lebih sedikit checkout.',
+  'Bawa bekal atau masak sendiri dua kali seminggu. Hematnya terasa dalam sebulan.',
+  'Langsung pindahkan tabungan di hari gajian, sebelum uangnya terpakai untuk yang lain.',
+  'Cek langganan yang jarang dipakai (streaming, aplikasi, gym), lalu berhenti dari yang tidak perlu.',
+  'Pasang anggaran untuk kategori yang paling sering bocor, misalnya jajan atau belanja online.',
+  'Catat semua pengeluaran, sekecil apa pun. Yang tercatat lebih mudah dikendalikan.',
+  'Siapkan dana darurat sedikit demi sedikit, targetkan 3 sampai 6 kali pengeluaran sebulan.',
+];
+/** Learned short words used inside longer messages ("aku boncos banget" → "aku boros banget"). */
+function withAliases(t: string, learned: Record<string, string> | undefined) {
+  let out = t;
+  for (const [k, as] of Object.entries(learned || {})) {
+    if (!k || k === t || k.split(' ').length > 3 || as.split(' ').length > 4) continue;
+    const re = new RegExp(`(^|\\s)${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`, 'g');
+    out = out.replace(re, `$1${lower(as)}`);
+  }
+  return out;
+}
 
 /** The sentence with its amount replaced (the first amount written), or the amount added. */
-function withAmount(text: string, amount: string) {
+function withAmount(text: string, amount: string, quick?: QuickContext) {
+  // "290k hokben gue cuma 45k" + "jadi 50rb": your part changes, not the bill.
+  const own = quick ? readOwnPart(text, quick) : null;
+  if (own) return `${text.slice(0, own.mineAt[0])}${amount}${text.slice(own.mineAt[1])}`;
   const t = lower(text), a = findAmounts(t).find(x => x.value > 0);
   if (!a) return `${text} ${amount}`;
   return `${text.slice(0, a.index)}${amount}${text.slice(a.index + a.text.length)}`;
@@ -244,7 +324,8 @@ function summary(text: string, ctx: ChatContext, v: Voice): ChatReply {
   // The bars show the biggest categories; the sentence names them only when there are no bars to show.
   if (top.length && spent && v === 'singkat') parts.push(V.summaryTop(v, top.map(c => `${c.name} ${Math.round(c.amount / spent * 100)}%`).join(', ')));
   if (warn.length) parts.push(V.summaryWarn(v, warn.map(b => `${b.name} ${Math.round(b.used * 100)}%`).join(', ')));
-  return { kind: 'say', card: 'summary', title: 'Ringkasan', text: parts.join(' '), hero: { label: 'Uang bebas sekarang', value: rp(m.free), note: `≈ ${rp(m.daily)}/hari · ${m.left} hari ke gajian`, tone: m.free > 0 ? 'good' : 'warn' }, stats, bars, tone: warn.some(b => b.used >= 1) || m.free <= 0 ? 'warn' : 'info', chips: ['cek semua anggaran', 'kasih tips hemat', 'pengeluaran terbesar bulan ini'] };
+  const why = `Pemasukan dan pengeluaran dihitung dari catatan ${p.label}. Uang bebas memakai hitungan yang sama dengan Beranda, dan jatah harian adalah uang bebas dibagi ${m.left} hari sampai gajian. Bar menunjukkan bagian tiap kategori dari total pengeluaran.`;
+  return { kind: 'say', card: 'summary', title: 'Ringkasan', text: parts.join(' '), why, hero: { label: 'Uang bebas sekarang', value: rp(m.free), note: `≈ ${rp(m.daily)}/hari · ${m.left} hari ke gajian`, tone: m.free > 0 ? 'good' : 'warn' }, stats, bars, tone: warn.some(b => b.used >= 1) || m.free <= 0 ? 'warn' : 'info', chips: ['cek semua anggaran', 'kasih tips hemat', 'pengeluaran terbesar bulan ini'] };
 }
 
 function afford(text: string, ctx: ChatContext, v: Voice): ChatReply | null {
@@ -267,10 +348,16 @@ function afford(text: string, ctx: ChatContext, v: Voice): ChatReply | null {
   else if (dailyAfter < m.pace) { verdict = V.affordTight(v, rp(dailyAfter), m.left, rp(m.pace)); tone = 'warn'; }
   else { verdict = V.affordOk(v, rp(after), rp(dailyAfter)); tone = 'good'; }
   if (budget && a.value > budget.remaining) verdict += V.affordBudget(v, budget.name, rp(budget.remaining));
-  return { kind: 'say', card: 'afford', title: thing ? `Beli ${thing}?` : 'Boleh beli?', text: verdict, hero: { label: 'Sisa uang bebas setelah beli', value: rp(after), note: `${m.left} hari ke gajian`, tone: after < 0 ? 'warn' : tone === 'warn' ? 'warn' : 'good' }, stats, bars, tone, chips: ['ringkasan bulan ini', 'kasih tips hemat'], note: V.affordNote(v) || undefined };
+  const why = `Uang bebasmu sekarang ${rp(m.free)}, dikurangi harga ${rp(a.value)} jadi ${rp(after)}. Dibagi ${m.left} hari sampai gajian, jadi ${rp(Math.max(0, dailyAfter))} per hari. Rata-rata belanjamu periode ini ${rp(m.pace)} per hari, jadi ${after < 0 ? 'uangnya belum cukup' : dailyAfter < m.pace ? 'jatahnya lebih kecil dari kebiasaan belanjamu. Itu sebabnya mepet' : 'masih di atas kebiasaan belanjamu. Itu sebabnya aman'}.${budget ? ` Anggaran ${budget.name} tinggal ${rp(budget.remaining)}.` : ''}`;
+  return { kind: 'say', card: 'afford', title: thing ? `Beli ${thing}?` : 'Boleh beli?', text: verdict, why, hero: { label: 'Sisa uang bebas setelah beli', value: rp(after), note: `${m.left} hari ke gajian`, tone: after < 0 ? 'warn' : tone === 'warn' ? 'warn' : 'good' }, stats, bars, tone, chips: ['ringkasan bulan ini', 'kasih tips hemat'], note: V.affordNote(v) || undefined };
 }
 
-function tips(ctx: ChatContext, v: Voice): ChatReply {
+function tips(ctx: ChatContext, v: Voice, page = 0): ChatReply {
+  // "yang lain?": general tips, three at a time, after the ones from the person's own records.
+  if (page > 0) {
+    const from = ((page - 1) * 3) % MORE_TIPS.length, steps = [0, 1, 2].map(i => MORE_TIPS[(from + i) % MORE_TIPS.length]);
+    return { kind: 'say', card: 'tips', title: 'Tips lain', text: v === 'sopan' ? 'Berikut beberapa tips lain:' : v === 'gaul' ? 'Nih tips lainnya:' : 'Ini beberapa tips lain:', steps, tone: 'info', chips: ['lagi dong', 'ringkasan bulan ini'] };
+  }
   const m = money(ctx), top = categoryTotals(ctx, ctx.cycle.start, ctx.cycle.end), budgets = budgetsNow(ctx);
   const out: string[] = [];
   const cycleTx = ctx.data.transactions.filter(t => t.date >= ctx.cycle.start && t.date < ctx.cycle.end);
@@ -283,8 +370,11 @@ function tips(ctx: ChatContext, v: Voice): ChatReply {
   if (small.length >= 5) out.push(`Ada ${small.length} jajan kecil (≤ Rp30.000) dengan total ${rp(small.reduce((n, t) => n + t.amount, 0))}. Kecil-kecil, tapi kalau dikumpulkan terasa.`);
   out.push(m.free > 0 ? `Supaya cukup sampai gajian, usahakan belanja tidak lebih dari ${rp(m.daily)} per hari.` : `Uang bebas ${you(v)} sedang habis. Prioritaskan kebutuhan pokok dan tagihan dulu.`);
   if (out.length < 3) out.push('Sisihkan tabungan di awal setelah gajian, bukan dari sisa di akhir bulan.');
-  return { kind: 'say', card: 'tips', title: 'Tips', text: V.tipsLead(v), steps: out.slice(0, 4), tone: 'info', chips: ['ringkasan bulan ini', 'cek semua anggaran', 'aman nggak beli sepatu 500rb?'] };
+  return { kind: 'say', card: 'tips', title: 'Tips', text: V.tipsLead(v), steps: out.slice(0, 4), tone: 'info', why: tipsWhy(v, 0), chips: ['tips yang lain?', 'cek semua anggaran', 'aman nggak beli sepatu 500rb?'] };
 }
+const tipsWhy = (_v: Voice, page: number) => page ? 'Ini tips umum yang sering membantu banyak orang. Tips dari catatanmu sendiri ada di daftar pertama.' : 'Tips ini diambil dari catatanmu sendiri: kategori terbesar periode ini, anggaran yang hampir habis, jajan kecil di bawah Rp30.000, dan jatah harian sampai gajian.';
+const moodWhy = (_v: Voice) => 'Angkanya dari uang bebas dan jatah harian sampai gajian, dihitung sama seperti di Beranda. Langkah ketiga diambil dari kategori pengeluaran terbesarmu periode ini.';
+const QUESTION_WHY = 'Jawaban ini dihitung dari catatanmu sendiri. Ketuk tombol di kartunya untuk melihat transaksi yang ikut dihitung.';
 
 /** Every budget of this period, fullest first. */
 function budgetOverview(ctx: ChatContext, v: Voice): ChatReply {
@@ -298,6 +388,7 @@ function budgetOverview(ctx: ChatContext, v: Voice): ChatReply {
     kind: 'say', card: 'budget', title: 'Anggaran', text: V.budgetLead(v, list.length, over.map(b => b.name), close.map(b => b.name)),
     hero: { label: 'Sisa semua anggaran', value: rp(total - spent), note: `terpakai ${pct(total > 0 ? spent / total : 0)} dari ${rp(total)}`, tone: total - spent < 0 ? 'warn' : 'good' },
     bars, tone: over.length ? 'warn' : 'info', note: list.length > 6 ? `+${list.length - 6} anggaran lain ada di menu Anggaran.` : undefined,
+    why: 'Tiap bar membandingkan yang sudah terpakai dengan batas anggarannya di periode ini. Hijau di bawah 80%, kuning 80–99%, merah sudah lewat batas.',
     chips: [...(first ? [`pengeluaran ${lower(first.name)} bulan ini berapa`] : []), 'kasih tips hemat', 'ringkasan bulan ini'],
   };
 }
@@ -311,6 +402,7 @@ function payday(ctx: ChatContext, v: Voice): ChatReply {
     stats: [{ label: 'Uang bebas', value: rp(m.free), tone: m.free > 0 ? 'good' : 'warn' }, { label: 'Jatah per hari', value: rp(Math.max(0, m.daily)) }, { label: 'Rata-rata belanja', value: `${rp(m.pace)}/hari`, tone: m.pace > m.daily ? 'warn' : undefined }],
     bars: [{ label: 'Periode gaji ini', value: `hari ke-${m.passed} dari ${total}`, ratio: total > 0 ? m.passed / total : 0 }],
     tone: m.free > 0 && m.daily >= m.pace ? 'good' : 'warn', chips: ['ringkasan bulan ini', 'cek semua anggaran', 'kasih tips hemat'],
+    why: `Gajian dihitung dari tanggal gajianmu (tanggal ${ctx.salaryDay}). Jatah per hari adalah uang bebas ${rp(m.free)} dibagi ${m.left} hari. Rata-rata belanja adalah pengeluaran periode ini ${rp(m.expenses)} dibagi ${m.passed} hari yang sudah lewat.`,
   };
 }
 
@@ -321,7 +413,7 @@ function mood(ctx: ChatContext, v: Voice): ChatReply {
   return {
     kind: 'say', card: 'mood', title: v === 'sopan' ? 'Mari atur bersama' : 'Pelan-pelan, ya', text: V.mood(v, m.free > 0 ? rp(m.free) : null, rp(m.daily), m.left),
     stats: [{ label: 'Uang bebas', value: rp(m.free), tone: m.free > 0 ? 'good' : 'warn' }, { label: 'Jatah per hari', value: rp(Math.max(0, m.daily)) }, { label: 'Ke gajian', value: `${m.left} hari` }],
-    steps: v === 'singkat' ? undefined : steps, tone: m.free > 0 ? 'info' : 'warn', chips: ['kasih tips hemat', 'cek semua anggaran', 'ringkasan bulan ini'],
+    steps: v === 'singkat' ? undefined : steps, tone: m.free > 0 ? 'info' : 'warn', chips: ['kasih tips hemat', 'cek semua anggaran', 'ringkasan bulan ini'], note: P.offerTips(v).trim() || undefined,
   };
 }
 
@@ -349,7 +441,8 @@ function goal(text: string, ctx: ChatContext, v: Voice): ChatReply {
   }
   chips.push('kasih tips hemat');
   const save = chips.length > 1 ? V.goalSave(v) : '';
-  return { kind: 'say', card: 'goal', title: `Target ${thing}`, text: [V.goal(v, thing, planText), a ? save : ''].filter(Boolean).join(' '), hero, stats: stats.length ? stats : undefined, tone: 'info', chips };
+  const why = a ? 'Per bulan adalah target dibagi jumlah bulan, dibulatkan ke atas ke ribuan. “Dari pemasukan” membandingkan sisihan per bulan dengan pemasukanmu periode ini.' : emergency ? 'Dana darurat yang umum disarankan 3 sampai 6 kali pengeluaran sebulan. Pengeluaran sebulanmu diperkirakan dari rata-rata harian dikali 30.' : 'Saran targetnya dari 10% dan 20% pemasukanmu periode ini, disisihkan selama 12 bulan.';
+  return { kind: 'say', card: 'goal', title: `Target ${thing}`, text: [V.goal(v, thing, planText), a ? save : ''].filter(Boolean).join(' '), hero, stats: stats.length ? stats : undefined, tone: 'info', chips, why };
 }
 
 function smallTalk(kind: (typeof SMALL)[number][1], v: Voice): ChatReply {
@@ -358,7 +451,7 @@ function smallTalk(kind: (typeof SMALL)[number][1], v: Voice): ChatReply {
 }
 
 function calcReply(c: NonNullable<ReturnType<typeof calculate>>, again: boolean, v: Voice): ChatReply {
-  return { kind: 'say', card: 'calc', title: 'Hitungan', text: `${c.expression} = ${calcText(c)}`, hero: { label: c.expression, value: calcText(c) }, tone: 'info', chips: [again ? 'kalau dibagi 2?' : 'kalau dibagi 3?', ...(c.money && c.value > 0 ? [`keluar ${calcText(c)}`] : [])], note: c.money && Math.abs(c.value - Math.round(c.value)) > 1e-6 ? V.calcNote(v) : undefined };
+  return { kind: 'say', card: 'calc', title: 'Hitungan', text: `${c.expression} = ${calcText(c)}`, hero: { label: c.expression, value: calcText(c) }, tone: 'info', why: 'Kata seperti “dibagi” dan “dikali” dihitung urut dari kiri. Kalau pakai simbol, × dan ÷ dikerjakan dulu sebelum + dan −. Hasil uang dibulatkan ke rupiah terdekat.', chips: [again ? 'kalau dibagi 2?' : 'kalau dibagi 3?', ...(c.money && c.value > 0 ? [`keluar ${calcText(c)}`] : [])], note: c.money && Math.abs(c.value - Math.round(c.value)) > 1e-6 ? V.calcNote(v) : undefined };
 }
 const helpReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', card: 'help', title: 'Yang bisa kubantu', text: V.helpLead(v), lines: t.slice(0, 7).map(g => ({ label: g.title, value: `“${g.items[0]}”` })), chips: ['contoh', 'ringkasan bulan ini', 'ganti gaya bahasa'] });
 const examplesReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', title: 'Coba salah satu', text: V.examplesLead(v), chips: t.filter(g => g.key !== 'ubah').flatMap(g => g.items.slice(0, 1)).concat(t[1].items[1], t[3].items[1]) });
@@ -368,28 +461,38 @@ const VOICE_CHIPS = ['gaya santai', 'gaya sopan', 'gaya singkat', 'gaya gaul'];
 /* ------------------------------------------------------------------ The reply */
 
 export async function chatReply(input: string, memory: ChatMemory, ctx: ChatContext, depth = 0): Promise<ChatResult> {
-  const raw = input.trim(), t = clean(raw), v: Voice = ctx.voice || 'santai', tpl = templatesFor(ctx.quick.wallets);
-  const mem: ChatMemory = { ...memory, asking: undefined };
-  const learnedAs = depth === 0 ? ctx.learned?.[t] : undefined;
+  // Learned phrases are kept as typed (`typed`); the rules read the shorthand written out (`t`: "km bs" → "kamu bisa").
+  const raw = input.trim(), typed = clean(raw), t = normalizeWords(typed), v: Voice = ctx.voice || 'santai', tpl = templatesFor(ctx.quick.wallets);
+  // What lasts one reply only: the field asked, the offer made, the explanation, the phrase being taught.
+  const mem: ChatMemory = { ...memory, asking: undefined, offer: undefined, explain: undefined, teaching: undefined };
+  const turn = (memory.turn || 0) + 1;
+  const finish = (r: ChatResult): ChatResult => {
+    const next: ChatMemory = { ...r.memory, turn, misses: r.intent === 'unknown' ? (memory.misses || 0) + 1 : 0 };
+    if (r.intent !== 'unknown' && r.intent !== 'teach') next.unknown = undefined;
+    return { ...r, memory: next };
+  };
+  const learnedAs = depth === 0 && !memory.teaching ? ctx.learned?.[typed] ?? ctx.learned?.[t] : undefined;
   if (learnedAs) {
     const r = await chatReply(learnedAs, memory, ctx, 1);
     const note = V.learned(v, raw);
     if (r.reply.kind === 'say' && note) r.reply = { ...r.reply, note: [note, r.reply.note].filter(Boolean).join(' ') };
-    return { ...r, by: 'learned' };
+    return finish({ ...r, by: 'learned' });
   }
+  // Learned short words inside a longer message: "aku boncos banget" with "boncos" taught as "boros".
+  const aliased = depth === 0 && !memory.teaching ? withAliases(typed, ctx.learned) : typed;
+  if (aliased !== typed) return finish({ ...(await chatReply(aliased, memory, ctx, 1)), by: 'learned' });
   const result = await decide();
   // A message not understood, then one that is: the first is remembered as the second (only for meanings without amounts).
-  if (depth === 0 && memory.unknown && result.intent !== 'unknown' && LEARNABLE.has(result.intent) && clean(memory.unknown) !== t) result.learn = { phrase: clean(memory.unknown), as: raw };
-  if (result.intent !== 'unknown') result.memory = { ...result.memory, unknown: undefined };
-  return result;
+  if (depth === 0 && memory.unknown && !result.learn && result.intent !== 'unknown' && result.intent !== 'teach' && LEARNABLE.has(result.intent) && clean(memory.unknown) !== typed && !memory.teaching) result.learn = { phrase: clean(memory.unknown), as: raw };
+  return depth === 0 ? finish(result) : result;
 
   async function decide(): Promise<ChatResult> {
-    const sayR = (intent: ChatIntent, reply: ChatReply, next: ChatMemory = mem, by: ChatResult['by'] = 'rules'): ChatResult => ({ intent, reply, memory: { ...next, last: next.last === memory.last && intent !== 'calc' ? 'say' : next.last }, by });
+    const sayR = (intent: ChatIntent, reply: ChatReply, next: ChatMemory = mem, by: ChatResult['by'] = 'rules'): ChatResult => ({ intent, reply, memory: { ...next, explain: next.explain ?? (reply.kind === 'say' ? reply.why : undefined), topic: next.topic ?? intent, last: next.last === memory.last && intent !== 'calc' ? 'say' : next.last }, by });
     /** A sentence for Catat otomatis: a record (confirmed, or with one thing asked back) or a question. */
     const plan = (text: string, opts: { did?: string; intent?: ChatIntent; intro?: string } = {}): ChatResult => {
       const ins = ctx.inspect(text);
-      if (ins.reading === 'question') return { intent: opts.intent && opts.intent !== 'plan' ? opts.intent : 'question', reply: { kind: 'plan', text }, memory: { ...mem, question: text, last: 'question' }, by: 'rules' };
-      const next: ChatMemory = { ...mem, plan: { text, status: 'pending' }, last: 'record' };
+      if (ins.reading === 'question') return { intent: opts.intent && opts.intent !== 'plan' ? opts.intent : 'question', reply: { kind: 'plan', text }, memory: { ...mem, question: text, last: 'question', topic: 'question', explain: QUESTION_WHY }, by: 'rules' };
+      const next: ChatMemory = { ...mem, plan: { text, status: 'pending' }, last: 'record', topic: 'record' };
       let intro = opts.intro ?? (opts.did ? V.edited(v, opts.did) : V.confirm(v, (ins.count || 1) > 1));
       let chips: string[] | undefined;
       if (ins.ask && !opts.intro) {
@@ -400,13 +503,83 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     };
     const pending = mem.plan?.status === 'pending' ? mem.plan : undefined, saved = mem.plan?.status === 'saved' ? mem.plan : undefined;
     const name = ctx.name ? ` ${ctx.name}` : '';
+    /** A joke not told lately; "maksudnya?" then explains it. */
+    function tellJoke(): ChatResult {
+      const told = memory.jokes || [], fresh = JOKES.map((_, i) => i).filter(i => !told.includes(i));
+      const pool = fresh.length ? fresh : JOKES.map((_, i) => i), at = pool[(turn * 7) % pool.length], joke = JOKES[at];
+      const lead = memory.serious ? P.seriousJoke(v) : P.jokeLead(v, turn, memory.topic === 'joke');
+      return sayR('joke', { kind: 'say', card: 'talk', text: [lead, joke.text].filter(Boolean).join(' '), chips: ['lagi dong', 'maksudnya?', 'ringkasan bulan ini'] },
+        { ...mem, topic: 'joke', jokes: [...told, at].slice(-Math.min(12, JOKES.length - 1)), explain: P.jokeWhy(v, joke.why), serious: false });
+    }
+    /** Listening when the person vents: by topic; from the second turn on, also an offer to cheer them up. */
+    function listen(): ChatResult {
+      const count = (memory.topic === 'curhat' ? memory.curhat || 0 : 0) + 1, topic = curhatTopic(t);
+      const text = curhatReply(v, topic, turn, count >= 2 && topic !== 'mulai') + (count === 2 ? P.offerJoke(v) : '');
+      return talk('curhat', text, count === 2 ? { chips: ['boleh', 'nggak dulu'] } : {}, { curhat: count, ...(count === 2 ? { offer: 'kasih jokes dong' } : {}) });
+    }
+    /** After small talk: what the assistant offered or asked. */
+    function smallMemory(kind: (typeof SMALL)[number][1]): ChatMemory {
+      const offer = kind === 'tidur' ? 'pengeluaran hari ini berapa' : kind === 'bosan' ? 'pengeluaran terbesar bulan ini' : undefined;
+      return { ...mem, topic: kind === 'kabar' ? 'kabar' : 'smalltalk', ...(offer ? { offer } : {}) };
+    }
 
     if (!t) return sayR('unknown', unknownReply(v, tpl));
+    const money = findAmounts(t).some(a => a.value > 0), words = t.split(' ').length;
+    const talk = (intent: ChatIntent, text: string, extra: Partial<Extract<ChatReply, { kind: 'say' }>> = {}, next: Partial<ChatMemory> = {}): ChatResult =>
+      sayR(intent, { kind: 'say', card: 'talk', text, ...extra }, { ...mem, topic: intent, ...next });
+    const addNote = (r: ChatResult, note: string): ChatResult => ({ ...r, reply: r.reply.kind === 'say' ? { ...r.reply, note: [note, r.reply.note].filter(Boolean).join(' ') } : { ...r.reply, intro: [note, r.reply.intro].filter(Boolean).join(' ') } });
+
+    // 7.8 Teaching: the message after "Maksud “X” itu apa?" is what X means.
+    if (memory.teaching) {
+      if (CANCEL.test(t) || NO.test(t)) return talk('decline', P.decline(v, turn));
+      const r = await chatReply(raw, { ...mem }, { ...ctx, learned: {} }, 1);
+      if (r.intent !== 'unknown' && r.intent !== 'teach') return { ...addNote(r, P.teachDone(v, memory.teaching)), learn: { phrase: memory.teaching, as: raw } };
+      return talk('teach', P.teachFail(v, raw), { chips: TEACH_CHIPS }, { teaching: memory.teaching });
+    }
+    const said = t.match(TEACH_SAID);
+    if (said) {
+      const phrase = clean(said[1] || said[3] || ''), meaning = (said[2] || said[4] || '').trim();
+      if (phrase && meaning && phrase !== clean(meaning)) {
+        const r = await chatReply(meaning, mem, { ...ctx, learned: {} }, 1);
+        if (r.intent === 'unknown' || r.intent === 'teach') return talk('teach', P.teachFail(v, meaning), { chips: TEACH_CHIPS }, { teaching: phrase });
+        return { ...talk('teach', `${P.teachDone(v, phrase)} (“${phrase}” → “${meaning}”)`, { chips: [phrase] }), learn: { phrase, as: meaning } };
+      }
+    }
+    if (TEACH_START.test(t)) {
+      if (memory.unknown) return talk('teach', P.teachAsk(v, memory.unknown), { chips: TEACH_CHIPS }, { teaching: clean(memory.unknown) });
+      return talk('teach', P.teachHow(v), { chips: ['kalau aku bilang boncos artinya boros'] });
+    }
+    // The assistant asked "mau …?": "boleh" sends what it offered, "nggak" declines.
+    if (memory.offer && YES.test(t)) return chatReply(memory.offer, mem, ctx, 1);
+    if (memory.offer && NO.test(t)) return talk('decline', P.decline(v, turn));
+    if (SELF_HARM.test(t)) return talk('curhat', safety(v), { tone: 'warn' }, { curhat: (memory.curhat || 0) + 1, serious: true });
+    if (APOLOGY.test(t) && words <= 8 && !money) return talk('apology', P.apology(v, turn), { chips: ['ringkasan bulan ini', 'bisa apa aja?'] });
+    // "kenapa?" / "maksudnya?": how the last answer was worked out (a joke: what makes it funny).
+    if (EXPLAIN.test(t) && !money) return talk('explain', memory.explain || P.explainNone(v), {}, { topic: memory.topic, jokes: memory.jokes });
+    // "lagi" / "yang lain?": more of the same.
+    if (MORE.test(t) && (memory.topic === 'joke' || memory.topic === 'banter')) return tellJoke();
+    if (MORE.test(t) && memory.topic === 'tips') { const page = (memory.tipsPage || 0) + 1; return sayR('tips', tips(ctx, v, page), { ...mem, topic: 'tips', tipsPage: page, explain: tipsWhy(v, page) }); }
+    if (MORE.test(t) && memory.topic === 'curhat') return talk('curhat', curhatReply(v, 'umum', turn, true), {}, { curhat: (memory.curhat || 0) + 1 });
+    // "udah ah serius, ringkasan bulan ini": serious from now on, and the rest of the message is answered.
+    if (SERIOUS.test(t) && !money) {
+      const rest = t.replace(SERIOUS, ' ').replace(SERIOUS_WORDS, ' ').replace(/[,.!?]/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      if (rest.split(' ').filter(Boolean).length >= 2) { const r = await chatReply(rest, { ...mem, serious: true }, ctx, 1); return { ...r, memory: { ...r.memory, serious: true } }; }
+      return talk('serious', P.serious(v), {}, { serious: true });
+    }
+    // Anger at the assistant: sorry, what to do, and an offer to be taught.
+    if (!money && (ANGRY.test(t) || INSULT.test(t) && AT_BOT.test(t) && !SELF_BLAME.test(t) || INSULT.test(t) && words <= 3 && !SELF_BLAME.test(t))) {
+      const hint = pending ? ` ${P.angryRecord(v)}` : '';
+      return talk('angry', `${P.angry(v, turn)}${hint}${P.offerTeach(v)}`, { chips: ['ajari aku', 'bisa apa aja?'] }, { offer: 'ajari aku' });
+    }
+    if (JOKE.test(t) && !money) return tellJoke();
+    if (!money && BANTER.test(t) && words <= 8 && !CURHAT.test(t)) return talk('banter', P.banter(v, turn, FLAT.test(t)), { chips: ['lagi dong', 'ringkasan bulan ini'] }, { serious: false });
+    if (!money && (memory.topic === 'joke' || memory.topic === 'banter') && ACK.test(t) && /\b(?:wk|ha|he|hi)/.test(t)) return talk('banter', P.banter(v, turn, false), { chips: ['lagi dong'] });
+
     const greetLead = t.match(GREET_LEAD), rest = greetLead?.[1].replace(/[?!.]+$/, '').trim();
     const greetMore = rest && rest.split(' ').length <= 4 && !findAmounts(rest).length && !['record', 'question'].includes(ctx.inspect(rest).reading);
     if (GREET.test(t) || greetMore) return sayR('greet', { kind: 'say', text: V.greet(v, partOfDay(ctx.hour), name), chips: [tpl[0].items[0], 'ringkasan bulan ini', 'bisa apa aja?'] });
     if (THANKS.test(t)) return sayR('thanks', { kind: 'say', text: V.thanks(v), chips: ['ringkasan bulan ini'] });
-    if (ACK.test(t)) return sayR('ack', { kind: 'say', text: pending ? V.ackPending(v) : V.ack(v) });
+    if (ACK.test(t)) return sayR('ack', { kind: 'say', text: pending ? V.ackPending(v) : memory.topic === 'kabar' ? P.ackKabar(v, turn) : V.ack(v) });
     if (ABOUT.test(t)) return sayR('about', { kind: 'say', text: V.about(v), chips: ['bisa apa aja?'] });
     if (HELP.test(t)) return sayR('help', helpReply(v, tpl));
     if (EXAMPLES.test(t)) return sayR('examples', examplesReply(v, tpl));
@@ -424,7 +597,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (pending && asking && t.split(' ').length <= 4) {
       const amount = findAmounts(t).find(a => a.value > 0) || (/^\d[\d.]*$/.test(t) ? { text: t, value: Number(t.replace(/\./g, '')) } : undefined);
       const w = walletsIn(t, ctx.quick.wallets)[0], date = t.match(DATE_ONLY);
-      if (asking.field === 'amount' && amount) return plan(withAmount(pending.text, amount.text), { did: V.editAmount(v, rp(amount.value)), intent: 'fill' });
+      if (asking.field === 'amount' && amount) return plan(withAmount(pending.text, amount.text, ctx.quick), { did: V.editAmount(v, rp(amount.value)), intent: 'fill' });
       if (asking.field === 'wallet' && w) return plan(/^(?:transfer|tf|kirim|pindah)/.test(lower(pending.text)) ? `${pending.text} dari ${lower(w.name)}` : withWallet(pending.text, lower(w.name), ctx.quick), { did: V.editWallet(v, w.name), intent: 'fill' });
       if (asking.field === 'to' && w) return plan(`${pending.text} ke ${lower(w.name)}`, { did: V.editWallet(v, w.name), intent: 'fill' });
       if (asking.field === 'date' && date) return plan(withDate(pending.text, date[1]), { did: V.editDate(v, date[1]), intent: 'fill' });
@@ -442,7 +615,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       const onlyAmount = Boolean(amount) && (AMOUNT_LEAD.test(t) || words <= 2) && !/\p{L}{3,}/u.test(rest);
       const pickedWallet = wallet ? walletsIn(unfill(wallet[1]), ctx.quick.wallets)[0] : undefined;
       if (pending) {
-        if (onlyAmount) return plan(withAmount(pending.text, amount!.text), { did: V.editAmount(v, rp(amount!.value)), intent: 'edit' });
+        if (onlyAmount) return plan(withAmount(pending.text, amount!.text, ctx.quick), { did: V.editAmount(v, rp(amount!.value)), intent: 'edit' });
         if (pickedWallet) return plan(withWallet(pending.text, lower(pickedWallet.name), ctx.quick), { did: V.editWallet(v, pickedWallet.name), intent: 'edit' });
         if (wallet && !findAmounts(t).length && unfill(wallet[1]).split(' ').length <= 2) return sayR('edit', { kind: 'say', text: V.walletMissing(v, unfill(wallet[1])), chips: ctx.quick.wallets.filter(w => !w.isArchived).slice(0, 5).map(w => `pakai ${lower(w.name)}`) });
         if (date) return plan(withDate(pending.text, date[1]), { did: V.editDate(v, date[1]), intent: 'edit' });
@@ -474,24 +647,27 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
 
     if (/^(?:buka|lihat|liat|ke|pergi ke|masuk ke)\s+/.test(t)) return plan(raw);
     if (AFFORD.test(t)) { const r = afford(raw, ctx, v); return sayR('afford', r || { kind: 'say', text: V.needPrice(v) }); }
-    const money = findAmounts(t).some(a => a.value > 0);
     if (DESIRE.test(t) && SAVE_WORD.test(t) && (!money || /\b(?:pengen|pengin|pingin|ingin|target|impian)\b/.test(t) && !walletsIn(t, ctx.quick.wallets).length)
       || !money && (/\b(?:nabung|menabung) (?:buat|untuk|utk|beli)\b/.test(t) || DESIRE.test(t) && /\b(?:beli|ganti|punya)\b/.test(t) && LATER.test(t) || /\b(?:bikin|buat|siapin|nyiapin) (?:dana|target)\b/.test(t))) return sayR('goal', goal(raw, ctx, v));
-    if (!money && (MOOD_STRONG.test(t) || MOOD_SOFT.test(t) && MONEY_WORD.test(t))) return sayR('mood', mood(ctx, v));
+    if (!money && (MOOD_STRONG.test(t) || MOOD_SOFT.test(t) && MONEY_WORD.test(t))) return sayR('mood', mood(ctx, v), { ...mem, topic: 'mood', offer: 'kasih tips hemat', explain: moodWhy(v) });
+    if (!money && (CURHAT.test(t) || CURHAT_TOPICS.some(([re, k]) => k === 'mulai' && re.test(t)))) return listen();
     if (TIPS.test(t) && !money) return sayR('tips', tips(ctx, v));
     if (SUMMARY.test(t)) return sayR('summary', summary(t, ctx, v));
     if (!money && BUDGET.test(t) && BUDGET_ASK.test(t) && !namesBudget(t, ctx)) return sayR('budget', budgetOverview(ctx, v));
     if (!money && (PAYDAY.test(t) && PAYDAY_ASK.test(t) || ALLOWANCE.test(t))) return sayR('payday', payday(ctx, v));
-    const small = !money && t.split(' ').length <= 8 ? SMALL.find(([re]) => re.test(t)) : undefined;
-    if (small) return sayR('smalltalk', smallTalk(small[1], v));
+    const small = !money && words <= 8 ? SMALL.find(([re]) => re.test(t)) : undefined;
+    if (small) return sayR('smalltalk', smallTalk(small[1], v), smallMemory(small[1]));
 
     const ins = ctx.inspect(raw);
     if (ins.reading === 'record' || ins.reading === 'question') return plan(raw);
+    // Still venting: what follows is listened to as well ("dia ninggalin aku").
+    if (memory.topic === 'curhat' && !money && words <= 25) return listen();
 
     // The trained model, for what the rules did not catch.
     const guess = ctx.classify ? await ctx.classify(raw) : null;
     const sure = guess && guess.score >= 0.6 ? guess.intent : null;
     const byModel = (intent: ChatIntent, reply: ChatReply, next: ChatMemory = mem) => sayR(intent, reply, next, 'model');
+    const model = (r: ChatResult): ChatResult => ({ ...r, by: 'model' });
     switch (sure) {
       case 'greet': return byModel('greet', { kind: 'say', text: V.greet(v, partOfDay(ctx.hour), name), chips: ['ringkasan bulan ini', 'bisa apa aja?'] });
       case 'thanks': return byModel('thanks', { kind: 'say', text: V.thanks(v) });
@@ -506,11 +682,20 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       case 'payday': return byModel('payday', payday(ctx, v));
       case 'mood': return byModel('mood', mood(ctx, v));
       case 'goal': return byModel('goal', goal(raw, ctx, v));
-      case 'smalltalk': return byModel('smalltalk', smallTalk(SMALL.find(([re]) => re.test(t))?.[1] || 'kamu', v));
+      case 'smalltalk': { const kind = SMALL.find(([re]) => re.test(t))?.[1] || 'kamu'; return byModel('smalltalk', smallTalk(kind, v), smallMemory(kind)); }
+      case 'joke': return model(tellJoke());
+      case 'banter': return model(talk('banter', P.banter(v, turn, FLAT.test(t)), { chips: ['lagi dong', 'ringkasan bulan ini'] }));
+      case 'angry': return model(talk('angry', `${P.angry(v, turn)}${P.offerTeach(v)}`, { chips: ['ajari aku', 'bisa apa aja?'] }, { offer: 'ajari aku' }));
+      case 'curhat': return model(listen());
+      case 'serious': return model(talk('serious', P.serious(v), {}, { serious: true }));
+      case 'teach': return model(memory.unknown ? talk('teach', P.teachAsk(v, memory.unknown), { chips: TEACH_CHIPS }, { teaching: clean(memory.unknown) }) : talk('teach', P.teachHow(v), { chips: ['kalau aku bilang boncos artinya boros'] }));
+      case 'apology': return model(talk('apology', P.apology(v, turn), { chips: ['ringkasan bulan ini', 'bisa apa aja?'] }));
       case 'undo': return { ...plan('hapus transaksi terakhir', { intro: V.undoIntro(v), intent: 'undo' }), by: 'model' };
       case 'cancel': if (pending) return { intent: 'cancel', reply: { kind: 'say', text: V.cancel(v) }, memory: { ...mem, plan: { ...pending, status: 'dismissed' } }, dismiss: true, by: 'model' }; break;
     }
-    if (findAmounts(t).some(a => a.value > 0)) return plan(raw);
+    if (money) return plan(raw);
+    // The second message in a row not understood: the person can teach it.
+    if ((memory.misses || 0) >= 1) return { intent: 'unknown', reply: { kind: 'say', card: 'talk', text: P.teachOffer(v), chips: ['ajari aku', ...unknownReply(v, tpl).chips!.slice(0, 2)] }, memory: { ...mem, unknown: raw, offer: 'ajari aku' }, by: 'rules' };
     return { intent: 'unknown', reply: unknownReply(v, tpl, ins.reading === 'unanswered'), memory: { ...mem, unknown: raw }, by: 'rules' };
   }
 }

@@ -1,4 +1,101 @@
-# Asisten chat (rilis 7.7)
+# Asisten chat (rilis 7.8, "chatbot v2")
+
+Semua jalan di HP, tanpa internet dan tanpa layanan AI di awan. Rilis 7.8 menambahkan kepribadian dan percakapan yang
+berlanjut di atas rilis 7.7 (bagian di bawah tetap berlaku).
+
+## Yang baru di 7.8
+
+- **Kepribadian** (`lib/chat/persona.ts`, semua kalimatnya ditulis untuk aplikasi ini):
+  - 24 lelucon, pantun, dan gombalan, masing-masing dengan penjelasan lucunya untuk "maksudnya?".
+  - Balasan bercanda, termasuk saat leluconnya dibilang garing.
+  - Balasan saat pemakai marah: minta maaf, memberi petunjuk (kalau ada kartu yang menunggu), dan menawarkan untuk
+    diajari.
+  - Balasan saat pemakai minta maaf, dan mode serius.
+  - Mendengarkan curhat sesuai topiknya: cinta, kerja, kuliah, keluarga, sepi, atau umum. Balasan pertama dan
+    berikutnya berbeda.
+  - Untuk kata-kata menyakiti diri, balasannya hati-hati dan menyebut layanan kesehatan jiwa 119 ekstensi 8 serta 112,
+    tanpa candaan.
+- **Percakapan berlanjut** (ingatan obrolan di `lib/chat/engine.ts`):
+  - Topik terakhir: "lagi" atau "yang lain?" melanjutkan lelucon, tips, atau curhat.
+  - Tawaran asisten: "Mau cek pengeluaran hari ini?" dijawab "boleh" atau "nggak usah".
+  - Penjelasan jawaban terakhir untuk "kenapa?" atau "maksudnya?": ringkasan, boleh beli, gajian, anggaran, hitungan,
+    target, tips, dan jawaban Tanya.
+  - Mode serius: "udah ah serius, ringkasan bulan ini" langsung menjawab sisanya.
+  - Kata yang divariasikan, jadi lelucon tidak terulang.
+- **Diajari pemakai:**
+  - Setelah dua pesan berturut-turut tidak dipahami, asisten menawarkan "Ajari aku" dan menanyakan maksud kalimat tadi.
+  - Bisa juga langsung: "kalau aku bilang boncos artinya boros" atau "inget ya, X itu artinya Y". Maksudnya diperiksa
+    dulu harus bisa dipahami, kalau belum, tidak disimpan.
+  - Kata pendek yang diajarkan juga dipakai di dalam kalimat lain: "aku boncos banget" dibaca "aku boros banget".
+  - Semua tersimpan di HP ini, maksimal 60, dan bisa dihapus satu per satu di pengaturan.
+- **Singkatan dan salah ketik** (`lib/chat/feature.ts`): "km bs ngapain aj", "kpn", "pagiii kakk", dan sejenisnya
+  diseragamkan sebelum dibaca model maupun aturan.
+- **Model dilatih jauh lebih banyak:**
+  - 668 kalimat tulisan tangan + 4.350 kalimat dari generator (`lib/chat/corpus-gen.ts`, pola dan isian kata yang
+    ditulis untuk aplikasi ini), jadi 13.029 dengan variasi ejaan, untuk 26 maksud (sebelumnya 1.675 untuk 19).
+  - 62 kalimat yang terbaca sama dengan set uji dibuang sebelum pelatihan.
+  - Salinan kalimat latihan dibuang dari model yang dikirim ke HP. Skrip pelatihan memeriksa model kecilnya menjawab
+    sama persis dengan model penuh pada 233 pesan uji.
+  - Ukuran 1,1 MB mentah, 169 KB terunduh (gzip), dan baru dimuat saat chat dibuka.
+- **Sumber data:** data percakapan bahasa Indonesia yang terbuka dicari dulu. Yang ditemukan berupa tweet tanpa lisensi
+  yang jelas, atau set buatan AI yang kartunya sendiri menyebut isinya bisa tidak akurat. Karena itu tidak ada data
+  luar yang dipakai.
+
+### Ukuran 7.8
+
+Semua set uji di bawah ditulis sebelum kemampuan 7.8 dibuat dan dijalankan pertama kali sekali saja (dibekukan).
+`SET=heldout3 node bench/chat/run.mjs --fails`, `DIALOGS=heldout node bench/chat/run-dialogs.mjs --fails`.
+
+| Set | 7.7 | 7.8 percobaan pertama (dibekukan) | 7.8 setelah perbaikan post-hoc |
+|---|---|---|---|
+| Pesan tunggal baru (`fixtures-heldout3.mjs`, 71) | 28/71 (39%) | 66/71 (93%) | 71/71 (100%) |
+| · maksud baru (bercanda, marah, humor, serius, curhat, ajari, maaf) | 0/38 | 38/38 | 38/38 |
+| Percakapan berlanjut (`dialogs-heldout.mjs`, 13 percakapan, 34 giliran) | 1/13 · 13/34 giliran | 13/13 · 34/34 giliran | 13/13 |
+| Percakapan, set latihan (`dialogs-dev.mjs`, 11) | 1/11 | dipakai saat membangun | 11/11 |
+| Set uji 1 (48, sudah pernah dilihat) | 47/48 | | 47/48 |
+| Set uji 2 (50, sudah pernah dilihat) | 50/50 | | 50/50 |
+
+- Lima salah pada percobaan pertama semuanya maksud lama yang ditulis dengan singkatan atau susunan tak biasa:
+  - "km bs ngapain aj sih" (bantuan)
+  - "kamu tuh sebenernya apa" (tentang asisten)
+  - "liat template nya dong" (contoh)
+  - "duit gw tinggal dikit bgt" (perasaan soal uang)
+  - "gajian kpn sih" (gajian)
+- Perbaikan post-hoc:
+  - Aturan juga membaca singkatan yang sudah diseragamkan.
+  - Pola "kamu tuh sebenarnya apa", "liat template", dan "duit gue tinggal dikit" ditambahkan.
+- Set 2 sempat mundur satu karena model baru: "balas pendek pendek aja" terbaca sebagai bercanda. Kata "balas/bales"
+  ditambahkan ke pemicu gaya bahasa (post-hoc).
+- **Catatan jujur:** set uji, korpus, dan aturan ditulis oleh penulis yang sama dalam sesi yang sama. Kalimat yang persis
+  sama dibuang dari korpus. Meski begitu, angka ini kemungkinan lebih tinggi daripada di pemakaian nyata.
+
+### Catat otomatis: bagian sendiri ("290k hokben kemarin gue cuma 45k")
+
+`lib/catat/math.ts` `readOwnPart`. Hanya bagianmu yang dicatat; tidak ada Split Bill atau piutang. Totalnya satu ketukan
+("Catat totalnya"). Kalau "jadi 50rb" ditulis di chat, yang berubah bagianmu, bukan total tagihannya.
+
+| Set (`SET=v78dev|v78heldout node bench/quick/run-v4.mjs`) | 7.7 | 7.8 |
+|---|---|---|
+| Latihan (18, termasuk 4 kalimat penjaga) | 4/18 (bagian sendiri 0/14) | 18/18 |
+| Uji terpisah (14), percobaan pertama (dibekukan: `bench/quick/FROZEN-v78heldout-first.json`) | 3/14 (bagian sendiri 1/12) | 13/14, tanpa "yakin tapi salah" |
+| Uji terpisah setelah perbaikan post-hoc | | 14/14 |
+
+- Satu salah di percobaan pertama: nominal "hotpot 480rb aku cuma 120rb, sisanya biarin" sudah benar, tapi kategori
+  hotpot belum dikenal. Post-hoc: hotpot, shabu, suki, dan steamboat ditambahkan ke kosakata makanan.
+- Set V4 lama tetap 83/83 dan 44/44. Shadow 1.213 kalimat lama: tidak ada arti uang atau kategori yang berubah.
+
+### Lain-lain di 7.8
+
+- Membuka chat atau Catat otomatis tidak lagi memfokuskan kotak ketik di HP, jadi keyboard tidak muncul sendiri. Di
+  laptop dengan mouse, kotak ketik tetap langsung siap.
+- Kapsul fakta di kartu hasil dirapikan: tingginya sama, teksnya di tengah, dan "Kenapa?" sejajar. Nominal tidak lagi
+  patah baris, dan di kartu sempit tombol "Bukan ini?" pindah ke bawah judul.
+- `tests/chat.test.mjs`: 18 tes (4 baru untuk v2). `tests/catat-v4.test.mjs`: 1 tes baru untuk bagian sendiri.
+  `npm test`: 745 lulus.
+
+---
+
+# Rilis 7.7
 
 Semua jalan di HP, tanpa internet dan tanpa layanan AI di awan. Ada tiga lapis:
 

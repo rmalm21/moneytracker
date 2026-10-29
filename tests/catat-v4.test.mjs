@@ -118,3 +118,18 @@ test('V4 (7.6): a percent written before the price, and another party\'s part of
   assert.equal(one('makan 100rb setengahnya buat traktir rina').result.split, undefined);
   assert.equal(linesOf(one('makan 100rb setengahnya buat traktir rina')).length, 2);
 });
+
+test('7.8 only my part: "290k hokben kemarin gue cuma 45k" records 45k, the rest is not recorded', () => {
+  const a = one('290k hokben kemarin gue cuma 45k');
+  assert.equal(a.result.kind, 'expense'); assert.equal(a.result.amount, 45000); assert.equal(a.result.ownOf, 290000);
+  assert.equal(a.result.date, '2026-10-14'); assert.equal(parent(a.result.preset.subcategoryId || a.result.preset.categoryId), 'expense.makan-minum');
+  assert.ok(!a.result.split?.strong);
+  assert.ok(a.alternatives.some(x => x.result.amount === 290000), 'the whole bill is one tap away');
+  assert.equal(one('makan bareng 300rb bagianku 75rb').result.amount, 75000);
+  assert.equal(one('gue cuma 30rb dari total 180rb martabak').result.amount, 30000);
+  assert.equal(one('hotpot 480rb aku cuma 120rb, sisanya biarin').result.amount, 120000);
+  // Someone else's part is still a Split Bill; parts with purposes are still categories; one amount stays as written.
+  assert.deepEqual(sharesOf(one('makan 100rb aku 60rb ferdi 40rb')), [['me', 60000], ['Ferdi', 40000]]);
+  assert.equal(linesOf(one('makan 60rb, 20rb punyaku 40rb traktir')).length, 2);
+  assert.equal(one('cuma 20rb kopi').result.amount, 20000);
+});

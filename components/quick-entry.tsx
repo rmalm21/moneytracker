@@ -178,6 +178,8 @@ const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈'
  * `fixedText` (7.6 chat): the cards for a sentence already sent, without the box to type in. Saving reports what was
  * saved through `onSaved`; a follow-up question is asked through `onAsk` (as a new chat message).
  */
+/** 7.8: the box is focused on opening only with a mouse or trackpad; on a phone the keyboard waits for a tap. */
+const finePointer = () => typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
 export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false, fixedText, onSaved, onAsk }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean; fixedText?: string; onSaved?: (summary: string) => void; onAsk?: (question: string) => void }) {
   const { data, profile, user } = useApp();
   const { track } = useNotify();
@@ -356,7 +358,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   return <div className={`quick-entry-wrap ${fixed ? 'is-fixed' : ''}`}>
     {!fixed && <><form className="quick-entry" ref={formRef} onSubmit={submit}>
       <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
-      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
+      <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus && finePointer()} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form></>}
     {!fixed && <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>}
@@ -786,6 +788,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       if (walletId && !payerOther) fact('w', walletName(walletId));
       // V4: the arithmetic, each person's part, each category's part.
       if (result.calc && amount === result.amount) fact('k', <><b>Hitungan</b> {result.calc}</>, 'qp-detail');
+      if (result.ownOf && amount === result.amount) fact('ow', <><b>Bagianmu</b> dari total {rupiah(result.ownOf)} · sisanya tidak dicatat</>, 'qp-detail');
       if (split) fact('h', <><b>Bagian</b> {(split.method === 'amount' ? split.participants.map(p => split.shares[p.id] || 0) : equalParts(amount, split.participants.length)).map((v, i) => `${split.participants[i].isMe ? 'Kamu' : split.participants[i].name} ${rupiah(v)}`).join(' · ')}</>, 'qp-detail');
       if (splitLines) fact('l', <><b>Dibagi ke</b> {splitLines.map(l => `${data.categories.find(c => c.id === (l.subcategoryId || l.categoryId))?.name || ''} ${rupiah(l.amount)}`).join(' · ')}</>, 'qp-detail');
       // V3.5: what was bought, what for and with whom, as one short line each (never the description or the category).

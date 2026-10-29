@@ -1,0 +1,197 @@
+{
+ "at": "2026-10-29T22:27:56.276Z",
+ "summary7_4": {
+  "ok": 1,
+  "n": 14,
+  "seg": 1,
+  "cw": 11,
+  "fields": {
+   "kind": [
+    14,
+    14
+   ],
+   "amount": [
+    3,
+    14
+   ],
+   "cat": [
+    8,
+    9
+   ],
+   "to": [
+    0,
+    0
+   ],
+   "date": [
+    1,
+    1
+   ],
+   "split": [
+    12,
+    13
+   ],
+   "share": [
+    0,
+    1
+   ],
+   "people": [
+    0,
+    1
+   ],
+   "payer": [
+    0,
+    0
+   ],
+   "lines": [
+    0,
+    1
+   ]
+  },
+  "groups": {
+   "bagian sendiri": [
+    1,
+    12
+   ],
+   "tetap": [
+    0,
+    2
+   ]
+  },
+  "p95": 1009.9731609999999,
+  "avg": 91.82294228571425
+ },
+ "summaryV4": {
+  "ok": 13,
+  "n": 14,
+  "seg": 14,
+  "cw": 0,
+  "fields": {
+   "kind": [
+    14,
+    14
+   ],
+   "amount": [
+    14,
+    14
+   ],
+   "cat": [
+    8,
+    9
+   ],
+   "to": [
+    0,
+    0
+   ],
+   "date": [
+    1,
+    1
+   ],
+   "split": [
+    13,
+    13
+   ],
+   "share": [
+    1,
+    1
+   ],
+   "people": [
+    1,
+    1
+   ],
+   "payer": [
+    0,
+    0
+   ],
+   "lines": [
+    1,
+    1
+   ]
+  },
+  "groups": {
+   "bagian sendiri": [
+    11,
+    12
+   ],
+   "tetap": [
+    2,
+    2
+   ]
+  },
+  "p95": 106.97625099999982,
+  "avg": 17.08324271428564
+ },
+ "rows": [
+  {
+   "id": "ho1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho6",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho7",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho8",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho9",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho10",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho11",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ho12",
+   "errs": [
+    "cat: \"\" ≠ \"expense.makan-minum\""
+   ],
+   "confidentWrong": false
+  },
+  {
+   "id": "hg1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hg2",
+   "errs": [],
+   "confidentWrong": false
+  }
+ ]
+}

@@ -8,7 +8,7 @@
  * picked (long press, right click, or from the settings) to copy or delete, with "Urungkan" for a few seconds.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowUpRight, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Sparkles, Target, Trash2, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, Target, Trash2, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { QuickEntryBox } from './quick-entry';
 import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
@@ -25,7 +25,7 @@ const STATUS_TEXT: Partial<Record<ChatStatus, string>> = { dismissed: 'Tidak jad
 /** Each template group: its icon and colour. */
 const GROUP_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {
   catat: { icon: PenLine, tone: 'teal' }, patungan: { icon: Users, tone: 'violet' }, kategori: { icon: ChartPie, tone: 'amber' }, hitung: { icon: Calculator, tone: 'blue' },
-  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
+  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ngobrol: { icon: Smile, tone: 'violet' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
 };
 const groupOf = (text: string, groups: TemplateGroup[]) => groups.find(g => g.items.includes(text))?.key;
 /** Each answer card: its icon and colour. */
@@ -75,13 +75,14 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
   const classify = useCallback(async (text: string) => (await import('@/lib/chat/model')).classifyChat(text), []);
   const chatCtx = useMemo<ChatContext>(() => ({ data, today, salaryDay: profile?.salaryCycleStartDay || 24, cycle: { start: cycle.start, end: cycle.end }, quick, inspect: text => inspect(text, quick), classify, name: (profile?.displayName || profile?.username || '').split(' ')[0], hour: dateInTimeZone(new Date(), profile?.timeZone).getHours(), voice: settings.voice, learned: settings.learned }), [data, today, profile, cycle.start, cycle.end, quick, classify, settings.voice, settings.learned]);
 
-  // Opening: the latest ten, the keyboard ready, the model warmed up, the style asked once.
+  // Opening: the latest ten, the model warmed up, the style asked once.
   useEffect(() => {
     if (!open) return;
     setShown(PAGE); setSheet(s => s || (settings.picked ? null : 'style'));
     if (!settings.seen) changeSettings({ seen: true });
     void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {});
-    const t = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 220);
+    // The message box is focused only with a mouse or trackpad: on a phone the keyboard waits for a tap.
+    const t = window.setTimeout(() => { if (window.matchMedia('(pointer: fine)').matches) inputRef.current?.focus({ preventScroll: true }); }, 220);
     // Escape closes what is on top: a sheet first, then the chat (a form opened from the chat handles its own Escape).
     const onKey = (e: KeyboardEvent) => { if (e.key !== 'Escape' || document.querySelector('.modal-overlay')) return; if (pickRef.current) setPicked(null); else if (sheetRef.current) setSheet(null); else setOpen(false); };
     window.addEventListener('keydown', onKey);
@@ -167,6 +168,9 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
   // What to suggest above the message box: what fits the conversation now, otherwise one of each kind.
   const suggestions = useMemo(() => {
     if (memory.asking) return [];
+    if (memory.offer) return memory.offer === 'ajari aku' ? ['ajari aku', 'bisa apa aja?'] : ['boleh', 'nggak dulu'];
+    if (memory.topic === 'joke' || memory.topic === 'banter') return ['lagi dong', 'maksudnya?', 'wkwk garing'];
+    if (memory.topic === 'curhat') return ['makasih udah dengerin', 'kasih jokes dong', 'ringkasan bulan ini'];
     if (memory.plan?.status === 'pending') return ['kemarin', `pakai ${(data.wallets.find(w => !w.isArchived)?.name || 'gopay').toLocaleLowerCase('id-ID')}`, 'gak jadi'];
     if (memory.last === 'question') return ['kalau bulan lalu?', 'kalau minggu ini?', 'ringkasan bulan ini'];
     if (memory.last === 'calc') return ['kalau dibagi 2?', 'kalau dikali 12?'];
@@ -255,7 +259,8 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
               <h4 className="chat-sheet-sub">Simpan riwayat</h4>
               <div className="chat-seg" role="radiogroup" aria-label="Simpan riwayat">{KEEP_OPTIONS.map(k => <button type="button" key={k.days} role="radio" aria-checked={settings.keepDays === k.days} className={settings.keepDays === k.days ? 'is-on' : ''} onClick={() => changeSettings({ keepDays: k.days })}>{k.label}</button>)}</div>
               <p className="chat-sheet-note">Riwayat hanya disimpan di HP ini dan terhapus otomatis setelah {keepLabel}. Tidak ada yang diunggah.</p>
-              <div className="chat-learned"><Brain size={16} aria-hidden="true"/><span><b>Belajar dari kamu</b><small>{learnedCount ? `${learnedCount} ungkapan sudah kuingat. Kalau aku belum paham lalu kamu menulis ulang, ungkapan pertama kuingat.` : 'Kalau aku belum paham lalu kamu menulis ulang, ungkapan pertama kuingat di HP ini.'}</small></span>{learnedCount > 0 && <button type="button" className="chat-chip" onClick={() => changeSettings({ learned: {} })}>Lupakan</button>}</div>
+              <div className="chat-learned"><Brain size={16} aria-hidden="true"/><span><b>Belajar dari kamu</b><small>{learnedCount ? `${learnedCount} ungkapan sudah kuingat di HP ini.` : 'Ajari aku dengan “kalau aku bilang boncos artinya boros”, atau ketuk “Ajari aku” saat aku belum paham.'}</small></span>{learnedCount > 1 && <button type="button" className="chat-chip" onClick={() => changeSettings({ learned: {} })}>Lupakan semua</button>}</div>
+              {learnedCount > 0 && <ul className="chat-learned-list">{Object.entries(settings.learned).reverse().map(([phrase, as]) => <li key={phrase}><span><b>“{phrase}”</b><small>→ {as}</small></span><button type="button" className="chat-icon-btn" aria-label={`Lupakan “${phrase}”`} onClick={() => { const next = { ...settings.learned }; delete next[phrase]; changeSettings({ learned: next }); }}><X size={15}/></button></li>)}</ul>}
               <h4 className="chat-sheet-sub">Hapus pesan</h4>
               <p className="chat-sheet-note">Tekan lama sebuah pesan (atau klik kanan) untuk memilih beberapa, lalu Salin atau Hapus. Catatan keuangan tidak ikut terhapus.</p>
               <button type="button" className="chat-chip chat-pick-start" disabled={!messages.length} onClick={() => { setSheet(null); setPicked(new Set()); }}><ListChecks size={14}/> Pilih pesan</button>

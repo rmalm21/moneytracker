@@ -21,7 +21,7 @@ const SET = process.env.SET ?? 'v4dev';
 if (process.argv.includes('--shadow')) {
   // Older sets on their own state (V3.5 state before 6.8), meaning and structure of every action.
   const v35 = (await import('./fixtures-v35state.mjs')).ctx, v68 = ctx;
-  const files = readdirSync(here).filter(f => /^fixtures-.*\.mjs$/.test(f) && !/state/.test(f) && !/^fixtures-v4/.test(f));
+  const files = readdirSync(here).filter(f => /^fixtures-.*\.mjs$/.test(f) && !/state/.test(f) && !/^fixtures-v4/.test(f) && !/^fixtures-v78/.test(f));
   const show = a => { const r = a.result, p = r.preset; return [r.kind, r.amount || 0, p.walletId || '∅', p.destinationWalletId || '∅', r.date, String(r.person || '').toLowerCase() || '∅', p.subcategoryId || p.categoryId || '∅', String(p.description || '').toLowerCase(), r.split?.strong ? `split:${r.split.participants.length}` : '', (p.splits || []).length ? `lines:${p.splits.length}` : ''].join(' · '); };
   const money = a => { const r = a.result, p = r.preset; return [r.kind, r.amount || 0, p.walletId || '', p.destinationWalletId || '', r.date, String(r.person || '').toLowerCase(), Boolean(r.split?.strong), (p.splits || []).length].join('|'); };
   const seen = new Set(), changes = [];

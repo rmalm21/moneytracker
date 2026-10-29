@@ -258,7 +258,9 @@ export type ShareSpec = {
   amounts?: number[];
 };
 export type AllocLine = { purpose: string; self: boolean; part: { kind: 'equal'; of: number } | { kind: 'amount'; value: number } | { kind: 'percent'; value: number } | { kind: 'rest' } };
-export type V4Reading = { text: string; math: MathNote[]; share?: ShareSpec; allocation?: { lines: AllocLine[]; words: string }; trace: string[] };
+export type V4Reading = { text: string; math: MathNote[]; share?: ShareSpec; allocation?: { lines: AllocLine[]; words: string };
+  /** 7.8 "290k hokben gue cuma 45k": only your part is recorded, the rest is not yours to record. */
+  own?: { total: number; mine: number; words: string }; trace: string[] };
 
 const NUMBER_WORDS = 'dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh';
 const DIVIDE = new RegExp(String.raw`\b(?:di)?bagi\s+(?:ber-?\s?\d{1,2}|ber(?:dua|tiga|empat|lima|enam|tujuh|delapan))\b|\b(?:di)?bagi\s*-?\s*(\d+|${NUMBER_WORDS}|rata)\b|\b(?:di)?bagi2\b|\bpatungan\b|\bsplit(?:\s+bill)?\b|\bsharing\b|\bsaweran\b|\bbagi\s+rata\b|\b50\s*[:/-]\s*50\b|\bfifty[\s-]?fifty\b|\bsetengah[\s-]setengah\b|\b(?:aku|saya|gue|gua|gw)\s+(?:hutang|utang|ngutang|nanggung|tanggung)\s+(?:setengah|separuh)(?:nya)?\b`, 'iu');
@@ -496,6 +498,54 @@ export function lineAmounts(lines: AllocLine[], total: number): number[] {
   return out;
 }
 
+/* ------------------------------------------------------------------ Only my part */
+
+const ME = String.raw`(?:gue|gua|gw|aku|saya|ane|aq|sy|ku)`;
+const ONLY = String.raw`(?:cuma|cuman|cm|cmn|hanya|hny)`;
+const SPENT = String.raw`(?:makan|minum|pesan|pesen|mesen|ambil|pakai|pake|bayar|habis|abis|kena|ikut|nyumbang|keluar|order|beli|kebagian)`;
+const MONEY_AT = String.raw`((?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|rebu|k|jt|juta))(?![\p{L}\d])`;
+/** "bagianku", "punya gue", "porsiku", "jatah gue", "yang aku makan": the part that is yours. */
+const OWN_NOUN = String.raw`(?:bagian(?:ku|\s+${ME})|punya(?:ku|\s+${ME})|porsi(?:ku|\s+${ME})|jatah(?:ku|\s+${ME})|share\s+${ME}|yang\s+${ME}\s+${SPENT})`;
+/**
+ * Your part, said so: "gue cuma 45k", "aku cuma bayar 80rb", "aku kena 120rb", "aku bayar 90rb doang", "bagianku 75rb",
+ * "punya gue 90rb", "yang aku pesen 55rb". A bare "aku 60rb" is not this (with "ferdi 40rb" after it, it is a Split Bill).
+ */
+const OWN_PART = new RegExp(String.raw`(?:^|[\s,;])(?:(?:tapi|tp|nah|terus|trus)\s+)?(?:${ME}\s+${ONLY}\s+(?:${SPENT}\s+)?|${ME}\s+${SPENT}\s+|${OWN_NOUN}\s*(?:${ONLY}\s+|(?:tuh|itu|sih|nya)\s+)?|(?<lone>${ME}\s+))${MONEY_AT}(?<tail>\s*(?:doang|aja|saja|aj))?`, 'iu');
+/** "…, sisanya biarin": the rest is said to be left out. */
+const REST_IGNORED = /\s*,?\s*(?:sisa(?:nya)?|yang\s+lain(?:nya)?)\s+(?:biarin|biar(?:in)?\s+aja|abaikan|diabaikan|ga\s*usah|gak\s*usah|nggak\s*usah|ngga\s*usah|tidak\s*usah|skip|bukan\s+(?:aku|gue|saya|punyaku|urusanku))\b[^,;]*/iu;
+
+/**
+ * "290k hokben kemarin gue cuma 45k", "makan bareng 300rb bagianku 75rb", "gue cuma 30rb dari total 180rb martabak":
+ * a shared bill where only your part is yours to record. Exactly two amounts (the bill and your part, which is
+ * smaller); the sentence is rewritten with your part in place of the bill. Null when someone else is given a part.
+ */
+export function readOwnPart(text: string, ctx: QuickContext): { text: string; total: number; mine: number; words: string; /** Where your part's amount is written in `text`. */ mineAt: [number, number] } | null {
+  const t = lower(text);
+  const m = OWN_PART.exec(t);
+  if (!m || m.index === undefined) return null;
+  // A bare "aku 45rb" counts only with "doang / aja" after it.
+  if (m.groups?.lone && !m.groups?.tail) return null;
+  const amounts: { at: number; end: number; value: number }[] = [];
+  for (let i = 0; i < t.length; i++) { if (!/\d/.test(t[i]) || (i && /[\p{L}\d.,]/u.test(t[i - 1]))) continue; const o = operandAt(t, i); if (o) { if (o.kind === 'money') amounts.push({ at: i, end: o.end, value: Math.round(o.value) }); i = o.end - 1; } }
+  if (amounts.length !== 2) return null;
+  const start = m.index + (/^[\s,;]/.test(m[0]) ? 1 : 0), end = m.index + m[0].length;
+  const mineAt = amounts.find(a => a.at >= start && a.at < end), bill = amounts.find(a => a !== mineAt);
+  if (!mineAt || !bill || !(mineAt.value > 0 && mineAt.value < bill.value)) return null;
+  // "sisanya ferdi", "sisanya dibayar rina": someone else's part is a Split Bill, not this.
+  const rest = t.slice(end).match(/\bsisa(?:nya)?\s+(?:(?:di)?bayar(?:in)?\s+|buat\s+|punya\s+)?(\p{L}+)/u);
+  if (rest && !REST_IGNORED.test(t.slice(end)) && (isPerson(rest[1], ctx) || /^(?:dia|mereka|dibayar|ditanggung)$/.test(rest[1]))) return null;
+  const words = text.slice(start, end).trim();
+  let out = `${text.slice(0, start)} ${text.slice(end)}`;
+  out = out.replace(REST_IGNORED, ' ');
+  // The bill's amount becomes your part ("dari total 180rb" goes with it).
+  const billText = text.slice(bill.at, bill.end), billAt = out.indexOf(billText);
+  if (billAt < 0) return null;
+  const lead = out.slice(0, billAt).match(/\s*\b(?:dari|of)\s+(?:total\s+)?$/iu);
+  out = `${out.slice(0, billAt - (lead ? lead[0].length : 0))} ${text.slice(mineAt.at, mineAt.end)} ${out.slice(billAt + billText.length)}`;
+  out = out.replace(/\s*,\s*(?=,|$)/g, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '').trim();
+  return { text: out, total: bill.value, mine: mineAt.value, words, mineAt: [mineAt.at, mineAt.end] };
+}
+
 /* ------------------------------------------------------------------ The whole reading */
 
 /** Takes the spans out of the text (overlaps merged); a span covering `keep.at` is replaced by `keep.with` instead. */
@@ -519,6 +569,9 @@ export function readV4(input: string, ctx: QuickContext): V4Reading | null {
   const amounts: number[] = [];
   for (let i = 0; i < text.length; i++) { if (!/\d/.test(text[i]) || (i && /[\p{L}\d.,]/u.test(text[i - 1]))) continue; const o = operandAt(lower(text), i); if (o) { if (o.kind === 'money') amounts.push(Math.round(o.value)); i = o.end - 1; } }
   const total = amounts[0] || null;
+  // 7.8: "gue cuma 45k": only your part, before any sharing or purposes.
+  const own = total ? readOwnPart(text, ctx) : null;
+  if (own) { trace.push(`Bagian sendiri: ${own.mine} dari ${own.total} (sisanya tidak dicatat)`); return { text: own.text, math: math.notes, own: { total: own.total, mine: own.mine, words: own.words }, trace }; }
   let allocation: V4Reading['allocation'];
   // Another party's part comes first: "sepertiga buat kosan sebelah" is not a category.
   const party = total ? readPartyShare(text, ctx, total) : null;

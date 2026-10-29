@@ -1066,9 +1066,20 @@ function applyV4(plan: QuickParseResult, v4: V4Reading, ctx: QuickContext): bool
   const money = plan.actions.filter(a => a.result.amount > 0);
   const target = money.length === 1 && money[0].result.kind === 'expense' ? money[0] : null;
   // Only an expense is divided ("gaji 5jt dibagi 3 pos" stays the salary as written).
-  if (!target) return !v4.share && !v4.allocation && !v4.math.some(n => n.divisor) && plan.actions.length > 0;
+  if (!target) return !v4.share && !v4.allocation && !v4.own && !v4.math.some(n => n.divisor) && plan.actions.length > 0;
   const r = target.result, total = r.amount;
   const say = (note: string) => target.evidence.unshift(note);
+  // 7.8 "290k hokben kemarin gue cuma 45k": your part is the amount; the whole bill is one tap away.
+  if (v4.own) {
+    if (total !== v4.own.mine) return false;
+    r.ownOf = v4.own.total;
+    target.fields.amount = { status: 'verified', note: `bagianmu dari ${rpV4(v4.own.total)}` };
+    say(`Kamu menulis “${v4.own.words}”: yang dicatat bagianmu saja, ${rpV4(v4.own.mine)} dari total ${rpV4(v4.own.total)}. Sisanya tidak dicatat.`);
+    target.alternatives.push({ kind: 'expense', label: `Catat totalnya (${rpV4(v4.own.total)})`, result: { ...r, ownOf: undefined, amount: v4.own.total, preset: { ...r.preset, amount: v4.own.total } } });
+    target.mutation = planMutation(target, ctx, plan.actions);
+    refreshAction(target, ctx);
+    return true;
+  }
   const setAmount = (value: number, note: string, status: FieldStatus = 'verified') => { r.amount = value; r.preset.amount = value; target.fields.amount = { status, note }; };
   for (const n of v4.math) if (Math.abs(n.value - total) < 1 || plan.actions.length === 1) say(`Dihitung: ${n.formula}${n.rounded ? ' (dibulatkan ke rupiah terdekat)' : ''}.`);
   const exact = v4.math.find(n => n.value === total);

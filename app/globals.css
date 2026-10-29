@@ -8626,3 +8626,23 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .cm-dismiss { display: inline-flex; align-items: center; min-height: 32px; }
 .qp-facts .qp-why-toggle { display: inline-flex; align-items: center; min-height: 32px; }
 .chat-compose textarea::placeholder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 7.8 Chat: the phrases taught by the person, each with its own "Lupakan". */
+.chat-learned-list { display: grid; gap: 6px; margin: -4px 0 14px; padding: 0; list-style: none; }
+.chat-learned-list li { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); }
+.chat-learned-list li > span { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.chat-learned-list b { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.chat-learned-list small { overflow: hidden; color: var(--muted); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 7.8 Kartu hasil, tidied: the facts are one even row of pills (same height, text centred, "Kenapa?" on the same line,
+   nothing stretched to the tallest), the amount never breaks, and on a narrow card "Bukan ini?" moves under the title. */
+.quick-preview { container-type: inline-size; }
+.qp-facts { align-items: center; row-gap: 6px; }
+.qp-facts > span:not(.qp-detail):not(.qp-why) { display: inline-flex; align-items: center; min-height: 30px; padding: 0 11px; line-height: 1.25; }
+.qp-facts .qp-why-toggle { display: inline-flex; align-items: center; min-height: 30px; padding: 0 6px; }
+.qp-facts .qp-detail { align-self: stretch; }
+.qp-title strong:not(.is-text) { white-space: nowrap; }
+@container (max-width: 440px) {
+  .qp-head { grid-template-columns: auto minmax(0, 1fr); }
+  .qp-head > .qp-switch { grid-column: 2; justify-self: start; margin-top: -2px; }
+}
