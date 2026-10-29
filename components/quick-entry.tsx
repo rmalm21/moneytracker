@@ -141,6 +141,24 @@ const frequencies: [Recurring['frequency'], string][] = [['monthly', 'Tiap bulan
 const modes: [Recurring['mode'], string][] = [['inbox', 'Tunggu konfirmasi (disarankan)'], ['reminder', 'Pengingat saja'], ['draft', 'Simpan sebagai draf'], ['auto', 'Catat otomatis · saldo langsung berubah']];
 const categoryTypes: [Category['type'], string][] = [['expense', 'Pengeluaran'], ['income', 'Pemasukan'], ['savings', 'Tabungan']];
 const same = (a: string, b: string) => a.trim().toLocaleLowerCase('id-ID') === b.trim().toLocaleLowerCase('id-ID');
+/** Equal parts of an amount; the first gets the extra rupiah (like the Split Bill engine). */
+const equalParts = (amount: number, n: number) => Array.from({ length: n }, (_, i) => Math.floor(amount / n) + (i < amount % n ? 1 : 0));
+/** Category parts scaled to a changed amount (the last takes the rounding); none when a part would be empty. */
+function fitLines<T extends { amount: number }>(lines: T[], amount: number): T[] | undefined {
+  const sum = lines.reduce((n, l) => n + l.amount, 0);
+  if (sum === amount) return lines;
+  if (!sum || !amount) return undefined;
+  const out = lines.map(l => ({ ...l, amount: Math.round(l.amount * amount / sum) }));
+  out[out.length - 1].amount += amount - out.reduce((n, l) => n + l.amount, 0);
+  return out.every(l => l.amount > 0) ? out : undefined;
+}
+/** The chip back to the first reading, when the other readings are the same kind ("Bagianku saja" ↔ "Bagi 2 orang"). */
+function firstLabel(action: ActionCandidate) {
+  const r = action.result;
+  if (r.split?.strong) return `Bagi ${r.split.participants.length} orang`;
+  if ((r.preset.splits?.length || 0) > 1) return `Bagi ${r.preset.splits!.length} kategori`;
+  return action.alternatives.some(a => a.kind === r.kind) ? `${QUICK_LABELS[r.kind]} ${rupiah(r.amount)}` : QUICK_LABELS[r.kind];
+}
 /** An icon from the built-in library whose keywords start like a word of the name ("jajan" → 🍿, "tol" → 🛣️). */
 function iconFor(name: string) {
   const words = name.toLowerCase().split(/[^a-z]+/).filter(word => word.length > 2);
@@ -536,6 +554,11 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const time = edit.time ?? result.preset.time ?? '';
   const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
   const category = data.categories.find(c => c.id === (result.preset.subcategoryId || result.preset.categoryId));
+  // V4: one purchase on several categories ("separuh buat traktir"), kept in step with a changed amount.
+  const splitLines = kind === 'expense' && (result.preset.splits?.length || 0) > 1 ? fitLines(result.preset.splits!, amount) : undefined;
+  // V4: a shared spending someone else paid ("rina yang bayar"): no wallet of yours is used.
+  const split = kind === 'expense' && result.split?.strong ? result.split : undefined;
+  const payerOther = split?.payerId ? split.participants.find(p => p.id === split.payerId && !p.isMe) : undefined;
   const categoryName = (c?: Pick<Category, 'name' | 'parentId'>) => c ? c.parentId ? `${data.categories.find(p => p.id === c.parentId)?.name || ''} › ${c.name}` : c.name : '';
   const bySort = (a: Category, b: Category) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name);
   const topLevel = (types: Category['type'][]) => data.categories.filter(c => !c.isArchived && !c.parentId && types.includes(c.type)).sort(bySort);
@@ -604,7 +627,8 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       case 'note_new': return !name.trim() ? 'Tulis isi catatannya.' : !date ? 'Pilih tanggalnya.' : '';
       default: return !amount ? 'Tulis nominalnya.' : kind === 'expense' && !result.preset.categoryId ? 'Kategorinya belum ketemu. Sebut kategorinya (mis. “makan”), atau tekan Ubah detail.'
         : kind === 'transfer' && !walletId ? 'Pilih dompet asalnya.'
-        : txKinds.has(kind) && !walletId ? 'Pilih dompetnya dulu.'
+        : split?.method === 'amount' && amount !== split.total ? `Bagian tiap orang berjumlah ${rupiah(split.total)}, beda dengan nominalnya. Ubah lewat Split Bill.`
+        : txKinds.has(kind) && !walletId && !payerOther ? 'Pilih dompetnya dulu.'
         : kind === 'transfer' && (!destination || destination === walletId) ? 'Pilih dompet tujuan yang berbeda dari dompet asal.'
         : (kind === 'debt_payment' || kind === 'receivable_payment' || kind === 'claim_payment' || kind === 'wish') && !linkId && !result.operation?.linkAction ? (result.person || person ? `Belum ada ${kind === 'debt_payment' ? 'utang' : 'piutang'} ${person || result.person} yang tercatat. Pilih catatannya, atau ganti jadi pemasukan.` : 'Pilih catatan yang dimaksud.')
         : kind === 'target' && !linkId ? 'Pilih tujuan dananya.'
@@ -618,6 +642,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   function preset(): Partial<LedgerTx> {
     const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}), ...(time ? { time } : {}), ...(edit.merchant !== undefined ? { merchant: edit.merchant.trim() } : {}) };
     if (kind === 'transfer' && destination) base.destinationWalletId = destination;
+    if (result.preset.splits?.length) base.splits = splitLines || [];
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
     return base;
@@ -694,12 +719,15 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       default: {
         const comp = result.composition && amount === result.composition.net ? result.composition : undefined;
         const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}), ...(comp ? { receipt: compositionReceipt(comp, description || category?.name || '', result.preset.merchant) } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
+        // Several categories: saved like the form saves them (the lines carry the categories).
+        if (tx.splits?.length) { tx.categoryId = null; tx.subcategoryId = null; }
         const op = result.operation, linkedTo = op?.linkAction;
         // V3.3 Split Bill: one cash transaction for the total, the others' shares as receivables, in one commit (lib/split-bill-store.ts).
-        if (kind === 'expense' && result.split?.strong) {
-          const sp = result.split;
-          run = () => import('@/lib/split-bill-store').then(m => m.saveSplitBill(uid, { title: description || category?.name || 'Split bill', merchant: result.preset.merchant || '', date, time: tx.time || '', payer: 'me', payerId: sp.participants.find(p => p.isMe)?.id || '', walletId, transactionId: '', categoryId: result.preset.categoryId || null, subcategoryId: result.preset.subcategoryId || null, total: amount, method: 'equal', participants: sp.participants.map(p => ({ id: p.id, name: p.name, ...(p.isMe ? { isMe: true } : {}) })), items: [], extras: [], payments: [], notes: '' }, { newId: opId }));
-          detail = `Bagi rata ${sp.participants.length} orang · ${walletName(walletId)}`; success = `Split bill ${money} tersimpan.`;
+        // V4: paid by someone else → your share is an expense without a wallet and a debt to them.
+        if (split) {
+          const sp = split;
+          run = () => import('@/lib/split-bill-store').then(m => m.saveSplitBill(uid, { title: description || category?.name || 'Split bill', merchant: result.preset.merchant || '', date, time: tx.time || '', payer: payerOther ? 'other' : 'me', payerId: payerOther ? payerOther.id : sp.participants.find(p => p.isMe)?.id || '', walletId: payerOther ? '' : walletId, transactionId: '', categoryId: result.preset.categoryId || null, subcategoryId: result.preset.subcategoryId || null, total: amount, method: sp.method || 'equal', participants: sp.participants.map(p => ({ id: p.id, name: p.name, ...(p.isMe ? { isMe: true } : {}), ...(sp.method === 'amount' ? { amount: sp.shares[p.id] || 0 } : {}) })), items: [], extras: [], payments: [], notes: '' }, { newId: opId }));
+          detail = `${sp.method === 'amount' ? 'Bagian sendiri-sendiri' : 'Bagi rata'} ${sp.participants.length} orang · ${payerOther ? `${payerOther.name} yang bayar` : walletName(walletId)}`; success = `Split bill ${money} tersimpan.`;
           break;
         }
         // A payment of a receivable or debt made in the same message: saved after it, with its id.
@@ -743,12 +771,16 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   switch (kind) {
     case 'expense': case 'income':
       if (result.preset.description) fact('d', result.preset.description); if (merchant.trim()) fact('m', merchant.trim());
-      if (result.split?.strong) fact('s', `Bagi rata ${result.split.participants.length} orang`, 'qp-cat');
+      if (split) { fact('s', `${split.method === 'amount' ? 'Split' : 'Bagi rata'} ${split.participants.length} orang`, 'qp-cat'); if (payerOther) fact('y', `${payerOther.name} yang bayar`); }
       if (result.quantity && amount === result.quantity.total) fact('q', `${result.quantity.qty} × ${rupiah(result.quantity.unit)}`);
       if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);
-      if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
+      if (splitLines) fact('c', `${splitLines.length} kategori`, 'qp-cat'); else if (category) fact('c', category.name, 'qp-cat'); else if (kind === 'expense') fact('c', 'Tanpa kategori', 'qp-missing');
       fact('t', `${dayText(date)}${time ? ` · ${time}` : action.daypart && !edit.date ? ` ${action.daypart}` : ''}`, action.fields.time?.status === 'check' && !touched.time ? 'qp-missing' : '');
-      if (walletId) fact('w', walletName(walletId));
+      if (walletId && !payerOther) fact('w', walletName(walletId));
+      // V4: the arithmetic, each person's part, each category's part.
+      if (result.calc && amount === result.amount) fact('k', <><b>Hitungan</b> {result.calc}</>, 'qp-detail');
+      if (split) fact('h', <><b>Bagian</b> {(split.method === 'amount' ? split.participants.map(p => split.shares[p.id] || 0) : equalParts(amount, split.participants.length)).map((v, i) => `${split.participants[i].isMe ? 'Kamu' : split.participants[i].name} ${rupiah(v)}`).join(' · ')}</>, 'qp-detail');
+      if (splitLines) fact('l', <><b>Dibagi ke</b> {splitLines.map(l => `${data.categories.find(c => c.id === (l.subcategoryId || l.categoryId))?.name || ''} ${rupiah(l.amount)}`).join(' · ')}</>, 'qp-detail');
       // V3.5: what was bought, what for and with whom, as one short line each (never the description or the category).
       if (result.details?.length && result.preset.description !== result.details.map(i => i.name).join(' & ')) fact('i', <><b>Rincian</b> {result.details.map(i => `${i.qty ? `${i.qty} ` : ''}${i.name}`).join(' · ')}</>, 'qp-detail');
       if (result.purpose) fact('u', `Untuk ${result.purpose}`);
@@ -836,7 +868,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       if (kind === 'debt_new' || kind === 'claim_new') fields.push(nameField(kind === 'debt_new' ? 'Nama utang' : 'Nama klaim'));
       if (kind === 'receivable_new') fields.push(field('Keperluan', <Input value={description} onChange={e => change({ description: e.target.value })} placeholder="Opsional, mis. makan siang"/>));
       if (linkOptions.length > 0) fields.push(field(kind === 'debt_payment' ? 'Utang' : kind === 'receivable_payment' ? 'Piutang' : kind === 'claim_payment' ? 'Klaim' : kind === 'wish' ? 'Wish list' : 'Target', <Select value={linkId} onChange={e => change({ linkId: e.target.value })}><option value="">Pilih…</option>{linkOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</Select>));
-      if (kind !== 'wish') fields.push(field(kind === 'debt_new' ? 'Uangnya masuk ke' : kind === 'receivable_new' ? 'Uangnya keluar dari' : kind === 'transfer' ? 'Dari dompet' : incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet', <Select value={walletId} onChange={e => change({ walletId: e.target.value })}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">{kind === 'transfer' ? 'Pilih dompet asal' : 'Pilih dompet'}</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'wallet'));
+      if (kind !== 'wish' && !payerOther) fields.push(field(kind === 'debt_new' ? 'Uangnya masuk ke' : kind === 'receivable_new' ? 'Uangnya keluar dari' : kind === 'transfer' ? 'Dari dompet' : incoming.has(kind) ? 'Masuk ke dompet' : 'Dari dompet', <Select value={walletId} onChange={e => change({ walletId: e.target.value })}>{(kind === 'debt_new' || kind === 'receivable_new') ? <option value="">Tanpa dompet (saldo tidak berubah)</option> : <option value="">{kind === 'transfer' ? 'Pilih dompet asal' : 'Pilih dompet'}</option>}{choices.map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'wallet'));
       if (kind === 'transfer') fields.push(field('Ke dompet', <Select value={destination} onChange={e => change({ destinationId: e.target.value })}><option value="">Pilih dompet tujuan</option>{walletsFor('transferIn').filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{w.name} · {rupiah(w.cachedBalance)}</option>)}</Select>, 'to'));
       if (kind === 'target' && fund) fields.push(<small className="qp-note" key="note">Masuk ke {walletName(destination) || 'dompet target'}</small>);
   }
@@ -858,7 +890,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const askBlock = ask && <div className="qp-ask" role="group" aria-label={ask.question}><span className="qp-ask-q"><HelpCircle size={14} aria-hidden="true"/>{ask.question}</span>{answers.length > 0 && <span className="qp-picks">{answers.map(([key, label, pick]) => <button type="button" key={key} className="sb-chip" onClick={pick}>{label}</button>)}</span>}</div>;
   if (ask) for (let i = picks.length - 1; i >= 0; i--) if ((picks[i] as { key?: string }).key === { amount: 'a', date: 'd', wallet: 'w' }[ask.field as 'amount']) picks.splice(i, 1);
   const flagList = flags.length > 0 && <div className="qp-flags">{flags.map(([key, f]) => <small key={key} className={`qp-flag is-${f.status}`}><b>{statusIcon[f.status]} {FIELD_STATUS[f.status]}</b> · {FIELD_LABELS[key]}{f.note ? `: ${f.note}` : ''}</small>)}{!choice && action.warnings.filter(w => !flags.some(([, f]) => f.note && w.includes(f.note))).map(w => <small key={w} className="qp-flag is-check"><b>! Perlu dicek</b> · {w}</small>)}</div>;
-  const switcher = action.alternatives.length > 0 && ask?.field !== 'kind' && <div className="qp-alts" role="group" aria-label="Bukan ini?"><small>Bukan ini?</small>{choice > 0 && <button type="button" className="sb-chip" onClick={() => setChoice(0)}>{QUICK_LABELS[action.result.kind]}</button>}{action.alternatives.map((alt, i) => i + 1 === choice ? null : <button type="button" key={alt.kind} className="sb-chip" onClick={() => setChoice(i + 1)}>{alt.label}</button>)}</div>;
+  const switcher = action.alternatives.length > 0 && ask?.field !== 'kind' && <div className="qp-alts" role="group" aria-label="Bukan ini?"><small>Bukan ini?</small>{choice > 0 && <button type="button" className="sb-chip" onClick={() => setChoice(0)}>{firstLabel(action)}</button>}{action.alternatives.map((alt, i) => i + 1 === choice ? null : <button type="button" key={`${alt.kind}${i}`} className="sb-chip" onClick={() => setChoice(i + 1)}>{alt.label}</button>)}</div>;
   const reasons = !choice && action.evidence.length > 0 && <>{why && <ul className="qp-why-list">{action.evidence.map(e => <li key={e}>{e}</li>)}</ul>}</>;
   const whyButton = !choice && action.evidence.length > 0 && <button type="button" className="qp-why-toggle" aria-expanded={why} onClick={() => setWhy(v => !v)}>{why ? 'Tutup alasan' : 'Kenapa?'}</button>;
   // Clean text by default; the editors open with "Ubah", or by themselves where something must be chosen.

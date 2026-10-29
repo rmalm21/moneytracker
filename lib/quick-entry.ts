@@ -53,6 +53,8 @@ export type QuickResult = {
   composition?: import('./catat/composition').Composition;
   /** V3.3: "3 kopi 18k satu" → 3 × 18.000. */
   quantity?: { qty: number; unit: number; total: number };
+  /** V4: the arithmetic written in the text, as shown on the card ("Rp128.181 ÷ 3 × 2"). */
+  calc?: string;
   /** V3.3: a shared spending (Split Bill): participants and their shares, from the Split Bill engine. */
   split?: import('./catat/group').SplitReading;
   /** V3.3: a plain "20" read as Rp20.000, to be confirmed. */

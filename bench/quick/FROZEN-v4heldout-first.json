@@ -1,0 +1,369 @@
+{
+ "at": "2026-10-29T04:50:56.211Z",
+ "summary7_4": {
+  "ok": 11,
+  "n": 44,
+  "seg": 41,
+  "cw": 25,
+  "fields": {
+   "kind": [
+    45,
+    45
+   ],
+   "amount": [
+    24,
+    45
+   ],
+   "cat": [
+    20,
+    24
+   ],
+   "to": [
+    0,
+    0
+   ],
+   "date": [
+    1,
+    1
+   ],
+   "split": [
+    10,
+    14
+   ],
+   "share": [
+    2,
+    8
+   ],
+   "people": [
+    3,
+    8
+   ],
+   "payer": [
+    0,
+    1
+   ],
+   "lines": [
+    0,
+    6
+   ]
+  },
+  "groups": {
+   "matematika": [
+    0,
+    13
+   ],
+   "persen": [
+    0,
+    5
+   ],
+   "bagi orang": [
+    2,
+    11
+   ],
+   "alokasi": [
+    0,
+    6
+   ],
+   "jangan diubah": [
+    9,
+    9
+   ]
+  },
+  "p95": 33.71878599999991,
+  "avg": 32.539747250000005
+ },
+ "summaryV4": {
+  "ok": 44,
+  "n": 44,
+  "seg": 44,
+  "cw": 0,
+  "fields": {
+   "kind": [
+    45,
+    45
+   ],
+   "amount": [
+    45,
+    45
+   ],
+   "cat": [
+    24,
+    24
+   ],
+   "to": [
+    0,
+    0
+   ],
+   "date": [
+    1,
+    1
+   ],
+   "split": [
+    14,
+    14
+   ],
+   "share": [
+    8,
+    8
+   ],
+   "people": [
+    8,
+    8
+   ],
+   "payer": [
+    1,
+    1
+   ],
+   "lines": [
+    6,
+    6
+   ]
+  },
+  "groups": {
+   "matematika": [
+    13,
+    13
+   ],
+   "persen": [
+    5,
+    5
+   ],
+   "bagi orang": [
+    11,
+    11
+   ],
+   "alokasi": [
+    6,
+    6
+   ],
+   "jangan diubah": [
+    9,
+    9
+   ]
+  },
+  "p95": 13.918745999999828,
+  "avg": 12.257236727272703
+ },
+ "rows": [
+  {
+   "id": "hm1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm6",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm7",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm8",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm9",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm10",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm11",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hm12",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hp1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hp2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hp3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hp4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hp5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs6",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs7",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs8",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs9",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs10",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "hs11",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ha6",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht1",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht2",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht3",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht4",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht5",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht6",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht7",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht8",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht9",
+   "errs": [],
+   "confidentWrong": false
+  },
+  {
+   "id": "ht10",
+   "errs": [],
+   "confidentWrong": false
+  }
+ ]
+}

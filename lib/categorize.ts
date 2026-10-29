@@ -236,6 +236,8 @@ const RULES: Rule[] = [
   R(/\b(sedekah|infaq|infak|zakat|zakat fitrah|zakat mal|wakaf|donasi|sumbangan|nyumbang|amal|kotak amal|kolekte|perpuluhan|persembahan|kitabisa|panti asuhan|fidyah|kurban|qurban)\b/, 'charity', 4.8),
   R(/\b(amplop|takziah|takjiah|melayat|layat|syukuran|selamatan|hajatan|lahiran|aqiqah|akikah|khitanan|sunatan|jenguk|besuk|arisan|reuni|buka bersama|bukber)\b/, 'social', 4),
   R(/\b(kondangan|nikahan|pernikahan|resepsi|kawinan)\b/, 'wedding', 4.4),
+  // V4: treating someone ("traktir teman", "entertain") is money given to people, not one's own meal.
+  R(/\b(traktir|traktiran|nraktir|mentraktir|ntraktir|entertain|jamu tamu|jamuan)\b/, 'social', 4.2),
   R(/\b(ulang tahun|ultah|birthday|kue ulang tahun)\b/, 'birthday', 4),
   R(/\b(popok|pampers|diapers|mamypoko|merries|sweety|susu formula|susu bayi|susu anak|bayi|baby|mpasi|stroller|uang saku anak|jajan anak|spp anak|mainan anak)\b/, 'family', 4.6),
   R(/\b(ortu|orang tua|keluarga|mertua|uang bulanan (?:ortu|orang tua|mama|papa|ibu|bapak))\b/, 'family', 3.2),

@@ -28,6 +28,8 @@ import { readRelation, withoutPurpose, type RelationReading } from './catat/rela
 import { segmentPiece } from './catat/segment.ts';
 import { readComposition, readUnitPrice, type Composition } from './catat/composition.ts';
 import { readGroup, readSplit, type GroupReading } from './catat/group.ts';
+import { anonymousShare, lineAmounts, readV4, rp as rpV4, splitShares, type V4Reading } from './catat/math.ts';
+import { suggestCategory } from './categorize.ts';
 import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
@@ -142,7 +144,8 @@ const PHRASES: [RegExp, string][] = [
   [/\b(?:gak|ga|nggak|enggak|engga|ngga|gk|g)\s*jadi\b|\bgajadi\b/g, 'tidak jadi'], [/\bmasing2\b/g, 'masing-masing'],
 ];
 /** "2jt200" / "2 juta 200" → 2.200.000; the digits after "jt" are thousands ("2jt50" = 2.050.000), one digit is a tenth ("2jt5" = 2,5 jt). */
-const MILLION_TAIL = /\b(\d{1,3})\s*(?:jt|juta)\s*(\d{1,3})\b(?!\s*(?:rb|ribu|k|jt|juta|[.,]\d))/g;
+// Never inside a decimal ("1.5jt 2 bulan", "1,5jt") nor before a count ("1jt 2 bulan" = for two months, not 1,2 jt).
+const MILLION_TAIL = /(?<![\d.,])\b(\d{1,3})\s*(?:jt|juta)\s*(\d{1,3})\b(?!\s*(?:rb|ribu|k|jt|juta|[.,]\d))(?!\s*(?:bulan|bln|hari|hr|minggu|mgg|tahun|thn|orang|org|kali|x\b|porsi|pcs|buah|bh|gelas|bungkus|bks|lembar|botol|malam|jam|menit|kg|liter|ltr|item|tiket|kamar|unit|biji|pasang|set\b))/g;
 const millionTail = (_: string, whole: string, tail: string) => `${Number(whole) * 1000 + Number(tail) * (tail.length === 1 ? 100 : 1)}rb`;
 /** Words protected in the sentence being read (names the general layer found): never respelled. */
 let guarded: Set<string> = new Set();
@@ -1010,9 +1013,21 @@ const FILLER = /\b(pakai|via|lewat|dari|bayar|dibayar|bayarnya|juga|aja|saja|ya|
  * Reads a message: the General Language layer first (lib/catat/language.ts: chat shorthand, fillers, compounds; names
  * protected), then the Financial Grammar on the normalized text. The plan keeps the sentence as typed and every change.
  */
+let inV4 = false;
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const raw = input.trim();
   if (!raw) return readPlan(raw, ctx, mode);
+  // V4: arithmetic, sharing with people and several purposes are read first (lib/catat/math.ts); the grammar reads the
+  // sentence with the result in place, and what it found is attached to the one expense afterwards.
+  const v4 = mode === 'auto' && !inV4 ? readV4(raw, ctx) : null;
+  if (v4) {
+    // The rewritten sentence is read once by the grammar alone (an offer leaves it unchanged).
+    let plan: QuickParseResult;
+    inV4 = true;
+    try { plan = parseQuickPlan(v4.text, ctx, mode); } finally { inV4 = false; }
+    if (applyV4(plan, v4, ctx)) { plan.sourceText = raw; plan.trace.unshift(...v4.trace); return plan; }
+    // Nothing to attach it to (no single expense): the sentence is read as it was, so nothing is lost.
+  }
   const g = normalizeGeneral(raw, ctx);
   const before = guarded, beforeAmounts = amountGuard.words;
   guarded = g.guard; amountGuard.words = g.guard;
@@ -1030,6 +1045,82 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   }
   plan.trace.unshift(`Bahasa umum v${g.version}: ${g.notes.map(n => `${n.raw} → ${n.normalized || '∅'} (${n.type})`).join(', ')}`);
   return plan;
+}
+
+/** A category the purpose names by its whole name ("kebutuhan rumah", "bahan makanan"), else the category reader's guess. */
+function purposeCategory(purpose: string, ctx: QuickContext): { categoryId: string; subcategoryId: string | null; name: string } | null {
+  const p = purpose.toLocaleLowerCase('id-ID').trim(); if (!p) return null;
+  const cats = ctx.categories.filter(c => c.type === 'expense' && !c.isArchived);
+  // A category's own name only when no other category has it ("Makan" is in Travel and in Reimbursement: the reader decides).
+  const count = new Map<string, number>(); for (const c of ctx.categories) { const k = c.name.toLocaleLowerCase('id-ID'); count.set(k, (count.get(k) || 0) + 1); }
+  const named = cats.filter(c => { const k = c.name.toLocaleLowerCase('id-ID'); return count.get(k) === 1 && (p === k || has(p, k) && c.name.length >= 5); }).sort((a, b) => b.name.length - a.name.length || Number(Boolean(b.parentId)) - Number(Boolean(a.parentId)))[0];
+  const pick = named || (() => { const g = suggestCategory({ text: p, item: p, amount: 0, type: 'expense' }, ctx); const id = g?.subcategoryId || g?.categoryId; return id ? cats.find(c => c.id === id) : undefined; })();
+  if (!pick) return null;
+  return { categoryId: pick.parentId || pick.id, subcategoryId: pick.parentId ? pick.id : null, name: pick.name };
+}
+/**
+ * V4: attaches the arithmetic, the sharing or the purposes to the one expense of the plan. False when there is no single
+ * expense with the expected amount (the caller then reads the sentence as typed).
+ */
+function applyV4(plan: QuickParseResult, v4: V4Reading, ctx: QuickContext): boolean {
+  const money = plan.actions.filter(a => a.result.amount > 0);
+  const target = money.length === 1 && money[0].result.kind === 'expense' ? money[0] : null;
+  // Only an expense is divided ("gaji 5jt dibagi 3 pos" stays the salary as written).
+  if (!target) return !v4.share && !v4.allocation && !v4.math.some(n => n.divisor) && plan.actions.length > 0;
+  const r = target.result, total = r.amount;
+  const say = (note: string) => target.evidence.unshift(note);
+  const setAmount = (value: number, note: string, status: FieldStatus = 'verified') => { r.amount = value; r.preset.amount = value; target.fields.amount = { status, note }; };
+  for (const n of v4.math) if (Math.abs(n.value - total) < 1 || plan.actions.length === 1) say(`Dihitung: ${n.formula}${n.rounded ? ' (dibulatkan ke rupiah terdekat)' : ''}.`);
+  const exact = v4.math.find(n => n.value === total);
+  // The amount line of the rewritten text ("Nominal: “rp85.454”") says nothing the calculation does not.
+  const drop = (test: RegExp) => { for (let i = target.evidence.length - 1; i >= 0; i--) if (test.test(target.evidence[i])) target.evidence.splice(i, 1); };
+  if (exact) { target.fields.amount = { status: 'verified', note: `dihitung dari “${exact.raw}”` }; drop(/^Nominal: “rp[\d.]+”$/i); if (exact.kind !== 'percent-role') r.calc = exact.formula.split(' = ')[0]; }
+  // "obat 120rb dibagi 4": your part; the whole bill is one tap away.
+  if (exact?.divisor && exact.total) target.alternatives.unshift({ kind: 'expense', label: `Catat totalnya (${rpV4(exact.total)})`, result: { ...r, calc: undefined, amount: exact.total, preset: { ...r.preset, amount: exact.total } } });
+  const s = v4.share;
+  if (s?.mode === 'split') {
+    const { participants, shares } = splitShares(s, total), payer = s.payer ? participants.find(p => p.name === s.payer) : undefined;
+    r.split = { total, participants, shares, strong: true, why: s.why, words: s.words.split(/\s+/), ...(payer ? { payerId: payer.id } : {}), ...(s.amounts ? { method: 'amount' as const } : {}) };
+    r.operation = { type: 'SPLIT' };
+    delete r.person; delete target.fields.person;
+    // Someone else paid: no wallet of yours is touched (your part becomes a debt to them).
+    if (payer) { r.preset.walletId = ''; delete target.fields.wallet; drop(/^Dompet: /); }
+    const mine = shares.me || 0;
+    say(`${s.why} Bagian: ${participants.map(p => `${p.isMe ? 'kamu' : p.name} ${rpV4(shares[p.id] || 0)}`).join(', ')}.${payer ? ` Bagianmu jadi utang ke ${payer.name}.` : ' Bagian mereka jadi piutang.'}`);
+    if (mine) target.alternatives.unshift({ kind: 'expense', label: `Bagianku saja (${rpV4(mine)})`, result: { ...r, split: undefined, operation: undefined, amount: mine, calc: `${rpV4(total)} ÷ ${participants.length}`, preset: { ...r.preset, amount: mine } } });
+  } else if (s?.mode === 'offer') {
+    // The total stays as written; "Bagianku saja" is one tap away.
+    const mine = anonymousShare(total, s.count);
+    say(s.why);
+    target.alternatives.unshift({ kind: 'expense', label: `Bagianku saja (${rpV4(mine)})`, result: { ...r, amount: mine, calc: `${rpV4(total)} ÷ ${s.count}`, preset: { ...r.preset, amount: mine } } });
+  } else if (s?.mode === 'mine' || s?.mode === 'total') {
+    const value = s.mode === 'total' ? s.each! * s.count : s.each || anonymousShare(total, s.count);
+    if (s.each && s.mode === 'mine' && total !== s.each && Math.abs(total - s.each * s.count) > s.count) target.warnings.push(`Total ${rpV4(total)} tidak sama dengan ${s.count} × ${rpV4(s.each)}. Cek lagi.`);
+    setAmount(value, s.mode === 'total' ? `${s.count} × ${rpV4(s.each!)}` : `bagianmu dari ${s.count} orang`);
+    r.calc = s.mode === 'total' ? `${s.count} × ${rpV4(s.each!)}` : s.each ? undefined : `${rpV4(total)} ÷ ${s.count}`;
+    say(s.mode === 'total' ? s.why : `${s.why} ${s.each ? '' : `${rpV4(total)} ÷ ${s.count} = ${rpV4(value)}.`}`.trim());
+    if (s.mode === 'mine' && total !== value) target.alternatives.unshift({ kind: 'expense', label: `Catat totalnya (${rpV4(total)})`, result: { ...r, calc: undefined, amount: total, preset: { ...r.preset, amount: total } } });
+  }
+  const al = v4.allocation;
+  if (al) {
+    const amounts = lineAmounts(al.lines, total), own = r.preset.categoryId ? { categoryId: r.preset.categoryId, subcategoryId: r.preset.subcategoryId || null, name: ctx.categories.find(c => c.id === (r.preset.subcategoryId || r.preset.categoryId))?.name || '' } : null;
+    let unsure = false;
+    const lines = al.lines.map((l, i) => { const c = l.self ? own : purposeCategory(l.purpose, ctx); if (!c) unsure = true; return { ...(c || own || { categoryId: '', subcategoryId: null, name: '' }), amount: amounts[i], purpose: l.purpose }; });
+    const merged: typeof lines = [];
+    for (const l of lines) { const same = merged.find(m => m.categoryId === l.categoryId && m.subcategoryId === l.subcategoryId); if (same) same.amount += l.amount; else merged.push({ ...l }); }
+    if (merged.length >= 2 && merged.every(l => l.categoryId)) {
+      r.preset.splits = merged.map(l => ({ categoryId: l.categoryId, subcategoryId: l.subcategoryId, amount: l.amount }));
+      if (!r.preset.categoryId) { r.preset.categoryId = merged[0].categoryId; r.preset.subcategoryId = merged[0].subcategoryId; }
+      // One tap back to a single category (the whole amount on the purchase's own category).
+      if (own) target.alternatives.push({ kind: 'expense', label: 'Satu kategori saja', result: { ...r, preset: { ...r.preset, splits: [] } } });
+      target.fields.category = { status: unsure ? 'check' : 'likely', note: `dibagi ke ${merged.length} kategori` };
+      say(`Satu pembelian ${rpV4(total)} dibagi ke ${merged.length} kategori: ${merged.map(l => `${l.name} ${rpV4(l.amount)}${l.purpose ? ` (${l.purpose})` : ''}`).join(', ')}.`);
+    } else if (!merged.every(l => l.categoryId)) { target.fields.category = { status: 'check', note: 'kategori bagian belum terbaca' }; target.warnings.push(`Kategori untuk “${lines.find(l => !l.categoryId)?.purpose}” belum terbaca. Pilih di formulir.`); }
+  }
+  // The dry run again, now with the split or the categories attached.
+  target.mutation = planMutation(target, ctx, plan.actions);
+  refreshAction(target, ctx);
+  return true;
 }
 
 /**

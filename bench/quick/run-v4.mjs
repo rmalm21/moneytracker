@@ -4,10 +4,11 @@
  *
  *   SET=v4dev node bench/quick/run-v4.mjs [--fails]        A development set (used while building V4)
  *   SET=v4heldout node bench/quick/run-v4.mjs [--first]    B held-out, written before the engine changed (--first freezes the first run, once)
+ *   node bench/quick/run-v4.mjs --shadow                   every sentence of every older fixture: what changed vs 7.4
  *
  * "Yakin tapi salah": a wrong field on an action the preview did not mark for review.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -16,6 +17,31 @@ const { ctx } = await import('./fixtures-v68state.mjs');
 const before = await import(pathToFileURL(resolve(here, 'baseline-v74/catat/v3.ts')).href);
 const after = await import(pathToFileURL(resolve(root, 'lib/catat/v3.ts')).href);
 const SET = process.env.SET ?? 'v4dev';
+
+if (process.argv.includes('--shadow')) {
+  // Older sets on their own state (V3.5 state before 6.8), meaning and structure of every action.
+  const v35 = (await import('./fixtures-v35state.mjs')).ctx, v68 = ctx;
+  const files = readdirSync(here).filter(f => /^fixtures-.*\.mjs$/.test(f) && !/state/.test(f) && !/^fixtures-v4/.test(f));
+  const show = a => { const r = a.result, p = r.preset; return [r.kind, r.amount || 0, p.walletId || '∅', p.destinationWalletId || '∅', r.date, String(r.person || '').toLowerCase() || '∅', p.subcategoryId || p.categoryId || '∅', String(p.description || '').toLowerCase(), r.split?.strong ? `split:${r.split.participants.length}` : '', (p.splits || []).length ? `lines:${p.splits.length}` : ''].join(' · '); };
+  const money = a => { const r = a.result, p = r.preset; return [r.kind, r.amount || 0, p.walletId || '', p.destinationWalletId || '', r.date, String(r.person || '').toLowerCase(), Boolean(r.split?.strong), (p.splits || []).length].join('|'); };
+  const seen = new Set(), changes = [];
+  let total = 0;
+  for (const f of files) {
+    const mod = await import(`./${f}`), local = /^fixtures-v6[89]|^fixtures-v610/.test(f) ? v68 : v35;
+    for (const c of mod.cases || mod.default || []) {
+      const text = c.text || c.input; if (!text || seen.has(text)) continue; seen.add(text); total++;
+      const b = await before.parseQuickPlanV3(text, local), a = await after.parseQuickPlanV3(text, local);
+      const mb = b.actions.map(money).join(' || '), ma = a.actions.map(money).join(' || ');
+      const sb = b.actions.map(show).join(' || '), sa = a.actions.map(show).join(' || ');
+      if (mb !== ma || sb !== sa) changes.push({ file: f, id: c.id, text, meaning: mb !== ma, before: sb, after: sa });
+    }
+  }
+  mkdirSync(out, { recursive: true });
+  writeFileSync(resolve(out, 'v4-shadow.json'), JSON.stringify({ total, changes }, null, 1));
+  console.log(`\n## Shadow 7.4 vs V4 — ${total} kalimat unik dari ${files.length} fixture\n\nBerubah: ${changes.length} · arti keuangan berubah: ${changes.filter(c => c.meaning).length}\n`);
+  for (const c of changes) console.log(`${c.meaning ? '‼' : '·'} ${c.file.replace(/^fixtures-|\.mjs$/g, '')}/${c.id} “${c.text}”\n    7.4: ${c.before}\n    V4:  ${c.after}`);
+  process.exit(0);
+}
 const { cases } = await import(`./fixtures-${SET}.mjs`);
 const low = s => String(s ?? '').toLocaleLowerCase('id-ID').trim();
 const parentOf = id => ctx.categories.find(c => c.id === id)?.parentId;

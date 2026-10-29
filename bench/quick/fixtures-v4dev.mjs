@@ -60,7 +60,7 @@ export const cases = [
   { id: 's10', group: 'bagi orang', text: 'makan 150rb ber-3 masing2 50rb', expect: { amount: 50000, split: false, cat: FOOD } },
   { id: 's11', group: 'bagi orang', text: 'patungan kado buat rina 200rb ber-5', expect: { amount: 40000, split: false } },
   { id: 's12', group: 'bagi orang', text: 'bayar wifi 300rb split sama ferdi', expect: { amount: 300000, split: true, share: 150000, people: ['ferdi'], cat: C('Internet') } },
-  { id: 's13', group: 'bagi orang', text: 'grab 60rb dibagi dua sama rina', expect: { amount: 60000, split: true, share: 30000, people: ['rina'], cat: C('Ojek') } },
+  { id: 's13', group: 'bagi orang', text: 'grab 60rb dibagi dua sama rina', expect: { amount: 60000, split: true, share: 30000, people: ['rina'], cat: 'expense.transportasi' } },
   { id: 's14', group: 'bagi orang', text: 'makan 75rb, aku sama ferdi bagi dua', expect: { amount: 75000, split: true, share: 37500, people: ['ferdi'], cat: FOOD } },
   { id: 's15', group: 'bagi orang', text: 'makan 150rb bagi rata bertiga gue atuy budi', expect: { amount: 150000, split: true, share: 50000, people: ['atuy', 'budi'], cat: FOOD } },
   { id: 's16', group: 'bagi orang', text: 'makan 120rb berempat', expect: { amount: 120000, split: false, cat: FOOD } },
@@ -93,4 +93,17 @@ export const cases = [
   { id: 't14', group: 'jangan diubah', text: 'bayar utang ke rudi 100rb', expect: { kind: 'debt_payment', amount: 100000 } },
   { id: 't15', group: 'jangan diubah', text: 'makan 50rb, kopi 20rb', expect: { actions: [{ amount: 50000, cat: FOOD }, { amount: 20000, cat: MINUM }] } },
   { id: 't16', group: 'jangan diubah', text: 'jajan 15k-an', expect: { amount: 15000, cat: JAJAN } },
+
+  // 6. Added after the first 68 passed (post-hoc, from the user's own sentence and a round of new phrasings).
+  { id: 'x1', group: 'alokasi', text: 'hokben 162.003 dibagi 2, satu untuk gue expense makan biasa, satu lagi entertain/traktir teman/sedekah', expect: { amount: 162003, lines: [[FOOD, 81002], [SOSIAL, 81001]] } },
+  { id: 'x2', group: 'bagi orang', text: 'ferdi bayarin makan 90rb, aku hutang setengah', expect: { amount: 90000, split: true, share: 45000, people: ['ferdi'], payer: 'ferdi', cat: FOOD } },
+  { id: 'x3', group: 'bagi orang', text: 'makan 300rb kita berlima', expect: { amount: 300000, split: false, cat: FOOD } },
+  { id: 'x4', group: 'alokasi', text: 'belanja 200rb, 150rb buat makan, sisanya sabun', expect: { amount: 200000, lines: [[FOOD, 150000], [RUMAH, 50000]] } },
+  { id: 'x5', group: 'bagi orang', text: 'kado 300rb 50:50 sama rina', expect: { amount: 300000, split: true, share: 150000, people: ['rina'] } },
+  { id: 'x6', group: 'bagi orang', text: 'makan 100rb aku 60rb ferdi 40rb', expect: { amount: 100000, split: true, share: 60000, people: ['ferdi'], cat: FOOD } },
+  { id: 'x7', group: 'jangan diubah', text: 'bayar kos 1.5jt 2 bulan', expect: { amount: 1500000 } },
+  { id: 'x8', group: 'bagi orang', text: 'rina yang bayar sushi 250rb aku 150rb rina 100rb', expect: { amount: 250000, split: true, share: 150000, people: ['rina'], payer: 'rina' } },
+  { id: 'x9', group: 'matematika', text: '128181 dibagi 3 dikali 2 ditambah 5000 dikurangi 2000', expect: { amount: 88454 } },
+  { id: 'x10', group: 'matematika', text: 'makan (50rb+30rb)/2', expect: { amount: 40000, cat: FOOD } },
+  { id: 'x11', group: 'alokasi', text: 'bensin 100rb, 30rb nya buat kantor sisanya pribadi', expect: { amount: 100000, lines: [[C('Bensin'), 70000], [KERJA, 30000]] } },
 ];

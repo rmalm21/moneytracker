@@ -39,7 +39,7 @@ export function readGroup(text: string, ctx: QuickContext): GroupReading | null 
   return { names: people, each, explicitTotal, verb: m[3], amount: amount.value, amountText: amount.text, rest, shares, note };
 }
 
-export type SplitReading = { total: number; participants: { id: string; name: string; isMe?: boolean }[]; shares: Record<string, number>; strong: boolean; why: string; words: string[] };
+export type SplitReading = { total: number; participants: { id: string; name: string; isMe?: boolean }[]; shares: Record<string, number>; strong: boolean; why: string; words: string[]; /** V4: who paid when it was not you (a participant id); you otherwise. */ payerId?: string; /** V4: "aku 60rb ferdi 40rb": the written parts, not equal ones. */ method?: 'amount' };
 
 /**
  * A spending shared by named people. `strong` = the words say it is divided ("bagi rata", "bertiga", "patungan"); without

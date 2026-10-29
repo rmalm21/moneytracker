@@ -41,12 +41,19 @@ export function planMutation(a: ActionCandidate, ctx: QuickContext, all: ActionC
   };
   if (amount && r.kind !== 'tx_update' && r.kind !== 'tx_delete' && r.kind !== 'query' && r.kind !== 'recurring_change') plan.creates.push(r.kind);
   switch (r.kind) {
-    case 'expense':
-      move(wallet, -amount, r.split ? 'dibayar penuh' : '');
-      const shares = r.split && r.split.total !== amount ? computeSplit({ total: amount, method: 'equal', participants: r.split.participants, items: [], extras: [] }).shares : r.split?.shares || {};
-      if (r.split) for (const p of r.split.participants) { const share = shares[p.id] || 0; if (p.isMe) plan.creates.push(`bagian kamu ${rupiah(share)}`); else plan.relationshipChanges.push({ kind: 'receivable', label: `Piutang ${p.name}`, before: 0, after: share, status: 'new' }); }
+    case 'expense': {
+      // V4: paid by someone else ("rina yang bayar") → no wallet of yours moves; your part becomes a debt to them.
+      const payer = r.split?.payerId ? r.split.participants.find(p => p.id === r.split!.payerId && !p.isMe) : undefined;
+      if (!payer) move(wallet, -amount, r.split ? 'dibayar penuh' : '');
+      const shares = r.split && r.split.total !== amount && r.split.method !== 'amount' ? computeSplit({ total: amount, method: 'equal', participants: r.split.participants, items: [], extras: [] }).shares : r.split?.shares || {};
+      if (r.split) for (const p of r.split.participants) {
+        const share = shares[p.id] || 0;
+        if (p.isMe) { plan.creates.push(`bagian kamu ${rupiah(share)}`); if (payer) plan.relationshipChanges.push({ kind: 'debt', label: `Utang ke ${payer.name}`, before: 0, after: share, status: 'new' }); }
+        else if (!payer) plan.relationshipChanges.push({ kind: 'receivable', label: `Piutang ${p.name}`, before: 0, after: share, status: 'new' });
+      }
       if (r.preset.plannedId) plan.updates.push(`${op?.target?.label || 'Rencana'} → selesai`);
       break;
+    }
     case 'income': move(wallet, amount, ''); if (r.preset.plannedId) plan.updates.push(`${op?.target?.label || 'Rencana'} → selesai`); break;
     case 'transfer': { const fee = r.preset.transferFee || 0; move(wallet, -(amount + fee), fee ? `termasuk biaya admin ${rupiah(fee)}` : ''); move(to, amount, ''); break; }
     case 'receivable_new': if (wallet) move(wallet, -amount, ''); plan.relationshipChanges.push({ kind: 'receivable', label: `Piutang ${r.person || '?'}${r.purpose ? ` · ${r.purpose}` : ''}`, before: 0, after: amount, status: 'new' }); break;
