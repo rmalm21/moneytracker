@@ -105,3 +105,16 @@ test('V4 purposes: lines always add up to the total', () => {
     assert.equal(lineAmounts(pct.lines, total).reduce((n, x) => n + x, 0), total);
   }
 });
+
+test('V4 (7.6): a percent written before the price, and another party\'s part of a bill', () => {
+  assert.equal(one('diskon 50% makan 80rb').result.amount, 40000);
+  assert.equal(one('potongan 20% sepatu 300rb').result.amount, 240000);
+  const kos = one('listrik 450rb sepertiga buat kosan sebelah');
+  assert.equal(kos.result.amount, 450000);
+  assert.deepEqual(sharesOf(kos), [['me', 300000], ['Kosan Sebelah', 150000]]);
+  assert.deepEqual(kos.mutation.relationshipChanges.map(c => [c.label, c.after]), [['Piutang Kosan Sebelah', 150000]]);
+  assert.deepEqual(sharesOf(one('token 200rb, 50rb nya ditanggung tetangga')), [['me', 150000], ['Tetangga', 50000]]);
+  // Treating someone stays one purchase on two categories.
+  assert.equal(one('makan 100rb setengahnya buat traktir rina').result.split, undefined);
+  assert.equal(linesOf(one('makan 100rb setengahnya buat traktir rina')).length, 2);
+});

@@ -106,4 +106,9 @@ export const cases = [
   { id: 'x9', group: 'matematika', text: '128181 dibagi 3 dikali 2 ditambah 5000 dikurangi 2000', expect: { amount: 88454 } },
   { id: 'x10', group: 'matematika', text: 'makan (50rb+30rb)/2', expect: { amount: 40000, cat: FOOD } },
   { id: 'x11', group: 'alokasi', text: 'bensin 100rb, 30rb nya buat kantor sisanya pribadi', expect: { amount: 100000, lines: [[C('Bensin'), 70000], [KERJA, 30000]] } },
+  // 7.6 (post-hoc): a percent before the price, another party's part.
+  { id: 'x12', group: 'persen', text: 'diskon 50% makan 80rb', expect: { amount: 40000, cat: FOOD } },
+  { id: 'x13', group: 'persen', text: 'potongan 20% sepatu 300rb', expect: { amount: 240000, cat: C('Sepatu') } },
+  { id: 'x14', group: 'bagi orang', text: 'listrik 450rb sepertiga buat kosan sebelah', expect: { amount: 450000, split: true, share: 300000, people: ['kosan sebelah'], cat: C('Listrik') } },
+  { id: 'x15', group: 'bagi orang', text: 'wifi 300rb, rina bayar setengah', expect: { amount: 300000, split: true, share: 150000, people: ['rina'] } },
 ];

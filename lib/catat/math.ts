@@ -188,8 +188,19 @@ export function readMath(input: string): { text: string; notes: MathNote[] } {
     // The price: the first money amount that is not itself a charge ("150rb service 5% pajak 10%": both of 150rb).
     let base: Operand | null = null;
     for (let i = 0; i < before.length && !base; i++) { const o = /\d/.test(before[i]) && (i === 0 || !/[\d.,]/.test(before[i - 1])) ? operandAt(before, i) : null; if (o && o.kind === 'money' && !ROLE.test(before.slice(0, o.start).replace(/rp\.?\s*$/i, ''))) base = o; else if (o) i = o.end - 1; }
-    if (!base) break;
     const p = readNumber(m[1], true) / 100;
+    if (!base) {
+      // "diskon 50% makan 80rb": the price comes after. The charge moves behind it ("makan 80rb diskon Rp40.000"), the
+      // order the purchase reader knows.
+      const role = before.match(ROLE)!, after = text.slice((m.index ?? 0) + m[0].length);
+      let price: Operand | null = null;
+      for (let i = 0; i < after.length && !price; i++) { const o = /\d/.test(after[i]) && (i === 0 || !/[\p{L}\d.,]/u.test(after[i - 1])) ? operandAt(after, i) : null; if (o && o.kind === 'money') price = o; else if (o) i = o.end - 1; }
+      if (!price || ROLE.test(after.slice(0, price.start).replace(/rp\.?\s*$/i, ''))) break;
+      const start = (role.index ?? 0), value = price.value * p;
+      notes.push({ raw: text.slice(start, (m.index ?? 0) + m[0].length).trim(), value: Math.round(value), formula: `${m[1]}% dari ${rupiah(price.value)} = ${rupiah(value)}`, kind: 'percent-role', rounded: Math.abs(value - Math.round(value)) > 1e-6 });
+      text = `${text.slice(0, start)}${after}`.replace(/\s{2,}/g, ' ').trim() + ` ${role[1]} ${rupiah(value)}`;
+      continue;
+    }
     replace(m.index ?? 0, (m.index ?? 0) + m[0].length, base.value * p, { formula: `${m[1]}% dari ${rupiah(base.value)} = ${rupiah(base.value * p)}`, kind: 'percent-role' });
   }
   // 3. "parkir 5rb, 2 kali" / "parkir 5rb 3x": the amount times N. Never for instalments ("cicilan hp 3 kali 500rb" is
@@ -368,6 +379,37 @@ export function readParts(text: string, ctx: QuickContext, total: number): (Shar
   return { people, me: true, payer, count: parts.length, mode: 'split', amounts: [mine[0].value, ...others.map(p => p.value)], words: tail.trim(), why: `Bagian tiap orang ditulis: ${parts.map(p => `${p.me ? 'kamu' : title(p.who)} ${rupiah(p.value)}`).join(', ')}${payer ? `; ${payer} yang membayar` : ''}.`, base: head };
 }
 
+/** Someone's part of a bill: a person, a relation, or the people of a place ("kosan sebelah", "anak kos", "tetangga"). */
+const PARTY_PLACE = /\b(?:kos|kosan|kost|kamar|tetangga|sebelah|roommate|housemate|anak\s+kos|temen\s+kos|teman\s+kos|teman\s+sekamar|rumah\s+sebelah)\b/u;
+const TREAT_PURPOSE = /\b(?:traktir\w*|nraktir|mentraktir|sedekah|kado|hadiah|donasi|infa[qk]|zakat|arisan|entertain|jamu|kantor|kerja|pribadi|sendiri)\b/u;
+const PART_OF = String.raw`(setengah|separuh|sepertiga|seperempat|seperlima|dua pertiga|tiga perempat|\d+(?:[.,]\d+)?\s*(?:%|persen)|(?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|rebu|k|jt|juta))`;
+
+/**
+ * "listrik 450rb sepertiga buat kosan sebelah", "wifi 300rb, rina bayar setengah": another party's part of what you
+ * paid. A Split Bill with written parts: yours is the rest, theirs a receivable. Treating someone ("setengahnya buat
+ * traktir rina") is not this: that is one purchase on two categories (readAllocation).
+ */
+export function readPartyShare(text: string, ctx: QuickContext, total: number): (ShareSpec & { base: string }) | null {
+  const t = lower(text), main = mainAmount(t, total);
+  if (!main) return null;
+  const tail = t.slice(main.end);
+  const a = tail.match(new RegExp(String.raw`^\s*[,:]?\s*${PART_OF}(?:\s*nya)?\s+(?:buat|untuk|utk|bwt|bagian|punya|ditanggung|dibayar|dibayarin)\s+(?:sama\s+|oleh\s+)?((?:\p{L}+\s*){1,4})$`, 'u'));
+  const b = a ? null : tail.match(new RegExp(String.raw`^\s*[,:]?\s*((?:\p{L}+\s+){1,3}?)(?:bayar|nanggung|tanggung|patungan|ikut\s+bayar|kena|nombok)\s+${PART_OF}(?:\s*nya)?\s*$`, 'u'));
+  const m = a || b;
+  if (!m) return null;
+  const partText = a ? m[1] : m[2], party = (a ? m[2] : m[1]).trim();
+  if (!party || TREAT_PURPOSE.test(party) || isSelf(party) || USER.test(party.split(/\s+/)[0])) return null;
+  const first = party.split(/\s+/)[0];
+  if (!PARTY_PLACE.test(party) && !(isPerson(first, ctx) && party.split(/\s+/).length <= 2)) return null;
+  const frac = FRACTIONS[partText.replace(/\s+/g, ' ')];
+  const pct = /%|persen/.test(partText) ? readNumber(partText.replace(/\s*(?:%|persen)/, ''), true) / 100 : 0;
+  const money = !frac && !pct ? operandAt(partText, 0) : null;
+  const theirs = Math.round(frac ? total * frac : pct ? total * pct : money?.kind === 'money' ? money.value : 0);
+  if (!(theirs > 0 && theirs < total)) return null;
+  const name = title(party), mine = total - theirs;
+  return { people: [name], me: true, payer: null, count: 2, mode: 'split', amounts: [mine, theirs], words: m[0].trim(), why: `Kamu menulis “${m[0].trim().replace(/^[,:]\s*/, '')}”.`, base: text.slice(0, main.end) };
+}
+
 /* ------------------------------------------------------------------ One purchase, several purposes */
 
 /** The part that stays the purchase itself: said with "gue / aku / punyaku / pribadi / biasa". */
@@ -478,14 +520,17 @@ export function readV4(input: string, ctx: QuickContext): V4Reading | null {
   for (let i = 0; i < text.length; i++) { if (!/\d/.test(text[i]) || (i && /[\p{L}\d.,]/u.test(text[i - 1]))) continue; const o = operandAt(lower(text), i); if (o) { if (o.kind === 'money') amounts.push(Math.round(o.value)); i = o.end - 1; } }
   const total = amounts[0] || null;
   let allocation: V4Reading['allocation'];
-  if (total) {
+  // Another party's part comes first: "sepertiga buat kosan sebelah" is not a category.
+  const party = total ? readPartyShare(text, ctx, total) : null;
+  if (total && !party) {
     const a = readAllocation(text, total);
     if (a) { allocation = { lines: a.lines, words: a.words }; text = a.base; trace.push(`Keperluan: ${a.lines.length} bagian (${a.lines.map(l => l.self ? 'pembelian ini' : l.purpose).join(' / ')})`); }
   }
   let share: ShareSpec | undefined;
-  const parts = !allocation && total ? readParts(text, ctx, total) : null;
+  if (party) { const { base, ...spec } = party; share = spec; text = base; trace.push(`Bagi: bagian ${spec.people[0]} ${spec.amounts![1]}`); }
+  const parts = !allocation && !party && total ? readParts(text, ctx, total) : null;
   if (parts) { const { base, ...spec } = parts; share = spec; text = base; trace.push(`Bagi: bagian sendiri-sendiri · ${spec.count} orang (${spec.people.join(', ')})${spec.payer ? ` · dibayar ${spec.payer}` : ''}`); }
-  if (!allocation && !parts) {
+  if (!allocation && !parts && !party) {
     const s = readShare(text, ctx, total);
     if (s?.mode === 'offer') { const { spans: _, keep: __, ...spec } = s; share = spec; trace.push(`Bagi: ditawarkan · ${spec.count} orang`); }
     else if (s) {

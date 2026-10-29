@@ -174,10 +174,15 @@ type SessionItem = Parameters<typeof rememberSaved>[1][number];
 type Register = (id: string, entry: CardEntry | null) => void;
 const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈', check: '!', missing: '?' };
 
-export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean }) {
+/**
+ * `fixedText` (7.6 chat): the cards for a sentence already sent, without the box to type in. Saving reports what was
+ * saved through `onSaved`; a follow-up question is asked through `onAsk` (as a new chat message).
+ */
+export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false, fixedText, onSaved, onAsk }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean; fixedText?: string; onSaved?: (summary: string) => void; onAsk?: (question: string) => void }) {
   const { data, profile, user } = useApp();
   const { track } = useNotify();
-  const [text, setText] = useState(''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
+  const fixed = fixedText !== undefined;
+  const [text, setText] = useState(fixedText ?? ''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
   const today = todayInTimeZone(profile?.timeZone);
   // The reference clock for "jam 1" follows the minute the sentence is being written.
   const typedMinute = text ? Math.floor(Date.now() / 60000) : 0;
@@ -311,6 +316,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       track(Promise.all(work.map(start)), { open: openList, link: openList && { view: 'transactions' }, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
     void Promise.all(started).then(learnLexicon, () => {});
+    onSaved?.(nav && !work.length ? 'Menu dibuka.' : work.length === 1 ? [work[0].success, ...[...new Set((work[0].detail || '').split(' · '))]].filter(Boolean).join(' · ') : `${work.length} catatan tersimpan.`);
     reset(); onDone?.();
     if (nav) onNavigate?.(nav.key, nav.target);
   }
@@ -343,18 +349,18 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const openForm = (preset: Partial<LedgerTx>) => { setText(''); onOpenForm(preset); };
   // 6.0 Tanya: an answer opens Transaksi on exactly what it counted; a follow-up is asked in the same box.
   const openFocus = useCallback((focus: string) => { reset(); onDone?.(); onNavigate?.('transactions', focus); }, [onDone, onNavigate]); // eslint-disable-line react-hooks/exhaustive-deps
-  const askAgain = useCallback((question: string) => { setText(question); setMode('auto'); }, []);
+  const askAgain = useCallback((question: string) => { if (onAsk) { onAsk(question); return; } setText(question); setMode('auto'); }, [onAsk]);
   // Developer view (localStorage "dompet-ajaib:quick-debug" = "1"): the reading step by step and the action graph.
   const [debug] = useState(() => { try { return localStorage.getItem('dompet-ajaib:quick-debug') === '1'; } catch { return false; } });
 
-  return <div className="quick-entry-wrap">
-    <form className="quick-entry" ref={formRef} onSubmit={submit}>
+  return <div className={`quick-entry-wrap ${fixed ? 'is-fixed' : ''}`}>
+    {!fixed && <><form className="quick-entry" ref={formRef} onSubmit={submit}>
       <span className="quick-entry-icon" aria-hidden="true"><Sparkles size={16}/></span>
       <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
-    </form>
-    <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>
-    {!text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : example.kind === 'query' ? 'Tanya' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
+    </form></>}
+    {!fixed && <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>}
+    {!fixed && !text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : example.kind === 'query' ? 'Tanya' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
     {teaching && teachRead && <div className="quick-preview qp-teach" aria-label="Simpan ke Kamus Pribadi">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><BookOpenText size={18}/></span><span className="qp-title"><small>Kamus Pribadi</small><strong>“{teachRead.raw}” = {teachRead.label}</strong></span></div>
       <div className="qp-picks" role="radiogroup" aria-label="Jenis kata">{(['merchant', 'person', 'place', 'wallet', 'category', 'abbr'] as AliasType[]).map(t => <button type="button" key={t} role="radio" aria-checked={(teachType || teachRead.type) === t} className={`sb-chip ${(teachType || teachRead.type) === t ? 'is-on' : ''}`} onClick={() => { setTeachType(t); setError(''); }}>{TYPE_LABEL[t]}</button>)}</div>

@@ -77,7 +77,5 @@ keterangan yang lebih bersih: "pizza berempat" jadi "pizza", "kado bertiga" jadi
 
 ## Belum bisa
 
-- "diskon 50% makan 80rb": persen yang ditulis sebelum harganya belum dihitung. Nominal tetap Rp80.000, jadi tidak ada
-  yang salah diam-diam.
-- "listrik 450rb sepertiga buat kosan sebelah": pecahan untuk orang lain belum dibaca sebagai piutang.
 - "kopi 25rb dua gelas": tidak dianggap harga satuan, karena memang bisa total.
+- (Diperbaiki di 7.6: "diskon 50% makan 80rb" dan "listrik 450rb sepertiga buat kosan sebelah"; lihat bench/chat/REPORT.md.)
