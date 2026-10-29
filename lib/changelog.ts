@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.5', date: '29 Okt 2026', title: 'Catat otomatis V4: bisa berhitung, patungan, dan bagi kategori', items: [
+    ['💡', 'Catat otomatis bisa berhitung: “128181 dibagi 3 dikali 2” langsung jadi Rp85.454. Bisa juga “(50rb+30rb)/2”, “kopi 22rb x 4”, “parkir 5rb, 2 kali”, “1/4 dari 400rb”, dan “baju 250rb diskon 40%”. Hitungannya tampil di kartu.'],
+    ['🤝', 'Paham patungan: “hokben 162.003 dibagi2 sama ferdi” jadi Split Bill (bagianmu Rp81.002, piutang Ferdi Rp81.001), dan ada pilihan “Bagianku saja”. Bisa juga “50:50 sama rina”, “aku 60rb ferdi 40rb”, atau “ferdi bayarin makan 90rb, aku hutang setengah” yang langsung jadi utang ke Ferdi tanpa memotong dompetmu.'],
+    ['🍱', 'Satu belanja bisa dibagi ke beberapa kategori: “hokben 162.003 dibagi 2, satu untuk gue makan biasa, satu lagi traktir teman/sedekah” jadi Fast Food Rp81.002 dan Sedekah Rp81.001. Bisa juga pakai nominal, persen, atau “sisanya”.'],
+    ['🔧', '“bayar kos 1.5jt 2 bulan” tidak lagi terbaca Rp15.200.000. Kalimat seperti “cicilan hp 3 kali 500rb” dan “gaji 5jt dibagi 3 pos” juga tidak ikut dihitung.'],
+    ['✅', 'Diuji dengan 79 kalimat latihan dan 44 kalimat uji terpisah: yang benar seluruhnya naik dari 25% ke 100% di keduanya, dan uji terpisah langsung 100% di percobaan pertama. Dari 1.213 kalimat lama, tidak ada nominal atau jenis catatan yang berubah.'],
+  ] },
   { version: '7.4', date: '29 Okt 2026', title: 'Audit menyeluruh: Tanya, potong struk, dan kerapian', items: [
     ['🧭', 'Tanya lebih tepat: “makan siang minggu ini berapa?” sekarang menghitung subkategori Makan Siang (sebelumnya Rp0), “sisa anggaran makan” membuka anggaran Makan & Minum, dan “transport bulan ini” masuk Transportasi. Jawaban dihitung dari semua catatanmu, tidak hanya bulan berjalan.'],
     ['📸', 'Layar potong struk baru: garisnya langsung menempel di tepi kertas, sudut siku putih dengan aksen tipis tanpa pegangan kapsul. Hasil potongan diambil dari foto asli dan dihaluskan, jadi tulisannya tetap tajam.'],
