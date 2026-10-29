@@ -72,14 +72,14 @@ test('chat: a calculation carried on ("kalau dibagi 4?") is not taken for a ques
 test('chat: summary, "boleh beli?" and tips come from the person\'s own records', async () => {
   const [sum] = await talk('ringkasan bulan ini');
   assert.equal(sum.intent, 'summary');
-  assert.ok(sum.reply.lines.some(l => l.label === 'Pengeluaran' && l.value === 'Rp1.270.000'));
+  assert.ok(sum.reply.stats.some(l => l.label === 'Pengeluaran' && l.value === 'Rp1.270.000'));
   assert.match(sum.reply.text, /Makan & Minum 84%/);
   const [ok] = await talk('aman nggak beli sepatu 500rb?');
   assert.equal(ok.intent, 'afford'); assert.equal(ok.reply.tone, 'good'); assert.equal(ok.reply.title, 'Beli sepatu?');
   const [no] = await talk('boleh beli hp 6jt ga');
   assert.equal(no.reply.tone, 'warn'); assert.match(no.reply.text, /^Belum aman/);
   const [tips] = await talk('kasih tips hemat');
-  assert.equal(tips.intent, 'tips'); assert.ok(tips.reply.lines.length >= 3);
+  assert.equal(tips.intent, 'tips'); assert.ok(tips.reply.steps.length >= 3);
 });
 
 test('chat: greetings, thanks, help, examples, and a kind reply when nothing is understood', async () => {
@@ -129,4 +129,48 @@ test('chat: learns from the person: a phrase not understood, then the one that w
   // Never learned for records (money must be read from the sentence each time).
   const [, rec] = await talk('asdf qwer', 'kopi 20rb');
   assert.equal(rec.learn, undefined);
+});
+
+test('chat 7.7: every budget at once, days to payday, a kind word when money worries', async () => {
+  const [b] = await talk('anggaranku gimana');
+  assert.equal(b.intent, 'budget'); assert.equal(b.reply.card, 'budget');
+  assert.equal(b.reply.bars[0].label, 'Makan & Minum'); assert.equal(b.reply.bars[0].tone, 'warn'); assert.equal(b.reply.hero.value, 'Rp165.000');
+  // One budget by name stays a Tanya question.
+  const [one] = await talk('sisa anggaran makan berapa');
+  assert.equal(one.intent, 'question');
+  const [none] = await talk({ data: { ...chatCtx.data, budgets: [] } }, 'cek semua anggaran');
+  assert.equal(none.intent, 'budget'); assert.match(none.reply.text, /belum punya anggaran/); assert.ok(none.reply.chips.includes('anggaran makan 2jt'));
+  const [p] = await talk('kapan gajian?');
+  assert.equal(p.intent, 'payday'); assert.equal(p.reply.hero.value, '9 hari lagi'); assert.match(p.reply.hero.note, /24 Oktober/);
+  const [rec] = await talk('gajian 8jt masuk jago');
+  assert.equal(rec.intent, 'plan');
+  const [m] = await talk('aduh lagi bokek');
+  assert.equal(m.intent, 'mood'); assert.match(m.reply.text, /Wajar/); assert.equal(m.reply.steps.length, 3);
+  const [soft] = await talk('lagi galau nih');
+  assert.equal(soft.intent, 'smalltalk');
+});
+
+test('chat 7.7: saving goals become a fund to create; small talk; a greeting with more after it', async () => {
+  const [g] = await talk('pengen nabung 30jt buat nikah');
+  assert.equal(g.intent, 'goal'); assert.equal(g.reply.hero.value, 'Rp30.000.000'); assert.ok(g.reply.chips.includes('target nikah 30jt'));
+  assert.equal(chatCtx.inspect('target nikah 30jt').kind, 'fund_new');
+  const [open] = await talk('aku pengen nabung buat liburan');
+  assert.equal(open.intent, 'goal'); assert.deepEqual(open.reply.chips.slice(0, 2), ['target liburan 10jt', 'target liburan 20jt']);
+  const [e] = await talk('mau siapin dana darurat');
+  assert.equal(e.reply.hero.value, 'Rp5.000.000–Rp10.000.000');
+  // Saving into a wallet is still a record, and "cara nabung" is still tips.
+  const [save] = await talk('nabung 500rb ke jago');
+  assert.equal(save.intent, 'plan');
+  const [how] = await talk('gimana caranya bisa nabung');
+  assert.equal(how.intent, 'tips');
+  const [k] = await talk('apa kabar');
+  assert.equal(k.intent, 'smalltalk'); assert.match(k.reply.text, /Baik/);
+  const [hi] = await talk('malam kak, masih bangun?');
+  assert.equal(hi.intent, 'greet');
+  const [notHi] = await talk('pagi, saldo jago berapa');
+  assert.equal(notHi.intent, 'question');
+  for (const voice of ['santai', 'sopan', 'singkat', 'gaul']) {
+    const [r] = await talk({ voice }, 'gajian masih berapa hari');
+    assert.ok(r.reply.text.length > 5, voice);
+  }
 });

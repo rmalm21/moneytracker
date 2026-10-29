@@ -4,12 +4,14 @@
  * (lib/chat/engine.ts). Every reply sits in the same bubble: text, figures, and the cards of Catat otomatis (records,
  * answers, changes) inside it. Five looks, four ways of talking, templates that fold away, history on this device for
  * 7 days (or 14 days / 1 month), ten messages at a time.
+ * 7.7: answers are cards (a big figure, figure tiles, bars, numbered steps) coloured by what they are, and messages can be
+ * picked (long press, right click, or from the settings) to copy or delete, with "Urungkan" for a few seconds.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowUpRight, Brain, Calculator, CalendarClock, ChartPie, Check, ChevronDown, ChevronLeft, ChevronUp, LayoutGrid, Lightbulb, MessageCircleQuestion, PenLine, SendHorizontal, SlidersHorizontal, Sparkles, Trash2, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Sparkles, Target, Trash2, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { QuickEntryBox } from './quick-entry';
-import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type TemplateGroup } from '@/lib/chat/engine';
+import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
 import { VOICES } from '@/lib/chat/voice';
 import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhrase, loadChat, loadSettings, page, saveChat, saveSettings, type ChatMessage, type ChatSettings, type ChatStatus, type ChatStyle } from '@/lib/chat/store';
@@ -26,6 +28,14 @@ const GROUP_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {
   tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
 };
 const groupOf = (text: string, groups: TemplateGroup[]) => groups.find(g => g.items.includes(text))?.key;
+/** Each answer card: its icon and colour. */
+const CARD_LOOK: Record<SayCard, { icon: LucideIcon; tone: string }> = {
+  summary: { icon: ChartPie, tone: 'teal' }, afford: { icon: ShoppingBag, tone: 'violet' }, tips: { icon: Lightbulb, tone: 'amber' }, calc: { icon: Calculator, tone: 'blue' },
+  budget: { icon: PiggyBank, tone: 'green' }, payday: { icon: CalendarClock, tone: 'orange' }, mood: { icon: HeartHandshake, tone: 'pink' }, goal: { icon: Target, tone: 'green' },
+  help: { icon: Sparkles, tone: 'slate' }, talk: { icon: MessageCircle, tone: 'slate' },
+};
+/** A message as plain text (copying). */
+const plainText = (m: ChatMessage) => m.role === 'user' ? m.text : [m.text, m.reply?.kind === 'plan' ? m.status === 'saved' ? m.summary : `“${m.reply.text}”` : ''].filter(Boolean).join(' ');
 
 /** The assistant's mark: a speech bubble with a spark, drawn for the round button. */
 function ChatMark({ size = 22 }: { size?: number }) {
@@ -44,8 +54,11 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
   const [messages, setMessages] = useState<ChatMessage[]>([]), [memory, setMemory] = useState<ChatMemory>({});
   const [loaded, setLoaded] = useState(false), [shown, setShown] = useState(PAGE), [draft, setDraft] = useState(''), [typing, setTyping] = useState(false);
   const [sheet, setSheet] = useState<null | 'templates' | 'settings' | 'style'>(null), [confirmClear, setConfirmClear] = useState(false);
+  // Picking messages to copy or delete, and what was just deleted (for "Urungkan").
+  const [picked, setPicked] = useState<Set<string> | null>(null), [undo, setUndo] = useState<{ removed: ChatMessage[]; memory: ChatMemory } | null>(null), [copied, setCopied] = useState(false);
   const listRef = useRef<HTMLDivElement>(null), inputRef = useRef<HTMLTextAreaElement>(null), timer = useRef<number | undefined>(undefined), sheetRef = useRef(sheet), busy = useRef(false);
-  sheetRef.current = sheet;
+  const pickRef = useRef(picked), hold = useRef<{ x: number; y: number; t: number } | null>(null), swallow = useRef(false);
+  sheetRef.current = sheet; pickRef.current = picked;
 
   // History and settings of this account, on this device.
   useEffect(() => {
@@ -70,12 +83,24 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
     void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {});
     const t = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 220);
     // Escape closes what is on top: a sheet first, then the chat (a form opened from the chat handles its own Escape).
-    const onKey = (e: KeyboardEvent) => { if (e.key !== 'Escape' || document.querySelector('.modal-overlay')) return; if (sheetRef.current) setSheet(null); else setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key !== 'Escape' || document.querySelector('.modal-overlay')) return; if (pickRef.current) setPicked(null); else if (sheetRef.current) setSheet(null); else setOpen(false); };
     window.addEventListener('keydown', onKey);
     return () => { window.clearTimeout(t); window.removeEventListener('keydown', onKey); };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { const el = listRef.current; if (el && open) el.scrollTop = el.scrollHeight; }, [messages.length, typing, open]);
+  // The latest message stays in view: cards that finish drawing later (Catat otomatis) grow the list, so it keeps to the
+  // bottom until the person scrolls up.
+  const stick = useRef(true);
+  useEffect(() => {
+    const el = listRef.current; if (!el || !open) return;
+    stick.current = true; el.scrollTop = el.scrollHeight;
+    const keep = new ResizeObserver(() => { if (stick.current) el.scrollTop = el.scrollHeight; });
+    for (const child of Array.from(el.children)) keep.observe(child);
+    return () => keep.disconnect();
+  }, [messages.length, typing, open]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => { if (!open) { setPicked(null); setUndo(null); } }, [open]);
+  useEffect(() => { if (!undo) return; const t = window.setTimeout(() => setUndo(null), 6000); return () => window.clearTimeout(t); }, [undo]);
+  useEffect(() => { if (!copied) return; const t = window.setTimeout(() => setCopied(false), 1800); return () => window.clearTimeout(t); }, [copied]);
   const modal = open && ['lembar', 'penuh', 'samping'].includes(settings.style);
   useEffect(() => { document.documentElement.classList.toggle('chat-locked', modal); return () => document.documentElement.classList.remove('chat-locked'); }, [modal]);
 
@@ -108,6 +133,35 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
     setMemory(m => m.plan?.text === planText ? { ...m, plan: { ...m.plan, status: 'saved' } } : m);
   }
   function submit(e: FormEvent) { e.preventDefault(); void send(draft); }
+
+  // Picking: a long press or a right click starts it on that message; then a tap adds or removes one.
+  function startPick(id: string) { setPicked(new Set([id])); setSheet(null); setUndo(null); try { navigator.vibrate?.(10); } catch { /* not supported */ } }
+  const togglePick = (id: string) => setPicked(set => { if (!set) return set; const next = new Set(set); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  function removePicked() {
+    if (!picked?.size) return;
+    const removed = messages.filter(m => picked.has(m.id)), left = messages.filter(m => !picked.has(m.id));
+    // A card waiting to be saved goes with its message: the conversation no longer refers to it.
+    const plan = memory.plan, gone = plan?.status === 'pending' && !left.some(m => m.status === 'pending' && m.reply?.kind === 'plan' && m.reply.text === plan.text);
+    setUndo({ removed, memory });
+    setMessages(left); setMemory(!left.length ? {} : gone ? { ...memory, plan: { ...plan!, status: 'dismissed' }, asking: undefined } : memory); setPicked(null);
+  }
+  function undoRemove() { if (!undo) return; setMessages(list => [...list, ...undo.removed].sort((a, b) => a.at - b.at)); setMemory(undo.memory); setUndo(null); }
+  async function copyPicked() {
+    const text = messages.filter(m => picked?.has(m.id)).map(m => `${m.role === 'user' ? 'Kamu' : 'Asisten'}: ${plainText(m)}`).join('\n');
+    try { await navigator.clipboard.writeText(text); setCopied(true); } catch { /* clipboard blocked */ }
+    setPicked(null);
+  }
+  const rowProps = (id: string) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (pickRef.current || e.pointerType === 'mouse' && e.button !== 0 || (e.target as HTMLElement).closest('button, a, input, textarea, select, label')) return;
+      hold.current = { x: e.clientX, y: e.clientY, t: window.setTimeout(() => { hold.current = null; swallow.current = true; startPick(id); }, 480) };
+    },
+    onPointerMove: (e: React.PointerEvent) => { const h = hold.current; if (h && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 10) { window.clearTimeout(h.t); hold.current = null; } },
+    onPointerUp: () => { if (hold.current) { window.clearTimeout(hold.current.t); hold.current = null; } },
+    onPointerCancel: () => { if (hold.current) { window.clearTimeout(hold.current.t); hold.current = null; } },
+    onContextMenu: (e: React.MouseEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select')) return; e.preventDefault(); if (pickRef.current) togglePick(id); else startPick(id); },
+    onClickCapture: (e: React.MouseEvent) => { if (swallow.current) { swallow.current = false; e.preventDefault(); e.stopPropagation(); return; } if (pickRef.current) { e.preventDefault(); e.stopPropagation(); togglePick(id); } },
+  });
   function go(key: string, target?: string) { setOpen(false); navigate(key, target); }
 
   // What to suggest above the message box: what fits the conversation now, otherwise one of each kind.
@@ -133,28 +187,42 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
     {open && <>
       {(style === 'lembar' || style === 'samping') && <div className="chat-scrim" onClick={() => setOpen(false)} aria-hidden="true"/>}
       <section className={`chat-panel is-${style}`} role="dialog" aria-modal={modal} aria-label="Asisten chat">
-        <header className="chat-head">
+        {picked ? <header className="chat-head is-picking">
+          {style === 'lembar' && <span className="chat-grab" aria-hidden="true"/>}
+          <button type="button" className="chat-icon-btn" aria-label="Selesai memilih" onClick={() => setPicked(null)}><X size={19}/></button>
+          <span className="chat-title"><strong>{picked.size} pesan dipilih</strong><small>Ketuk pesan untuk memilih atau melepas</small></span>
+          <button type="button" className="chat-icon-btn" aria-label="Pilih semua pesan" title="Pilih semua" onClick={() => setPicked(new Set(messages.map(m => m.id)))}><CheckCheck size={18}/></button>
+        </header> : <header className="chat-head">
           {style === 'lembar' && <span className="chat-grab" aria-hidden="true"/>}
           {style === 'penuh' && <button type="button" className="chat-icon-btn" aria-label="Kembali" onClick={() => setOpen(false)}><ChevronLeft size={20}/></button>}
           <span className="chat-avatar" aria-hidden="true"><ChatMark size={19}/></span>
-          <span className="chat-title"><strong>Asisten Dompet</strong><small><i className="chat-dot" aria-hidden="true"/>Di HP-mu · {VOICES.find(x => x.key === settings.voice)?.name} · riwayat {keepLabel}</small></span>
+          <span className="chat-title"><strong>Asisten Dompet</strong><small title={`Riwayat disimpan ${keepLabel} di HP ini`}><i className="chat-dot" aria-hidden="true"/>Di HP-mu · {VOICES.find(x => x.key === settings.voice)?.name} · {keepLabel}</small></span>
           <button type="button" className="chat-icon-btn" aria-label="Contoh dan template" onClick={() => setSheet(s => s === 'templates' ? null : 'templates')}><LayoutGrid size={18}/></button>
           <button type="button" className="chat-icon-btn" aria-label="Pengaturan chat" onClick={() => setSheet(s => s === 'settings' ? null : 'settings')}><SlidersHorizontal size={18}/></button>
           {style !== 'penuh' && <button type="button" className="chat-icon-btn" aria-label="Tutup" onClick={() => setOpen(false)}><X size={19}/></button>}
-        </header>
+        </header>}
 
-        <div className="chat-list" ref={listRef} aria-live="polite">
+        <div className={`chat-list ${picked ? 'is-picking' : ''}`} ref={listRef} aria-live="polite" onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
           {more && <button type="button" className="chat-more" onClick={() => setShown(n => n + PAGE)}><ChevronUp size={14}/> Muat lebih banyak <small>({hidden} pesan lagi)</small></button>}
           {!messages.length && <Welcome name={chatCtx.name} groups={templates} onPick={send}/>}
           {visible.map((m, i) => <Fragment key={m.id}>
             {(i === 0 || dayKey(visible[i - 1].at) !== dayKey(m.at)) && <div className="chat-day"><span>{dayKey(m.at) === dayKey(Date.now()) ? 'Hari ini' : dayKey(m.at) === dayKey(Date.now() - 864e5) ? 'Kemarin' : new Date(m.at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</span></div>}
-            {m.role === 'user'
-              ? <div className="cm cm-user"><div className="cm-bubble">{m.text}</div><time className="cm-time">{clock(m.at)}</time></div>
-              : <BotMessage m={m} onChip={send} onOpenForm={preset => { mark(m.id, 'form'); openTx(preset); }} onNavigate={go} onSaved={(planText, summary) => saved(m.id, planText, summary)} onDismiss={() => { mark(m.id, 'dismissed'); setMemory(x => x.plan?.status === 'pending' && m.reply?.kind === 'plan' && x.plan.text === m.reply.text ? { ...x, plan: { ...x.plan, status: 'dismissed' } } : x); }}/>}
+            <div className={`cm-row is-${m.role} ${picked?.has(m.id) ? 'is-picked' : ''}`} {...rowProps(m.id)} aria-selected={picked ? picked.has(m.id) : undefined}>
+              {picked && <span className="cm-check" aria-hidden="true">{picked.has(m.id) && <Check size={13} strokeWidth={3}/>}</span>}
+              {m.role === 'user'
+                ? <div className="cm cm-user"><div className="cm-bubble">{m.text}</div><time className="cm-time">{clock(m.at)}</time></div>
+                : <BotMessage m={m} onChip={send} onOpenForm={preset => { mark(m.id, 'form'); openTx(preset); }} onNavigate={go} onSaved={(planText, summary) => saved(m.id, planText, summary)} onDismiss={() => { mark(m.id, 'dismissed'); setMemory(x => x.plan?.status === 'pending' && m.reply?.kind === 'plan' && x.plan.text === m.reply.text ? { ...x, plan: { ...x.plan, status: 'dismissed' } } : x); }}/>}
+            </div>
           </Fragment>)}
           {typing && <div className="cm cm-bot"><span className="cm-avatar" aria-hidden="true"><ChatMark size={14}/></span><div className="cm-bubble cm-typing" aria-label="Sedang mengetik"><i/><i/><i/></div></div>}
         </div>
 
+        {undo && !picked && <div className="chat-undo" role="status"><Trash2 size={14} aria-hidden="true"/><span>{undo.removed.length} pesan dihapus</span><button type="button" onClick={undoRemove}>Urungkan</button></div>}
+        {copied && !picked && <div className="chat-undo is-copied" role="status"><Check size={14} aria-hidden="true"/><span>Disalin</span></div>}
+        {picked ? <div className="chat-pickbar">
+          <button type="button" className="chat-pick-btn" disabled={!picked.size} onClick={() => void copyPicked()}><Copy size={16}/> Salin</button>
+          <button type="button" className="chat-pick-btn is-danger" disabled={!picked.size} onClick={removePicked}><Trash2 size={16}/> Hapus{picked.size ? ` ${picked.size} pesan` : ''}</button>
+        </div> : <>
         {messages.length > 0 && suggestions.length > 0 && (settings.tray
           ? <div className="chat-tray" role="group" aria-label="Saran pesan">
               <div className="chat-tray-scroll">{suggestions.map(s => { const g = groupOf(s, templates), Look = g ? GROUP_LOOK[g] : undefined; return <button type="button" key={s} className={`chat-suggest ${Look ? `tone-${Look.tone}` : ''}`} onClick={() => void send(s)}>{Look && <Look.icon size={13} aria-hidden="true"/>}{s}</button>; })}</div>
@@ -169,6 +237,7 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); } }}/>
           <button type="submit" className="chat-send" aria-label="Kirim" disabled={!draft.trim() || typing}><SendHorizontal size={17}/></button>
         </form>
+        </>}
 
         {sheet && <div className="chat-sheet-wrap" onClick={e => { if (e.target === e.currentTarget && settings.picked) setSheet(null); }}>
           <div className="chat-sheet" role="group" aria-label={sheet === 'templates' ? 'Contoh dan template' : sheet === 'settings' ? 'Pengaturan chat' : 'Pilih tampilan chat'}>
@@ -187,6 +256,9 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
               <div className="chat-seg" role="radiogroup" aria-label="Simpan riwayat">{KEEP_OPTIONS.map(k => <button type="button" key={k.days} role="radio" aria-checked={settings.keepDays === k.days} className={settings.keepDays === k.days ? 'is-on' : ''} onClick={() => changeSettings({ keepDays: k.days })}>{k.label}</button>)}</div>
               <p className="chat-sheet-note">Riwayat hanya disimpan di HP ini dan terhapus otomatis setelah {keepLabel}. Tidak ada yang diunggah.</p>
               <div className="chat-learned"><Brain size={16} aria-hidden="true"/><span><b>Belajar dari kamu</b><small>{learnedCount ? `${learnedCount} ungkapan sudah kuingat. Kalau aku belum paham lalu kamu menulis ulang, ungkapan pertama kuingat.` : 'Kalau aku belum paham lalu kamu menulis ulang, ungkapan pertama kuingat di HP ini.'}</small></span>{learnedCount > 0 && <button type="button" className="chat-chip" onClick={() => changeSettings({ learned: {} })}>Lupakan</button>}</div>
+              <h4 className="chat-sheet-sub">Hapus pesan</h4>
+              <p className="chat-sheet-note">Tekan lama sebuah pesan (atau klik kanan) untuk memilih beberapa, lalu Salin atau Hapus. Catatan keuangan tidak ikut terhapus.</p>
+              <button type="button" className="chat-chip chat-pick-start" disabled={!messages.length} onClick={() => { setSheet(null); setPicked(new Set()); }}><ListChecks size={14}/> Pilih pesan</button>
               {!confirmClear ? <button type="button" className="chat-danger" onClick={() => setConfirmClear(true)} disabled={!messages.length}><Trash2 size={15}/> Hapus semua percakapan</button>
                 : <div className="chat-confirm"><span>Hapus {messages.length} pesan? Catatan keuangan tidak ikut terhapus.</span><button type="button" className="chat-danger" onClick={() => { if (user) clearChat(user.uid); setMessages([]); setMemory({}); setConfirmClear(false); setSheet(null); }}>Hapus</button><button type="button" className="chat-chip" onClick={() => setConfirmClear(false)}>Batal</button></div>}
             </>}
@@ -237,13 +309,31 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
   if (!r) return null;
   const chips = (list?: string[]): ReactNode => list?.length ? <div className="chat-chips">{list.map(c => <button type="button" key={c} className="chat-chip" onClick={() => onChip(c)}>{c}</button>)}</div> : null;
   const shell = (body: ReactNode, rich = false, tone = '') => <div className={`cm cm-bot ${rich ? 'is-rich' : ''}`}><span className="cm-avatar" aria-hidden="true"><ChatMark size={14}/></span><div className={`cm-bubble ${rich ? 'cm-rich' : ''} ${tone}`}>{body}</div><time className="cm-time">{clock(m.at)}</time></div>;
-  if (r.kind === 'say') return shell(<>
-    {r.title && <b className="cm-kicker">{r.title}</b>}
-    <p>{r.text}</p>
-    {r.lines && <dl className={`cm-lines ${r.lines.every(l => /^\d+$/.test(l.label)) ? 'is-list' : ''}`}>{r.lines.map(l => <div key={l.label + l.value} className={l.tone ? `is-${l.tone}` : ''}><dt>{l.label}</dt><dd>{l.value}</dd></div>)}</dl>}
-    {r.note && <small className="cm-note">{r.note}</small>}
-    {chips(r.chips)}
-  </>, Boolean(r.lines), r.tone ? `is-${r.tone}` : '');
+  if (r.kind === 'say') {
+    const look = r.card ? CARD_LOOK[r.card] : undefined, calc = r.card === 'calc' && r.hero;
+    const rich = Boolean(r.hero || r.stats?.length || r.bars?.length || r.steps?.length || r.lines?.length);
+    const lines = r.lines && <dl className={`cm-lines ${r.lines.every(l => /^\d+$/.test(l.label)) ? 'is-list' : ''}`}>{r.lines.map(l => <div key={l.label + l.value} className={l.tone ? `is-${l.tone}` : ''}><dt>{l.label}</dt><dd>{l.value}</dd></div>)}</dl>;
+    if (!rich || !look) return shell(<>
+      {r.title && <b className="cm-kicker">{r.title}</b>}
+      <p>{r.text}</p>
+      {lines}
+      {r.note && <small className="cm-note">{r.note}</small>}
+      {chips(r.chips)}
+    </>, Boolean(r.lines), r.tone ? `is-${r.tone}` : '');
+    const badge = r.tone === 'warn' ? 'Perlu perhatian' : r.tone === 'good' ? 'Aman' : '';
+    return shell(<>
+      <div className="cc-head"><span className="cc-icon" aria-hidden="true"><look.icon size={16}/></span><b className="cc-kicker">{r.title}</b>{badge && <span className={`cc-badge is-${r.tone}`}>{badge}</span>}</div>
+      {calc ? <div className="cc-calc"><small>{r.hero!.label}</small><strong>= {r.hero!.value}</strong></div>
+        : r.hero && <div className={`cc-hero ${r.hero.tone ? `is-${r.hero.tone}` : ''}`}><small>{r.hero.label}</small><strong>{r.hero.value}</strong>{r.hero.note && <span>{r.hero.note}</span>}</div>}
+      {!calc && r.text && <p className="cc-text">{r.text}</p>}
+      {r.stats && r.stats.length > 0 && <div className={`cc-stats n${Math.min(3, r.stats.length)}`}>{r.stats.map(x => <div key={x.label} className={`cc-stat ${x.tone ? `is-${x.tone}` : ''}`}><small>{x.label}</small><b>{x.value}</b></div>)}</div>}
+      {r.bars && r.bars.length > 0 && <ul className="cc-bars">{r.bars.map(b => <li key={b.label} className={b.tone ? `is-${b.tone}` : ''}><span className="cc-bar-label">{b.label}</span><b>{b.value}</b><i className="cc-track" aria-hidden="true"><i style={{ width: `${Math.max(3, Math.min(100, b.ratio * 100))}%` }}/></i>{b.note && <small>{b.note}</small>}</li>)}</ul>}
+      {r.steps && r.steps.length > 0 && <ol className="cc-steps">{r.steps.map((x, i) => <li key={i}><span className="cc-num" aria-hidden="true">{i + 1}</span><span>{x}</span></li>)}</ol>}
+      {lines}
+      {r.note && <small className="cm-note">{r.note}</small>}
+      {chips(r.chips)}
+    </>, true, `cm-card tone-${look.tone} ${r.tone ? `is-${r.tone}` : ''}`);
+  }
   // A card from Catat otomatis, inside the same bubble as what the assistant says about it.
   return shell(<>
     {r.intro && <p>{r.intro}</p>}

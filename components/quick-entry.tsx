@@ -776,7 +776,8 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const fact = (key: string, content: ReactNode, className = '') => facts.push(<span key={key} className={className}>{content}</span>);
   switch (kind) {
     case 'expense': case 'income':
-      if (result.preset.description) fact('d', result.preset.description); if (merchant.trim()) fact('m', merchant.trim());
+      // 7.7: a description that only repeats the category ("Makan Siang" · Makan Siang) is shown once, as the category.
+      if (result.preset.description && (splitLines || !category || result.preset.description.toLocaleLowerCase('id-ID') !== category.name.toLocaleLowerCase('id-ID'))) fact('d', result.preset.description); if (merchant.trim()) fact('m', merchant.trim());
       if (split) { fact('s', `${split.method === 'amount' ? 'Split' : 'Bagi rata'} ${split.participants.length} orang`, 'qp-cat'); if (payerOther) fact('y', `${payerOther.name} yang bayar`); }
       if (result.quantity && amount === result.quantity.total) fact('q', `${result.quantity.qty} × ${rupiah(result.quantity.unit)}`);
       if (person.trim()) fact('p', `${result.personCue === 'from' ? 'dari' : 'ke'} ${person.trim()}`);

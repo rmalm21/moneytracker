@@ -1,73 +1,105 @@
-# Asisten chat (rilis 7.6)
+# Asisten chat (rilis 7.7)
 
 Semua jalan di HP, tanpa internet dan tanpa layanan AI di awan. Ada tiga lapis:
 
 1. **Catat otomatis (V4)** dipakai apa adanya untuk mencatat, menjawab pertanyaan, serta mengubah atau menghapus
    catatan terakhir.
 2. **Aturan percakapan** (`lib/chat/engine.ts`) menangani konteks obrolan, tanya balik, kalkulator, ringkasan,
-   "boleh beli?", tips, gaya bahasa, dan template.
+   anggaran, gajian, "boleh beli?", tips, target tabungan, perasaan soal uang, obrolan ringan, gaya bahasa, dan template.
 3. **Model maksud pesan** (`lib/chat/model.ts`): NLP.js, pustaka JavaScript khusus chatbot yang jalan offline. Model ini
-   dilatih saat build dari `lib/chat/corpus.ts` (221 kalimat, 14 maksud, 100 KB) dan hanya membaca pesan yang tidak
-   tertangkap aturan. Model yang sama dipakai Catat otomatis untuk pendapat kedua.
+   dilatih saat build dari `lib/chat/corpus.ts` dan hanya membaca pesan yang tidak tertangkap aturan.
+   - 7.7: 494 kalimat (sebelumnya 221) untuk 19 maksud (sebelumnya 14). Maksud baru: anggaran, gajian, target, perasaan,
+     dan obrolan ringan.
+   - Setiap kalimat juga dilatih dalam ejaan sehari-hari (`augment`: aku/gue/saya, ga/nggak/gak, gimana/gmn,
+     berapa/brp, akhiran "dong"/"sih"), sehingga totalnya 1.675 kalimat.
+   - Ukuran model 410 KB. Model hanya dimuat saat chat dibuka.
 
 Selain itu, asisten **belajar dari pemakai**. Kalau ia belum paham lalu kamu menulis ulang, ungkapan pertama diingat di HP
-ini, maksimal 60 ungkapan, dan bisa dihapus di pengaturan. Ini hanya berlaku untuk maksud tanpa nominal (ringkasan, tips,
-bantuan, dan sejenisnya). Uang selalu dibaca ulang dari kalimatnya.
+ini, maksimal 60 ungkapan, dan bisa dihapus di pengaturan. Ini hanya berlaku untuk maksud tanpa nominal. Uang selalu
+dibaca ulang dari kalimatnya.
 
-## Ukuran: maksud pesan di set uji terpisah (48 pesan)
+## Ukuran: maksud pesan di set uji terpisah
 
-`node bench/chat/run.mjs`. Set ini (`bench/chat/fixtures-heldout.mjs`) ditulis sebelum model dievaluasi dan tidak pernah
-masuk korpus latihan.
+`SET=heldout2 node bench/chat/run.mjs --fails` dan `SET=heldout node bench/chat/run.mjs --fails`. Kolom "7.6" adalah
+salinan beku mesin 7.6 (`bench/chat/baseline-v76/`).
+
+### Set uji 2 (50 pesan, 7.7)
+
+`fixtures-heldout2.mjs` berisi semua maksud 7.6 dengan kata-kata baru, ditambah kemampuan 7.7. Set ini ditulis sebelum
+korpus diperbesar dan sebelum kemampuan baru dibuat.
+
+| | 7.6 | Aturan saja | Aturan + model |
+|---|---|---|---|
+| **Percobaan pertama** (dibekukan: `FROZEN-heldout2-first.md`) | 31/50 (62%) | 37/50 (74%) | 49/50 (98%) |
+| Setelah perbaikan post-hoc | | 38/50 (76%) | 50/50 (100%) |
+
+- Pada percobaan pertama model memutuskan 12 pesan, dan tidak ada yang salah.
+- Satu-satunya salah di percobaan pertama: "malam kak, masih bangun?" dibaca sebagai pertanyaan. Perbaikan post-hoc
+  dibuat setelah melihat hasil itu: salam yang diikuti basa-basi pendek sesudah koma dibaca sebagai salam. Angka 100%
+  sudah dibantu set uji.
+- **Catatan jujur:** set uji dan korpus latihan ditulis oleh penulis yang sama dalam sesi yang sama. Sebelum
+  pelatihan, kalimat uji yang persis sama setelah nominal dan angka diganti (4 kalimat) dibuang dari korpus. Meski
+  begitu, gaya bahasanya mirip, jadi angka ini kemungkinan lebih tinggi daripada di pemakaian nyata.
+
+### Set uji 1 (48 pesan, 7.6)
 
 | | Aturan saja | Aturan + model |
 |---|---|---|
-| **Percobaan pertama** (dibekukan: `FROZEN-heldout-first.md`) | 32/48 (67%) | 43/48 (90%) |
-| Setelah perbaikan post-hoc | 38/48 (79%) | 47/48 (98%) |
+| Percobaan pertama 7.6 (dibekukan: `FROZEN-heldout-first.md`) | 32/48 (67%) | 43/48 (90%) |
+| 7.6 setelah perbaikan post-hoc | 38/48 (79%) | 47/48 (98%) |
+| 7.7 sebelum perbaikan salam | 38/48 (79%) | 46/48 (96%) |
+| 7.7 | 39/48 (81%) | 47/48 (98%) |
 
-- Pada percobaan pertama model memutuskan 11 pesan, dan tidak ada yang salah.
-- Perbaikan post-hoc dibuat setelah melihat set uji, jadi angka 98% sudah dibantu set itu. Isinya: aturan "cara pakai …",
-  "kalau checkout … aman?", "cukup nggak uangku sampe gajian", dan "boleh beli" tanpa harga dijawab dengan menanyakan
-  harganya.
-- Sisa 1 salah: "aku boros nggak sih" dijawab dengan tips, padahal di set ditandai sebagai ringkasan. Tips juga masih
-  masuk akal.
+- Set ini sudah dipakai untuk perbaikan di 7.6, jadi bukan lagi uji buta. Gunanya untuk memastikan tidak ada yang
+  mundur.
+- Di 7.7 sempat ada satu kemunduran: "pagi min, apa kabar" terbaca sebagai obrolan ringan, bukan salam. Penyebabnya
+  sama dengan salah di set 2, dan perbaikan salam di atas memulihkannya.
+- Sisa 1 salah sama seperti 7.6: "aku boros nggak sih" dijawab dengan tips, padahal ditandai sebagai ringkasan.
 
-## Semua template dicoba
+## Kemampuan baru 7.7
 
-Semua template dijalankan lewat mesin chat dan Catat otomatis pada data contoh, dan semuanya menghasilkan aksi atau
-jawaban yang benar. Template ikut nama dompet pemakai: "pakai gopay" hanya muncul kalau dompet GoPay memang ada.
-Sebelumnya, "transfer 500rb ke tabungan" terbaca sebagai pengeluaran pada akun tanpa dompet Tabungan.
+| Kemampuan | Contoh | Jawaban |
+|---|---|---|
+| Semua anggaran | "anggaranku gimana", "budget mana yang mau habis" | Sisa total, bar per anggaran (hijau/kuning/merah). Satu anggaran yang disebut namanya tetap dijawab Tanya. |
+| Gajian | "kapan gajian?", "jatah harian sampai gajian berapa" | Sisa hari, tanggal gajian, uang bebas, jatah per hari, rata-rata belanja, bar periode gaji |
+| Perasaan soal uang | "aduh lagi bokek", "pusing mikirin tagihan" | Kalimat menenangkan, angka uang bebas, dan tiga langkah kecil (salah satunya dari pengeluaran terbesar) |
+| Target tabungan | "pengen nabung 30jt buat nikah", "mau siapin dana darurat" | Cicilan per bulan (12 dan 6 bulan) dan tombol "target nikah 30jt" yang dibaca Catat otomatis sebagai tujuan dana baru. Tanpa nominal: saran 10–20% pemasukan; dana darurat: 3–6 kali pengeluaran sebulan. |
+| Obrolan ringan | "apa kabar", "aku bosen nih", "lagi galau" | Balasan singkat sesuai gaya bahasa, dengan saran pesan |
 
-## Kemampuan
+Kalimat yang mirip tetap masuk ke jalurnya masing-masing: "nabung 500rb ke jago" tetap dicatat, "gimana caranya bisa
+nabung" tetap dijawab tips, "gajian 8jt masuk jago" tetap dicatat, dan "sisa anggaran makan berapa" tetap dijawab Tanya.
 
-| Kemampuan | Contoh |
-|---|---|
-| Tanya balik | "beli 25rb" → "Masuk kategori apa?" + pilihan → "jajan" |
-| Ubah kartu yang belum disimpan | "jadi 45rb", "pakai jago", "kemarin", "kategorinya jajan", "bagi 2 sama rina", "gak jadi" |
-| Ubah atau hapus yang sudah disimpan | "jadi 50rb", "batalin yang tadi" (selalu dengan kartu konfirmasi) |
-| Pertanyaan lanjutan | "pengeluaran makan bulan ini berapa" → "kalau bulan lalu?" → "kalau transport?" |
-| Kalkulator | "hitung 128181 dibagi 3 dikali 2", "(50rb+30rb)/2", "dua puluh ribu dikali tiga" → "kalau dibagi 4?" |
-| Ringkasan, boleh beli, tips | dari uang bebas, anggaran, dan pengeluaran sendiri |
-| Gaya bahasa | Santai, Sopan, Singkat, Gaul; dipilih di pengaturan atau dengan "pakai bahasa formal" |
-| Obrolan | salam (nama dan waktu), terima kasih, bantuan, contoh, balasan ramah kalau belum paham |
+## Kartu jawaban
+
+- Setiap jawaban chat sekarang berupa kartu dengan ikon dan warna sesuai jenisnya, angka utama, kotak angka kecil, bar
+  progres, dan langkah bernomor.
+- Kartu Catat otomatis dan Tanya memakai rangka yang sama, baik di luar maupun di dalam chat.
+- Diperiksa dengan screenshot di aplikasi demo (emulator, akun demo), dalam mode terang dan gelap.
+
+## Hapus pesan dan tata letak
+
+- Pesan bisa dipilih lewat tekan lama, klik kanan, atau "Pilih pesan" di pengaturan. Setelah itu ada tombol Salin, Hapus,
+  dan Urungkan (6 detik). Riwayat yang tersimpan di HP ikut berubah. Kalau kartu yang belum disimpan ikut terhapus,
+  obrolan tidak lagi merujuk ke kartu itu.
+- Audit otomatis dilakukan di 5 tampilan × lebar 360, 390, dan 1280 px × terang/gelap (30 kombinasi). Hasilnya: tidak
+  ada elemen yang keluar panel, teks yang terpotong, gelembung yang mepet ke tepi atau ke avatar, atau tombol kirim yang
+  mepet.
+- Yang diperbaiki dari audit:
+  - Chip saran dan tombol kecil dinaikkan ke tinggi minimal 32 px.
+  - Placeholder kotak ketik tidak lagi turun baris.
+  - Subjudul header dipendekkan.
+  - Chat selalu terbuka di pesan terakhir. Sebelumnya, kartu yang selesai digambar belakangan membuat posisi gulir
+    tertinggal.
 
 ## Uji lain
 
-- `tests/chat.test.mjs`: 12 tes, termasuk tanya balik, empat gaya bahasa, dan belajar dari pemakai.
-- `npm test`: 738 lulus.
-- Dicoba di aplikasi demo (emulator, akun demo): pertama kali dibuka (pilih gaya), tanya balik lalu isi, simpan, belajar,
-  ganti gaya bahasa, template, pengaturan, lima tampilan, mode gelap, dan desktop.
+- `tests/chat.test.mjs`: 14 tes, termasuk anggaran, gajian, perasaan, target, obrolan ringan, dan salam dengan basa-basi.
+- `npm test`: 740 lulus.
+- Mesin Catat otomatis tidak berubah di 7.7, jadi hasil 7.6 tetap berlaku: V4 latihan 83/83, uji tersembunyi 44/44,
+  dan shadow 1.213 kalimat tanpa perubahan arti uang.
 
 ## Kenapa bukan LLM sungguhan?
 
 LLM yang jalan di browser (misalnya WebLLM atau transformers.js) butuh unduhan model sekitar 1–2 GB dan GPU. Itu
 berat untuk HP, lambat saat pertama dibuka, dan boros kuota. NLP.js dipilih karena memang dibuat untuk chatbot, jalan
-offline di HP, mendukung bahasa Indonesia, dan sudah ada di aplikasi. Kalau nanti dibutuhkan, LLM kecil bisa
-ditambahkan sebagai pilihan yang diunduh atas izin pemakai.
-
-## Ikut di 7.6 (Catat otomatis)
-
-- "diskon 50% makan 80rb" → Rp40.000.
-- "listrik 450rb sepertiga buat kosan sebelah", "wifi 300rb, rina bayar setengah" → Split Bill dengan bagian yang
-  ditulis.
-- Set latihan V4: 83/83 (x12–x15 ditambahkan sesudahnya). Set uji tersembunyi V4 tetap 44/44. Shadow 1.213 kalimat
-  lama: tidak ada arti uang yang berubah.
+offline di HP, mendukung bahasa Indonesia, dan sudah ada di aplikasi.

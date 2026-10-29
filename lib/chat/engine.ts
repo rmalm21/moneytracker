@@ -8,6 +8,8 @@
  *   - asking back: a record missing its amount, wallet, category or date is asked for in the chat, with choices, and a
  *     short answer ("jajan", "gopay", "kemarin") fills it in;
  *   - a calculator, a summary of the period, "aman nggak beli …?", tips from the person's own records;
+ *   - 7.7: every budget at a glance, days to payday with the daily allowance, a kind reply when money worries, saving
+ *     goals turned into a fund to create, and small talk;
  *   - four ways of talking (lib/chat/voice.ts), greetings, help, templates;
  *   - a trained intent model (NLP.js, lib/chat/model.ts) for sentences the rules do not catch, and phrases learned from
  *     the person: a message not understood, followed by one that is, is remembered (on this device).
@@ -48,12 +50,19 @@ export type ChatMemory = {
   /** The last message that was not understood (to learn from the next one). */
   unknown?: string;
 };
-export type SayLine = { label: string; value: string; tone?: 'up' | 'down' | 'warn' | 'good' };
+export type SayTone = 'up' | 'down' | 'warn' | 'good';
+export type SayLine = { label: string; value: string; tone?: SayTone };
+/** A bar from 0 to 1 (more than 1 is over): a budget used, a share of spending, the pay period gone by. */
+export type SayBar = { label: string; value: string; ratio: number; tone?: 'good' | 'warn' | 'bad'; note?: string };
+/** Which card an answer is shown as (its icon and colour). */
+export type SayCard = 'summary' | 'afford' | 'tips' | 'calc' | 'budget' | 'payday' | 'mood' | 'goal' | 'help' | 'talk';
 export type ChatReply =
   /** Read by Catat otomatis: cards to save, an answer, a change to a record. `intro` is said before the card. */
   | { kind: 'plan'; text: string; intro?: string; chips?: string[] }
-  | { kind: 'say'; text: string; title?: string; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string };
-export type ChatIntent = 'greet' | 'thanks' | 'ack' | 'help' | 'examples' | 'about' | 'voice' | 'edit' | 'fill' | 'cancel' | 'undo' | 'followup' | 'calc' | 'summary' | 'afford' | 'tips' | 'plan' | 'question' | 'unknown';
+  /** An answer: the sentence, then (each optional) one big figure, small figure tiles, bars, numbered steps, and rows. */
+  | { kind: 'say'; text: string; title?: string; card?: SayCard; hero?: { label: string; value: string; note?: string; tone?: SayTone }; stats?: SayLine[]; bars?: SayBar[]; steps?: string[]; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string };
+export type ChatIntent = 'greet' | 'thanks' | 'ack' | 'help' | 'examples' | 'about' | 'voice' | 'edit' | 'fill' | 'cancel' | 'undo' | 'followup' | 'calc' | 'summary' | 'afford' | 'tips' | 'plan' | 'question' | 'unknown'
+  | 'smalltalk' | 'mood' | 'budget' | 'payday' | 'goal';
 export type ChatResult = {
   intent: ChatIntent; reply: ChatReply; memory: ChatMemory;
   /** The record waiting to be saved is dropped. */ dismiss?: boolean;
@@ -71,6 +80,11 @@ const D = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const daysBetween = (a: string, b: string) => Math.round((D(b).getTime() - D(a).getTime()) / 86_400_000);
 const dm = (iso: string) => D(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** A round figure for a suggestion (whole millions from 10jt, half millions from 1jt, else 50rb steps). */
+const nice = (n: number) => n >= 1e7 ? Math.round(n / 1e6) * 1e6 : n >= 1e6 ? Math.round(n / 5e5) * 5e5 : Math.max(5e4, Math.round(n / 5e4) * 5e4);
+/** That figure as people write it: "12jt", "2,5jt", "750rb". */
+const short = (n: number) => { const v = nice(n); return v >= 1e6 ? `${(v / 1e6).toLocaleString('id-ID')}jt` : `${v / 1e3}rb`; };
+const pct = (r: number) => `${Math.round(r * 100)}%`;
 
 /* ------------------------------------------------------------------ Templates */
 
@@ -82,7 +96,7 @@ export const TEMPLATES: TemplateGroup[] = [
   { key: 'kategori', title: 'Bagi kategori', hint: 'Satu belanja, beberapa keperluan', items: ['hokben 162.003 dibagi 2, satu buat gue, satu traktir teman', 'belanja 200rb, 150rb buat makan, sisanya sabun'] },
   { key: 'hitung', title: 'Hitung', hint: 'Kalkulator di dalam chat', items: ['hitung 128181 dibagi 3 dikali 2', 'berapa 15% dari 2,5jt', 'diskon 50% makan 80rb'] },
   { key: 'tanya', title: 'Tanya', hint: 'Dijawab dari catatanmu', items: ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'sisa anggaran makan berapa'] },
-  { key: 'saran', title: 'Ringkasan & saran', hint: 'Kondisi keuanganmu', items: ['ringkasan bulan ini', 'aman nggak beli sepatu 500rb?', 'kasih tips hemat'] },
+  { key: 'saran', title: 'Ringkasan & saran', hint: 'Kondisi keuangan, anggaran, gajian', items: ['ringkasan bulan ini', 'cek semua anggaran', 'kapan gajian?', 'aman nggak beli sepatu 500rb?', 'kasih tips hemat', 'pengen nabung buat liburan'] },
   { key: 'ubah', title: 'Ubah & batal', hint: 'Setelah mencatat', items: ['jadi 45rb', 'pakai {other}', 'kemarin', 'batalin yang tadi'] },
   { key: 'rencana', title: 'Rencana', hint: 'Anggaran, pengingat, rutin', items: ['anggaran makan 2jt', 'ingatkan bayar listrik tgl 20', 'bayar wifi 300rb tiap tanggal 5'] },
 ];
@@ -101,6 +115,8 @@ export function templatesFor(wallets: QuickContext['wallets']): TemplateGroup[] 
 /* ------------------------------------------------------------------ Rules */
 
 const GREET = /^(?:halo+|hal+o|hai+|hay|hi+|hello|helo|hey|hei|pagi|siang|sore|malam|met (?:pagi|siang|sore|malam)|selamat (?:pagi|siang|sore|malam)|assalamu.?alaikum|asw|permisi|p|yo)(?:\s+(?:min|kak|bro|sis|bot|asisten|dompet|ajaib|semua|apa kabar))*$/;
+/** A greeting with a little more after it: "pagi min, apa kabar", "malam kak, masih bangun?" (7.7, post-hoc). */
+const GREET_LEAD = /^(?:halo+|hai+|hi+|hello|hey|pagi|siang|sore|malam|met (?:pagi|siang|sore|malam)|selamat (?:pagi|siang|sore|malam)|assalamu.?alaikum)(?:\s+(?:min|kak|bro|sis|bot|asisten|dompet|ajaib|semua))*\s*[,!.]\s*(.+)$/;
 const THANKS = /^(?:makasih+|makasi|mksh|maksih|terima ?kasih|trims|thanks|thank you|thx|tq|ty|nuhun|suwun|tengkyu)\b/;
 const ACK = /^(?:ok(?:e|ay|ey)?|okk+|sip+|siap|mantap|mantul|good|nice|keren|baik|oke deh|okedeh|ya|iya|yoi|noted|wkwk+|haha+|hehe+|hihi|👍|🙏)$/;
 const HELP = /^(?:bantuan|help|tolong|menu|fitur|panduan|cara ?pakai|caranya)$|\b(?:bisa apa(?: aja| saja)?|bisa ngapain|ngapain aja|bisa bantu apa|apa (?:aja|saja) yang bisa|fitur(?:nya|mu)? apa|apa (?:aja|saja) fitur(?:nya|mu)?|cara (?:pakai|make|makenya|pakainya|menggunakan)(?! \p{L}+ (?:\d|rp)))\b/u;
@@ -127,9 +143,31 @@ const CALC_TAIL = /\s*(?:=|berapa|brp|ya|sih|hasilnya|jadinya|jadi berapa|itu)?\
 const CALC_AGAIN = /^(?:kalau|kalo|klo|terus|trus|lalu)?\s*((?:di)?bagi|(?:di)?kali|(?:di)?tambah|(?:di)?kurang(?:i)?|plus|minus|x|\*|\/|\+|-|÷|×)\s*(.+)$/;
 const CALC_WORDS = /\b(?:dikali|dibagi|ditambah|dikurangi?|kali|bagi|tambah|kurang|plus|minus|persen|dari|setengah|separuh|sepertiga|seperempat|ribu|rebu|juta|miliar|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh|sebelas|puluh|ratus|belas)\b/g;
 const AFFORD = /\b(?:boleh|bisa|aman|sanggup|cukup|mampu|kuat|oke|ok)\b.*\b(?:beli|beliin|jajan|belanja|ambil|checkout|co|bayar|nonton|makan|liburan|traktir|top ?up|langganan|sewa)\b|\b(?:kalau|kalo|klo)\s+(?:beli|checkout|ambil|liburan|nonton)\b.*\b(?:aman|boleh|bisa|cukup)\b|\b(?:mau|pengen|pingin|ingin)\s+(?:beli|ambil|checkout)\b.*\b(?:aman|boleh|bisa|gimana|ga|gak|nggak|enggak)\b/;
-const TIPS = /\b(?:tips|tip|saran|kasih saran|cara hemat|biar hemat|gimana (?:caranya )?hemat|supaya hemat|ngirit|irit|nabung|menabung|boros)\b/;
+const TIPS = /\b(?:tips|tip|saran|kasih saran|cara hemat|biar hemat|gimana (?:caranya )?hemat|supaya hemat|ngirit|irit|nabung|menabung|boros|nyisihin|sisihin|menyisihkan|disiplin)\b/;
 const SUMMARY = /\b(?:ringkasan|rangkuman|rekap|ikhtisar|kondisi keuangan|keadaan keuangan|status keuangan|keuangan(?:ku)? (?:gimana|bagaimana)|(?:gimana|bagaimana) keuangan(?:ku)?|cashflow|arus kas|aman (?:(?:ga|gak|nggak|enggak|tidak) )?(?:sampai|sampe) gajian|cukup (?:(?:ga|gak|nggak|enggak|tidak) )?(?:uang|duit)(?:ku)? (?:sampai|sampe) gajian)\b/;
-const LEARNABLE = new Set<ChatIntent>(['summary', 'tips', 'help', 'examples', 'about', 'greet', 'thanks']);
+/** Every budget at once ("anggaranku gimana", "budget mana yang mau habis"); one budget by name is a Tanya question. */
+const BUDGET = /\b(?:anggaran|budget)(?:ku|nya|mu)?\b/;
+const BUDGET_ASK = /\b(?:gimana|bagaimana|gmn|aman|cek|sisa|status|rekap|progress|progres|lihat|liat|semua|mana|jebol|habis|abis|over|kelewatan|lewat|tinggal|overview|pemakaian|masih|kondisi)\b/;
+const PAYDAY = /\b(?:gajian|gaji(?:nya)? (?:turun|masuk|cair)|tanggal muda|payday)\b/;
+const PAYDAY_ASK = /\b(?:kapan|berapa|brp|brapa|lama|dekat|deket|kurang|mundur|sisa|tanggal|tgl)\b/;
+const ALLOWANCE = /\bjatah (?:harian|per ?hari|sehari)\b|\b(?:sehari|per ?hari) (?:boleh|bisa|aman)\b/;
+/** Money worries: strong words alone, softer ones only next to money. */
+const MOOD_STRONG = /\b(?:bokek|boke|kere|bangkrut|tanggal tua|kanker|seret|kalap|dompet tipis|krisis)\b|\b(?:uang|duit)(?:ku)? (?:abis|habis|tinggal (?:dikit|sedikit)|menipis)\b|\b(?:abis|habis) terus\b|\bcepet (?:abis|habis)\b|\b(?:ga|gak|nggak|tidak) punya (?:uang|duit|tabungan)\b/;
+const MOOD_SOFT = /\b(?:pusing|puyeng|stres|stress|sedih|galau|panik|khawatir|cemas|takut|nyesel|menyesal|capek|cape|lelah|frustasi|kesel|sebel|bad mood)\b/;
+const MONEY_WORD = /\b(?:uang(?:ku)?|duit(?:ku)?|keuangan(?:ku)?|finansial|tagihan|cicilan|utang|hutang|gaji(?:ku)?|belanja|tabungan|dompet|bayar|checkout|boros|kantong)\b/;
+const SMALL: [RegExp, 'kabar' | 'bosan' | 'tidur' | 'puji' | 'kamu' | 'galau'][] = [
+  [/\b(?:apa kabar|kabar(?:mu|nya)? (?:gimana|bagaimana|baik)|gimana kabar(?:mu|nya)?|how are you)\b/, 'kabar'],
+  [/\b(?:bosen|bosan|gabut|bete|boring|kesepian|temenin|temani|ceritain)\b/, 'bosan'],
+  [/\b(?:ngantuk|selamat tidur|good night|met bobo|mau tidur|bobo dulu|capek|cape|lelah)\b/, 'tidur'],
+  [/\b(?:kamu|lo|lu|anda) (?:lucu|keren|hebat|pintar|pinter|baik|mantap|asik|asyik)\b|\b(?:pinter|hebat|lucu) (?:banget|juga)\b|\bgood job\b/, 'puji'],
+  [/\b(?:lagi (?:apa|ngapain|sibuk)|ngapain|udah makan|sudah makan|kamu (?:tidur|suka|sayang|cewek|cowok|laki|perempuan|punya nama|capek)|nama (?:kamu|mu)|namamu)\b/, 'kamu'],
+  [/\b(?:galau|sedih|kangen|bad mood|pusing)\b/, 'galau'],
+];
+/** A saving goal: "pengen nabung buat nikah", "mau siapin dana darurat", "target beli motor tahun depan". */
+const DESIRE = /\b(?:pengen|pengin|pingin|ingin|mau|target|rencana|berencana|niat|cita.?cita|impian)\b/;
+const SAVE_WORD = /\b(?:nabung|menabung|ngumpulin|ngumpulkan|kumpulin|nyisihin|sisihin|menyisihkan|nyiapin|siapin|menyiapkan)\b|\bdana (?:darurat|pendidikan|pensiun|nikah|menikah|haji|umroh|kuliah)\b|\bpunya (?:rumah|mobil|motor|tabungan)\b|\b(?:target|tujuan) (?:nabung|tabungan)\b/;
+const LATER = /\b(?:tahun depan|bulan depan|tahun ini|akhir tahun|nanti|suatu hari)\b/;
+const LEARNABLE = new Set<ChatIntent>(['summary', 'tips', 'help', 'examples', 'about', 'greet', 'thanks', 'budget', 'payday', 'mood', 'smalltalk']);
 
 /** The sentence with its amount replaced (the first amount written), or the amount added. */
 function withAmount(text: string, amount: string) {
@@ -180,6 +218,12 @@ function budgetsNow(ctx: ChatContext) {
   const asOf = new Date(`${ctx.today}T12:00:00`);
   return countedBudgets(ctx.data.budgets.filter(b => b.active)).map(b => { const c = budgetCurrent(b, ctx.data.transactions, ctx.data.categories, asOf, ctx.salaryDay); return { name: b.name, categoryId: b.categoryId, ...c, used: c.available > 0 ? c.spent / c.available : 0 }; }).sort((a, b) => b.used - a.used);
 }
+/** The sentence names one budget or category ("sisa anggaran makan"): Catat otomatis answers that one. */
+function namesBudget(t: string, ctx: ChatContext) {
+  const words = new Set(t.split(/[^\p{L}]+/u));
+  return ctx.data.budgets.some(b => b.active && lower(b.name).split(/[^\p{L}]+/u).some(w => w.length > 2 && words.has(w)))
+    || ctx.data.categories.some(c => !c.parentId && lower(c.name).split(/[^\p{L}&]+/u).some(w => w.length > 2 && words.has(w)));
+}
 function money(ctx: ChatContext) {
   const m = metrics(ctx.data as Data, ctx.cycle.start, ctx.cycle.end, ctx.salaryDay, new Date(`${ctx.today}T12:00:00`));
   const left = Math.max(1, daysBetween(ctx.today, ctx.cycle.end)), passed = Math.max(1, daysBetween(ctx.cycle.start, ctx.today) + 1);
@@ -191,15 +235,16 @@ function summary(text: string, ctx: ChatContext, v: Voice): ChatReply {
   const txs = ctx.data.transactions.filter(t => t.date >= p.start && t.date < p.end);
   const income = txs.reduce((n, t) => n + transactionIncome(t), 0), spent = txs.reduce((n, t) => n + transactionExpense(t), 0);
   const top = categoryTotals(ctx, p.start, p.end).slice(0, 3), m = money(ctx), warn = budgetsNow(ctx).filter(b => b.used >= 0.8).slice(0, 3);
-  const lines: SayLine[] = [
+  const stats: SayLine[] = [
     { label: 'Pemasukan', value: rp(income), tone: 'up' }, { label: 'Pengeluaran', value: rp(spent), tone: 'down' },
     { label: 'Selisih', value: rp(income - spent), tone: income - spent >= 0 ? 'good' : 'warn' },
-    { label: 'Uang bebas sekarang', value: rp(m.free) }, { label: `Jatah harian (${m.left} hari ke gajian)`, value: rp(m.daily) },
   ];
+  const bars: SayBar[] = spent ? top.map(c => ({ label: c.name, value: rp(c.amount), ratio: c.amount / spent, note: pct(c.amount / spent) })) : [];
   const parts = [V.summaryLead(v, p.label, txs.length)];
-  if (top.length && spent) parts.push(V.summaryTop(v, top.map(c => `${c.name} ${rp(c.amount)} (${Math.round(c.amount / spent * 100)}%)`).join(', ')));
+  // The bars show the biggest categories; the sentence names them only when there are no bars to show.
+  if (top.length && spent && v === 'singkat') parts.push(V.summaryTop(v, top.map(c => `${c.name} ${Math.round(c.amount / spent * 100)}%`).join(', ')));
   if (warn.length) parts.push(V.summaryWarn(v, warn.map(b => `${b.name} ${Math.round(b.used * 100)}%`).join(', ')));
-  return { kind: 'say', title: 'Ringkasan', text: parts.join(' '), lines, tone: warn.some(b => b.used >= 1) || m.free <= 0 ? 'warn' : 'info', chips: ['pengeluaran terbesar bulan ini', 'kasih tips hemat', 'sisa anggaran makan berapa'] };
+  return { kind: 'say', card: 'summary', title: 'Ringkasan', text: parts.join(' '), hero: { label: 'Uang bebas sekarang', value: rp(m.free), note: `≈ ${rp(m.daily)}/hari · ${m.left} hari ke gajian`, tone: m.free > 0 ? 'good' : 'warn' }, stats, bars, tone: warn.some(b => b.used >= 1) || m.free <= 0 ? 'warn' : 'info', chips: ['cek semua anggaran', 'kasih tips hemat', 'pengeluaran terbesar bulan ini'] };
 }
 
 function afford(text: string, ctx: ChatContext, v: Voice): ChatReply | null {
@@ -212,18 +257,17 @@ function afford(text: string, ctx: ChatContext, v: Voice): ChatReply | null {
   const catId = guess?.subcategoryId || guess?.categoryId, cat = ctx.data.categories.find(c => c.id === catId);
   const parent = cat?.parentId ? ctx.data.categories.find(c => c.id === cat.parentId) : cat;
   const budget = parent ? budgetsNow(ctx).find(b => b.categoryId === parent.id) : undefined;
-  const lines: SayLine[] = [
-    { label: 'Harga', value: rp(a.value) }, { label: 'Uang bebas sekarang', value: rp(m.free) },
-    { label: 'Sisa setelah beli', value: rp(after), tone: after < 0 ? 'warn' : 'good' },
-    { label: `Jatah harian (${m.left} hari ke gajian)`, value: `${rp(m.daily)} → ${rp(Math.max(0, dailyAfter))}`, tone: dailyAfter < m.pace ? 'warn' : 'good' },
+  const stats: SayLine[] = [
+    { label: 'Harga', value: rp(a.value) }, { label: 'Uang bebas', value: rp(m.free) },
+    { label: 'Jatah harian', value: `${rp(m.daily)} → ${rp(Math.max(0, dailyAfter))}`, tone: dailyAfter < m.pace ? 'warn' : 'good' },
   ];
-  if (budget) lines.push({ label: `Sisa anggaran ${budget.name}`, value: rp(budget.remaining), tone: a.value > budget.remaining ? 'warn' : 'good' });
+  const bars: SayBar[] = budget ? [{ label: `Anggaran ${budget.name} setelah beli`, value: `${rp(budget.spent + a.value)} / ${rp(budget.available)}`, ratio: budget.available > 0 ? (budget.spent + a.value) / budget.available : 1, tone: a.value > budget.remaining ? 'bad' : (budget.spent + a.value) / Math.max(1, budget.available) >= 0.8 ? 'warn' : 'good', note: a.value > budget.remaining ? `lewat ${rp(a.value - budget.remaining)}` : `sisa ${rp(budget.remaining - a.value)}` }] : [];
   let verdict: string, tone: 'good' | 'warn';
   if (after < 0) { verdict = V.affordNo(v, rp(m.free), rp(-after), thing || 'ini'); tone = 'warn'; }
   else if (dailyAfter < m.pace) { verdict = V.affordTight(v, rp(dailyAfter), m.left, rp(m.pace)); tone = 'warn'; }
   else { verdict = V.affordOk(v, rp(after), rp(dailyAfter)); tone = 'good'; }
   if (budget && a.value > budget.remaining) verdict += V.affordBudget(v, budget.name, rp(budget.remaining));
-  return { kind: 'say', title: thing ? `Beli ${thing}?` : 'Boleh beli?', text: verdict, lines, tone, chips: ['ringkasan bulan ini', 'kasih tips hemat'], note: V.affordNote(v) || undefined };
+  return { kind: 'say', card: 'afford', title: thing ? `Beli ${thing}?` : 'Boleh beli?', text: verdict, hero: { label: 'Sisa uang bebas setelah beli', value: rp(after), note: `${m.left} hari ke gajian`, tone: after < 0 ? 'warn' : tone === 'warn' ? 'warn' : 'good' }, stats, bars, tone, chips: ['ringkasan bulan ini', 'kasih tips hemat'], note: V.affordNote(v) || undefined };
 }
 
 function tips(ctx: ChatContext, v: Voice): ChatReply {
@@ -239,13 +283,84 @@ function tips(ctx: ChatContext, v: Voice): ChatReply {
   if (small.length >= 5) out.push(`Ada ${small.length} jajan kecil (≤ Rp30.000) dengan total ${rp(small.reduce((n, t) => n + t.amount, 0))}. Kecil-kecil, tapi kalau dikumpulkan terasa.`);
   out.push(m.free > 0 ? `Supaya cukup sampai gajian, usahakan belanja tidak lebih dari ${rp(m.daily)} per hari.` : `Uang bebas ${you(v)} sedang habis. Prioritaskan kebutuhan pokok dan tagihan dulu.`);
   if (out.length < 3) out.push('Sisihkan tabungan di awal setelah gajian, bukan dari sisa di akhir bulan.');
-  return { kind: 'say', title: 'Tips', text: V.tipsLead(v), lines: out.slice(0, 4).map((s, i) => ({ label: `${i + 1}`, value: s })), tone: 'info', chips: ['ringkasan bulan ini', 'aman nggak beli sepatu 500rb?'] };
+  return { kind: 'say', card: 'tips', title: 'Tips', text: V.tipsLead(v), steps: out.slice(0, 4), tone: 'info', chips: ['ringkasan bulan ini', 'cek semua anggaran', 'aman nggak beli sepatu 500rb?'] };
+}
+
+/** Every budget of this period, fullest first. */
+function budgetOverview(ctx: ChatContext, v: Voice): ChatReply {
+  const list = budgetsNow(ctx);
+  if (!list.length) return { kind: 'say', card: 'budget', title: 'Anggaran', text: V.budgetNone(v), chips: ['anggaran makan 2jt', 'anggaran transport 500rb', 'ringkasan bulan ini'] };
+  const total = list.reduce((n, b) => n + b.available, 0), spent = list.reduce((n, b) => n + b.spent, 0);
+  const over = list.filter(b => b.used >= 1), close = list.filter(b => b.used >= 0.8 && b.used < 1);
+  const bars: SayBar[] = list.slice(0, 6).map(b => ({ label: b.name, value: `${rp(b.spent)} / ${rp(b.available)}`, ratio: b.used, tone: b.used >= 1 ? 'bad' : b.used >= 0.8 ? 'warn' : 'good', note: b.remaining >= 0 ? `sisa ${rp(b.remaining)}` : `lewat ${rp(-b.remaining)}` }));
+  const first = over[0] || close[0];
+  return {
+    kind: 'say', card: 'budget', title: 'Anggaran', text: V.budgetLead(v, list.length, over.map(b => b.name), close.map(b => b.name)),
+    hero: { label: 'Sisa semua anggaran', value: rp(total - spent), note: `terpakai ${pct(total > 0 ? spent / total : 0)} dari ${rp(total)}`, tone: total - spent < 0 ? 'warn' : 'good' },
+    bars, tone: over.length ? 'warn' : 'info', note: list.length > 6 ? `+${list.length - 6} anggaran lain ada di menu Anggaran.` : undefined,
+    chips: [...(first ? [`pengeluaran ${lower(first.name)} bulan ini berapa`] : []), 'kasih tips hemat', 'ringkasan bulan ini'],
+  };
+}
+
+/** Days to the next payday, and how much a day keeps the money going. */
+function payday(ctx: ChatContext, v: Voice): ChatReply {
+  const m = money(ctx), total = m.passed + m.left - 1, day = D(ctx.cycle.end).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  return {
+    kind: 'say', card: 'payday', title: 'Gajian', text: V.payday(v, m.left, rp(m.daily), m.free > 0, m.daily < m.pace),
+    hero: { label: 'Gajian berikutnya', value: `${m.left} hari lagi`, note: day },
+    stats: [{ label: 'Uang bebas', value: rp(m.free), tone: m.free > 0 ? 'good' : 'warn' }, { label: 'Jatah per hari', value: rp(Math.max(0, m.daily)) }, { label: 'Rata-rata belanja', value: `${rp(m.pace)}/hari`, tone: m.pace > m.daily ? 'warn' : undefined }],
+    bars: [{ label: 'Periode gaji ini', value: `hari ke-${m.passed} dari ${total}`, ratio: total > 0 ? m.passed / total : 0 }],
+    tone: m.free > 0 && m.daily >= m.pace ? 'good' : 'warn', chips: ['ringkasan bulan ini', 'cek semua anggaran', 'kasih tips hemat'],
+  };
+}
+
+/** A kind word when money worries, then the facts and three small steps. */
+function mood(ctx: ChatContext, v: Voice): ChatReply {
+  const m = money(ctx), top = categoryTotals(ctx, ctx.cycle.start, ctx.cycle.end)[0], steps = V.moodSteps(v);
+  if (top && m.expenses) steps[2] = v === 'sopan' ? `Pengeluaran terbesar Anda di ${top.name} (${rp(top.amount)}). Coba mulai menghemat dari sana.` : v === 'gaul' ? `Paling gede di ${top.name} (${rp(top.amount)}). Coba mulai hemat dari situ.` : `Paling besar di ${top.name} (${rp(top.amount)}). Coba mulai hemat dari sana.`;
+  return {
+    kind: 'say', card: 'mood', title: v === 'sopan' ? 'Mari atur bersama' : 'Pelan-pelan, ya', text: V.mood(v, m.free > 0 ? rp(m.free) : null, rp(m.daily), m.left),
+    stats: [{ label: 'Uang bebas', value: rp(m.free), tone: m.free > 0 ? 'good' : 'warn' }, { label: 'Jatah per hari', value: rp(Math.max(0, m.daily)) }, { label: 'Ke gajian', value: `${m.left} hari` }],
+    steps: v === 'singkat' ? undefined : steps, tone: m.free > 0 ? 'info' : 'warn', chips: ['kasih tips hemat', 'cek semua anggaran', 'ringkasan bulan ini'],
+  };
+}
+
+/** A saving goal: what for, how much a month, and a tap to create the fund (Catat otomatis "target … 10jt"). */
+function goal(text: string, ctx: ChatContext, v: Voice): ChatReply {
+  const t = lower(text), a = findAmounts(t).find(x => x.value > 0), m = money(ctx);
+  const emergency = /\bdana darurat\b/.test(t);
+  let thing = emergency ? 'dana darurat' : (t.replace(a?.text || '\u0000', ' ').match(/\b(?:buat|untuk|utk|punya|ganti|beli|siapin|nyiapin)\s+(.+)$/)?.[1] || t.match(/\bdana \p{L}+/u)?.[0] || '');
+  thing = unfill(thing.replace(/\b(?:beli|membeli|buat|untuk|utk|tahun depan|bulan depan|tahun ini|akhir tahun|nanti|tiap bulan|setiap bulan|sendiri|gimana|caranya|dong|nih|sih|ya)\b/g, ' ').replace(/[?!.,]/g, ' ').replace(/\s{2,}/g, ' ').trim()) || 'tabungan';
+  const monthlyCost = m.pace * 30, income = m.income;
+  const stats: SayLine[] = [], chips: string[] = [];
+  let planText: string | null = null, hero: { label: string; value: string; note?: string } | undefined;
+  if (a) {
+    hero = { label: 'Yang mau dikumpulkan', value: rp(a.value) };
+    stats.push({ label: '12 bulan', value: `${rp(Math.ceil(a.value / 12 / 1000) * 1000)}/bln` }, { label: '6 bulan', value: `${rp(Math.ceil(a.value / 6 / 1000) * 1000)}/bln` });
+    if (income > 0) stats.push({ label: 'Dari pemasukan', value: pct(a.value / 12 / income), tone: a.value / 12 / income > 0.3 ? 'warn' : 'good' });
+    planText = V.goalPlan(v, rp(Math.ceil(a.value / 12 / 1000) * 1000));
+    chips.push(`target ${thing} ${a.text}`);
+  } else if (emergency && monthlyCost > 0) {
+    hero = { label: 'Dana darurat ideal', value: `${rp(nice(monthlyCost * 3))}–${rp(nice(monthlyCost * 6))}`, note: '3–6 kali pengeluaran sebulan' };
+    chips.push(`target dana darurat ${short(monthlyCost * 3)}`, `target dana darurat ${short(monthlyCost * 6)}`);
+  } else if (income > 0) {
+    stats.push({ label: 'Sisihkan 10%', value: `${rp(income * 0.1)}/bln` }, { label: 'Sisihkan 20%', value: `${rp(income * 0.2)}/bln` });
+    chips.push(`target ${thing} ${short(income * 0.1 * 12)}`, `target ${thing} ${short(income * 0.2 * 12)}`);
+  }
+  chips.push('kasih tips hemat');
+  const save = chips.length > 1 ? V.goalSave(v) : '';
+  return { kind: 'say', card: 'goal', title: `Target ${thing}`, text: [V.goal(v, thing, planText), a ? save : ''].filter(Boolean).join(' '), hero, stats: stats.length ? stats : undefined, tone: 'info', chips };
+}
+
+function smallTalk(kind: (typeof SMALL)[number][1], v: Voice): ChatReply {
+  const chips = { kabar: ['ringkasan bulan ini', 'kapan gajian?'], bosan: ['pengeluaran terbesar bulan ini', 'kasih tips hemat'], tidur: ['pengeluaran hari ini berapa', 'ringkasan bulan ini'], puji: ['ringkasan bulan ini'], kamu: ['bisa apa aja?', 'contoh'], galau: ['ringkasan bulan ini', 'kasih tips hemat'] }[kind];
+  return { kind: 'say', card: 'talk', text: V.small(v, kind), chips };
 }
 
 function calcReply(c: NonNullable<ReturnType<typeof calculate>>, again: boolean, v: Voice): ChatReply {
-  return { kind: 'say', title: 'Hitungan', text: `${c.expression} = ${calcText(c)}`, tone: 'info', chips: [again ? 'kalau dibagi 2?' : 'kalau dibagi 3?', ...(c.money && c.value > 0 ? [`keluar ${calcText(c)}`] : [])], note: c.money && Math.abs(c.value - Math.round(c.value)) > 1e-6 ? V.calcNote(v) : undefined };
+  return { kind: 'say', card: 'calc', title: 'Hitungan', text: `${c.expression} = ${calcText(c)}`, hero: { label: c.expression, value: calcText(c) }, tone: 'info', chips: [again ? 'kalau dibagi 2?' : 'kalau dibagi 3?', ...(c.money && c.value > 0 ? [`keluar ${calcText(c)}`] : [])], note: c.money && Math.abs(c.value - Math.round(c.value)) > 1e-6 ? V.calcNote(v) : undefined };
 }
-const helpReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', title: 'Yang bisa kubantu', text: V.helpLead(v), lines: t.slice(0, 7).map(g => ({ label: g.title, value: `“${g.items[0]}”` })), chips: ['contoh', 'ringkasan bulan ini', 'ganti gaya bahasa'] });
+const helpReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', card: 'help', title: 'Yang bisa kubantu', text: V.helpLead(v), lines: t.slice(0, 7).map(g => ({ label: g.title, value: `“${g.items[0]}”` })), chips: ['contoh', 'ringkasan bulan ini', 'ganti gaya bahasa'] });
 const examplesReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', title: 'Coba salah satu', text: V.examplesLead(v), chips: t.filter(g => g.key !== 'ubah').flatMap(g => g.items.slice(0, 1)).concat(t[1].items[1], t[3].items[1]) });
 const unknownReply = (v: Voice, t: TemplateGroup[], unanswered = false): ChatReply => ({ kind: 'say', text: unanswered ? V.unanswered(v) : V.unknown(v), chips: unanswered ? ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'ringkasan bulan ini'] : [t[0].items[0], 'pengeluaran bulan ini berapa', 'hitung 15% dari 2,5jt', 'bisa apa aja?'] });
 const VOICE_CHIPS = ['gaya santai', 'gaya sopan', 'gaya singkat', 'gaya gaul'];
@@ -287,7 +402,9 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     const name = ctx.name ? ` ${ctx.name}` : '';
 
     if (!t) return sayR('unknown', unknownReply(v, tpl));
-    if (GREET.test(t)) return sayR('greet', { kind: 'say', text: V.greet(v, partOfDay(ctx.hour), name), chips: [tpl[0].items[0], 'ringkasan bulan ini', 'bisa apa aja?'] });
+    const greetLead = t.match(GREET_LEAD), rest = greetLead?.[1].replace(/[?!.]+$/, '').trim();
+    const greetMore = rest && rest.split(' ').length <= 4 && !findAmounts(rest).length && !['record', 'question'].includes(ctx.inspect(rest).reading);
+    if (GREET.test(t) || greetMore) return sayR('greet', { kind: 'say', text: V.greet(v, partOfDay(ctx.hour), name), chips: [tpl[0].items[0], 'ringkasan bulan ini', 'bisa apa aja?'] });
     if (THANKS.test(t)) return sayR('thanks', { kind: 'say', text: V.thanks(v), chips: ['ringkasan bulan ini'] });
     if (ACK.test(t)) return sayR('ack', { kind: 'say', text: pending ? V.ackPending(v) : V.ack(v) });
     if (ABOUT.test(t)) return sayR('about', { kind: 'say', text: V.about(v), chips: ['bisa apa aja?'] });
@@ -357,8 +474,16 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
 
     if (/^(?:buka|lihat|liat|ke|pergi ke|masuk ke)\s+/.test(t)) return plan(raw);
     if (AFFORD.test(t)) { const r = afford(raw, ctx, v); return sayR('afford', r || { kind: 'say', text: V.needPrice(v) }); }
-    if (TIPS.test(t) && !findAmounts(t).some(a => a.value > 0)) return sayR('tips', tips(ctx, v));
+    const money = findAmounts(t).some(a => a.value > 0);
+    if (DESIRE.test(t) && SAVE_WORD.test(t) && (!money || /\b(?:pengen|pengin|pingin|ingin|target|impian)\b/.test(t) && !walletsIn(t, ctx.quick.wallets).length)
+      || !money && (/\b(?:nabung|menabung) (?:buat|untuk|utk|beli)\b/.test(t) || DESIRE.test(t) && /\b(?:beli|ganti|punya)\b/.test(t) && LATER.test(t) || /\b(?:bikin|buat|siapin|nyiapin) (?:dana|target)\b/.test(t))) return sayR('goal', goal(raw, ctx, v));
+    if (!money && (MOOD_STRONG.test(t) || MOOD_SOFT.test(t) && MONEY_WORD.test(t))) return sayR('mood', mood(ctx, v));
+    if (TIPS.test(t) && !money) return sayR('tips', tips(ctx, v));
     if (SUMMARY.test(t)) return sayR('summary', summary(t, ctx, v));
+    if (!money && BUDGET.test(t) && BUDGET_ASK.test(t) && !namesBudget(t, ctx)) return sayR('budget', budgetOverview(ctx, v));
+    if (!money && (PAYDAY.test(t) && PAYDAY_ASK.test(t) || ALLOWANCE.test(t))) return sayR('payday', payday(ctx, v));
+    const small = !money && t.split(' ').length <= 8 ? SMALL.find(([re]) => re.test(t)) : undefined;
+    if (small) return sayR('smalltalk', smallTalk(small[1], v));
 
     const ins = ctx.inspect(raw);
     if (ins.reading === 'record' || ins.reading === 'question') return plan(raw);
@@ -377,6 +502,11 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       case 'tips': return byModel('tips', tips(ctx, v));
       case 'afford': return byModel('afford', afford(raw, ctx, v) || { kind: 'say', text: V.needPrice(v) });
       case 'style': return byModel('voice', { kind: 'say', text: V.voiceAsk(v), chips: VOICE_CHIPS });
+      case 'budget': return byModel('budget', budgetOverview(ctx, v));
+      case 'payday': return byModel('payday', payday(ctx, v));
+      case 'mood': return byModel('mood', mood(ctx, v));
+      case 'goal': return byModel('goal', goal(raw, ctx, v));
+      case 'smalltalk': return byModel('smalltalk', smallTalk(SMALL.find(([re]) => re.test(t))?.[1] || 'kamu', v));
       case 'undo': return { ...plan('hapus transaksi terakhir', { intro: V.undoIntro(v), intent: 'undo' }), by: 'model' };
       case 'cancel': if (pending) return { intent: 'cancel', reply: { kind: 'say', text: V.cancel(v) }, memory: { ...mem, plan: { ...pending, status: 'dismissed' } }, dismiss: true, by: 'model' }; break;
     }

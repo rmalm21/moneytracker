@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '7.7', date: '29 Okt 2026', title: 'Kartu hasil baru, asisten makin pintar, pesan chat bisa dihapus', items: [
+    ['🎨', 'Kartu hasil tampil baru di Catat otomatis dan chat: garis warna di atas, ikon sesuai jenisnya, nominal besar, dan tombol Simpan yang lebar. Jawaban chat seperti ringkasan, anggaran, gajian, tips, dan hitungan kini berupa kartu berwarna dengan angka utama, kotak angka, dan bar progres.'],
+    ['🤖', 'Asisten bisa menjawab “anggaranku gimana” (semua anggaran sekaligus), “kapan gajian?” (sisa hari dan jatah per hari), dan “pengen nabung buat nikah” (saran target yang tinggal diketuk untuk membuat tujuan dana). Kalau kamu bilang “lagi bokek”, asisten menenangkan dulu lalu memberi langkah kecil. Obrolan ringan seperti “apa kabar” juga dijawab.'],
+    ['✅', 'Model chat dilatih ulang dengan kalimat latihan dua kali lebih banyak, lengkap dengan ejaan sehari-hari (gue/aku, ga/nggak, gmn). Pada 50 pesan uji baru, ketepatannya naik dari 62% ke 98% di percobaan pertama.'],
+    ['📝', 'Pesan chat bisa dihapus. Tekan lama sebuah pesan (atau klik kanan), pilih beberapa, lalu Salin atau Hapus. Ada tombol Urungkan selama beberapa detik, dan catatan keuangan tidak ikut terhapus.'],
+    ['💰', 'Nama kelompok di halaman Dompet (Operasional, Tabungan, Investasi) dan jumlah dompetnya sekarang jelas terbaca, tidak abu-abu lagi.'],
+    ['🔧', 'Tata letak chat diperiksa di lima tampilan, dari layar 360 px sampai desktop, terang maupun gelap. Chip saran dan tombol kecil lebih mudah diketuk, chat selalu terbuka di pesan terakhir, dan kartu Catat tidak lagi menulis kategori dua kali.'],
+  ] },
   { version: '7.6', date: '29 Okt 2026', title: 'Asisten chat: catat, tanya, dan hitung lewat obrolan', items: [
     ['🤖', 'Tombol bulat baru di kanan bawah membuka Asisten Dompet. Tulis seperti chat biasa: catatan muncul sebagai kartu yang tinggal disimpan, pertanyaan dijawab dari catatanmu, hitungan langsung dijawab. Semua dibaca di HP-mu, tanpa internet.'],
     ['💡', 'Asisten ingat obrolannya dan bertanya balik kalau ada yang kurang. “beli 25rb” dijawab “Masuk kategori apa?” lengkap dengan pilihan. Setelah itu cukup tulis “jajan”, “jadi 45rb”, “kemarin”, atau “gak jadi”. Setelah bertanya, cukup “kalau bulan lalu?”. Setelah menghitung, cukup “kalau dibagi 4?”.'],

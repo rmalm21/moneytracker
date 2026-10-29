@@ -92,5 +92,50 @@ export const say = {
   }),
   affordBudget: (v: Voice, name: string, left: string) => pick(v, { santai: ` Tapi anggaran ${name} tinggal ${left}.`, sopan: ` Namun anggaran ${name} tinggal ${left}.`, singkat: ` Anggaran ${name}: ${left}.`, gaul: ` Tapi anggaran ${name} tinggal ${left}.` }),
   affordNote: (v: Voice) => pick(v, { santai: 'Dihitung dari uang bebas dan pengeluaranmu sendiri. Keputusan tetap di tanganmu.', sopan: 'Dihitung dari uang bebas dan pengeluaran Anda. Keputusan tetap di tangan Anda.', singkat: '', gaul: 'Dihitung dari duit lo sendiri. Keputusan tetep di tangan lo.' }),
+  budgetNone: (v: Voice) => pick(v, { santai: 'Kamu belum punya anggaran. Mau bikin? Tulis misalnya “anggaran makan 2jt”.', sopan: 'Anda belum memiliki anggaran. Silakan buat, misalnya “anggaran makan 2jt”.', singkat: 'Belum ada anggaran. Contoh: “anggaran makan 2jt”.', gaul: 'Lo belum punya anggaran nih. Bikin yuk, misalnya “anggaran makan 2jt”.' }),
+  budgetLead: (v: Voice, n: number, over: string[], close: string[]) => {
+    const o = over.join(', '), c = close.join(', ');
+    if (!over.length && !close.length) return pick(v, { santai: `Semua ${n} anggaranmu masih aman.`, sopan: `Seluruh ${n} anggaran Anda masih aman.`, singkat: `${n} anggaran, semua aman.`, gaul: `${n} anggaran lo masih aman semua.` });
+    return pick(v, {
+      santai: [over.length ? `Anggaran ${o} sudah lewat batas.` : '', close.length ? `${cap(c)} hampir habis, pelan-pelan ya.` : ''].filter(Boolean).join(' '),
+      sopan: [over.length ? `Anggaran ${o} telah melewati batas.` : '', close.length ? `Anggaran ${c} hampir habis.` : ''].filter(Boolean).join(' '),
+      singkat: [over.length ? `Lewat: ${o}.` : '', close.length ? `Hampir habis: ${c}.` : ''].filter(Boolean).join(' '),
+      gaul: [over.length ? `Anggaran ${o} udah jebol.` : '', close.length ? `${cap(c)} udah mepet, rem dikit ya.` : ''].filter(Boolean).join(' '),
+    });
+  },
+  payday: (v: Voice, days: number, daily: string, free: boolean, tight: boolean) => !free ? pick(v, {
+    santai: `Uang bebasmu sedang habis, jadi ${days} hari ke depan dahulukan kebutuhan pokok dan tagihan dulu ya.`,
+    sopan: `Uang bebas Anda sedang habis. Selama ${days} hari ke depan, sebaiknya dahulukan kebutuhan pokok dan tagihan.`,
+    singkat: `${days} hari lagi. Uang bebas habis.`, gaul: `Duit bebas lo lagi abis, ${days} hari ke depan dahuluin yang penting dulu ya.`,
+  }) : pick(v, {
+    santai: `Supaya cukup sampai gajian, jatahmu sekitar ${daily} per hari.${tight ? ' Ini lebih kecil dari rata-rata belanjamu, jadi agak direm ya.' : ' Masih di atas rata-rata belanjamu, aman.'}`,
+    sopan: `Agar cukup hingga gajian, jatah Anda sekitar ${daily} per hari.${tight ? ' Angka ini di bawah rata-rata pengeluaran Anda, sebaiknya sedikit dikurangi.' : ' Masih di atas rata-rata pengeluaran Anda.'}`,
+    singkat: `${days} hari lagi. Jatah ${daily}/hari.${tight ? ' Mepet.' : ''}`,
+    gaul: `Biar cukup sampe gajian, jatah lo ${daily} sehari.${tight ? ' Lebih kecil dari kebiasaan jajan lo, rem dikit ya.' : ' Masih aman kok.'}`,
+  }),
+  mood: (v: Voice, free: string | null, daily: string, days: number) => pick(v, {
+    santai: `Wajar kok kepikiran, urusan uang memang bikin capek. Kita lihat pelan-pelan ya. ${free ? `Kabar baiknya, masih ada ${free} uang bebas, sekitar ${daily} per hari untuk ${days} hari ke gajian.` : 'Uang bebasmu sedang habis, jadi kita fokus ke yang pokok dulu.'}`,
+    sopan: `Wajar bila Anda merasa khawatir. Mari kita lihat bersama. ${free ? `Masih tersedia ${free} uang bebas, sekitar ${daily} per hari untuk ${days} hari hingga gajian.` : 'Uang bebas Anda sedang habis, mari dahulukan kebutuhan pokok.'}`,
+    singkat: free ? `Tenang. Uang bebas ${free}, ${daily}/hari, ${days} hari ke gajian.` : 'Tenang. Uang bebas habis, dahulukan yang pokok.',
+    gaul: `Santai, wajar kok pusing soal duit. Kita bedah bareng ya. ${free ? `Lo masih punya ${free} uang bebas, kira-kira ${daily} sehari buat ${days} hari ke gajian.` : 'Duit bebas lo lagi abis, fokus yang penting dulu.'}`,
+  }),
+  moodSteps: (v: Voice) => v === 'sopan' ? ['Tunda belanja yang tidak mendesak sampai gajian.', 'Catat setiap pengeluaran kecil agar terlihat ke mana uang pergi.', 'Pilih satu kategori untuk dihemat minggu ini.'] : v === 'gaul' ? ['Tahan dulu belanja yang bisa nunggu gajian.', 'Catat jajan kecil-kecil, biar keliatan bocornya di mana.', 'Pilih satu pos buat dihemat minggu ini.'] : ['Tahan dulu belanja yang bisa menunggu gajian.', 'Catat juga jajan kecil, biar kelihatan bocornya di mana.', 'Pilih satu pos untuk dihemat minggu ini.'],
+  small: (v: Voice, kind: 'kabar' | 'bosan' | 'tidur' | 'puji' | 'kamu' | 'galau') => pick(v, {
+    santai: { kabar: 'Baik dong! Aku selalu siap bantu. Kamu sendiri gimana, keuanganmu aman?', bosan: 'Yuk iseng cek keuangan! Misalnya lihat pengeluaran terbesar bulan ini, atau coba tantangan hemat hari ini.', tidur: 'Istirahat yang cukup ya. Sebelum tidur, mau cek pengeluaran hari ini dulu?', puji: 'Makasih! Kamu juga keren udah rajin nyatet.', kamu: 'Aku asisten kecil di HP-mu. Kerjaanku nyatet, ngitung, dan jawab soal uangmu. Ada yang mau dicatat?', galau: 'Semoga cepat membaik ya. Kalau ada yang bikin kepikiran soal uang, cerita aja, kita lihat bareng.' }[kind],
+    sopan: { kabar: 'Kabar saya baik, terima kasih. Bagaimana dengan keuangan Anda, apakah aman?', bosan: 'Bagaimana kalau kita meninjau keuangan Anda? Misalnya pengeluaran terbesar bulan ini.', tidur: 'Selamat beristirahat. Ingin melihat pengeluaran hari ini terlebih dahulu?', puji: 'Terima kasih. Anda juga hebat karena rajin mencatat.', kamu: 'Saya asisten Dompet Ajaib di perangkat Anda. Saya membantu mencatat, menghitung, dan menjawab pertanyaan keuangan.', galau: 'Semoga lekas membaik. Bila ada hal keuangan yang mengganggu, silakan ceritakan.' }[kind],
+    singkat: { kabar: 'Baik! Keuanganmu?', bosan: 'Cek keuangan yuk.', tidur: 'Selamat istirahat.', puji: 'Makasih!', kamu: 'Asisten Dompet Ajaib.', galau: 'Semoga membaik.' }[kind],
+    gaul: { kabar: 'Baik dong! Gue standby terus. Lo sendiri gimana, duit aman?', bosan: 'Gabut? Yuk iseng cek duit, misalnya pengeluaran paling gede bulan ini, atau tantangan hemat hari ini.', tidur: 'Istirahat gih. Mau cek pengeluaran hari ini dulu sebelum bobo?', puji: 'Makasih! Lo juga keren udah rajin nyatet.', kamu: 'Gue asisten kecil di HP lo. Kerjaan gue nyatet, ngitung, jawab soal duit lo. Ada yang mau dicatet?', galau: 'Semoga cepet enakan ya. Kalau ada yang bikin kepikiran soal duit, cerita aja.' }[kind],
+  }),
+  goal: (v: Voice, thing: string, plan: string | null) => pick(v, {
+    santai: `Keren, nabung buat ${thing}! ${plan || 'Berapa targetnya? Pilih atau tulis sendiri, nanti kubuatkan tujuan dananya.'}`,
+    sopan: `Baik, menabung untuk ${thing}. ${plan || 'Berapa target dananya? Silakan pilih atau tulis sendiri, saya buatkan tujuan dananya.'}`,
+    singkat: `Nabung buat ${thing}. ${plan || 'Targetnya?'}`,
+    gaul: `Mantap, nabung buat ${thing}! ${plan || 'Targetnya berapa? Pilih aja atau tulis sendiri, nanti gue bikinin tujuan dananya.'}`,
+  }),
+  goalPlan: (v: Voice, m12: string) => pick(v, {
+    santai: `Sisihkan ${m12} per bulan supaya tercapai dalam setahun.`, sopan: `Sisihkan ${m12} per bulan agar tercapai dalam setahun.`,
+    singkat: `${m12}/bulan, setahun.`, gaul: `Sisihin ${m12} sebulan biar kelar setahun.`,
+  }),
+  goalSave: (v: Voice) => pick(v, { santai: 'Ketuk tombol di bawah untuk membuat tujuan dananya.', sopan: 'Ketuk tombol di bawah untuk membuat tujuan dana.', singkat: '', gaul: 'Pencet tombol di bawah buat bikin tujuan dananya.' }),
   tipsLead: (v: Voice) => pick(v, { santai: 'Ini yang kulihat dari catatanmu:', sopan: 'Berikut yang saya lihat dari catatan Anda:', singkat: 'Tips:', gaul: 'Nih yang gue liat dari catatan lo:' }),
 };
