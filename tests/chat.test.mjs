@@ -6,16 +6,16 @@ import { prune, page } from '../lib/chat/store.ts';
 import { chatCtx } from '../bench/chat/state.mjs';
 
 /** A conversation: each step is a message (or "#save" for the Simpan button); returns every result. */
-function talk(...steps) {
-  let mem = {}; const out = [];
+async function talk(...steps) {
+  let mem = {}; const out = [], ctx = typeof steps[0] === 'object' ? { ...chatCtx, ...steps.shift() } : chatCtx;
   for (const s of steps) {
     if (s === '#save') { mem = { ...mem, plan: { ...mem.plan, status: 'saved' } }; continue; }
-    const r = chatReply(s, mem, chatCtx); mem = r.memory; out.push(r);
+    const r = await chatReply(s, mem, ctx); mem = r.memory; out.push(r);
   }
   return out;
 }
 
-test('chat calculator: words left to right, symbols with precedence, brackets, percents, number words', () => {
+test('chat calculator: words left to right, symbols with precedence, brackets, percents, number words', async () => {
   const v = t => calcText(calculate(t));
   assert.equal(v('128181 dibagi 3 dikali 2'), 'Rp85.454');
   assert.equal(v('100rb ditambah 50rb dibagi 2'), 'Rp75.000');
@@ -29,8 +29,8 @@ test('chat calculator: words left to right, symbols with precedence, brackets, p
   assert.equal(calculate('5 / 0'), null);
 });
 
-test('chat: a record is handed to Catat otomatis; short follow-ups change it before it is saved', () => {
-  const [rec, amount, wallet, day, cat, split] = talk('makan siang 35rb pakai gopay', 'jadi 45rb', 'pakai jago', 'kemarin', 'kategorinya jajan', 'bagi 2 sama rina');
+test('chat: a record is handed to Catat otomatis; short follow-ups change it before it is saved', async () => {
+  const [rec, amount, wallet, day, cat, split] = await talk('makan siang 35rb pakai gopay', 'jadi 45rb', 'pakai jago', 'kemarin', 'kategorinya jajan', 'bagi 2 sama rina');
   assert.deepEqual([rec.intent, rec.reply.kind, rec.reply.text], ['plan', 'plan', 'makan siang 35rb pakai gopay']);
   assert.equal(amount.reply.text, 'makan siang 45rb pakai gopay');
   assert.equal(wallet.reply.text, 'makan siang 45rb pakai jago');
@@ -40,56 +40,56 @@ test('chat: a record is handed to Catat otomatis; short follow-ups change it bef
   assert.ok([amount, wallet, day, cat, split].every(r => r.intent === 'edit'));
 });
 
-test('chat: a wallet that does not exist is said so, with the wallets that do', () => {
-  const [, r] = talk('makan 20rb', 'pakai ovo aja');
+test('chat: a wallet that does not exist is said so, with the wallets that do', async () => {
+  const [, r] = await talk('makan 20rb', 'pakai ovo aja');
   assert.equal(r.reply.kind, 'say'); assert.match(r.reply.text, /belum ada/); assert.ok(r.reply.chips.includes('pakai gopay'));
 });
 
-test('chat: after saving, the last record is changed or removed (with a confirmation card)', () => {
-  const [, amount, undo] = talk('makan 20rb', '#save', 'jadi 25rb', 'batalin yang tadi');
+test('chat: after saving, the last record is changed or removed (with a confirmation card)', async () => {
+  const [, amount, undo] = await talk('makan 20rb', '#save', 'jadi 25rb', 'batalin yang tadi');
   assert.equal(amount.reply.text, 'ubah transaksi terakhir jadi 25rb');
   assert.deepEqual([undo.intent, undo.reply.text], ['undo', 'hapus transaksi terakhir']);
-  const [, cancel] = talk('makan 20rb', 'gak jadi');
+  const [, cancel] = await talk('makan 20rb', 'gak jadi');
   assert.equal(cancel.intent, 'cancel'); assert.equal(cancel.dismiss, true);
 });
 
-test('chat: the last question asked again with a new period or subject', () => {
+test('chat: the last question asked again with a new period or subject', async () => {
   assert.equal(askAgain('berapa pengeluaran makan bulan ini', 'bulan lalu', '2026-10-15', 24), 'berapa pengeluaran makan bulan lalu');
   assert.equal(askAgain('berapa pengeluaran makan bulan ini', 'transport', '2026-10-15', 24), 'berapa pengeluaran transport bulan ini');
   assert.equal(askAgain('berapa pengeluaranku bulan ini', 'buat bensin', '2026-10-15', 24), 'berapa pengeluaranku untuk bensin bulan ini');
-  const [q, f1, f2] = talk('berapa pengeluaran makan bulan ini', 'kalau bulan lalu?', 'kalau transport?');
+  const [q, f1, f2] = await talk('berapa pengeluaran makan bulan ini', 'kalau bulan lalu?', 'kalau transport?');
   assert.equal(q.intent, 'question');
   assert.deepEqual([f1.intent, f1.reply.text], ['followup', 'berapa pengeluaran makan bulan lalu']);
   assert.equal(f2.reply.text, 'berapa pengeluaran transport bulan lalu');
 });
 
-test('chat: a calculation carried on ("kalau dibagi 4?") is not taken for a question', () => {
-  const [, c, again] = talk('berapa pengeluaran makan bulan ini', 'hitung 128181 dibagi 3 dikali 2', 'kalau dibagi 4?');
+test('chat: a calculation carried on ("kalau dibagi 4?") is not taken for a question', async () => {
+  const [, c, again] = await talk('berapa pengeluaran makan bulan ini', 'hitung 128181 dibagi 3 dikali 2', 'kalau dibagi 4?');
   assert.equal(c.intent, 'calc'); assert.match(c.reply.text, /= Rp85\.454$/);
   assert.equal(again.intent, 'calc'); assert.match(again.reply.text, /85\.454 ÷ 4 = Rp21\.364/);
 });
 
-test('chat: summary, "boleh beli?" and tips come from the person\'s own records', () => {
-  const [sum] = talk('ringkasan bulan ini');
+test('chat: summary, "boleh beli?" and tips come from the person\'s own records', async () => {
+  const [sum] = await talk('ringkasan bulan ini');
   assert.equal(sum.intent, 'summary');
   assert.ok(sum.reply.lines.some(l => l.label === 'Pengeluaran' && l.value === 'Rp1.270.000'));
   assert.match(sum.reply.text, /Makan & Minum 84%/);
-  const [ok] = talk('aman nggak beli sepatu 500rb?');
+  const [ok] = await talk('aman nggak beli sepatu 500rb?');
   assert.equal(ok.intent, 'afford'); assert.equal(ok.reply.tone, 'good'); assert.equal(ok.reply.title, 'Beli sepatu?');
-  const [no] = talk('boleh beli hp 6jt ga');
+  const [no] = await talk('boleh beli hp 6jt ga');
   assert.equal(no.reply.tone, 'warn'); assert.match(no.reply.text, /^Belum aman/);
-  const [tips] = talk('kasih tips hemat');
+  const [tips] = await talk('kasih tips hemat');
   assert.equal(tips.intent, 'tips'); assert.ok(tips.reply.lines.length >= 3);
 });
 
-test('chat: greetings, thanks, help, examples, and a kind reply when nothing is understood', () => {
-  const [hi, thx, help, ex, none] = talk('halo', 'makasih', 'bisa apa aja?', 'contoh', 'asdfgh');
+test('chat: greetings, thanks, help, examples, and a kind reply when nothing is understood', async () => {
+  const [hi, thx, help, ex, none] = await talk('halo', 'makasih', 'bisa apa aja?', 'contoh', 'asdfgh');
   assert.deepEqual([hi.intent, thx.intent, help.intent, ex.intent, none.intent], ['greet', 'thanks', 'help', 'examples', 'unknown']);
   assert.match(hi.reply.text, /Dinda/);
   assert.ok(none.reply.chips.length >= 3);
 });
 
-test('chat history: kept for the chosen days, shown ten at a time', () => {
+test('chat history: kept for the chosen days, shown ten at a time', async () => {
   const now = Date.parse('2026-10-15T12:00:00Z'), day = 86_400_000;
   const msgs = Array.from({ length: 25 }, (_, i) => ({ id: String(i), at: now - (24 - i) * day, role: 'user', text: `m${i}` }));
   assert.equal(prune(msgs, 7, now).length, 8);
@@ -98,4 +98,35 @@ test('chat history: kept for the chosen days, shown ten at a time', () => {
   const p = page(msgs, 10);
   assert.deepEqual([p.visible.length, p.more, p.hidden, p.visible[0].text], [10, true, 15, 'm15']);
   assert.equal(page(msgs, 30).more, false);
+});
+
+test('chat: a record missing a category is asked back, and a short answer fills it in', async () => {
+  const [ask, fill] = await talk('beli 25rb', 'jajan');
+  assert.equal(ask.reply.kind, 'plan');
+  assert.match(ask.reply.intro, /kategori/i);
+  assert.ok(ask.reply.chips.length >= 3);
+  assert.equal(ask.memory.asking.field, 'category');
+  assert.deepEqual([fill.intent, fill.reply.text], ['fill', 'beli 25rb kategori jajan']);
+});
+
+test('chat: four ways of talking, chosen in settings or by saying so', async () => {
+  const replies = {};
+  for (const voice of ['santai', 'sopan', 'singkat', 'gaul']) replies[voice] = (await talk({ voice }, 'makan siang 35rb pakai gopay', 'jadi 45rb'))[1].reply.intro;
+  assert.match(replies.santai, /kuganti/); assert.match(replies.sopan, /saya ubah/); assert.match(replies.gaul, /gue/);
+  assert.ok(replies.singkat.length < replies.santai.length);
+  const [formal] = await talk('pakai bahasa formal ya');
+  assert.equal(formal.setVoice, 'sopan');
+  const [gaul] = await talk('gaya gaul');
+  assert.equal(gaul.setVoice, 'gaul');
+});
+
+test('chat: learns from the person: a phrase not understood, then the one that worked', async () => {
+  const [miss, hit] = await talk('gmn nasib dompetku', 'ringkasan bulan ini');
+  assert.equal(miss.intent, 'unknown');
+  assert.deepEqual(hit.learn, { phrase: 'gmn nasib dompetku', as: 'ringkasan bulan ini' });
+  const [again] = await talk({ learned: { 'gmn nasib dompetku': 'ringkasan bulan ini' } }, 'gmn nasib dompetku');
+  assert.deepEqual([again.intent, again.by], ['summary', 'learned']);
+  // Never learned for records (money must be read from the sentence each time).
+  const [, rec] = await talk('asdf qwer', 'kopi 20rb');
+  assert.equal(rec.learn, undefined);
 });

@@ -3,6 +3,7 @@
  * than the chosen time (7 days by default, or 14 days / 1 month) are dropped whenever the chat is read or written.
  */
 import type { ChatMemory, ChatReply } from './engine.ts';
+import type { Voice } from './voice.ts';
 
 export type ChatStatus = 'pending' | 'saved' | 'dismissed' | 'replaced' | 'form';
 export type ChatMessage = {
@@ -16,7 +17,13 @@ export type ChatMessage = {
 };
 export type ChatStyle = 'lembar' | 'penuh' | 'jendela' | 'samping' | 'kaca';
 export type KeepDays = 7 | 14 | 30;
-export type ChatSettings = { keepDays: KeepDays; style: ChatStyle; /** The style was picked by the person (the first opening asks). */ picked: boolean };
+export type ChatSettings = {
+  keepDays: KeepDays; style: ChatStyle; /** The style was picked by the person (the first opening asks). */ picked: boolean;
+  /** How the assistant talks. */ voice: Voice;
+  /** Phrases learned from this person (what they wrote → the message that meant it), at most 60. */ learned: Record<string, string>;
+  /** The suggestion strip above the message box is open (it can be minimized). */ tray: boolean;
+  /** The chat was opened once (the button stops glowing). */ seen: boolean;
+};
 
 export const CHAT_STYLES: { key: ChatStyle; name: string; note: string }[] = [
   { key: 'lembar', name: 'Lembar bawah', note: 'Naik dari bawah, layar di belakang tetap terlihat' },
@@ -29,7 +36,14 @@ export const KEEP_OPTIONS: { days: KeepDays; label: string }[] = [{ days: 7, lab
 /** Messages shown at once; "Muat lebih banyak" adds this many again. */
 export const PAGE = 10;
 const MAX = 400, DAY = 86_400_000;
-export const DEFAULT_SETTINGS: ChatSettings = { keepDays: 7, style: 'lembar', picked: false };
+export const DEFAULT_SETTINGS: ChatSettings = { keepDays: 7, style: 'lembar', picked: false, voice: 'santai', learned: {}, tray: true, seen: false };
+const VOICES = ['santai', 'sopan', 'singkat', 'gaul'];
+/** A phrase learned, keeping only the latest 60. */
+export function learnPhrase(learned: Record<string, string>, phrase: string, as: string) {
+  const next = { ...learned }; delete next[phrase]; next[phrase] = as;
+  const keys = Object.keys(next); for (const k of keys.slice(0, Math.max(0, keys.length - 60))) delete next[k];
+  return next;
+}
 
 const key = (uid: string, part: string) => `dompet-ajaib:chat:${part}:${uid}`;
 
@@ -43,7 +57,7 @@ export function page(messages: ChatMessage[], shown: number) {
 }
 
 export function loadSettings(uid: string): ChatSettings {
-  try { const s = JSON.parse(localStorage.getItem(key(uid, 'settings')) || 'null'); if (s && typeof s === 'object') return { ...DEFAULT_SETTINGS, ...s, keepDays: [7, 14, 30].includes(s.keepDays) ? s.keepDays : 7, style: CHAT_STYLES.some(x => x.key === s.style) ? s.style : 'lembar' }; } catch { /* private window */ }
+  try { const s = JSON.parse(localStorage.getItem(key(uid, 'settings')) || 'null'); if (s && typeof s === 'object') return { ...DEFAULT_SETTINGS, ...s, keepDays: [7, 14, 30].includes(s.keepDays) ? s.keepDays : 7, style: CHAT_STYLES.some(x => x.key === s.style) ? s.style : 'lembar', voice: VOICES.includes(s.voice) ? s.voice : 'santai', learned: s.learned && typeof s.learned === 'object' ? s.learned : {} }; } catch { /* private window */ }
   return DEFAULT_SETTINGS;
 }
 export function saveSettings(uid: string, settings: ChatSettings) { try { localStorage.setItem(key(uid, 'settings'), JSON.stringify(settings)); } catch { /* storage full or blocked */ } }

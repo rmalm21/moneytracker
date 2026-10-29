@@ -2,12 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '7.6', date: '29 Okt 2026', title: 'Asisten chat: catat, tanya, hitung lewat obrolan', items: [
-    ['🤖', 'Tombol bulat baru di kanan bawah membuka Asisten Dompet. Tulis seperti chat biasa: catatan muncul sebagai kartu yang tinggal disimpan, pertanyaan dijawab dari catatanmu, dan hitungan langsung dijawab.'],
-    ['💡', 'Asisten ingat obrolannya. Setelah “makan siang 35rb”, cukup tulis “jadi 45rb”, “pakai jago”, “kemarin”, atau “gak jadi”. Setelah bertanya, cukup “kalau bulan lalu?”. Setelah menghitung, cukup “kalau dibagi 4?”.'],
-    ['📊', 'Bisa minta “ringkasan bulan ini”, tanya “aman nggak beli sepatu 500rb?”, atau minta “tips hemat”. Semua dihitung dari uang bebas, anggaran, dan pengeluaranmu sendiri, di HP-mu.'],
-    ['🎨', 'Lima pilihan tampilan chat: lembar bawah, layar penuh, jendela mengambang, panel samping, dan kaca ringkas. Ada tombol contoh berisi template untuk dicoba. Riwayat disimpan di HP ini selama 7 hari (bisa 14 hari atau 1 bulan), sepuluh pesan per tampilan.'],
-    ['✅', 'Catat otomatis makin paham: “diskon 50% makan 80rb” jadi Rp40.000, dan “listrik 450rb sepertiga buat kosan sebelah” jadi Split Bill dengan piutang Rp150.000. Kotak isian di semua formulir dan kotak Catat otomatis dibuat lebih ramping.'],
+  { version: '7.6', date: '29 Okt 2026', title: 'Asisten chat: catat, tanya, dan hitung lewat obrolan', items: [
+    ['🤖', 'Tombol bulat baru di kanan bawah membuka Asisten Dompet. Tulis seperti chat biasa: catatan muncul sebagai kartu yang tinggal disimpan, pertanyaan dijawab dari catatanmu, hitungan langsung dijawab. Semua dibaca di HP-mu, tanpa internet.'],
+    ['💡', 'Asisten ingat obrolannya dan bertanya balik kalau ada yang kurang. “beli 25rb” dijawab “Masuk kategori apa?” lengkap dengan pilihan. Setelah itu cukup tulis “jajan”, “jadi 45rb”, “kemarin”, atau “gak jadi”. Setelah bertanya, cukup “kalau bulan lalu?”. Setelah menghitung, cukup “kalau dibagi 4?”.'],
+    ['📊', 'Bisa minta “ringkasan bulan ini”, tanya “aman nggak beli sepatu 500rb?”, atau minta “tips hemat”. Semua dihitung dari uang bebas, anggaran, dan pengeluaranmu sendiri.'],
+    ['🎨', 'Pilih gaya bahasa (Santai, Sopan, Singkat, Gaul) dan satu dari lima tampilan. Template berwarna bisa diciutkan, dan saran pesan di atas kotak ketik menyesuaikan obrolan. Riwayat disimpan di HP ini 7 hari (bisa 14 hari atau 1 bulan), sepuluh pesan per tampilan.'],
+    ['✅', 'Model kecil yang dilatih khusus untuk chat ini memahami kalimat di luar contoh: pada pesan uji yang belum pernah dilihatnya, ketepatan naik dari 67% ke 90%. Catat otomatis juga makin paham “diskon 50% makan 80rb” dan “listrik 450rb sepertiga buat kosan sebelah”. Kotak isian di semua formulir kini lebih ramping.'],
   ] },
   { version: '7.5', date: '29 Okt 2026', title: 'Catat otomatis V4: bisa berhitung, patungan, dan bagi kategori', items: [
     ['💡', 'Catat otomatis bisa berhitung: “128181 dibagi 3 dikali 2” langsung jadi Rp85.454. Bisa juga “(50rb+30rb)/2”, “kopi 22rb x 4”, “parkir 5rb, 2 kali”, “1/4 dari 400rb”, dan “baju 250rb diskon 40%”. Hitungannya tampil di kartu.'],

@@ -3,10 +3,9 @@
  * this salary cycle's spending and one budget, so summaries, "boleh beli?" and tips have something to read.
  */
 import { ctx as quick, C } from '../quick/fixtures-v68state.mjs';
-import { parseQuickPlan } from '../../lib/quick-plan.ts';
-import { mayAsk } from '../../lib/catat/ask.ts';
+import { inspect } from '../../lib/chat/inspect.ts';
 
-const balance = { jago: 4200000, gopay: 350000, tunai: 200000 };
+const balance = { jago: 4200000, gopay: 350000, cash: 200000 };
 const wallets = quick.wallets.map(w => ({ ...w, cachedBalance: balance[w.id] ?? 0, isSpendable: true, isReserved: false, includeInNetWorth: true, openingBalance: 0 }));
 const tx = (id, date, amount, cat, extra = {}) => ({ id, type: 'expense', amount, date, time: '', walletId: 'jago', destinationWalletId: null, categoryId: cat.split('.').slice(0, 2).join('.'), subcategoryId: cat.split('.').length > 2 ? cat : null, merchant: '', description: '', notes: '', tags: [], splits: [], transferFee: 0, adjustmentDirection: 'in', ...extra });
 const transactions = [
@@ -18,5 +17,6 @@ const transactions = [
 ];
 const budgets = [{ id: 'b1', name: 'Makan & Minum', categoryId: 'expense.makan-minum', subcategoryId: null, subcategoryIds: [], amount: 1000000, active: true, cycleType: 'salary', classification: 'living', rolloverEnabled: false, rolloverCarry: 0 }];
 export const data = { wallets, transactions, budgets, categories: quick.categories, funds: [], debts: [], receivables: [], claims: [] };
-export const read = text => { const p = parseQuickPlan(text, quick); return p.actions.some(a => a.result.kind === 'query') ? 'question' : p.actions.length ? 'record' : mayAsk(text) ? 'question' : 'none'; };
-export const chatCtx = { data, today: '2026-10-15', salaryDay: 24, cycle: { start: '2026-09-24', end: '2026-10-24' }, quick, read, name: 'Dinda', hour: 15 };
+// Questions are answered from these records (as the app does).
+const quickAsk = { ...quick, ask: { transactions, wallets, budgets } };
+export const chatCtx = { data, today: '2026-10-15', salaryDay: 24, cycle: { start: '2026-09-24', end: '2026-10-24' }, quick: quickAsk, inspect: text => inspect(text, quickAsk), name: 'Dinda', hour: 15 };
