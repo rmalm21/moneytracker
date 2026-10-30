@@ -111,5 +111,5 @@ Jika kamu hanya memperbarui link dan belum mengubah Rules, aplikasi tetap menyar
 
 - `PERBARUI_LINK_COBA.sh` pertama-tama memperbarui **link percobaan** (Preview URL, alamatnya berisi `--coba-dompet-ajaib`). Alamat utama `dompetajaib.web.app` baru ikut berubah jika kamu mengetik `LIVE` saat diminta di akhir skrip.
 - Pastikan ZIP yang diunggah adalah ZIP terbaru, lalu jalankan `unzip -o` dengan nama file yang sama persis.
-- Setelah deploy, tutup tab aplikasi lalu buka lagi. Buka **Pengaturan** dan lihat tulisan **Versi aplikasi** di bagian bawah; versi terbaru adalah `2026.09.24-4`.
+- Setelah deploy, tutup tab aplikasi lalu buka lagi. Buka **Pengaturan → Info aplikasi**: angka versinya harus sama dengan angka di nama ZIP yang kamu unggah (misalnya **Versi 8.3** untuk `DompetAjaib_v8.3.zip`).
 - Kategori lama tidak diubah otomatis. Untuk menambahkan subkategori ke kategori yang sudah ada, buka **Kategori → Ambil dari Template**, centang kategorinya, lalu pilih **Lengkapi subkategori**.
