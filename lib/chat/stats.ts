@@ -5,8 +5,12 @@
  *   "paling sering belanja di mana"    the shop named most often (and "toko langganan aku")
  *   "udah nyatet berapa transaksi"     records this cycle, and the days in a row with a record
  *   "transaksi terbesar bulan ini"     asked to Catat otomatis as "pengeluaran terbesar bulan ini"
+ * 8.2:
+ *   "terakhir makan apa", "terakhir beli apa", "transaksi terakhir apa", "terakhir ngopi di mana": the latest record
+ *   of that kind, with what it was, where, how much and when ("kapan terakhir …" stays with Catat otomatis).
  */
 import { transactionExpense } from '../accounting.ts';
+import { readPeriod } from '../catat/ask.ts';
 import type { LedgerTx } from '../types';
 import type { Voice } from './voice.ts';
 import { vo } from './fun.ts';
@@ -24,7 +28,72 @@ const SHOP = /\b(?:paling\s+sering|sering\s+banget|sering)\s+(?:belanja|beli|jaj
 const COUNT = new RegExp(String.raw`\b(?:udah|sudah|dah)\s+(?:nyatet|mencatat|catat|nyatat)\s+berapa\b|\bberapa\s+(?:transaksi|catatan)\s+(?:yang\s+)?(?:${ME}\s*)?(?:udah|sudah|aku|gue|saya|bulan\s+ini|siklus|minggu|catat|dicatat)\b|\bjumlah\s+(?:transaksi|catatan)\b|\b(?:streak|beruntun)\s+(?:nyatet|catat|mencatat)\b`);
 const BIGGEST = /\b(?:transaksi|belanjaan|pembelian|jajan(?:an)?)\s+(?:paling\s+)?(?:terbesar|termahal|paling\s+(?:besar|mahal|gede))\b/;
 
-export function readStats(t: string, txs: LedgerTx[], cycle: { start: string; end: string }, today: string, v: Voice): StatsAnswer | null {
+/** "terakhir makan apa", "makan terakhir apa", "transaksi terakhir", "terakhir nyatet apa", "terakhir ngopi di mana". */
+const LAST = /\bterakhir(?:nya)?\b/;
+const LAST_ASK = /\b(?:apa|apaan|di\s*mana|dimana|mana|berapa|brp|siapa)\b|\?$|^(?:transaksi|catatan|pengeluaran|pemasukan|belanja(?:an)?)\s+terakhir/;
+/** What the word asks about: a category name to look for, or every record. */
+const KINDS: [RegExp, RegExp | 'expense' | 'income' | 'any'][] = [
+  [/\b(?:transaksi|catatan|nyatet|mencatat|catat|dicatat)\b/, 'any'],
+  [/\b(?:pemasukan|gajian|gaji|dapet\s+(?:uang|duit)|dapat\s+(?:uang|duit)|uang\s+masuk)\b/, 'income'],
+  [/\b(?:makan|sarapan|makan\s+siang|makan\s+malam|kuliner)\b/, /\bmakan(?!an)|sarapan|kuliner|food|restoran|warteg|warung\s+makan/i],
+  [/\b(?:ngopi|kopi|minum|boba|jajan\s+minum)\b/, /kopi|minum|coffee/i],
+  [/\b(?:jajan|ngemil|camilan|snack)\b/, /jajan|camilan|snack/i],
+  [/\b(?:isi\s+bensin|bensin|bbm|ngisi\s+bensin)\b/, /bensin|bahan\s+bakar|bbm/i],
+  [/\b(?:parkir)\b/, /parkir/i],
+  [/\b(?:ojol|ojek|grab|gojek|taksi|transport)\b/, /transport|ojek|ojol|taksi/i],
+  [/\b(?:belanja\s+bulanan|belanja\s+dapur|bahan\s+makanan|sayur)\b/, /bahan\s+makanan|dapur|sembako|groceries/i],
+  [/\b(?:pulsa|kuota|paket\s+data)\b/, /pulsa|kuota|data|internet/i],
+  [/\b(?:listrik|token|pln)\b/, /listrik/i],
+  [/\b(?:beli|belanja|bayar|keluar(?:in)?\s+(?:uang|duit)|pengeluaran|jajan)\b/, 'expense'],
+];
+const ago = (date: string, today: string) => { const n = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${date}T12:00:00Z`)) / 864e5); return n <= 0 ? 'hari ini' : n === 1 ? 'kemarin' : `${n} hari lalu`; };
+const dayMonth = (date: string) => { const [, m, d] = date.split('-').map(Number); return `${d} ${['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][m - 1]}`; };
+
+/** "transaksi kemarin apa aja", "catatan hari ini", "transaksi minggu ini apa saja": the records of a period, listed. */
+const LIST = /^(?:semua\s+|daftar\s+|list\s+)?(?:transaksi|catatan|mutasi)\s*(?:aku|gue|gw|saya|ku)?\s+(?:di\s+|pada\s+|tanggal\s+)?(?:hari\s+ini|kemarin|kemaren|minggu\s+(?:ini|lalu)|bulan\s+(?:ini|lalu)|siklus\s+(?:ini|lalu)|(?:\d+\s+)?hari\s+lalu|tgl\s+\d{1,2}|tanggal\s+\d{1,2}|(?:hari\s+)?(?:senin|selasa|rabu|kamis|jumat|sabtu|minggu)(?:\s+(?:kemarin|lalu))?)\b(?:.*\b(?:apa\s+(?:aja|saja)|apa|ada\s+apa|mana\s+aja))?\s*$/;
+export function readStats(t: string, txs: LedgerTx[], cycle: { start: string; end: string }, today: string, v: Voice, categories: { id: string; name: string; parentId: string | null }[] = [], salaryDay = 24): StatsAnswer | null {
+  if (LIST.test(t)) {
+    const period = readPeriod(t, today, salaryDay);
+    if (period) {
+      const nameOf = (id: string | null | undefined) => (id && categories.find(c => c.id === id)?.name) || '';
+      const list = txs.filter(x => x.date >= period.start && x.date < period.end && x.date <= today).sort((a, b) => b.date.localeCompare(a.date) || String(b.time || '').localeCompare(String(a.time || '')));
+      const out = list.reduce((n, x) => n + transactionExpense(x), 0), income = list.filter(x => x.type === 'income').reduce((n, x) => n + x.amount, 0);
+      const label = period.said.trim() || period.label;
+      if (!list.length) return { title: 'Transaksi', text: vo(v, { santai: `Belum ada transaksi ${label}.`, sopan: `Belum ada transaksi ${label}.`, gaul: `Belum ada transaksi ${label}, bro.`, singkat: 'Belum ada.' }) };
+      return { title: 'Transaksi', text: vo(v, {
+        santai: `${label.charAt(0).toUpperCase() + label.slice(1)} ada ${list.length} transaksi: keluar ${rp(out)}${income ? `, masuk ${rp(income)}` : ''}.`,
+        sopan: `Terdapat ${list.length} transaksi ${label}: pengeluaran ${rp(out)}${income ? `, pemasukan ${rp(income)}` : ''}.`,
+        gaul: `${label.charAt(0).toUpperCase() + label.slice(1)} ${list.length} transaksi, keluar ${rp(out)}${income ? `, masuk ${rp(income)}` : ''}.`,
+        singkat: `${list.length} transaksi, keluar ${rp(out)}.`,
+      }), lines: list.slice(0, 8).map(x => ({ label: `${x.description?.trim() || nameOf(x.subcategoryId) || nameOf(x.categoryId) || x.type}${x.merchant ? ` · ${x.merchant}` : ''}`.slice(0, 40), value: `${x.type === 'income' ? '+' : ''}${rp(x.type === 'expense' ? transactionExpense(x) || x.amount : x.amount)}${period.end > addDays(period.start, 1) ? ` · ${dayMonth(x.date)}` : ''}` })) };
+    }
+  }
+  // Not "7 hari terakhir", "sebulan terakhir": the last days are a period (Catat otomatis answers those).
+  if (LAST.test(t) && LAST_ASK.test(t) && !/\bkapan\b/.test(t) && !/\b(?:\d+|beberapa|dua|tiga|seminggu|sebulan|setahun)\s*(?:hari|minggu|pekan|bulan|tahun)?\s+terakhir\b|\b(?:minggu|pekan|bulan|tahun)\s+terakhir\b/.test(t)) {
+    const kind = KINDS.find(([re]) => re.test(t))?.[1] || 'any';
+    const nameOf = (id: string | null | undefined) => (id && categories.find(c => c.id === id)?.name) || '';
+    const fits = (x: LedgerTx) => {
+      if (x.date > today) return false;
+      if (kind === 'any') return true;
+      if (kind === 'income') return x.type === 'income';
+      if (kind === 'expense') return transactionExpense(x) > 0;
+      if (transactionExpense(x) <= 0) return false;
+      // The most specific name only: "Kopi & Minuman" under "Makan & Minum" is not a meal.
+      return kind.test(`${nameOf(x.subcategoryId) || nameOf(x.categoryId)} ${x.description || ''} ${x.merchant || ''}`);
+    };
+    const last = txs.filter(fits).sort((a, b) => b.date.localeCompare(a.date) || String(b.time || '').localeCompare(String(a.time || '')))[0];
+    if (!last) return { title: 'Terakhir', text: vo(v, { santai: 'Belum ada catatan seperti itu.', sopan: 'Belum ada catatan seperti itu.', gaul: 'Belum ada catetan kayak gitu, bro.', singkat: 'Belum ada.' }) };
+    const what = last.description?.trim() || nameOf(last.subcategoryId) || nameOf(last.categoryId) || (last.type === 'income' ? 'pemasukan' : 'transaksi');
+    const where = last.merchant?.trim() ? ` di ${last.merchant.trim()}` : '', when = `${ago(last.date, today)} (${dayMonth(last.date)})`;
+    const amount = rp(last.type === 'expense' ? transactionExpense(last) || last.amount : last.amount);
+    return { title: 'Terakhir', text: vo(v, {
+      santai: `Terakhir: ${what}${where}, ${amount}, ${when}.`,
+      sopan: `Catatan terakhir: ${what}${where}, ${amount}, ${when}.`,
+      gaul: `Terakhir lo ${what}${where}, ${amount}, ${when}.`,
+      singkat: `${what}${where}, ${amount}, ${when}.`,
+      barbar: `Terakhir lo ${what}${where}, ${amount}, ${when}. Inget aja ga bisa, anjir WKWK.`,
+    }) };
+  }
   const spentOn = new Map<string, number>(), inCycle = (x: LedgerTx) => x.date >= cycle.start && x.date < cycle.end && x.date <= today;
   for (const x of txs) { const s = transactionExpense(x); if (s > 0) spentOn.set(x.date, (spentOn.get(x.date) || 0) + s); }
   if (BIGGEST.test(t)) {

@@ -86,7 +86,9 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
     }
   }
   // A category named: "kopi 30rb, masukin Hiburan aja" → "… kategori hiburan".
-  t = t.replace(/[,.]?\s*(?:masukin|masukkan|masukan|taruh|taro)\s+(?:ke\s+)?(?:kategori\s+)?([\p{L}&][\p{L}&\s]{1,30}?)(?:\s+(?:aja|saja|ya|deh|dong))*\s*$/u, (m, c: string) => {
+  // 8.2 — a whole word only ("pemasukan bulan ini berapa" is a question, not "masukan …"), after something recorded.
+  t = t.replace(/[,.]?\s*(?<![\p{L}])(?:masukin|masukkan|masukan|taruh|taro)\s+(?:ke\s+)?(?:kategori\s+)?([\p{L}&][\p{L}&\s]{1,30}?)(?:\s+(?:aja|saja|ya|deh|dong))*\s*$/u, (m, c: string, at: number) => {
+    if (!findAmounts(t.slice(0, at)).some(a => a.value > 0) || /\b(?:berapa|brp|apa|kapan|siapa)\b/.test(c)) return m;
     if (isWallet(c) || !ctx.categories.some(k => lower(k.name).includes(c.trim()) || c.trim().split(' ').some(w => w.length > 3 && lower(k.name).includes(w)))) return m;
     said(`kategori “${c.trim()}”`); return ` kategori ${c.trim()}`;
   });

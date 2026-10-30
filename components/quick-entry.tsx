@@ -794,7 +794,10 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       // V3.5: what was bought, what for and with whom, as one short line each (never the description or the category).
       if (result.details?.length && result.preset.description !== result.details.map(i => i.name).join(' & ')) fact('i', <><b>Rincian</b> {result.details.map(i => `${i.qty ? `${i.qty} ` : ''}${i.name}`).join(' · ')}</>, 'qp-detail');
       if (result.purpose) fact('u', `Untuk ${result.purpose}`);
-      for (const line of (result.preset.notes || '').split(/\n| · /)) { const m = line.match(/^(Bersama|Untuk): (.+)$/); if (m) fact(`n${m[1]}`, `${m[1]} ${m[2]}`); }
+      // 8.2: the rest of the note that will be saved ("catatannya lembur", "Dibayar Rp50.000, kembalian Rp27.000"), shown before saving.
+      const said: string[] = [];
+      for (const line of (result.preset.notes || '').split(/\n| · /)) { const m = line.match(/^(Bersama|Untuk): (.+)$/); if (m) fact(`n${m[1]}`, `${m[1]} ${m[2]}`); else if (line.trim()) said.push(line.trim()); }
+      if (said.length) fact('nt', <><b>Catatan</b> {said.join(' · ')}</>, 'qp-detail');
       break;
     case 'transfer': fact('w', `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}`, walletId && destination && walletId !== destination ? '' : 'qp-missing'); fact('t', dayText(date)); break;
     case 'open': fact('o', result.menu?.target && result.menu.key === 'wallets' ? 'Buka detail dompet ini' : 'Pindah ke menu ini'); break;

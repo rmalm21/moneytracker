@@ -8301,8 +8301,9 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .chat-avatar { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent) 45%, color-mix(in srgb, var(--accent) 45%, #7b5cff)); color: #fff; box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--accent) 70%, transparent); }
 .chat-title { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .chat-title strong { font-size: .95rem; line-height: 1.2; }
-.chat-title small { display: flex; align-items: center; gap: 5px; overflow: hidden; color: var(--muted); font-size: .7rem; white-space: nowrap; text-overflow: ellipsis; }
-.chat-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 18%, transparent); }
+.chat-title small { display: flex; align-items: center; gap: 5px; overflow: hidden; color: var(--muted); font-size: .7rem; white-space: nowrap; text-overflow: ellipsis; padding-block: 2px; }
+/* 8.2: room for the 3px ring, which the line's overflow:hidden cut off on the left. */
+.chat-dot { flex: none; width: 7px; height: 7px; margin-inline: 3px 1px; border-radius: 50%; background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 18%, transparent); }
 .chat-icon-btn { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; transition: background .15s ease, color .15s ease; }
 .chat-icon-btn:hover { background: var(--paper-2); color: var(--ink); }
 

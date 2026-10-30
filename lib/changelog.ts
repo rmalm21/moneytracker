@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.2', date: '30 Okt 2026', title: 'Perbaikan menyeluruh: asisten paham semua menu dan pertanyaan yang dulu salah jawab', items: [
+    ['🧭', 'Asisten sekarang menjawab isi semua menu dari datamu: tagihan dan cicilan yang akan datang (“tagihan minggu depan apa aja”), daftar kategori, catatan yang menunggu dikonfirmasi, patungan Split Bill yang belum lunas, total utang dan piutang, kekayaan bersih, dana darurat cukup berapa bulan, perkiraan sisa uang saat gajian, dan transaksi per hari (“transaksi kemarin apa aja”). Laporan, Insight, dan Analisis dijawab dengan ringkasan plus tombol ke menunya.'],
+    ['💡', '“Terakhir makan apa”, “terakhir ngopi di mana”, “terakhir beli apa”, dan “transaksi terakhir apa” sekarang dijawab dengan apa, di mana, berapa, dan kapan. Sebelumnya yang muncul malah total siklus.'],
+    ['🔧', '“Pemasukan bulan ini berapa” sekarang dijawab dengan pemasukan, bukan pengeluaran. Bug ini juga ada di kotak Catat otomatis. “Aku boros nggak sih?” kini dapat kartu ringkasan lengkap dengan vonis sesuai gaya bahasamu.'],
+    ['🛡️', 'Pertanyaan tidak lagi tanpa sengaja menyiapkan catatan baru: “kategori aku apa aja” dan “total utang piutang” dulu menyiapkan kategori dan piutang baru. Perintah seperti “stop langganan spotify bulan depan” dan pertanyaan “pengeluaran 7 hari terakhir” juga tidak lagi tertangkap fitur baru.'],
+    ['📝', 'Kartu Catat otomatis menampilkan catatan yang akan ikut tersimpan, misalnya “Dibayar Rp50.000, kembalian Rp27.000” atau “catatannya lembur”.'],
+    ['🎨', 'Titik hijau di kepala chat tidak terpotong lagi. Saran di atas kolom chat ikut berganti saat topik berganti, dan “hehe” dibalas “Hehe”.'],
+    ['✅', 'Diperiksa dengan 1.712 kalimat dari semua uji lama: yang berubah hanya perbaikan. Uji chat lama naik dari 47 ke 48 dari 48, dan semua uji lain tetap lulus. Tampilan dicek langsung di aplikasi demo.'],
+  ] },
   { version: '8.1', date: '30 Okt 2026', title: 'Pustaka bahasa asisten jauh lebih besar: gaya Bar-bar, permainan, dan “cara pakai”', items: [
     ['🔥', 'Gaya bahasa baru: Bar-bar. Asisten ngomong kasar buat seru-seruan dan meroasting kebiasaan belanjamu tanpa ampun. Pilih di pengaturan chat, atau tulis “pakai gaya bar-bar”.'],
     ['🤖', 'Kata kasar dikenali lewat cara tulis apa pun (anjiiing, 4nj1ng, a*jing, bgsd) dan dalam bahasa daerah (jancuk, ndasmu, matamu, kehed, bodat, kimak, tailaso). Kata jorok juga dikenali dan tidak pernah diulang. Nama hewan yang ditulis bersama nominal (“makanan anjing 100rb”, “sate babi 50rb”) tetap dicatat sebagai hewan, bukan dianggap makian.'],
