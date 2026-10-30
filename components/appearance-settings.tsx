@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './fields';
 import { applyAppearance, DEFAULT_DENSITY, DEFAULT_FONT_SIZE, effectiveMode, fontChoices, loadFontPreviews, themes, validAccent, type FontChoice } from '@/lib/appearance';
 import { saveProfile } from '@/lib/firestore';
-import { readAlwaysHide, setAlwaysHide } from './hide-amounts';
+import { readAlwaysHide, readHideLevel, setAlwaysHide, setHideLevel, type HideLevel } from './hide-amounts';
 import { rememberSplashStyle, type SplashStyle } from './loading-screen';
 import { Emoji } from './emoji';
 import type { ColorMode, Profile, ThemePreset } from '@/lib/types';
@@ -33,7 +33,13 @@ export function AppearanceSettings({notify:_notify}:{notify:(message:string)=>vo
 /** "Selalu sembunyikan nominal": amounts start hidden each time the app opens on this device. */
 function PrivacyToggle(){
  const [on,setOn]=useState(false);useEffect(()=>{setOn(readAlwaysHide());},[]);
- return <><label className="switch-row privacy-switch"><input type="checkbox" checked={on} onChange={e=>{setOn(e.target.checked);setAlwaysHide(e.target.checked)}}/><span><strong>Selalu sembunyikan nominal</strong><small>Setiap aplikasi dibuka, nominal tampil sebagai Rp•••••. Ketuk ikon mata di atas untuk melihatnya sebentar. Berlaku di perangkat ini.</small></span></label></>;
+ return <><label className="switch-row privacy-switch"><input type="checkbox" checked={on} onChange={e=>{setOn(e.target.checked);setAlwaysHide(e.target.checked)}}/><span><strong>Selalu sembunyikan nominal</strong><small>Setiap aplikasi dibuka, nominal tampil sebagai Rp•••••. Ketuk ikon mata di atas untuk melihatnya sebentar. Berlaku di perangkat ini.</small></span></label><HideLevelChoice/></>;
+}
+/** What the eye button hides (8.3): every amount, only the important ones, or only on Beranda. Kept on this device. */
+function HideLevelChoice(){
+ const [value,setValue]=useState<HideLevel>('ketat');useEffect(()=>{setValue(readHideLevel());},[]);
+ const options:[HideLevel,string,React.ReactNode,string][]=[['ketat','Super ketat',<>Saldo Rp••••• · Makan Rp•••••</>,'Semua nominal di semua layar, termasuk chat dan notifikasi.'],['penting','Angka penting saja',<>Saldo Rp••••• · Makan Rp45.000</>,'Saldo, uang bebas, aset, pemasukan, tabungan, utang, dan piutang. Pengeluaran harian tetap terlihat.'],['beranda','Beranda saja',<>Beranda Rp••••• · Laporan Rp45.000</>,'Hanya nominal di Beranda. Menu lain tetap terlihat.']];
+ return <><h4>Yang disembunyikan</h4><div className="font-choices hide-level-choices" role="radiogroup" aria-label="Yang disembunyikan">{options.map(([key,label,sample,hint])=><button type="button" role="radio" key={key} aria-checked={value===key} className={value===key?'active':''} onClick={()=>{setValue(key);setHideLevel(key)}}><span className="font-choice-top"><strong>{label}</strong>{value===key&&<Check size={15}/>}</span><span className="font-choice-sample" data-keep-amounts>{sample}</span><small>{hint}</small></button>)}</div></>;
 }
 
 /** Pengaturan → Tampilan: the opening screen, saved at once (and kept on this device, so it shows before login data). */

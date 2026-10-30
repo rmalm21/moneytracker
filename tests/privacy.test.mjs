@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasAmount, maskAmounts } from '../lib/privacy.ts';
+import { firstMoneyWord, hasAmount, hasMoneyWord, maskAmounts, maskImportantAmounts } from '../lib/privacy.ts';
 
 test('every amount format is hidden, the sign and the words around it stay', () => {
   assert.equal(maskAmounts('Rp12.000'), 'Rp•••••');
@@ -16,6 +16,24 @@ test('a word after an amount is not swallowed, other numbers are left alone', ()
   assert.equal(maskAmounts('Rp12.000 Makan malam'), 'Rp••••• Makan malam');
   assert.equal(maskAmounts('Rp50.000 Transfer'), 'Rp••••• Transfer');
   for (const text of ['Hari ke-2 dari 30', '70% terpakai', '25 Sep 2026 – 24 Okt 2026', '9 transaksi', 'Rp']) { assert.equal(hasAmount(text), false); assert.equal(maskAmounts(text), text); }
+});
+test('the punctuation after an amount stays (8.3)', () => {
+  assert.equal(maskAmounts('Uang bebasmu Rp7.200.000. Pengeluaran Rp7.732.500, dari 63 transaksi.'), 'Uang bebasmu Rp•••••. Pengeluaran Rp•••••, dari 63 transaksi.');
+});
+test('"angka penting saja": balances, income, savings and debts are hidden, everyday spending stays (8.3)', () => {
+  assert.equal(maskImportantAmounts('Uang bebasmu Rp7.200.000. Pengeluaran bulan ini Rp7.732.500.'), 'Uang bebasmu Rp•••••. Pengeluaran bulan ini Rp7.732.500.');
+  assert.equal(maskImportantAmounts('Saldo semua dompet Rp24 jt: BCA Rp6,5 jt, GoPay Rp400 rb'), 'Saldo semua dompet Rp•••••: BCA Rp•••••, GoPay Rp•••••');
+  assert.equal(maskImportantAmounts('Pemasukan siklus lalu Rp9.000.000, masih di kisaran biasamu.'), 'Pemasukan siklus lalu Rp•••••, masih di kisaran biasamu.');
+  assert.equal(maskImportantAmounts('Sisa utang Rp6.000.000 dari Rp12.000.000'), 'Sisa utang Rp••••• dari Rp•••••');
+  for (const text of ['Makan Rp45.000, sisa anggaran Rp198 rb', 'Aman ±Rp15 rb/hari', 'Total belanja lebih cepat Rp2,5 jt dari biasanya']) assert.equal(maskImportantAmounts(text), text);
+  // An amount in its own element reads the label shown before it in the card
+  assert.equal(maskImportantAmounts('Rp7.200.000', 'UANG BEBAS'), 'Rp•••••');
+  assert.equal(maskImportantAmounts('Rp198.500', 'Sisa Anggaran'), 'Rp198.500');
+  assert.equal(maskImportantAmounts('naik dibanding periode lalu (Rp5.932.500)', 'Uang Bebas Rp•••••'), 'naik dibanding periode lalu (Rp•••••)');
+  assert.equal(maskImportantAmounts('+Rp9 jt', 'Uang masuk Gaji'), '+Rp•••••');
+  assert.equal(hasMoneyWord('Pengeluaranmu bulan ini'), true);
+  assert.equal(hasMoneyWord('GrabFood Pesan Antar GoPay'), false);
+  assert.equal(firstMoneyWord('JAWABAN Rp24.200.000 Total saldo di 5 dompet'), 'saldo');
 });
 
 import { categoryBreakdown, DEBT_GROUP } from '../lib/category-analytics.ts';

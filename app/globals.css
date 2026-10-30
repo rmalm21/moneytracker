@@ -5121,8 +5121,10 @@ button.about-card { cursor: pointer; }
 .eye-button:hover { border-color: var(--accent); color: var(--accent); }
 .eye-button.is-on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); color: var(--accent); }
 @media (max-width: 760px) { .eye-button { width: 38px; height: 38px; } }
-/* Chart axes show bare numbers ("1,5jt"), so they are blurred instead */
-html[data-hide-amounts] .recharts-yAxis .recharts-cartesian-axis-tick-value { filter: blur(4px); }
+/* Chart axes show bare numbers ("1,5jt"), so they are blurred instead: everywhere, on Beranda only, or on the balance pages */
+html[data-hide-amounts="ketat"] .recharts-yAxis .recharts-cartesian-axis-tick-value,
+html[data-hide-amounts="beranda"] .home-dash .recharts-yAxis .recharts-cartesian-axis-tick-value,
+html[data-hide-amounts="penting"] :is([data-view="wallets"], [data-view="funds"], [data-view="debts"], [data-view="receivables"], [data-view="owedReport"], [data-view="forecast"]) .recharts-yAxis .recharts-cartesian-axis-tick-value { filter: blur(4px); }
 
 /* 98. Beranda "Pemasukan & Pengeluaran": proportional and compact, lighter weights so more rows fit */
 .panel.widget-details.book-widget > summary > span > strong { font-size: .9rem; line-height: 1.25; }
