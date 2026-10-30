@@ -8,7 +8,8 @@ import type { QuickContext } from '../quick-entry.ts';
 
 export type Reading = 'record' | 'question' | 'unanswered' | 'none';
 export type AskField = 'amount' | 'wallet' | 'to' | 'category' | 'date';
-export type Inspection = { reading: Reading; ask?: { field: AskField; choices: string[] }; kind?: string; count?: number };
+export type Inspection = { reading: Reading; ask?: { field: AskField; choices: string[] }; kind?: string; count?: number; /** 7.9: the person of the first entry ("dia" next time), the wallet named, the total of all entries. */ person?: string; walletId?: string; total?: number;
+  /** 8.0: the category of a single entry (the same treat recorded again and again gets a tease). */ categoryId?: string; subcategoryId?: string };
 
 const COMMON = ['Makan & Minum', 'Transportasi', 'Belanja', 'Tagihan', 'Hiburan'];
 
@@ -19,7 +20,7 @@ export function inspect(text: string, quick: QuickContext): Inspection {
   if (acts.some(a => a.result.kind === 'query')) return { reading: 'question', kind: 'query' };
   if (!acts.length) return { reading: mayAsk(text) ? 'unanswered' : 'none' };
   const a = acts[0], r = a.result, name = (id: string) => quick.wallets.find(w => w.id === id)?.name || id;
-  const base: Inspection = { reading: 'record', kind: r.kind, count: acts.length };
+  const base: Inspection = { reading: 'record', kind: r.kind, count: acts.length, ...(r.person ? { person: r.person } : {}), ...(r.preset.walletId ? { walletId: r.preset.walletId } : {}), total: acts.reduce((n, x) => n + (x.result.amount || 0), 0), ...(acts.length === 1 && r.preset.categoryId ? { categoryId: r.preset.categoryId } : {}), ...(acts.length === 1 && r.preset.subcategoryId ? { subcategoryId: r.preset.subcategoryId } : {}) };
   if (acts.length > 1) return base;
   const ask = a.ask;
   if (ask && (ask.field === 'wallet' || ask.field === 'to')) return { ...base, ask: { field: ask.field, choices: (ask.choices || []).slice(0, 5).map(name) } };

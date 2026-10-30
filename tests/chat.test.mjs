@@ -219,7 +219,9 @@ test('chat 7.8: after two messages not understood the person can teach it; expli
   assert.equal((await say('zxcv asdf')).intent, 'summary');
   const t = await say('kalau aku bilang boncos artinya boros');
   assert.equal(t.intent, 'teach'); assert.equal(learned.boncos, 'boros');
-  assert.equal((await say('aku boncos banget bulan ini')).intent, 'tips');
+  // 7.9: "aku boros banget bulan ini" (the learned word read inside) is answered with an offer to look first (training document).
+  const alias = await say('aku boncos banget bulan ini');
+  assert.equal(alias.intent, 'clarify'); assert.match(alias.reply.text, /bulan ini/);
   const bad = await say('kalau aku bilang zzz artinya qqq www');
   assert.equal(bad.intent, 'teach'); assert.equal(learned.zzz, undefined);
 });
@@ -228,4 +230,75 @@ test('chat 7.8: "jadi 50rb" on "gue cuma 45k" changes your part, not the bill', 
   const [rec, edit] = await talk('290k hokben kemarin gue cuma 45k', 'jadi 50rb');
   assert.equal(rec.intent, 'plan'); assert.equal(edit.intent, 'edit');
   assert.equal(edit.reply.text, '290k hokben kemarin gue cuma 50rb');
+});
+
+// ——— 7.9 (training document) ———
+import { suggestFor } from '../lib/chat/suggest.ts';
+import { parseQuickPlan } from '../lib/quick-plan.ts';
+const cards = text => parseQuickPlan(text, chatCtx.quick).actions.map(a => ({ kind: a.result.kind, amount: a.result.amount, wallet: a.result.preset.walletId || '', date: a.result.date, notes: a.result.preset.notes || '' }));
+
+test('chat 7.9: several changes in one message, a note, one item of several, the wallet of the card before', async () => {
+  const [, two] = await talk('beli kopi 25rb', 'GoPay, kemarin.');
+  assert.equal(two.intent, 'edit'); assert.deepEqual(cards(two.reply.text).map(c => [c.wallet, c.date]), [['gopay', '2026-10-14']]);
+  const [, , three] = await talk('catat makan 35rb di warteg pake jago kemarin', 'bukan jago, gopay. eh nominalnya 32rb', 'tanggalnya hari ini aja, catatan makan siang');
+  const c = cards(three.reply.text)[0]; assert.deepEqual([c.amount, c.wallet, c.date], [32000, 'gopay', '2026-10-15']); assert.match(c.notes, /Makan siang/);
+  const [, note] = await talk('kopi 20rb', 'catatannya lembur');
+  assert.ok(!note.dismiss); assert.match(cards(note.reply.text)[0].notes, /Lembur/);
+  const [, drop] = await talk('siapin kopi 20rb, roti 15rb, parkir 3rb', 'yang kedua hapus, nggak jadi beli');
+  assert.ok(!drop.dismiss); assert.deepEqual(cards(drop.reply.text).map(x => x.amount), [20000, 3000]);
+  const [, item] = await talk('buku 80rb dan pulpen 12rb, bayar tunai', 'pulpennya 10rb, buku tetep');
+  assert.deepEqual(cards(item.reply.text).map(x => x.amount), [80000, 10000]);
+  const [, day] = await talk('bensin 30rb, tol 20rb pakai jago', 'tolnya kemarin');
+  assert.deepEqual(cards(day.reply.text).map(x => x.date), ['2026-10-15', '2026-10-14']);
+  const [, same] = await talk('makan siang 25rb pake tunai', 'kopi 12rb juga, dompetnya sama');
+  assert.deepEqual(cards(same.reply.text).map(x => x.wallet), ['cash']);
+  const [, back] = await talk('kopi 25rb. eh 22rb', 'bener yang awal, 25rb');
+  assert.deepEqual(cards(back.reply.text).map(x => x.amount), [25000]);
+  const [, who] = await talk('dika pinjem 100rb dari jago', '#save', 'dia baru balikin 40rb ke tunai');
+  assert.deepEqual(cards(who.reply.text).map(x => [x.kind, x.amount, x.wallet]), [['receivable_payment', 40000, 'cash']]);
+});
+test('chat 7.9: the chat never deletes or drops a card unless told to, and says honestly what it does not do', async () => {
+  const [, , later] = await talk('catat bensin 40rb tunai', 'terus kopi 20rb jago', 'yang tadi kemarin ya');
+  assert.notEqual(later.intent, 'undo'); assert.ok(!later.dismiss);
+  const [, saved] = await talk('beli kopi 25rb', 'udah kesimpen belum?');
+  assert.equal(saved.reply.kind, 'say'); assert.match(saved.reply.text, /^Belum/);
+  const [, , all] = await talk('siapin kopi 20rb dan makan 30rb', 'makan jangan dulu', 'simpan semua');
+  assert.match(all.reply.text, /Simpan di kartunya/);
+  const [send] = await talk('transferin ke dika sekarang');
+  assert.equal(send.reply.kind, 'say'); assert.match(send.reply.text, /aplikasi bank/);
+});
+test('chat 7.9: arithmetic in words is answered, not recorded, and can become cards after', async () => {
+  const say = async text => (await talk(text))[0].reply;
+  assert.match((await say('total 250rb, bayar 300rb, kembali berapa?')).text, /50\.000/);
+  assert.match((await say('325rb cukup buat 13 hari, sehari berapa?')).text, /25\.000/);
+  assert.match((await say('400rb jadi 500rb naik berapa persen?')).text, /25%/);
+  assert.match((await say('patungan 10rb untuk 3 orang, bagi rata sampai rupiah')).text, /3\.334, Rp3\.333, Rp3\.333/);
+  const [, maybe, plan] = await talk('budget makan 1,2jt, udah kepake 875rb. sisa?', 'kalau makan lagi 80rb?', 'ada rencana makan 100rb juga');
+  assert.match(maybe.reply.text, /245\.000/); assert.match(plan.reply.text, /225\.000/);
+  const [sum, keep] = await talk('kalau makan 35rb sama parkir 3rb total berapa?', 'oke catat tunai');
+  assert.equal(sum.reply.kind, 'say'); assert.deepEqual(cards(keep.reply.text).map(x => [x.amount, x.wallet]), [[35000, 'cash'], [3000, 'cash']]);
+});
+test('chat 7.9: what things mean, money that is not money yet, someone else\'s purchase', async () => {
+  const say = async text => (await talk(text))[0];
+  assert.match((await say('budget sama saldo beda apa?')).reply.text, /Saldo itu uang/);
+  assert.match((await say('arsip dompet itu apa?')).reply.text, /dipulihkan/);
+  for (const text of ['cashback-nya 10rb tapi bentuk koin toko', 'gue udah ajuin refund 80rb', 'dika katanya beli hp 5jt kemarin, mahal juga ya', 'saldo beda 50rb, bikin aja transaksi biar pas', 'bimo bilang besok bakal lunasin 200rb']) {
+    const r = await say(text); assert.equal(r.reply.kind, 'say', text);
+  }
+  const unit = await talk('beli kopi tiga sama roti, kopinya 18rb rotinya 12rb', 'per gelas');
+  assert.match(unit[0].reply.text, /per gelas atau total/); assert.deepEqual(cards(unit[1].reply.text).map(x => x.amount), [54000, 12000]);
+});
+test('chat 7.9 suggestions: clear labels that follow the conversation, wallets that may pay only', async () => {
+  const [draft] = await talk('beli kopi 25rb');
+  const s = suggestFor(draft.memory, chatCtx, draft.reply);
+  assert.ok(s.some(x => x.label === 'Ganti ke kemarin' && x.text === 'tanggalnya kemarin'));
+  assert.ok(s.some(x => x.label.startsWith('Bayar pakai ')));
+  assert.ok(s.some(x => x.fill === 'jadi ') && s.some(x => x.fill === 'catatannya '));
+  const saving = { ...chatCtx, data: { ...chatCtx.data, wallets: chatCtx.data.wallets.map(w => w.id === 'gopay' ? { ...w, isSpendable: false } : w) } };
+  assert.ok(!suggestFor(draft.memory, saving, draft.reply).some(x => x.text === 'pakai gopay'));
+  const [q] = await talk('pengeluaran bulan ini berapa');
+  assert.ok(suggestFor(q.memory, chatCtx, q.reply).some(x => x.text === 'kalau bulan lalu?'));
+  const idle = suggestFor({}, { ...chatCtx, hour: 12 });
+  assert.ok(idle.some(x => x.label === 'Catat makan siang…'));
+  assert.ok(idle.length <= 6 && new Set(idle.map(x => x.label)).size === idle.length);
 });

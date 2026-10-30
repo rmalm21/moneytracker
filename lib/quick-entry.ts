@@ -57,6 +57,8 @@ export type QuickResult = {
   calc?: string;
   /** 7.8: only your part of a shared bill was recorded ("gue cuma 45k"): the whole bill, for the card. */
   ownOf?: number;
+  /** 7.9: the person's own note ("…, catatannya lembur"), shown on the card and saved in the notes. */
+  note?: string;
   /** V3.3: a shared spending (Split Bill): participants and their shares, from the Split Bill engine. */
   split?: import('./catat/group').SplitReading;
   /** V3.3: a plain "20" read as Rp20.000, to be confirmed. */
@@ -375,7 +377,7 @@ const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|ta
 const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil uang(?: di)? atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
 const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor|diklaim|diklaimkan|klaimkan|direimburse)\b/;
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
-const SAVE_WORDS = /\b(nabung|menabung|tabung|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
+const SAVE_WORDS = /\b(nabung|menabung|tabung(?!\s+(?:gas|elpiji|lpg|oksigen))|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
 const FILL_WORDS = /\b(isi|tambah|nambah|masukin|masukkan|top ?up)\b/;
 const LEND_OUT = /\b((?:ngasi|kasi)h? (?:pinjem|pinjam|pinjaman|utang|hutang)|pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin)\b/;
 const LENT_TO_ME = /\b(?:pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|utangin|ngutangin)\s+(?:aku|saya|gue|gw|ku)\b/;

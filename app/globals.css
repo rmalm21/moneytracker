@@ -8282,6 +8282,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 /* 2. Layar penuh */
 .chat-panel.is-penuh { inset: 0; animation: chat-fade .18s ease-out; }
 .chat-panel.is-penuh .chat-list, .chat-panel.is-penuh .chat-compose { padding-inline: max(14px, calc((100% - 720px) / 2)); }
+.chat-panel.is-penuh .chat-tray { padding-inline: max(12px, calc((100% - 720px) / 2)); }
 /* 3. Jendela mengambang */
 .chat-panel.is-jendela { right: 24px; bottom: calc(84px + env(safe-area-inset-bottom)); width: min(380px, calc(100vw - 24px)); height: min(600px, calc(100dvh - 120px)); border: 1px solid var(--line); border-radius: 22px; transform-origin: bottom right; animation: chat-pop .2s ease-out; }
 /* 4. Panel samping */
@@ -8336,6 +8337,10 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .cm-lines.is-list dt { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: .64rem; font-weight: 800; }
 .cm-lines.is-list dd { color: var(--ink); font-weight: 500; line-height: 1.42; text-align: left; }
 .cm-note { display: block; margin-top: 7px; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+/* 8.0 — a button from a chat answer to the menu it is about. */
+.chat-open { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; min-height: 34px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 650; cursor: pointer; }
+.chat-open:hover { border-color: var(--accent, var(--ink)); }
+.chat-open:active { transform: translateY(1px); }
 .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .chat-chip { padding: 5px 11px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent) 6%, var(--paper)); color: var(--accent); font-size: .76rem; font-weight: 600; line-height: 1.35; text-align: left; cursor: pointer; transition: background .15s ease; }
 .chat-chip:hover { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); }
@@ -8377,14 +8382,18 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .tone-pink { --g: #db4d93; } .tone-green { --g: #1f9d62; } .tone-slate { --g: #5f7383; } .tone-orange { --g: #ec6b1f; }
 .chat-tile { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; background: color-mix(in srgb, var(--g) 13%, var(--paper)); color: var(--g); }
 
-.chat-tray { flex: none; display: flex; align-items: center; gap: 4px; padding: 7px 6px 0 10px; }
+.chat-tray { flex: none; display: flex; align-items: center; gap: 4px; padding: 8px 6px 10px 12px; }
 .chat-tray-scroll { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
 .chat-tray-scroll::-webkit-scrollbar { display: none; }
-.chat-suggest { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid color-mix(in srgb, var(--g) 26%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--g) 6%, var(--paper)); color: var(--ink); font-size: .76rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.chat-suggest { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 13px 6px 11px; border: 1px solid color-mix(in srgb, var(--g) 30%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--g) 7%, var(--paper)); color: var(--ink); font-size: .79rem; font-weight: 600; line-height: 1.2; white-space: nowrap; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.chat-suggest:hover { background: color-mix(in srgb, var(--g) 13%, var(--paper)); border-color: color-mix(in srgb, var(--g) 45%, var(--line)); }
+.chat-suggest:active { transform: translateY(1px); }
+/* 7.9 A suggestion that only starts the message (the person finishes it in the box). */
+.chat-suggest.is-fill { border-style: dashed; background: var(--paper); }
 .chat-suggest svg { color: var(--g); }
 .chat-tray-toggle { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .chat-tray-toggle:hover { background: var(--paper-2); color: var(--ink); }
-.chat-tray-open { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin: 7px 0 0 12px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font-size: .72rem; font-weight: 700; cursor: pointer; }
+.chat-tray-open { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin: 8px 0 10px 12px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font-size: .72rem; font-weight: 700; cursor: pointer; }
 .chat-panel.is-kaca .chat-suggest, .chat-panel.is-kaca .chat-tray-open { background: color-mix(in srgb, var(--paper) 60%, transparent); }
 
 .chat-compose { flex: none; display: flex; align-items: flex-end; gap: 6px; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); }

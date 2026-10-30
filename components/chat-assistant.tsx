@@ -8,11 +8,12 @@
  * picked (long press, right click, or from the settings) to copy or delete, with "Urungkan" for a few seconds.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowUpRight, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, Target, Trash2, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Banknote, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, StickyNote, Tag, Target, Trash2, Undo2, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { QuickEntryBox } from './quick-entry';
 import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
+import { suggestFor, type Suggestion, type SuggestIcon } from '@/lib/chat/suggest';
 import { VOICES } from '@/lib/chat/voice';
 import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhrase, loadChat, loadSettings, page, saveChat, saveSettings, type ChatMessage, type ChatSettings, type ChatStatus, type ChatStyle } from '@/lib/chat/store';
 import { dateInTimeZone, timeInTimeZone, todayInTimeZone } from '@/lib/period';
@@ -25,9 +26,15 @@ const STATUS_TEXT: Partial<Record<ChatStatus, string>> = { dismissed: 'Tidak jad
 /** Each template group: its icon and colour. */
 const GROUP_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {
   catat: { icon: PenLine, tone: 'teal' }, patungan: { icon: Users, tone: 'violet' }, kategori: { icon: ChartPie, tone: 'amber' }, hitung: { icon: Calculator, tone: 'blue' },
-  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ngobrol: { icon: Smile, tone: 'violet' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
+  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ngobrol: { icon: Smile, tone: 'violet' }, menu: { icon: LayoutGrid, tone: 'teal' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
 };
-const groupOf = (text: string, groups: TemplateGroup[]) => groups.find(g => g.items.includes(text))?.key;
+/** 7.9 Each suggestion above the message box: its icon and colour. */
+const SUGGEST_LOOK: Record<SuggestIcon, { icon: LucideIcon; tone: string }> = {
+  date: { icon: CalendarClock, tone: 'orange' }, wallet: { icon: Wallet, tone: 'teal' }, amount: { icon: Banknote, tone: 'teal' }, note: { icon: StickyNote, tone: 'amber' }, category: { icon: Tag, tone: 'amber' },
+  cancel: { icon: X, tone: 'slate' }, undo: { icon: Undo2, tone: 'slate' }, record: { icon: PenLine, tone: 'teal' }, ask: { icon: MessageCircleQuestion, tone: 'pink' }, calc: { icon: Calculator, tone: 'blue' },
+  chart: { icon: ChartPie, tone: 'green' }, budget: { icon: PiggyBank, tone: 'green' }, payday: { icon: CalendarClock, tone: 'orange' }, tips: { icon: Lightbulb, tone: 'amber' }, fun: { icon: Smile, tone: 'violet' },
+  yes: { icon: Check, tone: 'green' }, no: { icon: X, tone: 'slate' }, help: { icon: Sparkles, tone: 'slate' },
+};
 /** Each answer card: its icon and colour. */
 const CARD_LOOK: Record<SayCard, { icon: LucideIcon; tone: string }> = {
   summary: { icon: ChartPie, tone: 'teal' }, afford: { icon: ShoppingBag, tone: 'violet' }, tips: { icon: Lightbulb, tone: 'amber' }, calc: { icon: Calculator, tone: 'blue' },
@@ -165,18 +172,16 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
   });
   function go(key: string, target?: string) { setOpen(false); navigate(key, target); }
 
-  // What to suggest above the message box: what fits the conversation now, otherwise one of each kind.
-  const suggestions = useMemo(() => {
-    if (memory.asking) return [];
-    if (memory.offer) return memory.offer === 'ajari aku' ? ['ajari aku', 'bisa apa aja?'] : ['boleh', 'nggak dulu'];
-    if (memory.topic === 'joke' || memory.topic === 'banter') return ['lagi dong', 'maksudnya?', 'wkwk garing'];
-    if (memory.topic === 'curhat') return ['makasih udah dengerin', 'kasih jokes dong', 'ringkasan bulan ini'];
-    if (memory.plan?.status === 'pending') return ['kemarin', `pakai ${(data.wallets.find(w => !w.isArchived)?.name || 'gopay').toLocaleLowerCase('id-ID')}`, 'gak jadi'];
-    if (memory.last === 'question') return ['kalau bulan lalu?', 'kalau minggu ini?', 'ringkasan bulan ini'];
-    if (memory.last === 'calc') return ['kalau dibagi 2?', 'kalau dikali 12?'];
-    if (memory.plan?.status === 'saved') return ['batalin yang tadi', 'ringkasan hari ini', 'kasih tips hemat'];
-    return [templates[0].items[0], 'ringkasan bulan ini', 'hitung 15% dari 2,5jt', 'aman nggak beli sepatu 500rb?', 'hokben 162.003 dibagi2 sama ferdi', 'kasih tips hemat'];
-  }, [memory, data.wallets, templates]);
+  // 7.9 What to suggest above the message box: what fits this moment, with a clear label (lib/chat/suggest.ts).
+  const lastReply = useMemo(() => [...messages].reverse().find(m => m.role === 'bot')?.reply, [messages]);
+  const suggestions = useMemo(() => suggestFor(memory, chatCtx, lastReply), [memory, chatCtx, lastReply]);
+  /** A suggestion sends its message, or puts the start of one in the message box to finish. */
+  function pickSuggestion(s: Suggestion) {
+    if (s.text) { void send(s.text); return; }
+    const el = inputRef.current, text = s.fill ?? '';
+    setDraft(text);
+    window.requestAnimationFrame(() => { if (!el) return; el.focus(); el.setSelectionRange(text.length, text.length); el.style.height = 'auto'; el.style.height = `${Math.min(112, el.scrollHeight)}px`; });
+  }
 
   const { visible, more, hidden } = page(messages, shown);
   const style = settings.style;
@@ -229,7 +234,7 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
         </div> : <>
         {messages.length > 0 && suggestions.length > 0 && (settings.tray
           ? <div className="chat-tray" role="group" aria-label="Saran pesan">
-              <div className="chat-tray-scroll">{suggestions.map(s => { const g = groupOf(s, templates), Look = g ? GROUP_LOOK[g] : undefined; return <button type="button" key={s} className={`chat-suggest ${Look ? `tone-${Look.tone}` : ''}`} onClick={() => void send(s)}>{Look && <Look.icon size={13} aria-hidden="true"/>}{s}</button>; })}</div>
+              <div className="chat-tray-scroll">{suggestions.map(s => { const Look = SUGGEST_LOOK[s.icon]; return <button type="button" key={s.label} className={`chat-suggest tone-${Look.tone} ${s.fill !== undefined ? 'is-fill' : ''}`} title={s.text ? `Kirim “${s.text}”` : 'Lanjutkan di kotak pesan'} onClick={() => pickSuggestion(s)}><Look.icon size={14} aria-hidden="true"/><span>{s.label}</span></button>; })}</div>
               <button type="button" className="chat-tray-toggle" aria-label="Ciutkan saran" onClick={() => changeSettings({ tray: false })}><ChevronDown size={16}/></button>
             </div>
           : <button type="button" className="chat-tray-open" onClick={() => changeSettings({ tray: true })}><Sparkles size={13}/> Saran <ChevronUp size={14}/></button>)}
@@ -317,12 +322,14 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
   if (r.kind === 'say') {
     const look = r.card ? CARD_LOOK[r.card] : undefined, calc = r.card === 'calc' && r.hero;
     const rich = Boolean(r.hero || r.stats?.length || r.bars?.length || r.steps?.length || r.lines?.length);
+    const open = r.open && <button type="button" className="chat-open" onClick={() => onNavigate(r.open!.view)}><ArrowUpRight size={14} aria-hidden="true"/><span>{r.open.label}</span></button>;
     const lines = r.lines && <dl className={`cm-lines ${r.lines.every(l => /^\d+$/.test(l.label)) ? 'is-list' : ''}`}>{r.lines.map(l => <div key={l.label + l.value} className={l.tone ? `is-${l.tone}` : ''}><dt>{l.label}</dt><dd>{l.value}</dd></div>)}</dl>;
     if (!rich || !look) return shell(<>
       {r.title && <b className="cm-kicker">{r.title}</b>}
       <p>{r.text}</p>
       {lines}
       {r.note && <small className="cm-note">{r.note}</small>}
+      {open}
       {chips(r.chips)}
     </>, Boolean(r.lines), r.tone ? `is-${r.tone}` : '');
     const badge = r.tone === 'warn' ? 'Perlu perhatian' : r.tone === 'good' ? 'Aman' : '';
@@ -336,6 +343,7 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
       {r.steps && r.steps.length > 0 && <ol className="cc-steps">{r.steps.map((x, i) => <li key={i}><span className="cc-num" aria-hidden="true">{i + 1}</span><span>{x}</span></li>)}</ol>}
       {lines}
       {r.note && <small className="cm-note">{r.note}</small>}
+      {open}
       {chips(r.chips)}
     </>, true, `cm-card tone-${look.tone} ${r.tone ? `is-${r.tone}` : ''}`);
   }

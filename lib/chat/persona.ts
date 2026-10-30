@@ -35,24 +35,47 @@ export const JOKES: Joke[] = [
   { text: 'Apa bedanya kamu sama promo? Promo ada masa berlakunya, kamu nggak.', why: 'Ini gombalan. Promo cepat berakhir, sedangkan kamu “berlaku selamanya”.' },
   { text: 'Kenapa kalkulator nggak pernah galau? Soalnya semua masalahnya bisa dia hitung sendiri.', why: 'Kalkulator memang tugasnya “menghitung” soal, sedangkan galau sering karena masalah yang terasa tidak terhitung.' },
   { text: 'Aku pengen jadi tabungan aja. Makin lama didiemin, makin berharga.', why: 'Tabungan bertambah nilainya kalau tidak diambil, beda dengan perasaan yang didiamkan.' },
+  // 8.0 — more, and less stiff.
+  { text: 'Gaji itu kayak wifi tetangga: ada sinyalnya, tapi nggak pernah benar-benar punya kita. Wkwk.', why: 'Gaji cepat habis untuk tagihan, jadi rasanya seperti “numpang lewat”, mirip wifi tetangga yang bisa dilihat tapi bukan milik kita.' },
+  { text: 'Dompetku tuh kayak bawang: tiap dibuka bikin nangis.', why: 'Mengupas bawang membuat mata berair, sama seperti membuka dompet yang isinya tipis.' },
+  { text: 'Saldo tanggal 25: “Halo sultan!” Saldo tanggal 5: “Siapa ya?” WKWK.', why: 'Saat gajian kita merasa kaya (sultan), awal bulan berikutnya saldo sudah tidak dikenali lagi karena habis.' },
+  { text: 'Niatnya beli satu barang di marketplace, pulang-pulang bawa keranjang isi 12. Gratis ongkir emang jebakan batman.', why: '“Gratis ongkir” sering membuat kita belanja lebih banyak dari rencana. “Jebakan batman” artinya jebakan yang tidak disadari.' },
+  { text: 'Kata dokter aku kekurangan vitamin D. Ternyata D-nya “Duit”. HAHAHA.', why: 'Plesetan vitamin D menjadi “Duit”: yang kurang sebenarnya uang.' },
+  { text: 'Aku rajin olahraga kok: tiap akhir bulan lari dari tagihan.', why: '“Lari dari tagihan” artinya menghindari tagihan, dibuat seolah-olah olahraga lari.' },
+  { text: 'Uang memang bukan segalanya. Tapi segalanya butuh uang. Termasuk beli kuota buat baca kalimat ini.', why: 'Pernyataan “uang bukan segalanya” dibalik: hampir semua hal tetap perlu uang, bahkan kuota internet.' },
+  { text: 'Cicilan itu satu-satunya hubungan yang paling setia: tiap bulan datang, nggak pernah lupa.', why: 'Cicilan selalu datang tiap bulan tanpa absen, dibandingkan dengan pasangan yang setia.' },
+  { text: 'Pinjam dulu seratus? Itu kalimat paling horor setelah “kita perlu bicara”.', why: '“Pinjam dulu seratus” adalah meme permintaan pinjaman, sama menakutkannya dengan kalimat “kita perlu bicara” dalam hubungan.' },
+  { text: 'Kenapa tukang parkir selalu muncul pas kita mau pergi? Karena dia punya radar “prit-prit” bawaan. Wkwk.', why: 'Tukang parkir sering tiba-tiba muncul saat kita mau keluar dan meniup peluit (“prit”) untuk minta bayaran.' },
+  { text: 'Diet paling efektif: tanggal tua. Mau makan mikir, mau jajan mikir.', why: 'Saat uang menipis di akhir bulan, kita terpaksa mengurangi makan dan jajan, seolah-olah diet.' },
+  { text: 'Aku nggak boros, aku cuma lagi “mendukung UMKM” tiap hari. Termasuk UMKM kopi susu depan kantor.', why: 'Alasan lucu untuk sering jajan: menyebutnya mendukung usaha kecil.' },
+  { text: 'Investasi terbaik itu leher: tiap hari nengok saldo, tiap hari kaget. Lehernya jadi kuat.', why: 'Kebiasaan sering mengecek saldo dan kaget diplesetkan menjadi latihan otot leher.' },
+  { text: 'Belanja online jam 2 pagi itu bukan boros, itu “self reward” karena berhasil begadang. HAHAHA.', why: 'Mencari alasan untuk belanja tengah malam dengan menyebutnya hadiah untuk diri sendiri.' },
+  { text: 'Mau kaya itu gampang: tinggal hapus aplikasi belanja. Masalahnya, susah.', why: 'Saran yang terdengar mudah tapi sulit dilakukan, karena godaan belanja online besar.' },
+  { text: 'Uang receh di saku celana yang kecuci itu namanya “tabungan dadakan”. Rezeki anak soleh wkwk.', why: 'Menemukan uang yang terlupa di celana terasa seperti hadiah tak terduga.' },
+  { text: 'Kenapa THR cepat habis? Karena dia singkatan dari “Tiba, Habis, Rindu”.', why: 'THR (Tunjangan Hari Raya) diplesetkan jadi “Tiba, Habis, Rindu”: datang, cepat habis, lalu dirindukan.' },
+  { text: 'Pas gajian: “Aku pantas dapat ini.” Tiga hari kemudian: “Kenapa aku begini?”', why: 'Menggambarkan rasa puas saat belanja ketika gajian, lalu menyesal beberapa hari kemudian.' },
+  { text: 'Kalau dompet bisa ngomong, kalimat pertamanya pasti: “Tolong, aku lelah.” WKWKWK.', why: 'Dompet yang terus-menerus dikuras digambarkan seperti manusia yang kelelahan.' },
+  { text: 'Kamu tahu bedanya aku sama ATM? ATM ada saldonya. Aku cuma ada harapan.', why: 'Lelucon mengejek diri sendiri tentang saldo yang kosong.' },
+  { text: 'Kamu kayak notifikasi gajian: jarang datang, tapi sekali datang bikin senyum seharian.', why: 'Ini gombalan. Notifikasi gaji masuk jarang (sebulan sekali) tapi membahagiakan.' },
+  { text: 'Kalau kamu jadi pengeluaran, aku rela nggak hemat.', why: 'Ini gombalan: rela “boros” untuk orang yang disayang.' },
 ];
 
 const lines = (v: Voice, l: Partial<Record<Voice, string[]>>) => l[v] || l.santai || [];
 
 export const persona = {
   jokeLead: (v: Voice, turn: number, again: boolean) => pickVar(lines(v, again ? {
-    santai: ['Oke, satu lagi:', 'Nih, satu lagi:'], sopan: ['Baik, satu lagi:', 'Berikut satu lagi:'], singkat: [''], gaul: ['Oke, satu lagi nih:', 'Nih lagi:'],
+    santai: ['Oke, satu lagi:', 'Nih, satu lagi wkwk:', 'Masih kuat ketawa? Nih:'], sopan: ['Baik, satu lagi:', 'Berikut satu lagi:'], singkat: [''], gaul: ['Oke, satu lagi nih:', 'Nih lagi, siapin perut:', 'Gas, satu lagi WKWK:'],
   } : {
-    santai: ['', 'Nih, siap-siap ketawa ya:'], sopan: ['Baik, ini satu lelucon:', 'Berikut satu lelucon:'], singkat: [''], gaul: ['', 'Nih, siap-siap ngakak:'],
+    santai: ['', 'Nih, siap-siap ketawa ya:', 'Oke, yang ini receh tapi lucu wkwk:', 'Dengerin ya, jangan ketawa kenceng-kenceng:'], sopan: ['Baik, ini satu lelucon:', 'Berikut satu lelucon:'], singkat: [''], gaul: ['', 'Nih, siap-siap ngakak:', 'Dengerin nih, dijamin ngakak (atau garing) wkwk:', 'Oke bos, satu jokes receh:'],
   }), turn),
   banter: (v: Voice, turn: number, flat: boolean) => pickVar(lines(v, flat ? {
     santai: ['Garing ya? Hehe, nanti aku latihan lawak lagi. Hitunganku tetap nggak garing kok.', 'Krik krik… oke, yang tadi kurang lucu. Mau coba satu lagi?', 'Waduh, garing. Aku tarik kata-kataku deh, hehe.'],
     sopan: ['Mohon maaf kalau leluconnya kurang lucu. Untuk hitungan, saya tetap teliti.', 'Baik, sepertinya yang tadi kurang berhasil. Ingin mencoba satu lagi?'],
     singkat: ['Hehe, garing ya.', 'Oke, kurang lucu.'], gaul: ['Garing ya? Wkwk ntar gue latihan lagi deh.', 'Krik krik… oke, yang tadi gagal. Mau coba lagi?'],
   } : {
-    santai: ['Hehe, aku memang receh, tapi hitunganku nggak receh.', 'Wkwk, aku anggap itu pujian ya.', 'Haha, makasih udah ketawa. Mau satu lagi?', 'Hehe, bisa aja. Ada yang mau dicatat sekalian?'],
+    santai: ['Wkwk aku memang receh, tapi hitunganku nggak receh.', 'Wkwkwk aku anggap itu pujian ya.', 'Hahaha makasih udah ketawa. Mau satu lagi?', 'Hehe bisa aja. Ada yang mau dicatat sekalian?', 'Wkwk iya dong, asisten keuangan juga butuh hiburan.'],
     sopan: ['Terima kasih, semoga bisa sedikit menghibur.', 'Senang kalau Anda terhibur. Ada yang bisa saya bantu lagi?'],
-    singkat: ['Hehe.', 'Siap.'], gaul: ['Wkwk receh mah gue, tapi itungan gue akurat cuy.', 'Anjay, gue anggep pujian nih.', 'Hehe, mau jokes lagi ga?'],
+    singkat: ['Hehe.', 'Siap.'], gaul: ['WKWK receh mah gue, tapi itungan gue akurat cuy.', 'Anjay, gue anggep pujian nih wkwk.', 'Hehe, mau jokes lagi ga?', 'WKWKWK iya gue emang lucu, baru sadar lo?'],
   }), turn),
   angry: (v: Voice, turn: number) => pickVar(lines(v, {
     santai: ['Maaf ya, aku bikin kesel. Bilang aja bagian mana yang salah, aku perbaiki.', 'Aduh, maaf banget. Aku masih belajar. Kalau aku salah paham, kamu bisa ajari aku.', 'Maaf ya. Coba tulis lagi pelan-pelan, atau ajari aku maksudmu biar nggak salah lagi.'],

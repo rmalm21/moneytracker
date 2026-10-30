@@ -29,6 +29,7 @@ import { segmentPiece } from './catat/segment.ts';
 import { readComposition, readUnitPrice, type Composition } from './catat/composition.ts';
 import { readGroup, readSplit, type GroupReading } from './catat/group.ts';
 import { anonymousShare, lineAmounts, readV4, rp as rpV4, splitShares, type V4Reading } from './catat/math.ts';
+import { readEveryday, type Everyday } from './catat/everyday.ts';
 import { suggestCategory } from './categorize.ts';
 import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
@@ -1014,9 +1015,21 @@ const FILLER = /\b(pakai|via|lewat|dari|bayar|dibayar|bayarnya|juga|aja|saja|ya|
  * protected), then the Financial Grammar on the normalized text. The plan keeps the sentence as typed and every change.
  */
 let inV4 = false;
+let inEveryday = false;
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const raw = input.trim();
   if (!raw) return readPlan(raw, ctx, mode);
+  // 7.9: everyday sentences rewritten into ones the grammar reads right (lib/catat/everyday.ts); what the rewrite knows
+  // (a note, the arithmetic, numbers to confirm, a budget raised by an amount, items paid at once) goes on the card after.
+  const everyday = mode === 'auto' && !inEveryday && !inV4 ? readEveryday(raw, ctx) : null;
+  if (everyday) {
+    let plan: QuickParseResult;
+    inEveryday = true;
+    try { plan = parseQuickPlan(everyday.text, ctx, mode); } finally { inEveryday = false; }
+    applyEveryday(plan, everyday, ctx);
+    plan.sourceText = raw; plan.trace.unshift(...everyday.trace);
+    return plan;
+  }
   // V4: arithmetic, sharing with people and several purposes are read first (lib/catat/math.ts); the grammar reads the
   // sentence with the result in place, and what it found is attached to the one expense afterwards.
   const v4 = mode === 'auto' && !inV4 ? readV4(raw, ctx) : null;
@@ -1062,6 +1075,65 @@ function purposeCategory(purpose: string, ctx: QuickContext): { categoryId: stri
  * V4: attaches the arithmetic, the sharing or the purposes to the one expense of the plan. False when there is no single
  * expense with the expected amount (the caller then reads the sentence as typed).
  */
+const EVERYDAY_RECORDS = new Set<QuickKind>(['expense', 'income', 'transfer', 'debt_new', 'debt_payment', 'receivable_new', 'receivable_payment', 'claim_new', 'claim_payment', 'plan_new']);
+/** 7.9: what lib/catat/everyday.ts knew about the sentence, put on the entries the grammar made of the rewritten one. */
+function applyEveryday(plan: QuickParseResult, e: Everyday, ctx: QuickContext) {
+  let records = plan.actions.filter(a => EVERYDAY_RECORDS.has(a.result.kind));
+  // Several items paid at once: one entry with its items (and a line per category when they differ).
+  if (e.merge) {
+    const spent = records.filter(a => a.result.kind === 'expense' && a.result.amount > 0);
+    if (spent.length >= 2) {
+      const [first, ...rest] = spent, r = first.result, total = spent.reduce((n, a) => n + a.result.amount, 0);
+      r.details = spent.map(a => ({ name: a.result.preset.description || a.text, amount: a.result.amount }));
+      const cats = spent.map(a => ({ categoryId: a.result.preset.categoryId || '', subcategoryId: a.result.preset.subcategoryId || null, amount: a.result.amount }));
+      const lines: typeof cats = [];
+      for (const c of cats) { const same = lines.find(l => l.categoryId === c.categoryId && l.subcategoryId === c.subcategoryId); if (same) same.amount += c.amount; else lines.push({ ...c }); }
+      if (lines.length >= 2 && lines.every(l => l.categoryId)) r.preset.splits = lines;
+      r.amount = total; r.preset.amount = total; r.preset.description = spent.map(a => a.result.preset.description).filter(Boolean).join(' & ');
+      first.fields.amount = { status: 'verified', note: spent.map(a => rupiah(a.result.amount)).join(' + ') };
+      first.evidence.unshift(`Dibayar sekaligus: satu catatan ${rupiah(total)} berisi ${spent.length} barang.`);
+      plan.actions = plan.actions.filter(a => !rest.includes(a));
+      first.mutation = planMutation(first, ctx, plan.actions); refreshAction(first, ctx);
+      records = plan.actions.filter(a => EVERYDAY_RECORDS.has(a.result.kind));
+    }
+  }
+  const notes = [e.note, ...e.notes].filter(Boolean).join(' · ');
+  for (const a of records) {
+    if (notes) a.result.preset.notes = [a.result.preset.notes, notes].filter(Boolean).join(' · ');
+    if (e.note) { a.result.note = e.note; a.evidence.push(`Catatan: “${e.note}”.`); }
+    for (const n of e.notes) a.evidence.push(`${n}.`);
+  }
+  // The wallet of a shared bill paid by you, written apart from the shares.
+  if (e.wallet) {
+    const w = walletsIn(e.wallet, ctx.wallets)[0], bill = records.find(a => a.result.kind === 'expense');
+    if (w && bill && !bill.result.split?.payerId) { bill.result.preset.walletId = w.id; bill.fields.wallet = { status: 'verified', note: w.name }; bill.mutation = planMutation(bill, ctx, plan.actions); refreshAction(bill, ctx); }
+  }
+  if (e.calc && records.length === 1 && !records[0].result.calc) { records[0].result.calc = e.calc.split(' = ')[0]; records[0].evidence.unshift(`Dihitung: ${e.calc}.`); }
+  // Plain numbers read as thousands: each is shown to be checked, never saved without a tap.
+  if (e.inferred) {
+    records.forEach((a, i) => {
+      const n = e.inferred![i];
+      if (!n || a.result.amount !== n * 1000) return;
+      a.result.inferredAmount = { raw: n, value: n * 1000 };
+      a.fields.amount = { status: 'check', note: `“${n}” dibaca ${rupiah(n * 1000)}? Kalau maksudnya ${rupiah(n)}, pilih di bawah` };
+      a.options.amount = [n * 1000, n];
+      refreshAction(a, ctx);
+    });
+    const confirm = confirmOf(plan.actions);
+    if (confirm) plan.confirm = confirm;
+  }
+  // "naikin 300rb": the budget goes up by that much.
+  if (e.budgetAdd !== undefined) for (const a of plan.actions.filter(x => x.result.kind === 'budget')) {
+    const prev = a.result.budget?.previous;
+    if (prev === undefined || a.result.amount !== e.budgetAdd) continue;
+    a.result.amount = prev + e.budgetAdd; a.result.preset.amount = prev + e.budgetAdd;
+    a.fields.amount = { status: 'likely', note: `${rupiah(prev)} + ${rupiah(e.budgetAdd)} = ${rupiah(prev + e.budgetAdd)}` };
+    a.evidence.unshift(`Anggaran naik ${rupiah(e.budgetAdd)}: ${rupiah(prev)} → ${rupiah(prev + e.budgetAdd)}.`);
+    refreshAction(a, ctx);
+  }
+  if (e.warn) { for (const a of records) { a.warnings.push(e.warn); a.review = true; } plan.warnings.push(e.warn); }
+}
+
 function applyV4(plan: QuickParseResult, v4: V4Reading, ctx: QuickContext): boolean {
   const money = plan.actions.filter(a => a.result.amount > 0);
   const target = money.length === 1 && money[0].result.kind === 'expense' ? money[0] : null;
@@ -1293,7 +1365,8 @@ function readPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind
     if (ref || wallet || date) {
       let rest = norm.replace(REFERENCE, ' ').replace(DATE_ANY(), ' ');
       for (const w of walletsIn(rest, ctx.wallets)) rest = rest.replace(new RegExp(`\\b${esc(w.word)}\\b`), ' ');
-      rest = rest.replace(FILLER, ' ').trim();
+      // 7.9: the full stop of "…, bayar tunai." is not a word left over.
+      rest = rest.replace(FILLER, ' ').replace(/[.,!;:]+/g, ' ').trim();
       if (!rest) return 'modifier';
       // "tapi makan cash": the words left name an entry said before → a reference to it.
       const words = rest.split(/\s+/).map(w => w.replace(/nya$/, ''));
