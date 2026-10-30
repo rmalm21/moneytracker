@@ -58,9 +58,25 @@ export const JOKES: Joke[] = [
   { text: 'Kamu tahu bedanya aku sama ATM? ATM ada saldonya. Aku cuma ada harapan.', why: 'Lelucon mengejek diri sendiri tentang saldo yang kosong.' },
   { text: 'Kamu kayak notifikasi gajian: jarang datang, tapi sekali datang bikin senyum seharian.', why: 'Ini gombalan. Notifikasi gaji masuk jarang (sebulan sekali) tapi membahagiakan.' },
   { text: 'Kalau kamu jadi pengeluaran, aku rela nggak hemat.', why: 'Ini gombalan: rela “boros” untuk orang yang disayang.' },
+  // 8.1 — jokes bapak-bapak, plesetan, and a few more about money.
+  { text: 'Kenapa bapak-bapak suka beli kopi hitam? Soalnya kopi putih itu namanya susu. Wkwk.', why: 'Jokes bapak-bapak: logika yang sengaja dibuat polos.' },
+  { text: 'Tukang bakso kalau ditanya kabarnya pasti jawab: “Baik, alhamdulillah… pentol-pentol aja.” (pentol = untung-untung)', why: 'Plesetan “untung-untung” jadi “pentol-pentol”, karena tukang bakso jualan pentol.' },
+  { text: 'Apa bedanya kamu sama tanggal 1? Tanggal 1 datang tiap bulan, kamu datang kalau butuh doang. HAHAHA.', why: 'Sindiran untuk orang yang datang hanya saat perlu, dibandingkan dengan tanggal gajian yang pasti datang.' },
+  { text: 'Kenapa ikan nggak pernah punya utang? Soalnya dia selalu bayar pakai sisik. Eh, maksudnya sisik… sisa-sisa duit. Maksa ya? Wkwk.', why: 'Plesetan yang sengaja dipaksakan, ciri khas jokes bapak-bapak.' },
+  { text: 'Dokter: “Kamu harus kurangi gula.” Aku: “Siap, Dok. Mulai sekarang aku nggak gajian dulu, biar nggak manis-manis amat.”', why: 'Gajian diibaratkan sesuatu yang “manis”, jadi berhenti gajian dianggap mengurangi gula.' },
+  { text: 'Tahu nggak kenapa dompetku selalu tipis? Karena aku orangnya rendah hati, nggak suka pamer isi.', why: 'Alasan lucu untuk dompet kosong: menyebutnya rendah hati.' },
+  { text: 'Kalau uang bisa ngomong, uangku cuma bisa bilang satu kata: “Dadah.” WKWK.', why: 'Uang yang selalu cepat pergi digambarkan pamit tiap kali datang.' },
+  { text: 'Mau hemat listrik? Gampang, jangan bayar. Eh jangan deh, nanti malah gelap beneran.', why: 'Saran konyol yang langsung dibantah sendiri, karena listrik bisa diputus kalau tidak dibayar.' },
+  { text: 'Aku sama dompet itu kayak Tom & Jerry: tiap hari kejar-kejaran, tapi nggak pernah ketangkep isinya.', why: 'Perumpamaan kartun Tom & Jerry yang selalu kejar-kejaran tanpa hasil.' },
+  { text: 'Beli kopi 50 ribu biar fokus kerja. Kerja biar bisa beli kopi 50 ribu. Siklus kehidupan paling sempurna.', why: 'Lingkaran tanpa ujung: bekerja untuk membeli hal yang dibeli supaya bisa bekerja.' },
+  { text: 'Kata orang, waktu adalah uang. Pantes aku nggak punya waktu, uangnya juga nggak ada.', why: 'Peribahasa “waktu adalah uang” dibalik: tidak punya uang berarti tidak punya waktu.' },
+  { text: 'Kenapa nasabah bank selalu sopan? Karena tiap hari mereka “menabung” kebaikan… dan sedikit uang.', why: 'Plesetan arti “menabung” untuk kebaikan dan uang.' },
+  { text: 'Pacarku bilang aku boros. Aku kaget, sampai beli es krim buat menenangkan diri.', why: 'Lucu karena membalas tuduhan boros dengan langsung belanja lagi.' },
+  { text: 'Akhir bulan itu waktunya kreatif: nasi + kecap jadi “rice bowl soy glaze”.', why: 'Saat uang menipis, makanan sederhana diberi nama keren supaya terasa mewah.' },
+  { text: 'Kenapa kucing nggak pernah bokek? Soalnya kerjanya cuma “meong” (minta) sama majikan. Wkwk.', why: 'Kucing minta makan ke pemiliknya, jadi tidak pernah kehabisan uang.' },
 ];
 
-const lines = (v: Voice, l: Partial<Record<Voice, string[]>>) => l[v] || l.santai || [];
+const lines = (v: Voice, l: Partial<Record<Voice, string[]>>) => l[v] || (v === 'barbar' ? l.gaul : undefined) || l.santai || [];
 
 export const persona = {
   jokeLead: (v: Voice, turn: number, again: boolean) => pickVar(lines(v, again ? {

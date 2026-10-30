@@ -37,7 +37,7 @@ export const KEEP_OPTIONS: { days: KeepDays; label: string }[] = [{ days: 7, lab
 export const PAGE = 10;
 const MAX = 400, DAY = 86_400_000;
 export const DEFAULT_SETTINGS: ChatSettings = { keepDays: 7, style: 'lembar', picked: false, voice: 'santai', learned: {}, tray: true, seen: false };
-const VOICES = ['santai', 'sopan', 'singkat', 'gaul'];
+const VOICES = ['santai', 'sopan', 'singkat', 'gaul', 'barbar'];
 /** A phrase learned, keeping only the latest 60. */
 export function learnPhrase(learned: Record<string, string>, phrase: string, as: string) {
   const next = { ...learned }; delete next[phrase]; next[phrase] = as;

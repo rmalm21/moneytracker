@@ -14,3 +14,5 @@ bench/realworld/realworld-*.json
 bench/realworld/augmented/
 # 7.9 bench: the 7.8 engines, extracted from git by bench/v79/make-baseline.sh
 bench/v79/baseline-v78/
+# 8.1 bench: the 8.0 engines, extracted from git by bench/v81/make-baseline.sh
+bench/v81/baseline-v80/

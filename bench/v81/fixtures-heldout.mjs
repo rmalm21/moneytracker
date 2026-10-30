@@ -1,0 +1,87 @@
+/**
+ * 8.1 — a much bigger library of language: swearing written every way (stretched, masked, number-for-letter, regional),
+ * vulgar words, animals said literally ("makanan anjing"), kind small talk, fun (quotes, facts, challenges, fortune,
+ * games), questions about one's own records, how-to questions about the app's features, the Bar-bar style, and laughing
+ * while recording. Written BEFORE the 8.1 engine changes; the first run is frozen (FROZEN-heldout-first.md).
+ * A case: `voice`, `ctx` ('full' | 'boros' | 'stats'), turns { say, intent, notIntent, match, notMatch, open, record,
+ * recordText (pattern on the sentence handed to Catat otomatis), setVoice }.
+ */
+export const cases = [
+  // Swearing, every way it is typed.
+  { id: 'k1', voice: 'sopan', turns: [{ say: 'anjiiiiing', intent: 'swear', match: /astaghfirullah/i }] },
+  { id: 'k2', voice: 'sopan', turns: [{ say: '4nj1ng', intent: 'swear', match: /astaghfirullah/i }] },
+  { id: 'k3', voice: 'santai', turns: [{ say: 'a*jing lu', intent: 'swear' }] },
+  { id: 'k4', voice: 'gaul', turns: [{ say: 'b4ngs4t', intent: 'swear' }] },
+  { id: 'k5', voice: 'santai', turns: [{ say: 'ndasmu', intent: 'swear' }] },
+  { id: 'k6', voice: 'gaul', turns: [{ say: 'matamu', intent: 'swear' }] },
+  { id: 'k7', voice: 'santai', turns: [{ say: 'goblog sia', intent: 'swear' }] },
+  { id: 'k8', voice: 'gaul', turns: [{ say: 'bodat kau', intent: 'swear' }] },
+  { id: 'k9', voice: 'sopan', turns: [{ say: 'f*ck', intent: 'swear', match: /astaghfirullah/i }] },
+  { id: 'k10', voice: 'singkat', turns: [{ say: 'asuuuu', intent: 'swear' }] },
+  { id: 'k11', voice: 'gaul', turns: [{ say: 'cangkemmu', intent: 'swear' }] },
+  { id: 'k12', voice: 'santai', turns: [{ say: 'bgsd', intent: 'swear' }] },
+  // Vulgar words: understood, never said back.
+  { id: 'j1', voice: 'gaul', turns: [{ say: 'toket', intent: 'swear', notMatch: /toket/i }] },
+  { id: 'j2', voice: 'sopan', turns: [{ say: 'k0nt0l', intent: 'swear', match: /astaghfirullah/i, notMatch: /k0nt0l|kontol/i }] },
+  { id: 'j3', voice: 'santai', turns: [{ say: 'ngewe yuk', intent: 'swear', notMatch: /ngewe/i }] },
+  { id: 'j4', voice: 'gaul', turns: [{ say: 'nonton bokep', intent: 'swear', notMatch: /bokep/i }] },
+  // Animals said literally, with an amount: recorded as they are.
+  { id: 'x1', voice: 'santai', turns: [{ say: 'makanan anjing 100rb pake jago', record: true, recordText: /anjing/i, notMatch: /sabar|ngegas|kasar/i }] },
+  { id: 'x2', voice: 'sopan', turns: [{ say: 'sate babi 50rb tunai', record: true, recordText: /babi/i, notMatch: /astaghfirullah/i }] },
+  { id: 'x3', voice: 'gaul', turns: [{ say: 'grooming anjing 150rb pake gopay', record: true, recordText: /anjing/i }] },
+  // Kind small talk.
+  { id: 'b1', voice: 'santai', turns: [{ say: 'aku sayang kamu', intent: 'smalltalk' }] },
+  { id: 'b2', voice: 'gaul', turns: [{ say: 'lo jomblo ya', intent: 'smalltalk' }] },
+  { id: 'b3', voice: 'santai', turns: [{ say: 'umur kamu berapa', intent: 'smalltalk' }] },
+  { id: 'b4', voice: 'sopan', turns: [{ say: 'kamu robot ya?', intent: 'smalltalk' }] },
+  { id: 'b5', voice: 'santai', turns: [{ say: 'udah makan belum', intent: 'smalltalk', notMatch: /asisten kecil/i }] },
+  { id: 'b6', voice: 'gaul', turns: [{ say: 'dadah, gue cabut dulu', intent: 'smalltalk' }] },
+  { id: 'b7', voice: 'santai', turns: [{ say: 'kangen kamu', intent: 'smalltalk' }] },
+  { id: 'b8', voice: 'santai', turns: [{ say: 'semangatin aku dong', intent: 'smalltalk' }] },
+  { id: 'b9', voice: 'gaul', turns: [{ say: 'gue ulang tahun hari ini', intent: 'smalltalk', match: /selamat|happy|met/i }] },
+  { id: 'b10', voice: 'santai', turns: [{ say: 'yeay akhirnya gajian', intent: 'smalltalk', match: /gaji/i }] },
+  { id: 'b11', voice: 'sopan', turns: [{ say: 'saya diterima kerja', intent: 'smalltalk', match: /selamat/i }] },
+  { id: 'b12', voice: 'santai', turns: [{ say: 'laper banget', intent: 'smalltalk' }] },
+  { id: 'b13', voice: 'gaul', turns: [{ say: 'ujan deres nih', intent: 'smalltalk' }] },
+  { id: 'b14', voice: 'santai', turns: [{ say: 'akhirnya weekend', intent: 'smalltalk' }] },
+  { id: 'b15', voice: 'sopan', turns: [{ say: 'kamu baik banget sih', intent: 'smalltalk' }] },
+  // Fun: quotes, facts, challenges, fortune, games.
+  { id: 's1', voice: 'santai', turns: [{ say: 'kasih motivasi dong', intent: 'fun' }] },
+  { id: 's2', voice: 'gaul', turns: [{ say: 'quote hari ini', intent: 'fun' }] },
+  { id: 's3', voice: 'santai', turns: [{ say: 'fakta unik soal uang dong', intent: 'fun' }] },
+  { id: 's4', voice: 'gaul', turns: [{ say: 'kasih tantangan hemat', intent: 'fun' }] },
+  { id: 's5', voice: 'santai', ctx: 'boros', turns: [{ say: 'ramal keuangan aku dong', intent: 'fun' }] },
+  { id: 's6', voice: 'santai', turns: [{ say: 'suit yuk', intent: 'game' }, { say: 'batu', intent: 'game', match: /menang|kalah|seri/i }] },
+  { id: 's7', voice: 'gaul', turns: [{ say: 'lempar koin', intent: 'game', match: /angka|gambar/i }] },
+  { id: 's8', voice: 'santai', turns: [{ say: 'lempar dadu', intent: 'game', match: /[1-6]/ }] },
+  { id: 's9', voice: 'santai', turns: [{ say: 'pilihin dong, bakso atau mie ayam?', intent: 'game', match: /bakso|mie ayam/i }] },
+  { id: 's10', voice: 'gaul', turns: [{ say: 'main tebak angka yuk', intent: 'game' }, { say: '5', intent: 'game', match: /besar|kecil|bener|benar|tepat/i }] },
+  { id: 's11', voice: 'santai', turns: [{ say: 'jokes bapak bapak dong', intent: 'joke' }] },
+  { id: 's12', voice: 'santai', turns: [{ say: 'angka acak 1 sampai 100', intent: 'game', match: /\d/ }] },
+  // Questions about one's own records that 8.0 answered wrongly or not at all.
+  { id: 'q1', voice: 'santai', ctx: 'stats', turns: [{ say: 'berapa hari aku nggak jajan siklus ini', intent: 'question', match: /hari/i, notMatch: /Rp55\.000/ }] },
+  { id: 'q2', voice: 'santai', ctx: 'stats', turns: [{ say: 'hari apa aku paling boros', intent: 'question', match: /senin|selasa|rabu|kamis|jumat|sabtu|minggu/i }] },
+  { id: 'q3', voice: 'gaul', ctx: 'stats', turns: [{ say: 'gue paling sering belanja di mana', intent: 'question', match: /Indomaret/ }] },
+  { id: 'q4', voice: 'santai', ctx: 'stats', turns: [{ say: 'aku udah nyatet berapa transaksi bulan ini', intent: 'question', match: /\d+\s+(?:transaksi|catatan)/i }] },
+  { id: 'q5', voice: 'santai', ctx: 'stats', turns: [{ say: 'transaksi terbesar bulan ini', notIntent: 'unknown' }] },
+  { id: 'q6', voice: 'santai', ctx: 'stats', turns: [{ say: 'toko langganan aku apa', intent: 'question', match: /Indomaret/ }] },
+  // How to use a feature: answered from Tanya Jawab, with a button.
+  { id: 'f1', voice: 'santai', turns: [{ say: 'cara bikin anggaran gimana', intent: 'howto', open: 'budgets' }] },
+  { id: 'f2', voice: 'santai', turns: [{ say: 'gimana cara pasang pin', intent: 'howto', match: /pin/i }] },
+  { id: 'f3', voice: 'gaul', turns: [{ say: 'cara split bill sama temen', intent: 'howto', match: /split/i }] },
+  { id: 'f4', voice: 'sopan', turns: [{ say: 'bagaimana cara mencadangkan data', intent: 'howto', match: /cadang|backup/i }] },
+  { id: 'f5', voice: 'santai', turns: [{ say: 'caranya nutup siklus gaji', intent: 'howto', match: /siklus/i }] },
+  { id: 'f6', voice: 'santai', turns: [{ say: 'cara catat transfer antar dompet', intent: 'howto', match: /transfer/i }] },
+  { id: 'f7', voice: 'santai', turns: [{ say: 'cara bikin tagihan rutin', intent: 'howto', match: /rutin/i }] },
+  { id: 'f8', voice: 'gaul', turns: [{ say: 'cara nyembunyiin nominal', intent: 'howto', match: /sembunyi|sensor|nominal/i }] },
+  // The Bar-bar style.
+  { id: 'v1', voice: 'santai', turns: [{ say: 'pakai gaya bar-bar', setVoice: 'barbar' }] },
+  { id: 'v2', voice: 'barbar', turns: [{ say: 'halo', intent: 'greet', match: /anjir|woy|njir|bos/i }] },
+  { id: 'v3', voice: 'barbar', ctx: 'boros', turns: [{ say: 'roasting gue', intent: 'roast', match: /anjir|anjing|bangsat|goblok|tolol|bego/i }] },
+  { id: 'v4', voice: 'barbar', turns: [{ say: 'anjing', intent: 'swear', match: /anjing|anjir|bangsat|bacot/i, notMatch: /astaghfirullah/i }] },
+  { id: 'v5', voice: 'barbar', turns: [{ say: 'kopi 25rb pake gopay', record: true }] },
+  { id: 'v6', voice: 'barbar', turns: [{ say: 'kasih jokes dong', intent: 'joke' }] },
+  // Laughing while recording.
+  { id: 'w1', voice: 'santai', turns: [{ say: 'wkwk iya beli kopi 20rb', record: true, recordText: /^(?!.*wkwk)/i }] },
+  { id: 'w2', voice: 'gaul', turns: [{ say: 'HAHAHA parkir 5rb tunai', record: true, recordText: /^(?!.*haha)/i }] },
+];

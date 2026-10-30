@@ -29,7 +29,7 @@ export const MODULES: { view: string; label: string; words: RegExp }[] = [
   { view: 'funds', label: 'Tujuan dana', words: /\b(?:tujuan\s+dana|target(?:\s+tabungan)?|tabungan|dana\s+darurat|kantong)\b/ },
   { view: 'recurring', label: 'Rutin', words: /\b(?:rutin|langganan|berulang|subscription|tagihan\s+bulanan)\b/ },
   { view: 'calendar', label: 'Kalender Keuangan', words: /\bkalender\b/ },
-  { view: 'forecast', label: 'Proyeksi', words: /\b(?:proyeksi|prediksi|forecast|ramalan)\b/ },
+  { view: 'forecast', label: 'Proyeksi', words: /\b(?:proyeksi|prediksi|forecast)\b/ },
   { view: 'analytics', label: 'Analisis', words: /\b(?:analisis|analisa|grafik|statistik|chart)\b/ },
   { view: 'report', label: 'Laporan', words: /\b(?:laporan|report|rekap)\b/ },
   { view: 'advisor', label: 'Insight', words: /\b(?:insight|wawasan)\b/ },
@@ -104,4 +104,4 @@ function answerFor(view: string, t: string, d: ModuleData, today: string, v: Voi
   }
   return null;
 }
-const say = (v: Voice, santai: string, sopan: string, gaul: string, singkat: string) => v === 'sopan' ? sopan : v === 'gaul' ? gaul : v === 'singkat' ? singkat : santai;
+const say = (v: Voice, santai: string, sopan: string, gaul: string, singkat: string) => v === 'sopan' ? sopan : v === 'gaul' || v === 'barbar' ? gaul : v === 'singkat' ? singkat : santai;

@@ -8,7 +8,7 @@
  * picked (long press, right click, or from the settings) to copy or delete, with "Urungkan" for a few seconds.
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowUpRight, Banknote, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, StickyNote, Tag, Target, Trash2, Undo2, Users, Wallet, X, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Banknote, BookOpen, Gamepad2, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, StickyNote, Tag, Target, Trash2, Undo2, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
 import { QuickEntryBox } from './quick-entry';
 import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
@@ -26,7 +26,7 @@ const STATUS_TEXT: Partial<Record<ChatStatus, string>> = { dismissed: 'Tidak jad
 /** Each template group: its icon and colour. */
 const GROUP_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {
   catat: { icon: PenLine, tone: 'teal' }, patungan: { icon: Users, tone: 'violet' }, kategori: { icon: ChartPie, tone: 'amber' }, hitung: { icon: Calculator, tone: 'blue' },
-  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ngobrol: { icon: Smile, tone: 'violet' }, menu: { icon: LayoutGrid, tone: 'teal' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
+  tanya: { icon: MessageCircleQuestion, tone: 'pink' }, saran: { icon: Lightbulb, tone: 'green' }, ngobrol: { icon: Smile, tone: 'violet' }, menu: { icon: LayoutGrid, tone: 'teal' }, main: { icon: Gamepad2, tone: 'amber' }, fitur: { icon: BookOpen, tone: 'blue' }, ubah: { icon: Undo2, tone: 'slate' }, rencana: { icon: CalendarClock, tone: 'orange' },
 };
 /** 7.9 Each suggestion above the message box: its icon and colour. */
 const SUGGEST_LOOK: Record<SuggestIcon, { icon: LucideIcon; tone: string }> = {

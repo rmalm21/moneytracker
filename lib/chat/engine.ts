@@ -34,7 +34,11 @@ import type { AskField, Inspection } from './inspect.ts';
 import { CURHAT_TOPICS, JOKES, SELF_HARM, curhatReply, curhatTopic, persona as P, pickVar, safety } from './persona.ts';
 import { say as V, you, yours, type Voice } from './voice.ts';
 import { readWordMath } from './wordmath.ts';
-import { RIDDLES, ROAST, TREAT, USER_PANTUN, USER_RIDDLE, guessUserRiddle, laughAtJoke, laughBack, pantunBack, readLaugh, readSwear, readUserJoke, riddleAnswer, roast, swearLead, swearReply, teaseLead } from './fun.ts';
+import { RIDDLES, ROAST, TREAT, USER_PANTUN, USER_RIDDLE, guessUserRiddle, insulted, laughAtJoke, laughBack, mildOnly, pantunBack, readLaugh, readSwear, readUserJoke, riddleAnswer, roast, swearLead, swearReply, teaseLead, vo } from './fun.ts';
+import { readGame, type GameState } from './games.ts';
+import { readHowto } from './howto.ts';
+import { readStats } from './stats.ts';
+import { FUN_MORE, readFunContent, readTalk } from './talk.ts';
 import { opensMenu, readModule } from './modules.ts';
 
 export type ChatData = Pick<Data, 'wallets' | 'transactions' | 'budgets' | 'categories' | 'funds' | 'debts' | 'receivables' | 'claims'> & Partial<Pick<Data, 'recurring' | 'wishlist'>>;
@@ -82,6 +86,8 @@ export type ChatMemory = {
   unitAsk?: { per: string; total: string; note: string };
   /** 8.0: the riddle the assistant asked (its index), or where the person's own riddle is (question asked → punchline). */
   riddle?: number; userRiddle?: 'question' | 'answer';
+  /** 8.1: the game waiting for a move, and the kind of fun content shown last ("lagi" gives another). */
+  game?: GameState; funKind?: string;
 };
 export type SayTone = 'up' | 'down' | 'warn' | 'good';
 export type SayLine = { label: string; value: string; tone?: SayTone };
@@ -104,7 +110,9 @@ export type ChatIntent = 'greet' | 'thanks' | 'ack' | 'help' | 'examples' | 'abo
   /** 7.9: what things mean in the app; asking back or saying honestly what the chat does not do. */
   | 'faq' | 'clarify'
   /** 8.0: swearing answered in the chosen style, a roast of the spending, riddles both ways, a menu of the app. */
-  | 'swear' | 'roast' | 'riddle' | 'module';
+  | 'swear' | 'roast' | 'riddle' | 'module'
+  /** 8.1: quotes, facts, challenges and fortune; games; how to use a feature (from Tanya Jawab). */
+  | 'fun' | 'game' | 'howto';
 export type ChatResult = {
   intent: ChatIntent; reply: ChatReply; memory: ChatMemory;
   /** The record waiting to be saved is dropped. */ dismiss?: boolean;
@@ -137,9 +145,11 @@ export const TEMPLATES: TemplateGroup[] = [
   { key: 'patungan', title: 'Patungan', hint: 'Split Bill, utang, piutang', items: ['hokben 162.003 dibagi2 sama ferdi', 'makan 100rb aku 60rb ferdi 40rb', 'listrik 450rb sepertiga buat kosan sebelah', 'ferdi bayarin makan 90rb, aku hutang setengah'] },
   { key: 'kategori', title: 'Bagi kategori', hint: 'Satu belanja, beberapa keperluan', items: ['hokben 162.003 dibagi 2, satu buat gue, satu traktir teman', 'belanja 200rb, 150rb buat makan, sisanya sabun'] },
   { key: 'hitung', title: 'Hitung', hint: 'Kalkulator di dalam chat', items: ['hitung 128181 dibagi 3 dikali 2', 'berapa 15% dari 2,5jt', 'diskon 50% makan 80rb'] },
-  { key: 'tanya', title: 'Tanya', hint: 'Dijawab dari catatanmu', items: ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'sisa anggaran makan berapa'] },
+  { key: 'tanya', title: 'Tanya', hint: 'Dijawab dari catatanmu', items: ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'sisa anggaran makan berapa', 'hari apa aku paling boros', 'berapa hari aku nggak jajan', 'paling sering belanja di mana'] },
   { key: 'saran', title: 'Ringkasan & saran', hint: 'Kondisi keuangan, anggaran, gajian', items: ['ringkasan bulan ini', 'cek semua anggaran', 'kapan gajian?', 'aman nggak beli sepatu 500rb?', 'kasih tips hemat', 'pengen nabung buat liburan'] },
   { key: 'ngobrol', title: 'Ngobrol', hint: 'Bercanda, tebak-tebakan, roasting, curhat', items: ['kasih jokes dong', 'tebak-tebakan dong', 'roasting pengeluaranku', 'aku punya tebakan', 'boleh curhat?', 'kalau aku bilang boncos artinya boros'] },
+  { key: 'main', title: 'Main & seru', hint: 'Suit, tebak angka, motivasi, ramalan', items: ['suit yuk', 'main tebak angka', 'pilihin dong, bakso atau mie ayam?', 'kasih motivasi dong', 'fakta unik soal uang', 'kasih tantangan hemat', 'ramal keuangan aku'] },
+  { key: 'fitur', title: 'Cara pakai', hint: 'Dijawab dari Tanya Jawab', items: ['cara bikin anggaran', 'cara split bill', 'cara pasang PIN', 'cara catat utang', 'cara backup data'] },
   { key: 'menu', title: 'Semua menu', hint: 'Utang, piutang, target, rutin, wish list', items: ['utang aku berapa', 'siapa aja yang utang ke aku', 'progres target tabungan', 'langganan apa aja', 'buka wishlist'] },
   { key: 'ubah', title: 'Ubah & batal', hint: 'Setelah mencatat', items: ['jadi 45rb', 'pakai {other}', 'kemarin', 'batalin yang tadi'] },
   { key: 'rencana', title: 'Rencana', hint: 'Anggaran, pengingat, rutin', items: ['anggaran makan 2jt', 'ingatkan bayar listrik tgl 20', 'bayar wifi 300rb tiap tanggal 5'] },
@@ -166,7 +176,7 @@ const ACK = /^(?:ok(?:e|ay|ey)?|okk+|sip+|siap|mantap|mantul|good|nice|keren|bai
 const HELP = /^(?:bantuan|help|tolong|menu|fitur|panduan|cara ?pakai|caranya)$|\b(?:bisa apa(?: aja| saja)?|bisa ngapain|ngapain aja|bisa bantu apa|apa (?:aja|saja) yang bisa|fitur(?:nya|mu)? apa|apa (?:aja|saja) fitur(?:nya|mu)?|cara (?:pakai|make|makenya|pakainya|menggunakan)(?! \p{L}+ (?:\d|rp)))\b/u;
 const ABOUT = /\b(?:kamu siapa|siapa kamu|kamu itu apa|kamu apa|ini apa|ini siapa)\b|^kamu\s+(?:(?:tuh|itu|ini)\s+)?(?:sebenarnya\s+)?(?:apa|siapa)$/;
 const EXAMPLES = /^(?:(?:liat|lihat|minta|kasih|mau liat|mau lihat|tunjukin|tampilin)\s+)?(?:contoh(?:nya)?|template(?:nya)?|ide)(?:\s+(?:nya|dong|lagi|chat|kalimat|apa aja|yang ada))*$/;
-const VOICE_WORDS: [RegExp, Voice][] = [[/\b(?:formal|baku|sopan|anda)\b/, 'sopan'], [/\b(?:lo[- ]?gue|lu[- ]?gue|gue[- ]?lo|gaul)\b/, 'gaul'], [/\b(?:singkat|pendek|ringkas|to the point)\b/, 'singkat'], [/\b(?:santai|kayak temen|jangan kaku|ga kaku|nggak kaku|biasa aja)\b/, 'santai']];
+const VOICE_WORDS: [RegExp, Voice][] = [[/\b(?:bar[- ]?bar|barbar|toxic|brutal|nyolot|preman)\b/, 'barbar'], [/\b(?:formal|baku|sopan|anda)\b/, 'sopan'], [/\b(?:lo[- ]?gue|lu[- ]?gue|gue[- ]?lo|gaul)\b/, 'gaul'], [/\b(?:singkat|pendek|ringkas|to the point)\b/, 'singkat'], [/\b(?:santai|kayak temen|jangan kaku|ga kaku|nggak kaku|biasa aja)\b/, 'santai']];
 const VOICE_TALK = /\b(?:bahasa|gaya|ngomong|jawab(?:nya)?|ngobrol|bicara|pakai|pake|balas(?:nya)?|bales(?:nya)?|respon(?:nya)?)\b/;
 
 function partOfDay(hour = 12) { return hour < 11 ? 'pagi' : hour < 15 ? 'siang' : hour < 18 ? 'sore' : 'malam'; }
@@ -460,7 +470,7 @@ function calcReply(c: NonNullable<ReturnType<typeof calculate>>, again: boolean,
 const helpReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', card: 'help', title: 'Yang bisa kubantu', text: V.helpLead(v), lines: t.slice(0, 7).map(g => ({ label: g.title, value: `“${g.items[0]}”` })), chips: ['contoh', 'ringkasan bulan ini', 'ganti gaya bahasa'] });
 const examplesReply = (v: Voice, t: TemplateGroup[]): ChatReply => ({ kind: 'say', title: 'Coba salah satu', text: V.examplesLead(v), chips: t.filter(g => g.key !== 'ubah').flatMap(g => g.items.slice(0, 1)).concat(t[1].items[1], t[3].items[1]) });
 const unknownReply = (v: Voice, t: TemplateGroup[], unanswered = false): ChatReply => ({ kind: 'say', text: unanswered ? V.unanswered(v) : V.unknown(v), chips: unanswered ? ['pengeluaran bulan ini berapa', 'kapan terakhir isi bensin', 'saldo semua dompet berapa', 'ringkasan bulan ini'] : [t[0].items[0], 'pengeluaran bulan ini berapa', 'hitung 15% dari 2,5jt', 'bisa apa aja?'] });
-const VOICE_CHIPS = ['gaya santai', 'gaya sopan', 'gaya singkat', 'gaya gaul'];
+const VOICE_CHIPS = ['gaya santai', 'gaya sopan', 'gaya singkat', 'gaya gaul', 'gaya bar-bar'];
 
 /** `money` under another name, for where a message's own `money` (an amount in it) hides it. */
 const cycleMoney = (ctx: ChatContext) => money(ctx);
@@ -479,7 +489,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
   // Learned phrases are kept as typed (`typed`); the rules read the shorthand written out (`t`: "km bs" → "kamu bisa").
   const raw = input.trim(), typed = clean(raw), t = normalizeWords(typed), v: Voice = ctx.voice || 'santai', tpl = templatesFor(ctx.quick.wallets);
   // What lasts one reply only: the field asked, the offer made, the explanation, the phrase being taught.
-  const mem: ChatMemory = { ...memory, asking: undefined, offer: undefined, explain: undefined, teaching: undefined, pendingQ: undefined, people: undefined, unitAsk: undefined, riddle: undefined, userRiddle: undefined };
+  const mem: ChatMemory = { ...memory, asking: undefined, offer: undefined, explain: undefined, teaching: undefined, pendingQ: undefined, people: undefined, unitAsk: undefined, riddle: undefined, userRiddle: undefined, game: undefined };
   const turn = (memory.turn || 0) + 1;
   const finish = (r: ChatResult): ChatResult => {
     const next: ChatMemory = { ...r.memory, turn, misses: r.intent === 'unknown' ? (memory.misses || 0) + 1 : 0 };
@@ -606,11 +616,24 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (memory.riddle !== undefined && RIDDLES[memory.riddle] && !money && words <= 8 && !CANCEL.test(t)) return talk('riddle', riddleAnswer(v, RIDDLES[memory.riddle], t, turn), { chips: ['tebak-tebakan lagi', 'kasih jokes dong'] }, { topic: 'joke' });
     if (memory.userRiddle === 'question' && !money && words <= 20) return talk('riddle', guessUserRiddle(v, turn), {}, { userRiddle: 'answer', topic: 'joke' });
     if (memory.userRiddle === 'answer' && !money && words <= 20) return talk('banter', laughAtJoke(v, turn), { chips: ['gantian aku kasih tebakan', 'tebak-tebakan lagi'] }, { topic: 'joke' });
+    // 8.1 Games: a move in the one going on, or a new one ("suit yuk", "lempar koin", "pilihin dong, A atau B?").
+    // A number is a guess in tebak angka, and a range for "angka acak 1 sampai 100", not an amount.
+    const gameNumbers = memory.game?.kind === 'angka' && /^(?:angka\s+)?\d{1,2}$/.test(t) || /\b(?:angka|nomor|number)\s+(?:acak|random)\b|\brandom\s+(?:angka|nomor|number)\b|\bacak\s+angka\b/.test(t);
+    const game = (!money || gameNumbers) && words <= 14 ? readGame(t, raw, v, turn, memory.game) : null;
+    if (game) return talk('game', game.text, { chips: game.chips || [] }, { game: game.game, topic: 'game', serious: false });
     // 8.0 Swearing: answered in the chosen style; with something else to do, that is done too.
-    const sworn = depth === 0 ? readSwear(t) : null, mildOnly = sworn ? sworn.words.every(w => !/^(?:anjing|anjeng|anying|asu|bangsat|bangsad|bgst|babi|bajingan|brengsek|keparat|jancok|jancuk|dancok|taik|tai|tahi|setan|iblis|monyet|bacot|fuck|bitch|kimak)$/.test(w)) && !sworn.vulgar : false;
-    if (sworn && !(mildOnly && readLaugh(raw))) {
+    // 8.1 Laughing while recording ("wkwk iya beli kopi 20rb"): the laugh is not part of the record.
+    const laughing = depth === 0 && money ? readLaugh(raw) : null;
+    if (laughing && laughing.rest && /\d/.test(laughing.rest)) {
+      const r = await chatReply(laughing.rest, memory, ctx, 1), lead = vo(v, { santai: 'Wkwk, siap. ', sopan: '', gaul: 'WKWK siap. ', singkat: '', barbar: 'WKWK anjir, oke. ' });
+      return lead && r.reply.kind === 'plan' ? { ...r, reply: { ...r.reply, intro: `${lead}${r.reply.intro || ''}`.trim() } } : r;
+    }
+    const sworn = depth === 0 ? readSwear(t, money) : null;
+    if (sworn && !(mildOnly(sworn) && readLaugh(raw))) {
       if (!sworn.rest || sworn.atBot && !money && !ANGRY.test(sworn.rest)) return talk('swear', swearReply(v, sworn, turn), { chips: v === 'sopan' ? ['ringkasan bulan ini', 'kasih jokes dong'] : ['kasih jokes dong', 'roasting pengeluaranku', 'ringkasan bulan ini'] }, { serious: false });
       const r = await chatReply(sworn.rest, memory, ctx, 1), lead = swearLead(v, sworn, turn);
+      // What is left means nothing on its own ("ngewe yuk", "nonton bokep"): the swearing is the message.
+      if (r.intent === 'unknown') return talk('swear', swearReply(v, sworn, turn), { chips: v === 'sopan' ? ['ringkasan bulan ini', 'kasih jokes dong'] : ['kasih jokes dong', 'roasting pengeluaranku', 'ringkasan bulan ini'] }, { serious: false });
       if (!lead) return r;
       return { ...r, reply: r.reply.kind === 'say' ? { ...r.reply, text: `${lead}${r.reply.text}` } : { ...r.reply, intro: `${lead}${r.reply.intro || ''}`.trim() } };
     }
@@ -630,13 +653,15 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     // Anger at the assistant: sorry, what to do, and an offer to be taught.
     if (!money && (ANGRY.test(t) || INSULT.test(t) && AT_BOT.test(t) && !SELF_BLAME.test(t) || INSULT.test(t) && words <= 3 && !SELF_BLAME.test(t))) {
       const hint = pending ? ` ${P.angryRecord(v)}` : '';
+      // 8.1 Called names (not "salah mulu"): the style answers ("Astaghfirullah…", teasing back in Gaul and Bar-bar).
+      if (!ANGRY.test(t)) return talk('angry', `${insulted(v, turn)}${hint}`, { chips: ['ajari aku', 'bisa apa aja?'] }, { offer: 'ajari aku' });
       return talk('angry', `${P.angry(v, turn)}${hint}${P.offerTeach(v)}`, { chips: ['ajari aku', 'bisa apa aja?'] }, { offer: 'ajari aku' });
     }
     // 8.0 The person's own riddle or joke; the assistant's riddles; roasting the spending.
     if (!money && USER_RIDDLE.test(t)) {
       const inline = t.replace(USER_RIDDLE, ' ').replace(/^[\s,:.-]+/, '').trim();
       if (/\?/.test(raw) && inline.split(' ').length >= 3) return talk('riddle', guessUserRiddle(v, turn), {}, { userRiddle: 'answer', topic: 'joke' });
-      return talk('riddle', { sopan: 'Silakan, apa pertanyaannya?', santai: 'Wah, ayo! Apa soalnya?', gaul: 'Gas! Apaan soalnya?', singkat: 'Apa soalnya?' }[v], {}, { userRiddle: 'question', topic: 'joke' });
+      return talk('riddle', vo(v, { sopan: 'Silakan, apa pertanyaannya?', santai: 'Wah, ayo! Apa soalnya?', gaul: 'Gas! Apaan soalnya?', singkat: 'Apa soalnya?', barbar: 'Sini, apaan soalnya? Jangan yang gampang, anjir.' }), {}, { userRiddle: 'question', topic: 'joke' });
     }
     const userJoke = !money ? readUserJoke(t) : null;
     if (userJoke === 'told') return talk('banter', laughAtJoke(v, turn), { chips: ['gantian, kasih jokes dong', 'tebak-tebakan dong'] }, { topic: 'joke' });
@@ -644,8 +669,12 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (!money && words >= 8 && USER_PANTUN.test(lower(raw)) && !/\b(?:berapa|rb|ribu)\b/.test(t)) return talk('banter', pantunBack(v, turn), { chips: ['pantun soal duit dong'] }, { topic: 'joke' });
     if (!money && /\b(?:tebak[\s-]?tebakan|tebakan|teka[\s-]?teki)\b/.test(t)) {
       const told = memory.jokes || [], at = (turn * 5 + told.length) % RIDDLES.length;
-      return talk('joke', `${{ sopan: 'Baik, coba tebak:', santai: 'Oke, tebak ya:', gaul: 'Siap, tebak nih:', singkat: 'Tebak:' }[v]} ${RIDDLES[at].q}`, { chips: ['nyerah', 'kasih tau dong'] }, { riddle: at, topic: 'joke' });
+      return talk('joke', `${vo(v, { sopan: 'Baik, coba tebak:', santai: 'Oke, tebak ya:', gaul: 'Siap, tebak nih:', singkat: 'Tebak:', barbar: 'Tebak nih, kalau salah lo goblok WKWK:' })} ${RIDDLES[at].q}`, { chips: ['nyerah', 'kasih tau dong'] }, { riddle: at, topic: 'joke' });
     }
+    // 8.1 A money quote, fact, saving challenge or fortune; "lagi" gives another.
+    const funAsk = !money ? (MORE.test(t) && memory.topic === 'fun' && memory.funKind ? FUN_MORE[memory.funKind] : t) : '';
+    const fun = funAsk ? readFunContent(funAsk, v, turn, (() => { const m = cycleMoney(ctx); return { pace: m.pace, daily: m.daily, free: m.free, left: m.left }; })(), rp) : null;
+    if (fun) return talk('fun', fun.text, { chips: fun.chips }, { funKind: fun.kind, topic: 'fun', serious: false });
     if (!money && ROAST.test(t)) return sayR('roast', { kind: 'say', card: 'talk', text: roast(v, roastData(), rp, turn), chips: ['kasih tips hemat', 'pengeluaran terbesar bulan ini'] }, { ...mem, topic: 'roast', offer: 'kasih tips hemat', serious: false });
     if (JOKE.test(t) && !money) return tellJoke();
     // 8.0 Opening a menu ("buka wishlist", "tunjukin laporan") before anything reads it as a question.
@@ -657,6 +686,9 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (!money && BANTER.test(t) && words <= 8 && !CURHAT.test(t)) return talk('banter', P.banter(v, turn, FLAT.test(t)), { chips: ['lagi dong', 'ringkasan bulan ini'] }, { serious: false });
     if (!money && (memory.topic === 'joke' || memory.topic === 'banter') && ACK.test(t) && /\b(?:wk|ha|he|hi)/.test(t)) return talk('banter', P.banter(v, turn, false), { chips: ['lagi dong'] });
 
+    // 8.1 Everyday talk: kind words, news to celebrate, the day (hungry, rain, weekend).
+    const chat = !money && words <= 12 ? readTalk(t, v, turn) : null;
+    if (chat) return talk('smalltalk', chat.text, chat.chips ? { chips: chat.chips } : {}, chat.offer ? { offer: chat.offer } : {});
     const greetLead = t.match(GREET_LEAD), rest = greetLead?.[1].replace(/[?!.]+$/, '').trim();
     const greetMore = rest && rest.split(' ').length <= 4 && !findAmounts(rest).length && !['record', 'question'].includes(ctx.inspect(rest).reading);
     if (GREET.test(t) || greetMore) return sayR('greet', { kind: 'say', text: V.greet(v, partOfDay(ctx.hour), name), chips: [tpl[0].items[0], 'ringkasan bulan ini', 'bisa apa aja?'] });
@@ -737,6 +769,14 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (faq.plan) return plan(faq.plan, { intent: faq.intent === 'question' ? 'question' : 'plan', ...(faq.intro ? { intro: faq.intro } : {}) });
       return sayR(faq.intent as ChatIntent, { kind: 'say', card: 'talk', text: faq.text || '', ...(faq.title ? { title: faq.title } : {}), ...(faq.lines?.length ? { lines: faq.lines } : {}), ...(faq.chips?.length ? { chips: faq.chips } : {}) }, { ...mem, topic: faq.memory?.topic ?? faq.intent, ...faq.memory });
     }
+    // 8.1 How to use a feature, from Tanya Jawab, with a button to its menu.
+    // Not a way to save ("gimana caranya biar bisa nyisihin uang"): that is tips.
+    const howto = !money && !TIPS.test(t) ? readHowto(t) : null;
+    if (howto) return sayR('howto', { kind: 'say', card: 'help', title: howto.title, text: howto.text, ...(howto.steps ? { steps: howto.steps } : {}), ...(howto.open ? { open: howto.open } : {}), chips: ['cara lainnya?', 'bisa apa aja?'] });
+    // 8.1 Habits from the records: days without spending, the costliest weekday, the usual shop, how much is recorded.
+    const stat = !money ? readStats(t, ctx.data.transactions, ctx.cycle, ctx.today, v) : null;
+    if (stat?.plan) return plan(stat.plan);
+    if (stat) return sayR('question', { kind: 'say', card: 'summary', title: stat.title, text: stat.text, ...(stat.lines?.length ? { lines: stat.lines } : {}) }, { ...mem, last: 'question', topic: 'question' });
     // 8.0 Every menu: opening it, or what is in it ("utang gue berapa", "langganan apa aja"), with a button to it.
     const module = !money ? readModule(t, ctx.data, ctx.today, v) : null;
     if (module) return sayR('module', { kind: 'say', card: 'talk', title: module.title, text: module.text, ...(module.hero ? { hero: module.hero } : {}), ...(module.lines?.length ? { lines: module.lines } : {}), ...(module.bars?.length ? { bars: module.bars } : {}), ...(module.chips?.length ? { chips: module.chips } : {}), open: module.open });

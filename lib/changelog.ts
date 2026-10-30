@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.1', date: '30 Okt 2026', title: 'Pustaka bahasa asisten jauh lebih besar: gaya Bar-bar, permainan, dan “cara pakai”', items: [
+    ['🔥', 'Gaya bahasa baru: Bar-bar. Asisten ngomong kasar buat seru-seruan dan meroasting kebiasaan belanjamu tanpa ampun. Pilih di pengaturan chat, atau tulis “pakai gaya bar-bar”.'],
+    ['🤖', 'Kata kasar dikenali lewat cara tulis apa pun (anjiiing, 4nj1ng, a*jing, bgsd) dan dalam bahasa daerah (jancuk, ndasmu, matamu, kehed, bodat, kimak, tailaso). Kata jorok juga dikenali dan tidak pernah diulang. Nama hewan yang ditulis bersama nominal (“makanan anjing 100rb”, “sate babi 50rb”) tetap dicatat sebagai hewan, bukan dianggap makian.'],
+    ['💡', 'Obrolan jauh lebih luas: “aku sayang kamu”, “kamu jomblo?”, “umur kamu berapa”, “udah makan?”, “dadah”, “kangen kamu”, dan “semangatin aku” dijawab sesuai gaya. Kabar gembira seperti ulang tahun, gajian, bonus, lulus, atau diterima kerja diberi selamat plus satu tips uang. Lapar, hujan, panas, dan weekend juga ditanggapi.'],
+    ['🎨', 'Main di chat: suit (batu, gunting, kertas), tebak angka, lempar koin, lempar dadu, angka acak, dan “pilihin dong, bakso atau mie ayam?”. Bisa juga minta motivasi, fakta unik soal uang, tantangan hemat, atau ramalan keuangan (cuma hiburan, dihitung dari catatanmu). Ada 15 jokes bapak-bapak dan 12 tebak-tebakan baru.'],
+    ['📊', 'Pertanyaan baru dijawab dari catatanmu: “berapa hari aku nggak jajan”, “hari apa aku paling boros”, “paling sering belanja di mana”, “udah nyatet berapa transaksi”, dan “transaksi terbesar bulan ini”.'],
+    ['📝', 'Tanya cara pakai fitur langsung di chat: “cara bikin anggaran”, “cara pasang PIN”, “cara split bill”, “cara backup data”, “cara catat utang”. Jawabannya diambil dari Tanya Jawab, lengkap dengan langkah dan tombol ke menunya. “Wkwk iya beli kopi 20rb” juga tetap dicatat tanpa kata “wkwk”.'],
+    ['✅', 'Diuji dengan 68 kalimat baru yang ditulis sebelum mesinnya diubah: 63 benar di percobaan pertama (versi 8.0: 7), dan 66 setelah perbaikan. Semua uji lama tetap lulus.'],
+  ] },
   { version: '8.0', date: '30 Okt 2026', title: 'Asisten yang asyik: ketawa, kata kasar, roasting, dan semua menu', items: [
     ['🤖', 'Asisten ikut ketawa sesuai kerasnya tawamu (wkwk, HAHAHA, awokawok, 🤣). Jokes dan pantunnya bertambah dan nggak kaku. Bisa main tebak-tebakan dua arah: asisten kasih soal (jawab, atau bilang “nyerah”), atau kamu yang kasih soal, ia menebak lalu ketawa. Jokes buatanmu dinilai, dan pantunmu dibalas “cakep!”.'],
     ['🔥', 'Asisten paham kata kasar dan kata jorok, lalu membalas sesuai gaya bahasa: Sopan bilang “Astaghfirullah, jangan kasar-kasar ya”, Santai menegur sambil bercanda, Gaul ngatain balik, Singkat tetap singkat. Kata jorok tidak pernah diulang. Kalau ada yang mau dicatat (“anjir bensin 50rb”), tetap dicatat. Bilang “roasting pengeluaranku” untuk disindir dari catatanmu sendiri, dan jajan yang sama berkali-kali dalam satu siklus ikut disindir.'],

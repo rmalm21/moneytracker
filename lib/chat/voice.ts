@@ -1,23 +1,26 @@
 /**
  * How the assistant talks: four styles the person picks in the chat settings (or by saying "pakai bahasa formal").
- * Santai (aku–kamu, the default), Sopan (saya–Anda), Singkat (as few words as possible), Gaul (gue–lo).
+ * Santai (aku–kamu, the default), Sopan (saya–Anda), Singkat (as few words as possible), Gaul (gue–lo), and (8.1)
+ * Bar-bar: gue–lo with swearing for fun (habits are teased, never who someone is). Bar-bar falls back to Gaul's words
+ * wherever it has none of its own.
  * Every sentence the assistant says is here, so a style changes all of them at once.
  */
-export type Voice = 'santai' | 'sopan' | 'singkat' | 'gaul';
+export type Voice = 'santai' | 'sopan' | 'singkat' | 'gaul' | 'barbar';
 export const VOICES: { key: Voice; name: string; sample: string }[] = [
   { key: 'santai', name: 'Santai', sample: 'Oke, nominalnya kuganti jadi Rp45.000. Udah pas?' },
   { key: 'sopan', name: 'Sopan', sample: 'Baik, nominalnya saya ubah menjadi Rp45.000. Apakah sudah sesuai?' },
   { key: 'singkat', name: 'Singkat', sample: 'Rp45.000. Simpan?' },
   { key: 'gaul', name: 'Gaul', sample: 'Siap, gue ganti jadi Rp45.000 ya. Udah bener belum?' },
+  { key: 'barbar', name: 'Bar-bar', sample: 'Anjir, gue ganti jadi Rp45.000. Udah bener belum, bos?' },
 ];
 
-type Lines = Record<Voice, string>;
-const pick = (v: Voice, l: Lines) => l[v] ?? l.santai;
+type Lines = Record<Exclude<Voice, 'barbar'>, string> & { barbar?: string };
+const pick = (v: Voice, l: Lines) => (v === 'barbar' ? l.barbar ?? l.gaul : l[v]) ?? l.santai;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** "-mu" / "Anda" / "lo" in the middle of a sentence. */
-export const you = (v: Voice) => v === 'sopan' ? 'Anda' : v === 'gaul' ? 'lo' : 'kamu';
-export const yours = (v: Voice, noun: string) => v === 'sopan' ? `${noun} Anda` : v === 'gaul' ? `${noun} lo` : `${noun}mu`;
+export const you = (v: Voice) => v === 'sopan' ? 'Anda' : v === 'gaul' || v === 'barbar' ? 'lo' : 'kamu';
+export const yours = (v: Voice, noun: string) => v === 'sopan' ? `${noun} Anda` : v === 'gaul' || v === 'barbar' ? `${noun} lo` : `${noun}mu`;
 
 export const say = {
   greet: (v: Voice, part: string, name: string) => pick(v, {
@@ -25,6 +28,7 @@ export const say = {
     sopan: `Selamat ${part}${name}. Ada yang bisa saya bantu? Anda bisa mencatat, bertanya, atau menghitung.`,
     singkat: `${cap(part)}${name}! Catat, tanya, atau hitung?`,
     gaul: `Yo${name}! Mau nyatet, nanya, atau ngitung apa nih?`,
+    barbar: `Woy${name}! Mau nyatet apa, nanya apa, atau mau gue roasting, anjir?`,
   }),
   thanks: (v: Voice) => pick(v, { santai: 'Sama-sama! Kabari lagi kalau ada yang mau dicatat.', sopan: 'Sama-sama. Silakan hubungi saya lagi kapan saja.', singkat: 'Sama-sama!', gaul: 'Santuy, kabarin aja kalau ada lagi!' }),
   ackPending: (v: Voice) => pick(v, { santai: 'Oke. Kartunya tinggal disimpan, atau bilang kalau ada yang mau diubah.', sopan: 'Baik. Silakan tekan Simpan, atau sampaikan bagian yang ingin diubah.', singkat: 'Tinggal Simpan.', gaul: 'Sip. Tinggal pencet Simpan, atau bilang aja mau ganti apa.' }),

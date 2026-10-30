@@ -89,6 +89,11 @@ export function suggestFor(memory: ChatMemory, ctx: ChatContext, last?: ChatRepl
   // 8.0 The assistant's riddle waits for a guess; the person's own riddle waits for them (nothing to suggest).
   else if (memory.riddle !== undefined) out = [{ label: 'Nyerah', text: 'nyerah', icon: 'no' }, { label: 'Kasih tau dong', text: 'kasih tau dong', icon: 'ask' }];
   else if (memory.userRiddle) out = [];
+  // 8.1 A game waiting for a move; another quote, fact or challenge.
+  else if (memory.game?.kind === 'suit') out = [{ label: '✊ Batu', text: 'batu', icon: 'fun' }, { label: '✌️ Gunting', text: 'gunting', icon: 'fun' }, { label: '✋ Kertas', text: 'kertas', icon: 'fun' }];
+  else if (memory.game?.kind === 'angka') out = [3, 5, 7].map(n => ({ label: `Tebak ${n}`, text: String(n), icon: 'fun' as const }));
+  else if (memory.topic === 'fun') out = [{ label: 'Lagi', text: 'lagi dong', icon: 'fun' }, { label: 'Tantangan hemat', text: 'kasih tantangan hemat', icon: 'tips' }, { label: 'Ramal keuanganku', text: 'ramal keuangan aku', icon: 'fun' }];
+  else if (memory.topic === 'game') out = [{ label: 'Suit lagi', text: 'suit yuk', icon: 'fun' }, { label: 'Tebak angka', text: 'main tebak angka', icon: 'fun' }, { label: 'Lempar koin', text: 'lempar koin', icon: 'fun' }];
   else if (memory.topic === 'roast') out = [{ label: 'Kasih tips hemat', text: 'kasih tips hemat', icon: 'tips' }, { label: 'Pengeluaran terbesar', text: 'pengeluaran terbesar bulan ini', icon: 'chart' }, { label: 'Satu jokes buat hiburan', text: 'kasih jokes dong', icon: 'fun' }];
   else if (memory.topic === 'joke' || memory.topic === 'banter') out = [{ label: 'Satu lagi', text: 'lagi dong', icon: 'fun' }, { label: 'Jelasin lucunya', text: 'maksudnya?', icon: 'ask' }, { label: 'Udah, serius', text: 'udah ah serius', icon: 'no' }];
   else if (memory.topic === 'curhat') out = [{ label: 'Makasih udah dengerin', text: 'makasih udah dengerin', icon: 'yes' }, { label: 'Hibur aku', text: 'hibur aku', icon: 'fun' }, { label: 'Lihat kondisi uangku', text: 'ringkasan bulan ini', icon: 'chart' }];
