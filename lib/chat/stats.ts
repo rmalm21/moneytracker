@@ -51,8 +51,10 @@ const dayMonth = (date: string) => { const [, m, d] = date.split('-').map(Number
 
 /** "transaksi kemarin apa aja", "catatan hari ini", "transaksi minggu ini apa saja": the records of a period, listed. */
 const LIST = /^(?:semua\s+|daftar\s+|list\s+)?(?:transaksi|catatan|mutasi)\s*(?:aku|gue|gw|saya|ku)?\s+(?:di\s+|pada\s+|tanggal\s+)?(?:hari\s+ini|kemarin|kemaren|minggu\s+(?:ini|lalu)|bulan\s+(?:ini|lalu)|siklus\s+(?:ini|lalu)|(?:\d+\s+)?hari\s+lalu|tgl\s+\d{1,2}|tanggal\s+\d{1,2}|(?:hari\s+)?(?:senin|selasa|rabu|kamis|jumat|sabtu|minggu)(?:\s+(?:kemarin|lalu))?)\b(?:.*\b(?:apa\s+(?:aja|saja)|apa|ada\s+apa|mana\s+aja))?\s*$/;
+/** 8.3 "tanggal 5 belanja apa aja", "senin kemarin aku beli apa": what was bought on a day or in a period. */
+const LIST_ANY = /\b(?:belanja|beli|transaksi(?:nya)?|catatan(?:nya)?)\b.{0,40}\bapa(?:\s+(?:aja|saja|ya|sih|ajah))?\b|\bapa\s+(?:aja|saja)\s+(?:yang\s+)?(?:aku|gue|saya)?\s*(?:beli|belanja)\b/;
 export function readStats(t: string, txs: LedgerTx[], cycle: { start: string; end: string }, today: string, v: Voice, categories: { id: string; name: string; parentId: string | null }[] = [], salaryDay = 24): StatsAnswer | null {
-  if (LIST.test(t)) {
+  if (LIST.test(t) || LIST_ANY.test(t) && !/\b(?:berapa|kali)\b/.test(t) && readPeriod(t, today, salaryDay)) {
     const period = readPeriod(t, today, salaryDay);
     if (period) {
       const nameOf = (id: string | null | undefined) => (id && categories.find(c => c.id === id)?.name) || '';

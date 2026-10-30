@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.3', date: '30 Okt 2026', title: 'Sembunyikan nominal tiga tingkat dan asisten chat v3', items: [
+    ['🛡️', 'Sembunyikan nominal kini punya tiga tingkat di Pengaturan → Tampilan → Yang disembunyikan: Super ketat (semua nominal, seperti sebelumnya), Angka penting saja (saldo, uang bebas, aset, pemasukan, tabungan, utang, dan piutang; pengeluaran harian tetap terlihat), atau Beranda saja.'],
+    ['🤖', 'Asisten v3 menjawab lebih banyak dari datamu: “uang bebasku berapa”, “sehari boleh jajan berapa”, “berapa persen pengeluaran buat makan”, “rincian pengeluaran bulan ini”, “aku harus hemat di mana”, dan “skor keuangan aku berapa”.'],
+    ['📊', 'Hitung nabung langsung di chat dan tidak lagi jadi catatan: “nabung 500rb sebulan kapan dapet 10jt”, “mau 12jt dalam 6 bulan, sebulan berapa”, lalu “kalau 1jt per bulan?”.'],
+    ['🧭', 'Tanya satu utang, piutang, tujuan, wish list, tagihan rutin, atau klaim menurut namanya: “cicilan hp sisa berapa”, “dimas kapan bayar”, “laptop baru kurang berapa”, “netflix kapan bayar”, lalu “kalau sari?”. Bisa juga tanya tanggal dan hari tertentu: “tanggal 5 belanja apa aja”, “senin kemarin habis berapa”.'],
+    ['💡', 'Salah ketik (“pengeluarn bln ini brp”), sapaan (“bot,”, “min”, “kak”), emoji, bahasa Inggris (“how much did i spend this month”), dan bahasa daerah (“duitku kari piro”, “sabaraha”) dipahami. Kalimat catatan tetap dibaca persis seperti kamu ketik.'],
+    ['✅', 'Diuji dengan lebih dari 10.000 kalimat yang ditulis sebelum mesinnya diubah. Pada set terpisah yang dijalankan sekali, 85% benar di percobaan pertama (versi 8.2: 18%), dan 100% setelah perbaikan susulan. Semua uji lama tetap lulus.'],
+  ] },
   { version: '8.2', date: '30 Okt 2026', title: 'Perbaikan menyeluruh: asisten paham semua menu dan pertanyaan yang dulu salah jawab', items: [
     ['🧭', 'Asisten sekarang menjawab isi semua menu dari datamu: tagihan dan cicilan yang akan datang (“tagihan minggu depan apa aja”), daftar kategori, catatan yang menunggu dikonfirmasi, patungan Split Bill yang belum lunas, total utang dan piutang, kekayaan bersih, dana darurat cukup berapa bulan, perkiraan sisa uang saat gajian, dan transaksi per hari (“transaksi kemarin apa aja”). Laporan, Insight, dan Analisis dijawab dengan ringkasan plus tombol ke menunya.'],
     ['💡', '“Terakhir makan apa”, “terakhir ngopi di mana”, “terakhir beli apa”, dan “transaksi terakhir apa” sekarang dijawab dengan apa, di mana, berapa, dan kapan. Sebelumnya yang muncul malah total siklus.'],

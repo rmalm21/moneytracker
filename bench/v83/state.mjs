@@ -94,6 +94,7 @@ const budgets = [
 const balance = { jago: 9500000, gopay: 650000, cash: 300000 };
 const wallets = fullCtx.data.wallets.map(w => ({ ...w, cachedBalance: balance[w.id] ?? w.cachedBalance }));
 export const data = { drafts: [], plannedTransactions: [], categorizationRules: [], financialNotes: [], cycleSnapshots: [], ...fullCtx.data, ...more, wallets, budgets, transactions };
-const quick = { ...chatCtx.quick, wallets, budgets, history: transactions.slice(-60), ask: { ...chatCtx.quick.ask, transactions, wallets, budgets } };
+// The app gives Catat otomatis and the chat the same payday (the profile's); the older fixtures used 25 for Catat.
+const quick = { ...chatCtx.quick, salaryDay: chatCtx.salaryDay, wallets, budgets, history: transactions.slice(-60), ask: { ...chatCtx.quick.ask, transactions, wallets, budgets } };
 export const v3Ctx = { ...chatCtx, data, quick, inspect: text => inspect(text, quick) };
 export { transactions };

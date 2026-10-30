@@ -76,11 +76,34 @@ export function readPeriod(text: string, today: string, salaryDay = 24): Period 
     return { start, end, label, said, prev: { start: ps, end: pe, label: MONTHS[(mm + 11) % 12].replace(/^./, c => c.toUpperCase()) } };
   };
   let r: RegExpMatchArray | null;
+  // 8.3 One day: "tanggal 5", "tgl 12 bulan lalu", "17 agustus", "senin kemarin", "rabu minggu lalu", "hari minggu kemarin".
+  const one = (d: string, said: string): Period => {
+    const [, mm, dd] = d.split('-').map(Number);
+    return { start: d, end: addDays(d, 1), label: `${dd} ${MONTHS[mm - 1].slice(0, 3).replace(/^./, c => c.toUpperCase())}`, said, prev: { start: addDays(d, -1), end: d, label: 'sehari sebelumnya' } };
+  };
+  const monthName = `${MONTHS.join('|')}|${Object.keys(SHORT).join('|')}`;
+  // "tanggal 20 bulan lalu" is last month; "tgl 1 kemarin" is the 1st just gone (this month when it has passed).
+  if ((r = t.match(new RegExp(`\\b(?:tanggal|tgl|tg)\\.?\\s*(\\d{1,2})(?:\\s+(?:bulan\\s+(${monthName}|lalu|kemarin|kemaren|kmrn|sebelumnya)|(${monthName})))?(?:\\s+(\\d{4}))?\\b`))) || (r = t.match(new RegExp(`\\b(\\d{1,2})\\s+()(${monthName})(?:\\s+(\\d{4}))?\\b`)))) {
+    const day = Number(r[1]), word = r[2] || r[3] || '';
+    const mm = MONTHS.includes(word) ? MONTHS.indexOf(word) : word in SHORT ? SHORT[word] : word ? (m + 10) % 12 : day <= Number(today.slice(8, 10)) ? m - 1 : (m + 10) % 12;
+    const yy = r[4] ? Number(r[4]) : mm > m - 1 ? y - 1 : y, last = new Date(Date.UTC(yy, mm + 1, 0)).getUTCDate();
+    if (day >= 1 && day <= last) return one(`${yy}-${String(mm + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`, r[0].trim());
+  }
+  const WEEKDAYS = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+  if ((r = t.match(/\b(senin|selasa|rabu|kamis|jum'?at|sabtu|ahad|minggu)\s+(?:minggu|pekan)\s+(?:lalu|kemarin|kemaren|kmrn)\b/))) {
+    const wd = r[1] === 'ahad' ? 0 : WEEKDAYS.indexOf(r[1].replace("'", '')), monday = addDays(today, -((D(today).getUTCDay() + 6) % 7) - 7);
+    return one(addDays(monday, (wd + 6) % 7), r[0]);
+  }
+  if ((r = t.match(/\b(?:hari\s+(senin|selasa|rabu|kamis|jum'?at|sabtu|minggu|ahad)|(senin|selasa|rabu|kamis|jum'?at|sabtu|ahad))\s+(?:kemarin|kemaren|kmrn|lalu)\b/))) {
+    const name = (r[1] || r[2]).replace("'", ''), wd = name === 'ahad' ? 0 : WEEKDAYS.indexOf(name);
+    const back = (D(today).getUTCDay() - wd + 7) % 7 || 7;
+    return one(addDays(today, -back), r[0]);
+  }
   if ((r = t.match(/\b(\d{1,3})\s*hari\s*(?:terakhir|belakangan|ke ?belakang)\b/)) || (r = t.match(/\b(se(?:minggu|pekan|bulan))\s*(?:terakhir|belakangan|ke ?belakang)\b/))) {
     const n = /^\d/.test(r[1]) ? Number(r[1]) : /bulan/.test(r[1]) ? 30 : 7, start = addDays(today, 1 - n), end = addDays(today, 1);
     return { start, end, label: `${n} hari terakhir`, said: r[0], prev: { start: addDays(start, -n), end: start, label: `${n} hari sebelumnya` } };
   }
-  if ((r = t.match(/\b(?:minggu|pekan)\s+(?:lalu|kemarin|kemaren|kmrn|kemarin)\b/))) {
+  if ((r = t.match(/\b(?:minggu|pekan|seminggu|sepekan)\s+(?:lalu|kemarin|kemaren|kmrn|kemarin)\b/))) {
     const start = addDays(today, -((D(today).getUTCDay() + 6) % 7) - 7);
     return { start, end: addDays(start, 7), label: 'minggu lalu', said: r[0], prev: { start: addDays(start, -7), end: start, label: '2 minggu lalu' } };
   }
@@ -96,7 +119,7 @@ export function readPeriod(text: string, today: string, salaryDay = 24): Period 
     const c = cycleAt(today), p = cycleAt(addDays(c.start, -1));
     return { start: c.start, end: c.end, label: 'siklus ini', said: r[0], prev: { start: p.start, end: p.end, label: 'siklus lalu' } };
   }
-  if ((r = t.match(/\bbulan\s+(?:lalu|kemarin|kemaren|kmrn|sebelumnya)\b/))) return month(m === 1 ? y - 1 : y, (m + 10) % 12, 'bulan lalu', r[0]);
+  if ((r = t.match(/\b(?:bulan|sebulan)\s+(?:lalu|kemarin|kemaren|kmrn|sebelumnya)\b/))) return month(m === 1 ? y - 1 : y, (m + 10) % 12, 'bulan lalu', r[0]);
   if ((r = t.match(/\bbulan\s+ini\b/))) return month(y, m - 1, 'bulan ini', r[0]);
   if ((r = t.match(/\btahun\s+(ini|lalu|kemarin)\b/))) {
     const yy = r[1] === 'ini' ? y : y - 1;
@@ -120,7 +143,7 @@ const QUESTION = /\b(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana)\
 /** 7.4: a sentence askMoney may answer (so the whole ledger is worth reading before it does). */
 export const mayAsk = (text: string) => { const t = lower(text.trim()); return (QUESTION.test(t) || LEAD.test(t)) && !findAmounts(t).some(a => a.marked); };
 const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b|^(?:total\s+)?(?:pengeluaran|pemasukan)\p{L}*\s+(?:bulan|minggu|pekan|siklus|periode|tahun|hari\s+ini|kemarin)\b/u;
-const SPEND_CUE = /\b(?:pengeluaran\p{L}*|keluar|keluarin|habis|abis|kepake|kepakai|terpakai|belanja|bayar|beli|jajan|boros|spend|spending|biaya|ongkos)\b/u;
+const SPEND_CUE = /\b(?:pengeluaran\p{L}*|keluar|keluarin|ngeluarin|ngabisin|habisin|abisin|habis|abis|kepake|kepakai|terpakai|belanja|bayar|beli|jajan|boros|spend|spending|biaya|ongkos)\b/u;
 function intentOf(t: string): Exclude<AskIntent, 'owed'> {
   if (/\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat|banyak|sedikit|gede|besar|kecil))\b/.test(t)) return 'compare';
   if (/\bkapan\b/.test(t)) return 'last';
@@ -136,7 +159,7 @@ function intentOf(t: string): Exclude<AskIntent, 'owed'> {
 // ——— What it is about ———
 const STOP = new Set(`berapa brp brapa kali kapan terakhir terakhirnya pernah gimana bagaimana apakah apa mana sih ya yah dong deh aja saja kok nih
 udah sudah total jumlah semua semuanya aku saya gue gw ku punya ini itu buat untuk utk di ke dari pakai pake via lewat yang yg sama dan dengan
-habis abis keluar keluarin kepake kepakai terpakai pengeluaran spend spending duit uang biaya ongkos rp sekarang tadi bulan minggu pekan hari tahun
+habis abis keluar keluarin ngeluarin mengeluarkan ngabisin habisin abisin menghabiskan pas kepake kepakai terpakai pengeluaran spend spending duit uang biaya ongkos rp sekarang tadi bulan minggu pekan hari tahun
 siklus periode lalu kemarin sebelumnya paling terbesar tergede termahal gede besar boros mahal banyak rata rata-rata rata2 rerata sehari per tiap
 sekali harian kategori dibanding dibandingkan dibandingin banding vs versus lebih hemat sedikit kecil sisa anggaran budget bujet saldo dompet isi masih
 tinggal pemasukan pendapatan penghasilan masuk dapat dapet diterima income bayar beli catat dicatat transaksi sih kah`.split(/\s+/));
@@ -172,6 +195,8 @@ function subjectOf(text: string, ctx: QuickContext, data: AskData, flow: 'expens
   if (w) { subject.walletId = w.id; subject.walletName = w.name; rest = cut(rest, w.word); }
   const places = [...knownPlaces(ctx)].filter(([k]) => k.length >= 3).sort((a, b) => b[0].length - a[0].length);
   for (const [key, name] of places) if (has(rest, key)) { subject.merchant = name; rest = cut(rest, key); break; }
+  // 8.3 "belanja di starbucks": with the place named, "belanja"/"beli" is what was done there, not the Belanja category.
+  if (subject.merchant) rest = rest.replace(/\b(?:belanja|beli|bayar)\b|\b(?:jajan|makan|ngopi|nongkrong)(?=\s+(?:di|ke)\s*$|\s+(?:di|ke)\s)/g, ' ');
   if (intent === 'balance') return { subject, leftover: false };
   const words = rest.split(/[^\p{L}\p{N}-]+/u).map(x => x.replace(/(?:ku|nya)$/u, m => (STOP.has(x) ? m : ''))).filter(x => x.length >= 3 && !STOP.has(x) && !/^\d/.test(x));
   if (!words.length) return { subject, leftover: false };
@@ -219,6 +244,19 @@ function focusOf(s: Subject, ids: string[], flow: 'expense' | 'income', start?: 
   if (s.text || s.merchant) return `search:${s.text || lower(s.merchant!)}${range}`;
   if (s.walletId) return `wallet:${s.walletId}${range}`;
   return `type:${flow}${range}`;
+}
+
+/**
+ * 8.3 (chat v3): what a phrase names among a period's spending ("makan", "kopi", "di starbucks") and all the spending
+ * then, for "berapa persen pengeluaran buat makan". Null when the phrase names nothing.
+ */
+export function spendingShare(text: string, ctx: QuickContext, period: { start: string; end: string }): { name: string; part: number; total: number } | null {
+  const data = ctx.ask;
+  if (!data) return null;
+  const { subject, leftover } = subjectOf(lower(text), ctx, data, 'expense', 'spend');
+  if (leftover || !(subject.category || subject.merchant || subject.text)) return null;
+  const inside = data.transactions.filter(t => t.date >= period.start && t.date < period.end);
+  return { name: nameOf(subject), part: inside.reduce((n, t) => n + amountFor(t, subject, 'expense'), 0), total: inside.reduce((n, t) => n + transactionExpense(t), 0) };
 }
 
 /**
