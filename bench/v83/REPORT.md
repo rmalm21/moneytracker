@@ -144,6 +144,26 @@ Audit setelah perbaikan:
 | Beranda & Dompet: terlihat di dalam cakupan / disamarkan di luar | 0 / 0 | 0 / 0 |
 | Angka penting: yang terlihat | hanya pengeluaran, anggaran, kategori, dan “Bayar utang” (dihitung pengeluaran) | sama |
 
+### Pemeriksaan ulang (putaran kedua)
+
+Setelah pemakai bertanya “sudah yakin?”, pemeriksaan diperluas ke bagian yang belum tersentuh: semua bagian
+Pengaturan, Tanya Jawab, menu ⋯ dompet (Cocokkan saldo, Hitung ulang, Hapus), kantong, jendela ubah transaksi
+(pemasukan, transfer, isi tujuan dana), formulir tambah (anggaran, tujuan, utang, piutang, wish list), Catat otomatis
+(perbarui saldo, transfer, gaji, pengeluaran, pertanyaan), tooltip grafik saat disentuh, notifikasi sistem, ganti
+tingkat tanpa muat ulang, mematikan sembunyi, dan build produksi. Temuan, semuanya sudah diperbaiki:
+
+- **Super ketat**: pengingat tagihan dan anggaran di layar kunci HP (notifikasi sistem, termasuk yang dikirim service
+  worker saat aplikasi tertutup) masih memuat nominal.
+- **Angka penting**: kartu Catat otomatis untuk transfer menampilkan nominal dan dampaknya ke dompet, kartu perbarui
+  saldo menampilkan selisihnya, keterangan “Total keluar … tujuan menerima …” di jendela ubah transfer terlihat, dan
+  tooltip grafik Arus kas serta Bulan demi bulan ikut menyamarkan baris Pengeluaran.
+
+Hasil setelah perbaikan: Super ketat dan Beranda & Dompet bersih di 390 px dan 1280 px. Yang masih terlihat di Super
+ketat hanya isian formulir (kalimat yang sedang diketik, tombol pilihan cadangan 250 rb / 500 rb / 1 jt / 2 jt di
+Kontrol keuangan) dan contoh kalimat di Tanya Jawab, Info aplikasi, dan petunjuk Catat otomatis. Ganti tingkat
+langsung di lima menu memberi hasil yang sama dengan muat ulang, dan setelah sembunyi dimatikan semua teks dan label
+kembali persis seperti semula.
+
 Catatan: span ukur milik Recharts (di luar layar) kini ikut disamarkan. Gambar nota Split Bill (kanvas yang dibagikan
 ke teman) memang tidak disamarkan. Batasan lama tetap berlaku: nominal tanpa label yang jelas di layar
 yang belum dipetakan bisa tetap terlihat pada tingkat penting.
