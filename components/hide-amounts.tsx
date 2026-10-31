@@ -25,8 +25,10 @@ const widgets = (list: string[]) => list.map(card => `[data-widget="${card}"]`);
 /** "Angka penting": balances, income, savings, debts and what is owed to you; everything in these places is hidden. */
 const IMPORTANT_VIEWS = ['wallets', 'funds', 'wishlist', 'debts', 'receivables', 'claims', 'splitbill', 'owedReport', 'owedArchive', 'forecast'];
 const IMPORTANT_PLACES = views(IMPORTANT_VIEWS).join(', ');
-const IMPORTANT = ['.home-hero', '.report-position', '.book-head', '.book-widget > summary', '.book-section.is-income', '.tx-wallet-text', '.fc-wallet-text', '.wallet-balance', '.pocket-pick-text', '.pocket-total', '.pocket-members',
-  '.wallet-delete-head', '.wallet-archive-text', '.portion-intro', '.qp-balance', 'option',
+/** A wallet's balance wherever it is shown (pickers, kantong, dropdown options), even inside an everyday card. */
+const BALANCES = ['.tx-wallet-text', '.fc-wallet-text', '.wallet-balance', '.pocket-pick-text', '.pocket-total', '.pocket-members',
+  '.wallet-delete-head', '.wallet-archive-text', '.portion-intro', '.qp-balance', 'option'].join(', ');
+const IMPORTANT = ['.home-hero', '.report-position', '.book-head', '.book-widget > summary', '.book-section.is-income',
   ...widgets(['free', 'money', 'safeDaily', 'income', 'cashFlow', 'lastCycle', 'wallets', 'assets', 'netWorth', 'reserved', 'assetMix', 'kantong', 'emergency', 'forecast', 'liabilities', 'debts', 'receivables', 'splitBill', 'claims', 'funds'])].join(', ');
 /** Everyday spending: shown at "Angka penting", whatever words are near it ("Bayar utang" is still spending). */
 const EVERYDAY = ['.donut-layout', '.book-section.is-expense', '.budget-tiles',
@@ -58,7 +60,7 @@ function verdict(el: Element): 'mask' | 'show' | null {
   if (level === 'ketat') return 'mask';
   if (level === 'beranda') return el.closest(HOME) || inDialogOf(el, ['dashboard', 'wallets']) ? 'mask' : 'show';
   // Menus about money you have or owe hide everything, spending in them too (a wallet's history adds up to its balance).
-  if (el.closest(IMPORTANT_PLACES) || inDialogOf(el, IMPORTANT_VIEWS)) return 'mask';
+  if (el.closest(IMPORTANT_PLACES) || el.closest(BALANCES) || inDialogOf(el, IMPORTANT_VIEWS)) return 'mask';
   const marked = el.closest('[data-amounts]');
   if (marked) return marked.getAttribute('data-amounts') === 'penting' ? 'mask' : 'show';
   if (el.closest(IMPORTANT)) return 'mask';

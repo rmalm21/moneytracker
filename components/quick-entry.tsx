@@ -132,6 +132,10 @@ const txKinds = new Set<QuickKind>(['expense', 'income', 'transfer', 'debt_payme
 const menuKinds = new Set<QuickKind>(['budget', 'fund_new', 'wish_new', 'wallet_new', 'balance', 'category_new', 'recurring_new', 'plan_new', 'note_new', 'open']);
 /** Kinds where money comes into the wallet (the default wallet is the income one). */
 const incoming = new Set<QuickKind>(['income', 'receivable_payment', 'claim_payment', 'debt_new']);
+/** "Angka penting saja" (hide amounts): a card about money you have, earn, move, keep or owe hides its amounts, like the
+ * transaction rows; spending, budgets and debt payments stay shown. */
+const importantKinds = new Set<string>(['income', 'transfer', 'balance', 'wallet_new', 'fund_new', 'wish_new', 'wish', 'debt_new', 'receivable_new', 'receivable_payment', 'claim_new', 'claim_payment']);
+const amountsOf = (kind: string) => importantKinds.has(kind) ? 'penting' : kind === 'expense' || kind === 'budget' || kind === 'debt_payment' ? 'harian' : undefined;
 
 const walletTypes: [Wallet['type'], string][] = [['bank', 'Bank'], ['ewallet', 'E-wallet'], ['cash', 'Tunai'], ['savings', 'Tabungan'], ['credit', 'Kartu kredit'], ['investment', 'Investasi'], ['other', 'Lainnya']];
 const walletIcons: Record<Wallet['type'], string> = { bank: '🏦', cash: '💵', ewallet: '📱', savings: '💰', credit: '💳', investment: '📈', other: '👛' };
@@ -939,7 +943,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     const shortAsk = ask?.question.replace(/^Rp[\d.]+(?:\s+(?:ke|dari)\s+\S+|\s+ini)?\s+/, '');
     const rowAsk = shortAsk ? shortAsk[0].toUpperCase() + shortAsk.slice(1) : '';
     const rowTitle = textual ? headline : kind === 'expense' || kind === 'income' ? cat?.name || description || heading : kind === 'budget' ? `Anggaran ${result.name || cat?.name || ''}`.trim() : heading;
-    return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${expanded ? 'is-open' : ''}`}>
+    return <li className={`qb-card tone-${tone} ${skipped ? 'is-off' : ''} ${expanded ? 'is-open' : ''}`} data-amounts={amountsOf(kind)}>
       <div className="qb-row">
         <span className="qb-icon" aria-hidden="true"><Icon size={15}/></span>
         <button type="button" className="qb-main" aria-expanded={expanded} onClick={onToggle}><strong>{rowTitle}</strong><small>{rowEffect || detail || action.text}</small>{attention && <em className="qb-attention"><AlertTriangle size={12}/> {rowAsk || flags[0]?.[1].note || missing}</em>}</button>
@@ -962,7 +966,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     </li>;
   }
 
-  return <div className={`quick-preview tone-${tone}`}>
+  return <div className={`quick-preview tone-${tone}`} data-amounts={amountsOf(kind)}>
     <div className="qp-head"><span className="qp-icon" aria-hidden="true">{picture}</span><span className="qp-title"><small>{heading}</small><strong className={textual || !amount ? 'is-text' : ''}>{headline}</strong></span>{!action.alternatives.length && kind !== 'open' && onSwitchMode && sibling[kind] && <button type="button" className="qp-switch" onClick={() => onSwitchMode(sibling[kind]!)}><small>Bukan ini?</small>{QUICK_LABELS[sibling[kind]!]}</button>}</div>
     {body}
     {(error || outerError || missing && !flags.length && !ask) && <small className="qp-warn" role="status">{error || outerError || missing}</small>}
