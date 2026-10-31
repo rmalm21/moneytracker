@@ -11,6 +11,7 @@ import { rupiah } from '@/lib/accounting';
 import { upcomingEvents } from '@/lib/finance-control';
 import { formatDate, nextDate, todayInTimeZone } from '@/lib/period';
 import { showAppNotification } from '@/lib/system-notify';
+import { systemNoticeText } from './hide-amounts';
 import { budgetCurrent, budgetIconCategoryId } from '@/lib/accounting';
 import { defaultReminders, dueReminders, presetTimes, validTime, type ReminderConfig } from '@/lib/reminders';
 
@@ -22,7 +23,7 @@ const localTime = () => { const d = new Date(); return `${String(d.getHours()).p
 async function readJson<T>(key: string): Promise<T | null> { try { const cache = await caches.open(STATE_CACHE); const hit = await cache.match(key); return hit ? await hit.json() as T : null; } catch { return null; } }
 async function writeJson(key: string, value: unknown) { try { const cache = await caches.open(STATE_CACHE); await cache.put(key, new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })); } catch { /* Cache Storage is optional. */ } }
 
-const showSystemNotification = showAppNotification;
+const showSystemNotification = (title: string, body: string, url?: string, tag?: string) => showAppNotification(title, systemNoticeText(body), url, tag);
 
 /** One check at a time across the whole app, so a reminder can never be shown twice. */
 let queue: Promise<void> = Promise.resolve();

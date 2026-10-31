@@ -75,7 +75,7 @@ function CashFlowChart({ items, range, granularity = 'auto' }: { items: LedgerTx
     <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
     <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} minTickGap={8}/>
     <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
-    <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
+    <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip amounts={{ Pemasukan: 'penting', Pengeluaran: 'harian' }}/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
     <Legend wrapperStyle={{ fontSize: 12 }}/>
     <Bar dataKey="income" name="Pemasukan" fill="url(#bar-in)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
     <Bar dataKey="expense" name="Pengeluaran" fill="url(#bar-out)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
@@ -369,7 +369,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
           <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
           <YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={52}/>
-          <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
+          <Tooltip formatter={(v, name) => [rupiah(Number(v)), name]} content={<ChartTooltip amounts={{ Pemasukan: 'penting', Pengeluaran: 'harian' }}/>} cursor={{ fill: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}/>
           <Legend wrapperStyle={{ fontSize: 12 }}/>
           <Bar dataKey="income" name="Pemasukan" fill="url(#bar-in)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>
           <Bar dataKey="expense" name="Pengeluaran" fill="url(#bar-out)" radius={[8, 8, 3, 3]} maxBarSize={26} animationDuration={700}/>

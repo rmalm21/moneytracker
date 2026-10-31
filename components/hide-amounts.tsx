@@ -159,6 +159,12 @@ export function setHideLevel(next: HideLevel) {
   window.dispatchEvent(new CustomEvent(LEVEL_CHANGED, { detail: next }));
 }
 function readSaved() { try { return readAlwaysHide() || localStorage.getItem(KEY) === '1'; } catch { return false; } }
+/** System notifications are outside the page: at "Super ketat" their amounts are hidden too (bills and budgets are
+ * spending, so the other levels show them). The service worker reads the same choice for reminders sent in the background. */
+export const systemNoticeText = (text: string) => readSaved() && readHideLevel() === 'ketat' ? maskAmounts(text) : text;
+function shareWithWorker(ketat: boolean) {
+  try { void caches.open('dompet-ajaib-state').then(cache => cache.put('/__hide-amounts.json', new Response(JSON.stringify({ ketat }), { headers: { 'content-type': 'application/json' } }))).catch(() => {}); } catch { /* Cache Storage is optional. */ }
+}
 
 export function useHideAmounts() {
   const [hidden, setHidden] = useState(readSaved), [chosen, setChosen] = useState(readHideLevel);
@@ -166,6 +172,7 @@ export function useHideAmounts() {
   useEffect(() => { const sync = (event: Event) => { if ((event as CustomEvent).detail === true) setHidden(true); }; window.addEventListener(CHANGED, sync); return () => window.removeEventListener(CHANGED, sync); }, []);
   // A new level applies at once: what was hidden comes back, then the new set is hidden.
   useEffect(() => { const sync = (event: Event) => setChosen((event as CustomEvent<HideLevel>).detail); window.addEventListener(LEVEL_CHANGED, sync); return () => window.removeEventListener(LEVEL_CHANGED, sync); }, []);
+  useEffect(() => shareWithWorker(hidden && chosen === 'ketat'), [hidden, chosen]);
   useLayoutEffect(() => {
     if (!hidden) { document.documentElement.removeAttribute('data-hide-amounts'); return; }
     document.documentElement.setAttribute('data-hide-amounts', chosen);

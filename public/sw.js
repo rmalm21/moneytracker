@@ -113,7 +113,9 @@ async function checkReminders() {
     const last = new Date(now); last.setDate(last.getDate() + (config.billDaysBefore || 0));
     const limit = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
     const due = (config.bills || []).filter(b => b.date >= day && b.date <= limit);
-    if (due.length && current - toMinutes(config.billTime) <= 180) show.push([due.length === 1 ? `Tagihan: ${due[0].title}` : `${due.length} tagihan segera jatuh tempo`, due.slice(0, 3).map(b => `${b.title} Rp${Number(b.amount).toLocaleString('id-ID')}`).join('\n'), '/?view=upcoming', 'bills']);
+    // "Super ketat" hides amounts on the lock screen too (the page shares its choice in /__hide-amounts.json).
+    const hide = await readJson('/__hide-amounts.json'), money = n => hide && hide.ketat ? 'Rp•••••' : `Rp${Number(n).toLocaleString('id-ID')}`;
+    if (due.length && current - toMinutes(config.billTime) <= 180) show.push([due.length === 1 ? `Tagihan: ${due[0].title}` : `${due.length} tagihan segera jatuh tempo`, due.slice(0, 3).map(b => `${b.title} ${money(b.amount)}`).join('\n'), '/?view=upcoming', 'bills']);
   }
   if (!consumed.length) return;
   await writeJson('/__reminders-fired.json', { date: day, fired: [...fired, ...consumed] });
