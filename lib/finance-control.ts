@@ -1,4 +1,4 @@
-import { budgetMatcher, budgetMonthly, budgetSpent, budgetWindow, countedBudgets, effects, expenseAllocations, transactionExpense, transactionIncome } from './accounting.ts';
+import { budgetMatcher, budgetMonthly, budgetSpent, budgetWindow, countedBudgets, effects, expenseAllocations, rupiah, transactionExpense, transactionIncome } from './accounting.ts';
 import { isKantong, kantongWalletIds } from './pockets.ts';
 import { nextDate, previousDate, type DateRange } from './period.ts';
 import { advanceSchedule, scheduleDay } from './recurring.ts';
@@ -100,7 +100,7 @@ export type HealthIssue={id:string;title:string;impact:string;action:string;wall
 export function scanData(data:Data,ledger:LedgerTx[],profile:Profile):HealthIssue[]{
   const issues:HealthIssue[]=[];
   const wallets=new Map(data.wallets.map(wallet=>[wallet.id,wallet])),categories=new Map(data.categories.map(category=>[category.id,category]));
-  for(const wallet of data.wallets){const calculated=wallet.openingBalance+ledger.reduce((sum,tx)=>sum+(effects(tx)[wallet.id]||0),0);if(calculated!==wallet.cachedBalance)issues.push({id:`balance:${wallet.id}`,title:`Saldo ${wallet.name} berbeda ${Math.abs(calculated-wallet.cachedBalance).toLocaleString('id-ID')}`,impact:'Saldo tersimpan berbeda dari transaksi yang dicatat.',action:'Periksa perhitungan saldo sebelum menyamakan saldo.',walletId:wallet.id});}
+  for(const wallet of data.wallets){const calculated=wallet.openingBalance+ledger.reduce((sum,tx)=>sum+(effects(tx)[wallet.id]||0),0);if(calculated!==wallet.cachedBalance)issues.push({id:`balance:${wallet.id}`,title:`Saldo ${wallet.name} berbeda ${rupiah(Math.abs(calculated-wallet.cachedBalance))}`,impact:'Saldo tersimpan berbeda dari transaksi yang dicatat.',action:'Periksa perhitungan saldo sebelum menyamakan saldo.',walletId:wallet.id});}
   for(const tx of ledger){
     // A Split Bill share someone else paid has no wallet on purpose.
     if(!tx.walletId&&tx.type==='expense'&&tx.splitBillId){}

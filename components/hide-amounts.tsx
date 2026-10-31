@@ -69,8 +69,8 @@ function verdict(el: Element): 'mask' | 'show' | null {
   if (el.closest('.amount-negative')) return 'show';
   return null;
 }
-/** Amounts written without "Rp": chart axes and chat messages. */
-const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .chat-chip');
+/** Amounts written without "Rp": chart axes, chat messages, and what Catat otomatis read from a sentence. */
+const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .chat-chip, .quick-preview');
 const all = (value: string, bare: boolean) => bare ? maskBareAmounts(maskAmounts(value)) : maskAmounts(value);
 function maskFor(value: string, node: Node, parent: Element) {
   const bare = bareZone(parent), decided = verdict(parent);
