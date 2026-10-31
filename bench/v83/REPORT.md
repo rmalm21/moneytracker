@@ -144,7 +144,7 @@ Audit setelah perbaikan:
 | Beranda & Dompet: terlihat di dalam cakupan / disamarkan di luar | 0 / 0 | 0 / 0 |
 | Angka penting: yang terlihat | hanya pengeluaran, anggaran, kategori, dan “Bayar utang” (dihitung pengeluaran) | sama |
 
-### Pemeriksaan ulang (putaran kedua)
+### 8.3.2: pemeriksaan ulang (putaran kedua)
 
 Setelah pemakai bertanya “sudah yakin?”, pemeriksaan diperluas ke bagian yang belum tersentuh: semua bagian
 Pengaturan, Tanya Jawab, menu ⋯ dompet (Cocokkan saldo, Hitung ulang, Hapus), kantong, jendela ubah transaksi
@@ -163,6 +163,9 @@ ketat hanya isian formulir (kalimat yang sedang diketik, tombol pilihan cadangan
 Kontrol keuangan) dan contoh kalimat di Tanya Jawab, Info aplikasi, dan petunjuk Catat otomatis. Ganti tingkat
 langsung di lima menu memberi hasil yang sama dengan muat ulang, dan setelah sembunyi dimatikan semua teks dan label
 kembali persis seperti semula.
+Audit lengkap putaran pertama juga diulang pada build produksi (bukan server pengembangan) di 390 px dan 1280 px:
+Super ketat 0 nominal terlihat, Beranda & Dompet 0 / 0, Angka penting hanya menampilkan pengeluaran dan anggaran, dan
+tooltip grafik di Super ketat 0 dari 16 yang terlihat.
 
 Catatan: span ukur milik Recharts (di luar layar) kini ikut disamarkan. Gambar nota Split Bill (kanvas yang dibagikan
 ke teman) memang tidak disamarkan. Batasan lama tetap berlaku: nominal tanpa label yang jelas di layar
