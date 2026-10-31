@@ -115,3 +115,35 @@ Selama pengerjaan sempat ada kemunduran: lapisan pemahaman v3 mengubah kalimat c
 - Bahasa Inggris dan bahasa daerah yang dikenali terbatas pada kata dan ungkapan seputar uang.
 - “Angka penting” bergantung pada label di dekat nominal. Nominal tanpa label yang jelas, di layar yang belum
   dipetakan, bisa tetap terlihat; pilih Super ketat untuk privasi penuh.
+
+## 8.3.1: sembunyikan nominal dirapikan
+
+Pemakai melaporkan tampilan masih “belang”. Audit otomatis di aplikasi demo (emulator) mengambil setiap teks yang
+mirip nominal, dengan atau tanpa “Rp”, di 24 menu, Kalender dengan jadwal, hasil Periksa Data, enam jendela detail,
+notifikasi, dan chat, untuk ketiga tingkat, di lebar 390 px dan 1280 px.
+
+Temuan audit pertama (sebelum perbaikan):
+
+- **Super ketat**: angka tanpa “Rp” lolos (sumbu grafik di Laporan, Analisis, Proyeksi, Laporan utang & piutang, dan
+  jendela anggaran; pesan chat pemakai), begitu pula nominal di `title`/`aria-label` (tooltip, pembaca layar).
+- **Angka penting**: aturan kata label bocor antarbaris (satu label “Pemasukan” ikut menyamarkan baris di bawahnya),
+  baris rutin Netflix ikut disamarkan sebagai transfer, saldo di pilihan dompet terlihat, wish list setengah
+  disamarkan, dan isi jendela dompet bergantung urutan aturan.
+- **Beranda saja**: sesuai rancangan. Atas permintaan pemakai, tingkat ini diperluas menjadi **Beranda & Dompet**.
+
+Perbaikan: urutan keputusan yang tetap di tingkat penting (menu tentang uang yang dimiliki atau diutang → tanda
+`data-amounts` di elemen → area penting atau harian → tanda plus/minus → kata label terdekat dengan batas kartu),
+penanda `data-amounts` di Laporan, Transaksi, dan baris transaksi, angka tanpa “Rp” di grafik, chat, dan kartu Catat
+otomatis, serta selisih saldo di Periksa Data yang kini ditulis dengan “Rp”.
+
+Audit setelah perbaikan:
+
+| Tingkat | 390 px | 1280 px |
+|---|---|---|
+| Super ketat: nominal terlihat | 0 | 0 |
+| Beranda & Dompet: terlihat di dalam cakupan / disamarkan di luar | 0 / 0 | 0 / 0 |
+| Angka penting: yang terlihat | hanya pengeluaran, anggaran, kategori, dan “Bayar utang” (dihitung pengeluaran) | sama |
+
+Catatan: span ukur milik Recharts (di luar layar) kini ikut disamarkan. Gambar nota Split Bill (kanvas yang dibagikan
+ke teman) memang tidak disamarkan. Batasan lama tetap berlaku: nominal tanpa label yang jelas di layar
+yang belum dipetakan bisa tetap terlihat pada tingkat penting.

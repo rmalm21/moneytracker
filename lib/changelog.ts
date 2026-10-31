@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.3.1', date: '31 Okt 2026', title: 'Sembunyikan nominal kini rapi di ketiga tingkat', items: [
+    ['🛡️', 'Tingkat ketiga sekarang Beranda & Dompet: nominal di Beranda, menu Dompet, dan jendela yang dibuka dari sana disamarkan. Menu lain tetap terlihat.'],
+    ['🔧', 'Super ketat juga menyamarkan angka yang ditulis tanpa “Rp”: sumbu grafik (“2,0jt”), pesan dan saran chat (“kopi 25rb”), dan selisih saldo di Periksa Data. Teks tooltip dan pembaca layar ikut disamarkan.'],
+    ['🧭', 'Angka penting saja sekarang konsisten di semua layar. Saldo di pilihan dompet (formulir transaksi, pelunasan, Split Bill), wish list, baris transfer, klaim, target tabungan, dan seluruh isi menu Dompet, Tujuan, Utang, Piutang, dan Proyeksi disamarkan. Pengeluaran, anggaran, dan kategori tetap terlihat, termasuk di Laporan, Transaksi, dan Insight.'],
+    ['✅', 'Dicek di aplikasi demo pada 24 menu, Kalender dengan jadwal, hasil Periksa Data, enam jendela detail, notifikasi, dan chat, di layar HP dan laptop, untuk ketiga tingkat.'],
+  ] },
   { version: '8.3', date: '30 Okt 2026', title: 'Sembunyikan nominal tiga tingkat dan asisten chat v3', items: [
     ['🛡️', 'Sembunyikan nominal kini punya tiga tingkat di Pengaturan → Tampilan → Yang disembunyikan: Super ketat (semua nominal, seperti sebelumnya), Angka penting saja (saldo, uang bebas, aset, pemasukan, tabungan, utang, dan piutang; pengeluaran harian tetap terlihat), atau Beranda saja.'],
     ['🤖', 'Asisten v3 menjawab lebih banyak dari datamu: “uang bebasku berapa”, “sehari boleh jajan berapa”, “berapa persen pengeluaran buat makan”, “rincian pengeluaran bulan ini”, “aku harus hemat di mana”, dan “skor keuangan aku berapa”.'],

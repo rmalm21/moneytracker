@@ -12,14 +12,14 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 
 ## Unggah dan jalankan dari browser
 
-1. Unduh `DompetAjaib_v8.3.zip` dari percakapan ke laptop kantor. Cukup unduh, tidak perlu ekstrak.
+1. Unduh `DompetAjaib_v8.3.1.zip` dari percakapan ke laptop kantor. Cukup unduh, tidak perlu ekstrak.
 2. Masih di Firebase Console, klik ikon terminal `>_` di pojok atas untuk membuka Cloud Shell. Klik Authorize jika diminta. Tunggu sampai terminal siap.
 3. Di toolbar Cloud Shell, klik menu tiga titik → Upload → pilih ZIP tadi. File masuk ke home Cloud Shell.
 4. Di terminal Cloud Shell, salin dan jalankan:
 
    ```bash
    cd ~
-   unzip -o DompetAjaib_v8.3.zip
+   unzip -o DompetAjaib_v8.3.1.zip
    cd dompet-ajaib
    bash COBA_TANPA_INSTAL.sh
    ```
@@ -39,13 +39,13 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 
 Gunakan ini jika kamu sudah pernah membuat link percobaan dan sudah menyimpan konfigurasi Firebase di Cloud Shell. Prosesnya tetap dilakukan lewat browser:
 
-1. Unduh ZIP **baru** `DompetAjaib_v8.3.zip` dari percakapan. Jangan pakai ZIP lama yang namanya mirip.
+1. Unduh ZIP **baru** `DompetAjaib_v8.3.1.zip` dari percakapan. Jangan pakai ZIP lama yang namanya mirip.
 2. Buka Cloud Shell yang dipakai sebelumnya. ZIP ini tidak berisi `.env.local`, jadi konfigurasi Firebase lama di Cloud Shell tetap tersimpan. Di toolbar, pilih menu tiga titik → **Upload**, lalu pilih ZIP terbaru.
 3. Tempel perintah ini di terminal Cloud Shell:
 
    ```bash
    cd ~
-   unzip -o DompetAjaib_v8.3.zip
+   unzip -o DompetAjaib_v8.3.1.zip
    bash ~/dompet-ajaib/PERBARUI_LINK_COBA.sh
    ```
 
@@ -111,5 +111,5 @@ Jika kamu hanya memperbarui link dan belum mengubah Rules, aplikasi tetap menyar
 
 - `PERBARUI_LINK_COBA.sh` pertama-tama memperbarui **link percobaan** (Preview URL, alamatnya berisi `--coba-dompet-ajaib`). Alamat utama `dompetajaib.web.app` baru ikut berubah jika kamu mengetik `LIVE` saat diminta di akhir skrip.
 - Pastikan ZIP yang diunggah adalah ZIP terbaru, lalu jalankan `unzip -o` dengan nama file yang sama persis.
-- Setelah deploy, tutup tab aplikasi lalu buka lagi. Buka **Pengaturan → Info aplikasi**: angka versinya harus sama dengan angka di nama ZIP yang kamu unggah (misalnya **Versi 8.3** untuk `DompetAjaib_v8.3.zip`).
+- Setelah deploy, tutup tab aplikasi lalu buka lagi. Buka **Pengaturan → Info aplikasi**: angka versinya harus sama dengan angka di nama ZIP yang kamu unggah (misalnya **Versi 8.3.1** untuk `DompetAjaib_v8.3.1.zip`).
 - Kategori lama tidak diubah otomatis. Untuk menambahkan subkategori ke kategori yang sudah ada, buka **Kategori → Ambil dari Template**, centang kategorinya, lalu pilih **Lengkapi subkategori**.
