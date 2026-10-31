@@ -35,10 +35,10 @@ function PrivacyToggle(){
  const [on,setOn]=useState(false);useEffect(()=>{setOn(readAlwaysHide());},[]);
  return <><label className="switch-row privacy-switch"><input type="checkbox" checked={on} onChange={e=>{setOn(e.target.checked);setAlwaysHide(e.target.checked)}}/><span><strong>Selalu sembunyikan nominal</strong><small>Setiap aplikasi dibuka, nominal tampil sebagai Rp•••••. Ketuk ikon mata di atas untuk melihatnya sebentar. Berlaku di perangkat ini.</small></span></label><HideLevelChoice/></>;
 }
-/** What the eye button hides (8.3): every amount, only the important ones, or only on Beranda. Kept on this device. */
+/** What the eye button hides (8.3): every amount, only the important ones, or Beranda & Dompet (8.3.1). Kept on this device. */
 function HideLevelChoice(){
  const [value,setValue]=useState<HideLevel>('ketat');useEffect(()=>{setValue(readHideLevel());},[]);
- const options:[HideLevel,string,React.ReactNode,string][]=[['ketat','Super ketat',<>Saldo Rp••••• · Makan Rp•••••</>,'Semua nominal di semua layar, termasuk chat dan notifikasi.'],['penting','Angka penting saja',<>Saldo Rp••••• · Makan Rp45.000</>,'Saldo, uang bebas, aset, pemasukan, tabungan, utang, dan piutang. Pengeluaran harian tetap terlihat.'],['beranda','Beranda saja',<>Beranda Rp••••• · Laporan Rp45.000</>,'Hanya nominal di Beranda. Menu lain tetap terlihat.']];
+ const options:[HideLevel,string,React.ReactNode,string][]=[['ketat','Super ketat',<>Saldo Rp••••• · Makan Rp•••••</>,'Semua nominal di semua layar, termasuk grafik, chat, dan notifikasi.'],['penting','Angka penting saja',<>Saldo Rp••••• · Makan Rp45.000</>,'Saldo, uang bebas, aset, pemasukan, selisih, transfer, tabungan, wish list, utang, piutang, dan klaim. Pengeluaran harian tetap terlihat.'],['beranda','Beranda & Dompet',<>Dompet Rp••••• · Laporan Rp45.000</>,'Nominal di Beranda dan menu Dompet, termasuk jendela yang dibuka dari sana. Menu lain tetap terlihat.']];
  return <><h4>Yang disembunyikan</h4><div className="font-choices hide-level-choices" role="radiogroup" aria-label="Yang disembunyikan">{options.map(([key,label,sample,hint])=><button type="button" role="radio" key={key} aria-checked={value===key} className={value===key?'active':''} onClick={()=>{setValue(key);setHideLevel(key)}}><span className="font-choice-top"><strong>{label}</strong>{value===key&&<Check size={15}/>}</span><span className="font-choice-sample" data-keep-amounts>{sample}</span><small>{hint}</small></button>)}</div></>;
 }
 

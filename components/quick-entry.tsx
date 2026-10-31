@@ -814,7 +814,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       if (goal?.monthly) fact('m', `Nabung ${rupiah(goal.monthly)}/bulan`); if (targetDate) fact('d', `Target ${formatDate(targetDate)}`); break;
     case 'wallet_new': fact('t', walletTypes.find(([key]) => key === walletType)?.[1] || ''); fact('g', `Kelompok ${groupLabels[walletGroup]}`); fact('o', `Saldo awal ${rupiah(amount)}`, amount ? '' : 'qp-soft'); break;
     case 'balance':
-      if (balanceOf) { fact('w', balanceOf.name, 'qp-cat'); fact('n', `Tercatat ${rupiah(balanceOf.cachedBalance)}`); if (delta) fact('x', `${delta > 0 ? '+' : '−'}${rupiah(Math.abs(delta))}`, delta > 0 ? 'qp-up' : 'qp-down'); }
+      if (balanceOf) { fact('w', balanceOf.name, 'qp-cat'); fact('n', `Tercatat ${rupiah(balanceOf.cachedBalance)}`, 'qp-balance'); if (delta) fact('x', `${delta > 0 ? '+' : '−'}${rupiah(Math.abs(delta))}`, delta > 0 ? 'qp-up' : 'qp-down'); }
       fact('h', 'Selisihnya dicatat sebagai penyesuaian', 'qp-soft'); break;
     case 'category_new': fact('t', categoryTypes.find(([key]) => key === categoryType)?.[1] || ''); if (parent) fact('p', `di dalam ${parent.name}`, 'qp-cat'); break;
     case 'recurring_new':

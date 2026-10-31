@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { firstMoneyWord, hasAmount, hasMoneyWord, maskAmounts, maskImportantAmounts } from '../lib/privacy.ts';
+import { firstMoneyWord, hasAmount, hasBareAmount, hasMoneyWord, maskAmounts, maskBareAmounts, maskImportantAmounts } from '../lib/privacy.ts';
 
 test('every amount format is hidden, the sign and the words around it stay', () => {
   assert.equal(maskAmounts('Rp12.000'), 'Rp•••••');
@@ -34,6 +34,27 @@ test('"angka penting saja": balances, income, savings and debts are hidden, ever
   assert.equal(hasMoneyWord('Pengeluaranmu bulan ini'), true);
   assert.equal(hasMoneyWord('GrabFood Pesan Antar GoPay'), false);
   assert.equal(firstMoneyWord('JAWABAN Rp24.200.000 Total saldo di 5 dompet'), 'saldo');
+});
+
+test('amounts without "Rp" in charts and chat are hidden; times, dates, percentages and counts stay (8.3.1)', () => {
+  assert.equal(maskBareAmounts('2,5jt'), '•••••');
+  assert.equal(maskBareAmounts('250rb'), '•••••');
+  assert.equal(maskBareAmounts('kopi 25rb pakai gopay'), 'kopi ••••• pakai gopay');
+  assert.equal(maskBareAmounts('gaji 8.500.000 masuk bca'), 'gaji ••••• masuk bca');
+  assert.equal(maskBareAmounts('makan 35k, parkir 2 ribu'), 'makan •••••, parkir •••••');
+  assert.equal(maskBareAmounts('−1.250.000'), '•••••');
+  for (const text of ['jam 17.40', '24 Okt 2026', '70% terpakai', '9 transaksi', 'tanggal 5', '1.5%', 'Rp•••••', 'Hari ke-2']) { assert.equal(hasBareAmount(text), false, text); assert.equal(maskBareAmounts(text), text); }
+  // "Angka penting saja" reads the same words for amounts without "Rp"
+  assert.equal(maskImportantAmounts('gaji 8.500.000 masuk bca', '', true), 'gaji ••••• masuk bca');
+  assert.equal(maskImportantAmounts('makan siang 35rb pakai gopay', '', true), 'makan siang 35rb pakai gopay');
+  assert.equal(maskImportantAmounts('Selisih Rp1.200.000', ''), 'Selisih Rp•••••');
+  assert.equal(maskImportantAmounts('Klaim kantor Rp350.000 belum cair', ''), 'Klaim kantor Rp••••• belum cair');
+  // No word before it: the words right after it decide, up to a comma
+  assert.equal(maskImportantAmounts('Rp2,3 jt klaim kantor belum cair'), 'Rp••••• klaim kantor belum cair');
+  assert.equal(maskImportantAmounts('Rp1.000.000 masuk ke BCA'), 'Rp••••• masuk ke BCA');
+  assert.equal(maskImportantAmounts('Kopi Rp25.000, saldo GoPay sekarang Rp375.000'), 'Kopi Rp25.000, saldo GoPay sekarang Rp•••••');
+  assert.equal(maskImportantAmounts('Rp45.000 Makan malam'), 'Rp45.000 Makan malam');
+  assert.equal(maskImportantAmounts('Semua target dengan tenggat butuh Rp7.917.000 per bulan'), 'Semua target dengan tenggat butuh Rp••••• per bulan');
 });
 
 import { categoryBreakdown, DEBT_GROUP } from '../lib/category-analytics.ts';

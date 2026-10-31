@@ -55,8 +55,8 @@ function PeriodBar({ pair, extra }: { pair: Pair; extra?: ReactNode }) {
   </div>;
 }
 
-function Kpi({ label, value, previous, good = 'up', basis = 'Periode lalu', suffix, format = 'money', icon: Icon, tone = 'accent' }: { label: string; value: number; previous?: number; good?: 'up' | 'down' | 'none'; basis?: string; suffix?: string; format?: 'money' | 'percent' | 'count'; icon?: LucideIcon; tone?: 'accent' | 'in' | 'out' }) {
-  return <div className="stat-card report-kpi">
+function Kpi({ label, value, previous, good = 'up', basis = 'Periode lalu', suffix, format = 'money', icon: Icon, tone = 'accent', amounts }: { label: string; value: number; previous?: number; good?: 'up' | 'down' | 'none'; basis?: string; suffix?: string; format?: 'money' | 'percent' | 'count'; amounts?: 'penting' | 'harian'; icon?: LucideIcon; tone?: 'accent' | 'in' | 'out' }) {
+  return <div className="stat-card report-kpi" data-amounts={amounts}>
     <span className="stat-head"><span className="stat-label">{label}</span>{Icon && <span className={`metric-icon is-${tone}`} aria-hidden="true"><Icon size={17}/></span>}</span>
     <strong className={`stat-value ${format === 'money' && value < 0 ? 'amount-negative' : ''}`}>{format === 'money' ? <AnimatedRupiah value={value}/> : format === 'percent' ? `${value}%` : value.toLocaleString('id-ID')}</strong>
     {suffix && <small>{suffix}</small>}
@@ -64,8 +64,9 @@ function Kpi({ label, value, previous, good = 'up', basis = 'Periode lalu', suff
   </div>;
 }
 
-function Section({ icon, title, hint, children, className = '' }: { icon: ReactNode; title: string; hint?: string; children: ReactNode; className?: string }) {
-  return <section className={`panel report-section ${className}`}><div className="report-section-head"><span className="report-section-icon" aria-hidden="true">{icon}</span><div><h3>{title}</h3>{hint && <small>{hint}</small>}</div></div>{children}</section>;
+/** `amounts`: what "Angka penting saja" does here (components/hide-amounts.tsx): hide it all, or show it all. */
+function Section({ icon, title, hint, children, className = '', amounts }: { icon: ReactNode; title: string; hint?: string; children: ReactNode; className?: string; amounts?: 'penting' | 'harian' }) {
+  return <section className={`panel report-section ${className}`} data-amounts={amounts}><div className="report-section-head"><span className="report-section-icon" aria-hidden="true">{icon}</span><div><h3>{title}</h3>{hint && <small>{hint}</small>}</div></div>{children}</section>;
 }
 
 function CashFlowChart({ items, range, granularity = 'auto' }: { items: LedgerTx[]; range: DateRange; granularity?: Granularity }) {
@@ -102,7 +103,7 @@ function SplitBillReport({ items, go }: { items: LedgerTx[]; go: (key: string, f
     ['Uang kembali dari teman', flows.repaid, 'Bukan pemasukan'],
     ['Bagianmu yang dibayar ke orang lain', flows.settled, 'Tidak dihitung pengeluaran lagi'],
   ];
-  return <Section icon={<ReceiptText size={18}/>} title="Split Bill" hint={`${flows.bills} tagihan bersama di periode ini`}>
+  return <Section amounts="penting" icon={<ReceiptText size={18}/>} title="Split Bill" hint={`${flows.bills} tagihan bersama di periode ini`}>
     <div className="report-split">
       {rows.map(([label, value, note]) => <div className="budget-line" key={label}><span>{label}<small className="muted">{note}</small></span><strong>{rupiah(value)}</strong></div>)}
       <div className="budget-line report-split-now"><span>Masih di teman (piutang)<small className="muted">Saat ini</small></span><strong>{rupiah(toMe)}</strong></div>
@@ -138,25 +139,25 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
     <div className="report-title"><span className="eyebrow ink">LAPORAN PERIODE</span><h2>{periodLabel(pair.range)}</h2><small className="muted">{length} hari · {pair.items.length} transaksi{filtered ? ' · dengan filter' : ''}</small></div>
     {pair.loading ? <div className="panel" role="status">Memuat transaksi periode ini…</div> : <>
       <div className="card-grid report-kpis">
-        <Kpi label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis} />
-        <Kpi label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>
-        <Kpi label="Selisih (arus kas bersih)" icon={ArrowLeftRight} value={summary.cashFlow} previous={pair.prevReady ? prev.cashFlow : undefined} basis={pair.basis}/>
+        <Kpi amounts="penting" label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis} />
+        <Kpi amounts="harian" label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>
+        <Kpi amounts="penting" label="Selisih (arus kas bersih)" icon={ArrowLeftRight} value={summary.cashFlow} previous={pair.prevReady ? prev.cashFlow : undefined} basis={pair.basis}/>
         <Kpi label="Rasio menabung" icon={Banknote} value={savingsRate} format="percent" suffix={pair.prevReady && prev.income ? `Periode lalu ${prevRate}% (${savingsRate - prevRate >= 0 ? '+' : ''}${savingsRate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
-        <Kpi label="Rata-rata belanja per hari" icon={CalendarDays} value={Math.round(summary.expense / length)} previous={pair.prevReady ? Math.round(prev.expense / prevLength) : undefined} good="down" basis={pair.basis}/>
-        <Kpi label="Transaksi keluar" icon={Receipt} value={count} format="count" suffix={`±${rupiah(Math.round(summary.expense / Math.max(1, count)))} per transaksi`} previous={pair.prevReady ? prevCount : undefined} good="none" basis={pair.basis}/>
+        <Kpi amounts="harian" label="Rata-rata belanja per hari" icon={CalendarDays} value={Math.round(summary.expense / length)} previous={pair.prevReady ? Math.round(prev.expense / prevLength) : undefined} good="down" basis={pair.basis}/>
+        <Kpi amounts="harian" label="Transaksi keluar" icon={Receipt} value={count} format="count" suffix={`±${rupiah(Math.round(summary.expense / Math.max(1, count)))} per transaksi`} previous={pair.prevReady ? prevCount : undefined} good="none" basis={pair.basis}/>
       </div>
 
-      <Section icon={<BarChart3 size={18}/>} title="Arus kas" hint="Pemasukan dan pengeluaran sepanjang periode"><CashFlowChart items={pair.items} range={pair.range}/></Section>
+      <Section amounts="penting" icon={<BarChart3 size={18}/>} title="Arus kas" hint="Pemasukan dan pengeluaran sepanjang periode"><CashFlowChart items={pair.items} range={pair.range}/></Section>
 
       <div className="report-two">
-        <Section icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint={`Total ${rupiah(summary.expense)}`}>
+        <Section amounts="harian" icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint={`Total ${rupiah(summary.expense)}`}>
           {categories.length ? <div className="report-table">{categories.map(c => { const before = prevCategories.find(p => p.id === c.id)?.amount || 0; return <button type="button" key={c.id} className="report-row" onClick={() => go('transactions', `category:${c.id}@${pair.range.start}..${pair.range.end}`)}>
             <IdentityBadge icon={c.icon} color={c.color} label={c.name}/>
             <span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, categories[0].amount))}%`, background: c.color || 'var(--accent)' }}/></span>
             <span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>{pct(c.amount, summary.expense)}% · {c.count}× {pair.prevReady && <Delta current={c.amount} previous={before} good="down" basis={pair.basis} compact/>}</small></span>
           </button>; })}</div> : <Empty message="Belum ada pengeluaran."/>}
         </Section>
-        <Section icon={<TrendingUp size={18}/>} title="Pemasukan per sumber" hint={`Total ${rupiah(summary.income)}`}>
+        <Section amounts="penting" icon={<TrendingUp size={18}/>} title="Pemasukan per sumber" hint={`Total ${rupiah(summary.income)}`}>
           {incomes.length ? <div className="report-table">{incomes.map(c => <div key={c.id} className="report-row">
             <IdentityBadge icon={c.icon} color={c.color} label={c.name}/>
             <span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, incomes[0].amount))}%`, background: 'var(--positive)' }}/></span>
@@ -166,14 +167,14 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
       </div>
 
       <div className="report-two">
-        <Section icon={<WalletIcon size={18}/>} title="Per dompet" hint="Uang masuk & keluar, termasuk transfer">
+        <Section amounts="penting" icon={<WalletIcon size={18}/>} title="Per dompet" hint="Uang masuk & keluar, termasuk transfer">
           {wallets.length ? <div className="report-table">{wallets.map(w => <button type="button" key={w.id} className="report-row report-wallet" disabled={Boolean(data.wallets.find(x => x.id === w.id)?.isDeleted)} onClick={() => go('wallets', w.id)}>
             <span className="report-wallet-name"><span className="report-wallet-icon"><AppIcon icon={w.icon}/></span>{w.name}</span>
             <span className="report-flow">{w.in > 0 && <small className="amount-positive">+{rupiah(w.in)}</small>}{w.out > 0 && <small className="amount-negative">−{rupiah(w.out)}</small>}</span>
             <strong className={w.net < 0 ? 'amount-negative' : 'amount-positive'}>{w.net < 0 ? '−' : '+'}{rupiah(Math.abs(w.net))}</strong>
           </button>)}</div> : <Empty message="Tidak ada pergerakan dompet."/>}
         </Section>
-        <Section icon={<Scale size={18}/>} title="Anggaran" hint="Kondisi anggaran berjalan saat ini">
+        <Section amounts="harian" icon={<Scale size={18}/>} title="Anggaran" hint="Kondisi anggaran berjalan saat ini">
           {budgets.length ? <div className="report-table">{budgets.map(({ b, row }) => { const used = pct(row.spent, row.available); return <button type="button" key={b.id} className="report-row report-budget" onClick={() => go('budgets')}>
             <span><strong>{b.name}</strong><small className="muted">{rupiah(row.spent)} dari {rupiah(row.available)}</small></span>
             <span className="report-row-bar"><i className={row.spent > row.available ? 'over' : used >= (profile?.budgetWarningPercent || 80) ? 'warn' : ''} style={{ width: `${Math.min(100, Math.max(2, used))}%` }}/></span>
@@ -184,11 +185,11 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
 
       <SplitBillReport items={pair.items} go={go}/>
 
-      <Section icon={<Sparkles size={18}/>} title="Transaksi terbesar" hint="Lima pengeluaran terbesar periode ini">
+      <Section amounts="harian" icon={<Sparkles size={18}/>} title="Transaksi terbesar" hint="Lima pengeluaran terbesar periode ini">
         {biggest.length ? <div className="panel flush report-tx"><TxList items={biggest}/></div> : <Empty message="Belum ada pengeluaran."/>}
       </Section>
 
-      {!filtered && <Section icon={<CalendarRange size={18}/>} title="Posisi keuangan saat ini" hint="Bukan dihitung ulang dari periode di atas">
+      {!filtered && <Section amounts="penting" icon={<CalendarRange size={18}/>} title="Posisi keuangan saat ini" hint="Bukan dihitung ulang dari periode di atas">
         <div className="report-position">{([['Aset bersih', now.netWorth], ['Uang bebas', now.free], ['Total aset', now.assets], ['Dana disimpan', now.reserved], ['Klaim & piutang', now.receivables], ['Sisa utang', -now.liabilities], ['Sisa anggaran', now.budgetRemaining]] as [string, number][]).map(([label, value]) => <div key={label}><small>{label}</small><strong className={value < 0 ? 'amount-negative' : ''}>{rupiah(value)}</strong></div>)}</div>
       </Section>}
 
@@ -252,10 +253,10 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
     <PeriodBar pair={pair}/>
     {pair.loading ? <div className="panel" role="status">Memuat transaksi periode ini…</div> : <>
       <div className="card-grid report-kpis analysis-kpis">
-        <Kpi label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>
-        <Kpi label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis}/>
-        <Kpi label="Rata-rata per hari" icon={CalendarDays} value={Math.round(summary.expense / (running ? elapsed : length))} good="down" basis={pair.basis} suffix={running ? `Hari ke-${elapsed} dari ${length}` : `${length} hari`}/>
-        <Kpi label={running ? 'Perkiraan akhir periode' : 'Total periode'} icon={Target} value={projected} good="down" basis={pair.basis} suffix={running ? 'Jika laju belanja sama' : undefined}/>
+        <Kpi amounts="harian" label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>
+        <Kpi amounts="penting" label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis}/>
+        <Kpi amounts="harian" label="Rata-rata per hari" icon={CalendarDays} value={Math.round(summary.expense / (running ? elapsed : length))} good="down" basis={pair.basis} suffix={running ? `Hari ke-${elapsed} dari ${length}` : `${length} hari`}/>
+        <Kpi amounts="harian" label={running ? 'Perkiraan akhir periode' : 'Total periode'} icon={Target} value={projected} good="down" basis={pair.basis} suffix={running ? 'Jika laju belanja sama' : undefined}/>
       </div>
       {insights.length > 0 && <section className="panel insight-panel"><div className="report-section-head"><span className="report-section-icon"><Lightbulb size={18}/></span><div><h3>Wawasan</h3><small>Dirangkum otomatis dari transaksimu</small></div></div><div className="insight-list">{(allInsights ? insights : insights.slice(0, 3)).map((item, index) => <div key={index} className="insight-item" style={{ animationDelay: `${index * 50}ms` }}><span>{item.icon}</span><p>{item.text}</p></div>)}</div>{insights.length > 3 && <button type="button" className="link-button" onClick={() => setAllInsights(x => !x)}>{allInsights ? 'Tampilkan lebih sedikit' : `Lihat semua wawasan (${insights.length})`}</button>}</section>}
 
@@ -263,11 +264,11 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
 
       <div key={tab} className="analysis-tab-body">
         {tab === 'trend' && <>
-          <Section icon={<BarChart3 size={18}/>} title="Arus kas" hint="Pemasukan dan pengeluaran per waktu">
+          <Section amounts="penting" icon={<BarChart3 size={18}/>} title="Arus kas" hint="Pemasukan dan pengeluaran per waktu">
             <div className="segment granularity">{(['auto', 'daily', 'weekly', 'monthly'] as Granularity[]).map(g => <button type="button" key={g} className={granularity === g ? 'active' : ''} onClick={() => void pair.save({ analyticsGranularity: g })}>{({ auto: 'Otomatis', daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan', yearly: 'Tahunan' } as Record<string, string>)[g]}</button>)}</div>
             <CashFlowChart items={pair.items} range={pair.range} granularity={granularity}/>
           </Section>
-          <Section icon={<TrendingUp size={18}/>} title="Laju belanja vs periode lalu" hint="Total pengeluaran berjalan dari hari pertama">
+          <Section amounts="harian" icon={<TrendingUp size={18}/>} title="Laju belanja vs periode lalu" hint="Total pengeluaran berjalan dari hari pertama">
             <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={pace} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <defs><linearGradient id="pace-now" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs>
               <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
@@ -280,15 +281,15 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
             </AreaChart></ResponsiveContainer></div>
           </Section>
         </>}
-        {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint="Ketuk kategori untuk rincian subkategori">
+        {tab === 'category' && <Section amounts="harian" icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint="Ketuk kategori untuk rincian subkategori">
           {categories.length ? <CategoryDonut slices={categories} previous={prevCategories} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pengeluaran pada periode ini."/>}
         </Section>}
-        {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pemasukan per kategori" hint="Termasuk piutang yang dibayar kembali">
+        {tab === 'category' && <Section amounts="penting" icon={<Layers3 size={18}/>} title="Pemasukan per kategori" hint="Termasuk piutang yang dibayar kembali">
           {incomeSlices.length ? <CategoryDonut kind="income" slices={incomeSlices} previous={prevIncomeSlices} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pemasukan pada periode ini."/>}
         </Section>}
         {tab === 'pattern' && <>
           <div className="report-two">
-            <Section icon={<CalendarRange size={18}/>} title="Per hari dalam seminggu" hint="Rata-rata belanja untuk satu hari tersebut">
+            <Section amounts="harian" icon={<CalendarRange size={18}/>} title="Per hari dalam seminggu" hint="Rata-rata belanja untuk satu hari tersebut">
               <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><BarChart data={week} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
@@ -297,25 +298,25 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
                 <Bar dataKey="average" radius={[10, 10, 4, 4]} maxBarSize={38} animationDuration={700}>{week.map(row => <Cell key={row.label} fill={row.average === Math.max(...week.map(w => w.average)) ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 40%, var(--paper))'}/>)}</Bar>
               </BarChart></ResponsiveContainer></div>
             </Section>
-            <Section icon={<Clock3 size={18}/>} title="Waktu belanja" hint="Dari transaksi yang punya jam">
+            <Section amounts="harian" icon={<Clock3 size={18}/>} title="Waktu belanja" hint="Dari transaksi yang punya jam">
               <div className="report-table">{time.rows.map(row => <div key={row.label} className="report-row"><span><strong>{row.label}</strong><small className="muted">{row.range}</small></span><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(row.total, Math.max(1, ...time.rows.map(r => r.total))))}%` }}/></span><span className="report-row-value"><strong>{rupiah(row.total)}</strong><small>{row.count}×</small></span></div>)}</div>
               {time.untimed > 0 && <small className="muted">{rupiah(time.untimed)} tercatat tanpa jam.</small>}
             </Section>
           </div>
           <div className="report-two">
-            <Section icon={<Store size={18}/>} title="Tempat belanja teratas" hint="Berdasarkan nama tempat yang diisi saat mencatat, bukan kategori">
+            <Section amounts="harian" icon={<Store size={18}/>} title="Tempat belanja teratas" hint="Berdasarkan nama tempat yang diisi saat mencatat, bukan kategori">
               {places.length ? <div className="report-table">{places.map((place, index) => <div key={place.name} className="report-row"><span className="rank">{index + 1}</span><span className="report-place"><strong>{place.name}</strong><small className="muted">{place.count}× · rata-rata {rupiah(Math.round(place.total / place.count))}</small></span><strong>{rupiah(place.total)}</strong></div>)}</div> : <Empty message="Isi kolom Tempat saat mencatat pengeluaran agar terlihat di sini."/>}
             </Section>
-            <Section icon={<Scale size={18}/>} title="Ukuran transaksi" hint="Seberapa sering belanja kecil vs besar">
+            <Section amounts="harian" icon={<Scale size={18}/>} title="Ukuran transaksi" hint="Seberapa sering belanja kecil vs besar">
               <div className="report-table">{bands.map(band => <div key={band.label} className="report-row"><span><strong>{band.label}</strong><small className="muted">{band.count}× transaksi</small></span><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(band.total, Math.max(1, summary.expense)))}%` }}/></span><span className="report-row-value"><strong>{rupiah(band.total)}</strong><small>{pct(band.total, summary.expense)}%</small></span></div>)}</div>
             </Section>
           </div>
         </>}
         {tab === 'compare' && <>
           <Section icon={<Scale size={18}/>} title="Ringkasan dibanding periode lalu" hint={`${periodLabel(pair.range)} vs ${periodLabel(pair.prevRange)}`}>
-            <div className="compare-summary">{([['Pemasukan', summary.income, prev.income, 'up'], ['Pengeluaran', summary.expense, prev.expense, 'down'], ['Selisih', summary.cashFlow, prev.cashFlow, 'up']] as [string, number, number, 'up' | 'down'][]).map(([label, now, before, good]) => <div key={label}><small>{label}</small><strong>{rupiah(now)}</strong><span className="muted">sebelumnya {rupiah(before)}</span>{pair.prevReady && <Delta current={now} previous={before} good={good} basis={pair.basis}/>}</div>)}</div>
+            <div className="compare-summary">{([['Pemasukan', summary.income, prev.income, 'up'], ['Pengeluaran', summary.expense, prev.expense, 'down'], ['Selisih', summary.cashFlow, prev.cashFlow, 'up']] as [string, number, number, 'up' | 'down'][]).map(([label, now, before, good]) => <div key={label} data-amounts={label === 'Pengeluaran' ? 'harian' : 'penting'}><small>{label}</small><strong>{rupiah(now)}</strong><span className="muted">sebelumnya {rupiah(before)}</span>{pair.prevReady && <Delta current={now} previous={before} good={good} basis={pair.basis}/>}</div>)}</div>
           </Section>
-          <Section icon={<Layers3 size={18}/>} title="Perubahan per kategori" hint="Diurutkan dari perubahan terbesar">
+          <Section amounts="harian" icon={<Layers3 size={18}/>} title="Perubahan per kategori" hint="Diurutkan dari perubahan terbesar">
             {changes.length ? <div className="diverging">{changes.map(row => <button type="button" key={row.id} className="diverging-row" onClick={() => go('transactions', `category:${row.id}@${pair.range.start}..${pair.range.end}`)}>
               <IdentityBadge icon={row.icon} color={row.color} label={row.name}/>
               <span className="diverging-track"><span className="diverging-mid"/>{row.diff !== 0 && <i className={row.diff > 0 ? 'up' : 'down'} style={{ width: `${Math.abs(row.diff) / maxDiff * 50}%` }}/>}</span>
@@ -356,14 +357,14 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
     <div className="panel report-toolbar year-bar"><div className="segmented" role="group" aria-label="Pilih tahun">{[thisYear - 3, thisYear - 2, thisYear - 1, thisYear].map(y => <button type="button" key={y} className={y === year ? 'active' : ''} onClick={() => setYear(y)}>{y}</button>)}</div><small className="muted report-compare">{!previous.loading && !previous.items.length ? `Belum ada data tahun ${year - 1} untuk dibandingkan.` : `Dibanding tahun ${year - 1}${year === thisYear ? ' (tahun berjalan dibanding tahun penuh sebelumnya)' : ''}`}</small>{current.error && <p className="form-error" role="alert">{current.error}</p>}</div>
     {current.loading ? <div className="panel" role="status">Memuat transaksi tahun {year}…</div> : !current.items.length ? <div className="panel"><Empty message={`Belum ada transaksi di tahun ${year}.`}/></div> : <>
       <div className="card-grid report-kpis">
-        <Kpi label="Pemasukan setahun" icon={TrendingUp} tone="in" value={total.income} previous={ready ? before.income : undefined} basis={basis} />
-        <Kpi label="Pengeluaran setahun" icon={TrendingDown} tone="out" value={total.expense} previous={ready ? before.expense : undefined} good="down" basis={basis}/>
-        <Kpi label="Selisih setahun" icon={ArrowLeftRight} value={total.cashFlow} previous={ready ? before.cashFlow : undefined} basis={basis}/>
+        <Kpi amounts="penting" label="Pemasukan setahun" icon={TrendingUp} tone="in" value={total.income} previous={ready ? before.income : undefined} basis={basis} />
+        <Kpi amounts="harian" label="Pengeluaran setahun" icon={TrendingDown} tone="out" value={total.expense} previous={ready ? before.expense : undefined} good="down" basis={basis}/>
+        <Kpi amounts="penting" label="Selisih setahun" icon={ArrowLeftRight} value={total.cashFlow} previous={ready ? before.cashFlow : undefined} basis={basis}/>
         <Kpi label="Rasio menabung" icon={Banknote} value={rate} format="percent" suffix={ready && before.income ? `Tahun lalu ${prevRate}% (${rate - prevRate >= 0 ? '+' : ''}${rate - prevRate} poin)` : 'Bagian pemasukan yang tersisa'}/>
-        <Kpi label="Rata-rata pengeluaran per bulan" icon={CalendarRange} value={Math.round(total.expense / activeCount)} good="down" basis={basis} suffix={`${active.length} bulan tercatat`}/>
-        <Kpi label="Rata-rata pemasukan per bulan" icon={Wallet2} value={Math.round(total.income / activeCount)} basis={basis} suffix={best ? `Bulan terbaik: ${best.label} (${rupiah(best.net)})` : undefined}/>
+        <Kpi amounts="harian" label="Rata-rata pengeluaran per bulan" icon={CalendarRange} value={Math.round(total.expense / activeCount)} good="down" basis={basis} suffix={`${active.length} bulan tercatat`}/>
+        <Kpi amounts="penting" label="Rata-rata pemasukan per bulan" icon={Wallet2} value={Math.round(total.income / activeCount)} basis={basis} suffix={best ? `Bulan terbaik: ${best.label} (${rupiah(best.net)})` : undefined}/>
       </div>
-      <Section icon={<BarChart3 size={18}/>} title="Bulan demi bulan" hint={costly ? `Pengeluaran terbesar di ${costly.label} (${rupiah(costly.expense)})` : undefined}>
+      <Section amounts="penting" icon={<BarChart3 size={18}/>} title="Bulan demi bulan" hint={costly ? `Pengeluaran terbesar di ${costly.label} (${rupiah(costly.expense)})` : undefined}>
         <div className="report-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={months} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="bar-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--positive)"/><stop offset="100%" stopColor="var(--positive)" stopOpacity={.55}/></linearGradient><linearGradient id="bar-out" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--rose)"/><stop offset="100%" stopColor="var(--rose)" stopOpacity={.55}/></linearGradient></defs>
           <CartesianGrid vertical={false} stroke="var(--line)" strokeOpacity={.7} strokeDasharray="2 6"/>
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/>
@@ -381,7 +382,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
         </div>
       </Section>
       <div className="report-two">
-        <Section icon={<Layers3 size={18}/>} title="Kategori setahun" hint="Ketuk untuk melihat tren bulanannya">
+        <Section amounts="harian" icon={<Layers3 size={18}/>} title="Kategori setahun" hint="Ketuk untuk melihat tren bulanannya">
           <div className="report-table">{categories.slice(0, 10).map(c => { const last = prevCategories.find(p => p.id === c.id)?.amount || 0; return <button type="button" key={c.id} className={`report-row ${focusCategory === c.id ? 'is-active' : ''}`} onClick={() => setFocusCategory(v => v === c.id ? '' : c.id)}>
             <IdentityBadge icon={c.icon} color={c.color} label={c.name}/>
             <span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, categories[0].amount))}%`, background: c.color || 'var(--accent)' }}/></span>
@@ -389,7 +390,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
           </button>; })}</div>
           {trend && <div className="report-chart short"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}><defs><linearGradient id="cat-year" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--accent)" stopOpacity={.35}/><stop offset="100%" stopColor="var(--accent)" stopOpacity={0}/></linearGradient></defs><XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false}/><YAxis tickFormatter={shortMoney} tick={{ fontSize: 11, fill: 'var(--muted)' }} tickLine={false} axisLine={false} width={48}/><Tooltip formatter={v => [rupiah(Number(v)), categories.find(c => c.id === focusCategory)?.name || '']} content={<ChartTooltip/>}/><Area type="monotone" dataKey="value" stroke="var(--accent)" fill="url(#cat-year)" strokeWidth={3} animationDuration={700}/></AreaChart></ResponsiveContainer></div>}
         </Section>
-        <Section icon={<TrendingUp size={18}/>} title="Sumber pemasukan setahun">
+        <Section amounts="penting" icon={<TrendingUp size={18}/>} title="Sumber pemasukan setahun">
           {incomes.length ? <div className="report-table">{incomes.map(c => <div key={c.id} className="report-row"><IdentityBadge icon={c.icon} color={c.color} label={c.name}/><span className="report-row-bar"><i style={{ width: `${Math.max(2, pct(c.amount, incomes[0].amount))}%`, background: 'var(--positive)' }}/></span><span className="report-row-value"><strong>{rupiah(c.amount)}</strong><small>{pct(c.amount, total.income)}% · {c.count}×</small></span></div>)}</div> : <Empty message="Belum ada pemasukan tahun ini."/>}
         </Section>
       </div>
