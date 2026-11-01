@@ -4,7 +4,8 @@ import type { LedgerTx, Wallet } from './types.ts';
 export type WalletAction='pay'|'receive'|'transferOut'|'transferIn'|'adjust';
 export function walletAllows(wallet:Wallet,action:WalletAction){
   if(wallet.isArchived)return false;
-  if(action==='pay')return wallet.isSpendable!==false&&wallet.canPay!==false;
+  // "Bisa membayar" alone decides; "Hitung dalam uang bebas" is only about the Uang bebas figure (8.3.3).
+  if(action==='pay')return wallet.canPay!==false;
   if(action==='adjust')return true;
   if(action==='receive')return wallet.canReceive!==false;
   if(action==='transferOut')return wallet.canTransferOut!==false;

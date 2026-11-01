@@ -241,6 +241,8 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
     const actions=walletActions(input);const walletSnap=await trx.get(ref(uid,'wallets',input.walletId));if(!walletSnap.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(walletSnap),actions.source,old,input);
     if(actions.destination&&input.destinationWalletId){const target=await trx.get(ref(uid,'wallets',input.destinationWalletId));if(!target.exists())throw Error('Dompet tujuan tidak ditemukan.');if(!(old?.destinationWalletId===input.destinationWalletId&&walletActions(old).destination===actions.destination))validateWalletUse(hydrate<Wallet>(target),actions.destination);}
     if(old?.type==='claim_writeoff')throw Error('Hapus transaksi penolakan lalu catat ulang bila perlu mengoreksi nominal.');
+    // Paying back a Split Bill share is not spending; turned into another type it would count the share twice.
+    if(old?.splitBillId&&(old.type==='debt_payment'||old.type==='receivable_payment')&&input.type!==old.type)throw Error('Ini pelunasan Split Bill, jadi jenisnya tidak bisa diganti. Hapus lalu catat ulang bila perlu.');
     // A Split Bill's payment keeps its link; its amount and the share that is not the user's own are changed on the bill.
     if(old?.splitBillId&&old.type==='expense'){if(!old.walletId)throw Error(splitManaged);if(input.type!=='expense'||input.amount!==old.amount)throw Error('Nominal transaksi ini diatur oleh Split Bill. Ubah lewat menu Split Bill.');if(input.walletId!==old.walletId)throw Error('Dompet transaksi ini diatur oleh Split Bill. Ubah lewat menu Split Bill.');input={...input,splitBillId:old.splitBillId,ownShare:old.ownShare??null,...(old.ownSplits?.length?{ownSplits:old.ownSplits}:{})};}if(old&&(['claim_advance','receivable_issue','borrowing'].includes(old.type)||['claim_advance','receivable_issue','borrowing'].includes(input.type))) throw Error('Transaksi pembuka dicatat melalui menu terkait; ubah melalui catatannya.');
     const delta:Record<string,number>={};for(const [w,n] of Object.entries(effects(input))) delta[w]=(delta[w]||0)+n; if(old)for(const [w,n] of Object.entries(effects(old)))delta[w]=(delta[w]||0)-n;
@@ -330,6 +332,40 @@ export async function editOpeningRecord(uid:string,kind:'claims'|'receivables'|'
     if(first&&txSnap){const t=txSnap.data() as LedgerTx;const walletDelta=kind==='debts'?delta:-delta;trx.update(ref(uid,'wallets',t.walletId),{cachedBalance:increment(walletDelta),updatedAt:serverTimestamp()});const txAmount=Number(t.amount)+delta;if(txAmount<=0)throw Error('Nominal awal tidak bisa sekecil itu karena ada tambahan. Batalkan tambahannya dulu di Riwayat.');trx.update(first.ref,{amount:txAmount,updatedAt:serverTimestamp()});}
     trx.update(rr,{...changes,[key]:newAmount,[remainingKey]:nextRemaining,updatedAt:serverTimestamp()});
   });await syncSnapshot(uid,first?.data().date||'0000-01-01');
+}
+/**
+ * 8.3.3: choose, change or remove the wallet of a debt or receivable after it was recorded. Without a wallet only what is
+ * owed is kept; with one, the opening transaction (the money borrowed into it, or lent out of it) moves its balance.
+ * `date` is used when the opening transaction is created now; a moved one keeps its own date.
+ */
+export async function setOpeningWallet(uid:string,kind:'receivables'|'debts',id:string,walletId:string,date:string){
+  const relationKey=kind==='receivables'?'receivableId':'debtId',openingType=kind==='receivables'?'receivable_issue':'borrowing';
+  const found=await readLocalFirst(uid,['transactions'],query(coll(uid,'transactions'),where(relationKey,'==',id)));
+  const first=found.docs.filter(s=>s.data().type===openingType&&!/\(tambahan\)$/.test(String(s.data().description||''))).sort((a,b)=>String(a.data().date).localeCompare(String(b.data().date)))[0];
+  let earliest=date,removed='';
+  await runTx(database(),async trx=>{
+    const rr=ref(uid,kind,id),snap=await trx.get(rr);if(!snap.exists())throw Error('Catatan tidak ditemukan.');const row=snap.data();
+    if(row.sourceType==='split_bill')throw Error(splitRecord(kind));
+    const txSnap=first?await trx.get(first.ref):null;if(first&&!txSnap?.exists())throw Error('Transaksi pembuka tidak ditemukan. Coba lagi.');
+    const opening=txSnap?.exists()?hydrate<LedgerTx>(txSnap):null;
+    if((opening?.walletId||'')===walletId)return;
+    // Borrowed money comes into the wallet; money lent goes out of it.
+    const sign=kind==='debts'?1:-1;
+    if(walletId){const w=await trx.get(ref(uid,'wallets',walletId));if(!w.exists())throw Error('Dompet tidak ditemukan.');validateWalletUse(hydrate<Wallet>(w),kind==='debts'?'receive':'pay');}
+    if(opening&&first){
+      trx.update(ref(uid,'wallets',opening.walletId),{cachedBalance:increment(-sign*opening.amount),updatedAt:serverTimestamp()});if(opening.date<earliest)earliest=opening.date;
+      if(walletId){trx.update(first.ref,{walletId,updatedAt:serverTimestamp()});trx.update(ref(uid,'wallets',walletId),{cachedBalance:increment(sign*opening.amount),updatedAt:serverTimestamp()});}
+      else{trx.delete(first.ref);removed=first.id;}
+    }else if(walletId){
+      const amount=Number(row.originalAmount),t=doc(coll(uid,'transactions'));
+      const {id:_t,...fields}=newTx({type:openingType,amount,walletId,date,description:String(kind==='debts'?row.name||'':row.person||''),...(kind==='debts'?{debtId:id}:{receivableId:id})});
+      trx.set(t,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      trx.update(ref(uid,'wallets',walletId),{cachedBalance:increment(sign*amount),updatedAt:serverTimestamp()});
+    }
+    if(kind==='receivables')trx.update(rr,{sourceWalletId:walletId,updatedAt:serverTimestamp()});
+  });
+  if(removed)await noteDeleted(uid,{transactions:[removed]});
+  await syncSnapshot(uid,earliest);
 }
 export async function deleteOpeningRecord(uid:string,kind:'claims'|'receivables'|'debts',id:string){
   const relationKey=kind==='claims'?'claimId':kind==='receivables'?'receivableId':'debtId',openingType=kind==='claims'?'claim_advance':kind==='receivables'?'receivable_issue':'borrowing';

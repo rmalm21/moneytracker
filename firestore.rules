@@ -14,7 +14,6 @@ service cloud.firestore {
     function canPay(userId, walletId) {
       let wallet = get(/databases/$(database)/documents/users/$(userId)/wallets/$(walletId));
       return wallet.data.get('isArchived', false) == false
-        && wallet.data.get('isSpendable', true) == true
         && wallet.data.get('canPay', true) == true;
     }
     // A Split Bill share paid by someone else is spending without any wallet (no money moved yet).

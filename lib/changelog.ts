@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.3.3', date: '1 Nov 2026', title: 'Dompet, Split Bill, utang dan piutang tanpa dompet, dan perbarui saldo lewat chat', items: [
+    ['💳', 'Dompet yang tidak dihitung di uang bebas tetap bisa dipakai bayar selama “Bisa membayar” dicentang. Dulu transaksinya tetap ditolak. Centang “Hitung dalam uang bebas” dan “Disimpan” juga tidak bisa lagi aktif bersamaan.'],
+    ['🧾', 'Split Bill yang dibayar teman: buka transaksi bagianmu lalu pilih “Bayar ke … dari dompet”. Pengeluarannya tetap dihitung sekali. Total Keluar di Transaksi tidak lagi menghitung pelunasan Split Bill dua kali, dan barisnya kini bertanda “Pelunasan Split Bill”.'],
+    ['🛡️', 'Mengubah pembayaran utang, piutang, atau klaim yang sudah lunas tidak lagi kehilangan catatannya. Pelunasan Split Bill juga tidak bisa diubah jadi pengeluaran, yang dulu bisa membuat pengeluaran dobel.'],
+    ['🤝', 'Utang dan piutang yang telanjur dicatat tanpa dompet sekarang bisa diberi dompet lewat Ubah utang atau Ubah piutang. Dompetnya juga bisa diganti atau dilepas, dan saldonya ikut disesuaikan.'],
+    ['🤖', 'Asisten: setelah tanya saldo satu dompet, “adjust ke 564.800” atau “jadiin 1,2jt” langsung menyiapkan Perbarui saldo dompet itu. Kartu jawaban kini menulis “Diambil dari dompet Mandiri”, bukan “pakai Mandiri”.'],
+  ] },
   { version: '8.3.2', date: '31 Okt 2026', title: 'Sembunyikan nominal: pemeriksaan ulang menyeluruh', items: [
     ['🔧', 'Super ketat: pengingat tagihan dan anggaran yang muncul di layar kunci HP sekarang ikut disamarkan, juga yang dikirim saat aplikasi sedang tertutup.'],
     ['🧭', 'Angka penting saja: kartu Catat otomatis untuk pemasukan, transfer, dan perbarui saldo menyamarkan nominalnya, sama seperti baris transaksi. Keterangan total di jendela ubah transfer ikut disamarkan, dan tooltip grafik Arus kas dan Bulan demi bulan tetap menampilkan pengeluaran.'],

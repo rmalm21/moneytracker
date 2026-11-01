@@ -1197,7 +1197,7 @@ type Context = { categories: Pick<Category, 'id' | 'name' | 'type' | 'parentId' 
 const lower = (text: string) => text.toLocaleLowerCase('id-ID');
 /** The wallet the receipt was most likely paid with. */
 export function walletForPayment(payment: PaymentMethod, wallets: Context['wallets'], fallback = '') {
-  const usable = wallets.filter(w => !w.isArchived && w.isSpendable !== false && w.canPay !== false);
+  const usable = wallets.filter(w => !w.isArchived && w.canPay !== false);
   const named = (words: string[]) => usable.find(w => words.some(word => lower(w.name).replace(/[^a-z0-9]/g, '').includes(word)));
   const brand: Partial<Record<PaymentMethod, string[]>> = { gopay: ['gopay'], ovo: ['ovo'], dana: ['dana'], shopeepay: ['shopeepay', 'spay'], linkaja: ['linkaja'] };
   let wallet = brand[payment] ? named(brand[payment]!) : undefined;

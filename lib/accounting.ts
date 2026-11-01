@@ -65,12 +65,13 @@ export const transactionIncome=(tx:LedgerTx)=>tx.type==='income'||tx.type==='rec
  * Money in and out of the person's pocket, as the Transaksi list shows it (not the accounting view used by reports and
  * budgets): money in = income, a receivable paid back, money borrowed, an office claim paid out; money out = spending,
  * paying a debt, lending money (talangan), paying for the office, and transfer fees. Moves between own wallets and
- * balance corrections are neither.
+ * balance corrections are neither. Paying back a Split Bill share is not counted again (8.3.3): the share is already
+ * counted on the day of the bill, so the totals would show it twice.
  */
 const MONEY_IN=new Set(['income','receivable_payment','borrowing','claim_payment']);
 const MONEY_OUT=new Set(['expense','debt_payment','receivable_issue','claim_advance']);
 export const moneyIn=(tx:LedgerTx)=>MONEY_IN.has(tx.type)?tx.amount:0;
-export const moneyOut=(tx:LedgerTx)=>tx.type==='expense'?(tx.walletId?tx.amount:transactionExpense(tx)):MONEY_OUT.has(tx.type)?tx.amount:tx.type==='transfer'?tx.transferFee||0:0;
+export const moneyOut=(tx:LedgerTx)=>tx.type==='expense'?(tx.walletId?tx.amount:transactionExpense(tx)):tx.type==='debt_payment'&&tx.splitBillId?0:MONEY_OUT.has(tx.type)?tx.amount:tx.type==='transfer'?tx.transferFee||0:0;
 export const moneyGroup=(type:string):'in'|'out'|'move'|'other'=>MONEY_IN.has(type)?'in':MONEY_OUT.has(type)?'out':type==='transfer'||type==='fund_contribution'?'move':'other';
 /**
  * Split Bill money in a set of transactions, kept apart from spending and income:

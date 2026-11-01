@@ -233,7 +233,7 @@ function amountFor(t: LedgerTx, s: Subject, flow: 'expense' | 'income') {
   const inCategory = expenseAllocations(t).filter(l => l.categoryId === id || l.subcategoryId === id).reduce((n, l) => n + l.amount, 0);
   return inCategory || (noted ? transactionExpense(t) : 0);
 }
-const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}${s.orText ? ` atau catatan yang ada kata “${s.orText}”` : ''}` : '', s.text ? `catatan yang ada kata “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `pakai ${s.walletName}` : ''].filter(Boolean).join(' · ');
+const basisOf = (s: Subject) => [s.category ? `kategori ${s.category.name}${s.orText ? ` atau catatan yang ada kata “${s.orText}”` : ''}` : '', s.text ? `catatan yang ada kata “${s.text}”` : '', s.merchant ? `di ${s.merchant}` : '', s.walletName ? `dompet ${s.walletName}` : ''].filter(Boolean).join(' · ');
 const nameOf = (s: Subject) => s.category?.name || (s.text ? `“${s.text}”` : '') || s.merchant || '';
 /** The Transaksi filter that shows exactly the entries counted. */
 function focusOf(s: Subject, ids: string[], flow: 'expense' | 'income', start?: string, end?: string) {

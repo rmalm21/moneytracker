@@ -5335,6 +5335,7 @@ html[data-hide-amounts="ketat"] :is(.recharts-yAxis, .recharts-yAxis-tick-labels
 .sb-tx-notice { display: grid; gap: 6px; }
 .sb-tx-notice p { margin: 0; }
 .sb-tx-notice .btn { justify-self: start; }
+.sb-tx-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .tx-own { color: var(--muted); font-size: .72rem; font-weight: 700; }
 
 /* One person */

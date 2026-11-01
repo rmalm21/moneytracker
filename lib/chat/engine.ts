@@ -191,6 +191,9 @@ const DATE_ONLY = new RegExp(String.raw`^(?:eh,?\s+)?(?:itu\s+|tanggalnya\s+|har
 const DATE_ANY = new RegExp(String.raw`\b${DATE_PHRASE}\b`, 'g');
 const WALLET_EDIT = /^(?:eh,?\s+)?(?:pakai|pake|pk|via|lewat|dari|bayar(?:nya)?\s+(?:pakai|pake|via|dari)|ganti\s+(?:ke|jadi)|dompet(?:nya)?)\s+(.+)$/;
 const CATEGORY_EDIT = /^(?:eh,?\s+)?(?:kategori(?:nya)?|masuk(?:in|kan)?(?:\s+ke)?(?:\s+kategori)?|masukkan ke|jadi kategori|ganti kategori(?:nya)?(?:\s+(?:jadi|ke))?|ubah kategori(?:nya)?(?:\s+(?:jadi|ke))?)\s+(.+)$/;
+/** 8.3.3 After a wallet's balance: "adjust ke 564.800", "jadiin 564rb", "sesuaikan saldonya jadi 1,2jt", "ke 500rb aja". */
+const SET_BALANCE = /^(?:tolong |coba )?(?:(?:adjust|adjus|sesuaikan|sesuain|samain|samakan|ubah|ganti|koreksi|update|perbarui|set|jadiin|jadikan|benerin|betulin|bikin)(?: saldo(?:nya)?)?(?: (?:ke|jadi|jd|menjadi))?|(?:saldo(?:nya)? )?(?:ke|jadi|jd|menjadi)) ((?:rp\.? ?)?\d[\d.,]*(?: ?(?:rb|ribu|k|jt|juta))?)(?: (?:aja|ya|yah|dong|deh|sih|plis|please))?[.!?]*$/;
+const BALANCE_ASKED = /\b(?:saldo|isi|sisa|duit|uang|balance)\b/;
 const AMOUNT_LEAD = /^(?:eh,?\s+|eh\s+salah,?\s+)?(?:ganti|ubah|jadiin|jadi(?:nya)?|bukan|salah|harusnya|seharusnya|koreksi|maksudnya|maksudku|yang bener|yg bener|benernya|nominalnya|totalnya)\b/;
 const SPLIT_EDIT = /^(?:(?:di)?bagi(?:2| dua| tiga| empat| rata| \d)|patungan|split|bagi rata|50:50)\b/;
 const CANCEL = /^(?:batal(?:in|kan)?|ga jadi|gak jadi|nggak jadi|ngga jadi|enggak jadi|gajadi|gk jadi|cancel|ga usah|gak usah|nggak usah|gausah|skip|lewati|hapus aja|jangan(?: dicatat)?)(?:\s+(?:deh|aja|dulu|ya))*$/;
@@ -588,6 +591,14 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       ...(a.open ? { open: a.open } : {}), ...(a.chips?.length ? { chips: a.chips } : {}), ...(a.why ? { why: a.why } : {}), tone: 'info',
     }, { ...mem, topic: intent || a.intent, saving: a.saving, item: a.item, ...(asked && a.intent === 'question' ? { question: asked, last: 'question' as const } : {}) });
 
+    // 8.3.3 Right after a wallet's balance ("saldo mandiri brp" → Rp599.800), "adjust ke 564.800" sets that wallet's balance
+    // through Catat otomatis (Perbarui saldo), the same as "saldo mandiri sekarang 564.800"; nothing is saved without a tap.
+    // ("ke 564.800" is not read as an amount on its own, and a plain number needs "Rp" to be a balance, not a question.)
+    const setTo = memory.last === 'question' && memory.question && !pending ? t.match(SET_BALANCE) : null;
+    if (setTo && memory.question) {
+      const asked = lower(memory.question), wallets = walletsIn(asked, ctx.quick.wallets), amount = setTo[1].replace(/^rp\.? ?/, '');
+      if (wallets.length === 1 && BALANCE_ASKED.test(asked)) return plan(`saldo ${wallets[0].name} sekarang ${/[a-z]/.test(amount) ? amount : `Rp${amount}`}`);
+    }
     // 7.8 Teaching: the message after "Maksud “X” itu apa?" is what X means.
     if (memory.teaching) {
       if (CANCEL.test(t) || NO.test(t)) return talk('decline', P.decline(v, turn));
