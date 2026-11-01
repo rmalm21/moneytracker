@@ -1,13 +1,14 @@
 'use client';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { firstMoneyWord, hasAmount, hasBareAmount, hasMoneyWord, maskAmounts, maskBareAmounts, maskImportantAmounts } from '@/lib/privacy';
+import { hasAmount, hasBareAmount, maskAmounts, maskBareAmounts } from '@/lib/privacy';
 
 /**
  * Privacy switch: amounts on screen show as "Rp•••••" (lib/privacy.ts).
  * It works on the text the pages already render, so every page, dialog, toast and chart tooltip
  * is covered without each one knowing about it. Inputs keep their value, so forms still work.
- * Chosen per device and remembered, with three levels (8.3): every amount, the important ones, or Beranda & Dompet.
+ * Chosen per device and remembered, with two levels: every amount (Super ketat), or Beranda & Dompet. (8.4: the
+ * "Angka penting saja" level of 8.3 was removed; a device that had it falls back to Super ketat.)
  * 8.3.1: tooltips and screen-reader labels (title, aria-label), chart axes and chat messages ("kopi 25rb") too.
  */
 const KEY = 'dompet-ajaib:hide-amounts';
@@ -17,71 +18,20 @@ const masked = new Map<Text, { original: string; shown: string }>();
 const maskedAttrs = new Map<Element, Record<string, { original: string; shown: string }>>();
 const ATTRS = ['title', 'aria-label'];
 let observer: MutationObserver | null = null;
-export type HideLevel = 'ketat' | 'penting' | 'beranda';
+export type HideLevel = 'ketat' | 'beranda';
 let level: HideLevel = 'ketat';
 
-const views = (list: string[]) => list.map(view => `[data-view="${view}"]`);
-const widgets = (list: string[]) => list.map(card => `[data-widget="${card}"]`);
-/** "Angka penting": balances, income, savings, debts and what is owed to you; everything in these places is hidden. */
-const IMPORTANT_VIEWS = ['wallets', 'funds', 'wishlist', 'debts', 'receivables', 'claims', 'splitbill', 'owedReport', 'owedArchive', 'forecast'];
-const IMPORTANT_PLACES = views(IMPORTANT_VIEWS).join(', ');
-/** A wallet's balance wherever it is shown (pickers, kantong, dropdown options), even inside an everyday card. */
-const BALANCES = ['.tx-wallet-text', '.fc-wallet-text', '.wallet-balance', '.pocket-pick-text', '.pocket-total', '.pocket-members',
-  '.wallet-delete-head', '.wallet-archive-text', '.portion-intro', '.qp-balance', 'option'].join(', ');
-const IMPORTANT = ['.home-hero', '.report-position', '.book-head', '.book-widget > summary', '.book-section.is-income',
-  ...widgets(['free', 'money', 'safeDaily', 'income', 'cashFlow', 'lastCycle', 'wallets', 'assets', 'netWorth', 'reserved', 'assetMix', 'kantong', 'emergency', 'forecast', 'liabilities', 'debts', 'receivables', 'splitBill', 'claims', 'funds'])].join(', ');
-/** Everyday spending: shown at "Angka penting", whatever words are near it ("Bayar utang" is still spending). */
-const EVERYDAY = ['.donut-layout', '.book-section.is-expense', '.budget-tiles',
-  ...widgets(['budget', 'budgets', 'budgetAlerts', 'expenses', 'avgDaily', 'topCategories', 'categoryDonut', 'expenseTrend', 'weekSpend', 'bigExpenses', 'topMerchants', 'categoryChanges', 'bills']),
-  ...views(['budgets', 'categories'])].join(', ');
-/** "Beranda & Dompet". */
+/** "Beranda & Dompet": the dashboard, the Dompet menu, and dialogs opened from them (not the chat or notifications). */
 const HOME = '.home-dash, [data-view="wallets"]';
-/** Where the label of an amount ends: its own card, row or chat bubble. */
-const CARD = 'li, tr, section, article, .panel, .stat-card, .data-row, .report-row, [role="row"], .gl-card, .cm-bubble, [role="dialog"]';
-const AMOUNT = /Rp\s?(?:\d|•)/;
-/** The text shown before an amount in its card ("Uang bebas" above "Rp7.200.000"), a space between elements. */
-function labelBefore(node: Node) {
-  let el = node.parentElement, before = '';
-  for (let i = 0; el && i < 5; i++, el = el.parentElement) {
-    // A list of amounts (rows, chips, cards): one item's label never comes from the item before it.
-    if (i > 0 && [...el.children].filter(child => AMOUNT.test(child.textContent || '')).length >= 2) break;
-    const parts: string[] = [], walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    for (let text = walker.nextNode(); text && text !== node; text = walker.nextNode()) parts.push(text.nodeValue || '');
-    before = parts.join(' ').slice(-80);
-    if (hasMoneyWord(before) || before.length >= 80 || el.matches(CARD)) break;
-  }
-  return before;
-}
-/** The menu open behind a dialog: a dialog opened from Dompet is as private as Dompet. */
 const viewBehind = () => document.querySelector('main[data-view]')?.getAttribute('data-view') || '';
-const inDialogOf = (el: Element, list: string[]) => !!el.closest('[role="dialog"]') && !el.closest('.chat-panel, .notification-dialog') && list.includes(viewBehind());
-/** This level's decision for a place: hide everything, show everything, or (null) read the words around it. */
-function verdict(el: Element): 'mask' | 'show' | null {
-  if (level === 'ketat') return 'mask';
-  if (level === 'beranda') return el.closest(HOME) || inDialogOf(el, ['dashboard', 'wallets']) ? 'mask' : 'show';
-  // Menus about money you have or owe hide everything, spending in them too (a wallet's history adds up to its balance).
-  if (el.closest(IMPORTANT_PLACES) || el.closest(BALANCES) || inDialogOf(el, IMPORTANT_VIEWS)) return 'mask';
-  const marked = el.closest('[data-amounts]');
-  if (marked) return marked.getAttribute('data-amounts') === 'penting' ? 'mask' : 'show';
-  if (el.closest(IMPORTANT)) return 'mask';
-  if (el.closest(EVERYDAY) || inDialogOf(el, ['budgets', 'categories'])) return 'show';
-  // Elsewhere money in is hidden and money out shown. (A transaction row marks its own amount: a transfer moves your
-  // own money and is hidden like a balance.)
-  if (el.closest('.amount-positive')) return 'mask';
-  if (el.closest('.amount-negative')) return 'show';
-  return null;
-}
+const openedFromHome = (el: Element) => !!el.closest('[role="dialog"]') && !el.closest('.chat-panel, .notification-dialog') && ['dashboard', 'wallets'].includes(viewBehind());
+/** Whether this level hides the amounts in a place: "Super ketat" hides every amount. */
+const hides = (el: Element) => level === 'ketat' || !!el.closest(HOME) || openedFromHome(el);
 /** Amounts written without "Rp": chart axes, chat messages, and what Catat otomatis read from a sentence. */
 const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .chat-chip, .quick-preview');
-const all = (value: string, bare: boolean) => bare ? maskBareAmounts(maskAmounts(value)) : maskAmounts(value);
-function maskFor(value: string, node: Node, parent: Element) {
-  const bare = bareZone(parent), decided = verdict(parent);
-  if (decided === 'mask') return all(value, bare);
-  if (decided === 'show') return value;
-  // In an answer (chat or Tanya), an amount without a label of its own ("BCA Rp6,5 jt", the big figure on top)
-  // follows what the answer is about.
-  const label = labelBefore(node), answer = hasMoneyWord(label) ? null : parent.closest('.cm-bubble, .qa-card');
-  return maskImportantAmounts(value, answer ? `${firstMoneyWord(answer.textContent || '')} ${label}` : label, bare);
+function maskFor(value: string, parent: Element) {
+  if (!hides(parent)) return value;
+  return bareZone(parent) ? maskBareAmounts(maskAmounts(value)) : maskAmounts(value);
 }
 function maskNode(node: Text) {
   const value = node.nodeValue || '', record = masked.get(node);
@@ -90,7 +40,7 @@ function maskNode(node: Text) {
   if (!hasAmount(value) && !(parent && bareZone(parent) && hasBareAmount(value))) { if (record) masked.delete(node); return; }
   // Samples that show what each level hides keep their figures (data-keep-amounts).
   if (!parent || SKIP.has(parent.tagName) || parent.closest('[contenteditable="true"], [data-keep-amounts]')) return;
-  const shown = maskFor(value, node, parent);
+  const shown = maskFor(value, parent);
   if (shown === value) { masked.delete(node); return; }
   masked.set(node, { original: value, shown });
   node.nodeValue = shown;
@@ -101,9 +51,7 @@ function maskAttrs(el: Element) {
     const value = el.getAttribute(name), saved = maskedAttrs.get(el)?.[name];
     if (value === null || saved && value === saved.shown) continue;
     if (!hasAmount(value) || el.closest('[data-keep-amounts]')) continue;
-    // A row's label follows the amount it shows (a transaction row marks its amount with data-amounts).
-    const inner = el.querySelector('[data-amounts]'), decided = verdict(el) ?? (inner && verdict(inner));
-    const shown = decided === 'mask' ? maskAmounts(value) : decided === 'show' ? value : maskImportantAmounts(value);
+    const shown = hides(el) ? maskAmounts(value) : value;
     if (shown === value) continue;
     maskedAttrs.set(el, { ...maskedAttrs.get(el), [name]: { original: value, shown } });
     el.setAttribute(name, shown);
@@ -155,14 +103,14 @@ export function setAlwaysHide(on: boolean) {
 }
 /** How much is hidden, chosen in Pengaturan → Tampilan. */
 const LEVEL_KEY = 'dompet-ajaib:hide-amounts-level', LEVEL_CHANGED = 'dompet-ajaib:hide-amounts-level-changed';
-export function readHideLevel(): HideLevel { try { const saved = localStorage.getItem(LEVEL_KEY); return saved === 'penting' || saved === 'beranda' ? saved : 'ketat'; } catch { return 'ketat'; } }
+export function readHideLevel(): HideLevel { try { return localStorage.getItem(LEVEL_KEY) === 'beranda' ? 'beranda' : 'ketat'; } catch { return 'ketat'; } }
 export function setHideLevel(next: HideLevel) {
   try { localStorage.setItem(LEVEL_KEY, next); } catch { /* this visit only */ }
   window.dispatchEvent(new CustomEvent(LEVEL_CHANGED, { detail: next }));
 }
 function readSaved() { try { return readAlwaysHide() || localStorage.getItem(KEY) === '1'; } catch { return false; } }
-/** System notifications are outside the page: at "Super ketat" their amounts are hidden too (bills and budgets are
- * spending, so the other levels show them). The service worker reads the same choice for reminders sent in the background. */
+/** System notifications are outside the page: at "Super ketat" their amounts are hidden too (they are not part of
+ * Beranda or Dompet). The service worker reads the same choice for reminders sent in the background. */
 export const systemNoticeText = (text: string) => readSaved() && readHideLevel() === 'ketat' ? maskAmounts(text) : text;
 function shareWithWorker(ketat: boolean) {
   try { void caches.open('dompet-ajaib-state').then(cache => cache.put('/__hide-amounts.json', new Response(JSON.stringify({ ketat }), { headers: { 'content-type': 'application/json' } }))).catch(() => {}); } catch { /* Cache Storage is optional. */ }

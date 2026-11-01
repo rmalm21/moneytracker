@@ -34,3 +34,20 @@ test('8.3.3 chat: "adjust ke 564.800" right after a wallet balance updates that 
     assert.ok(!(next.reply.kind === 'plan' && /^saldo /.test(next.reply.text)), question);
   }
 });
+
+import { unseenReleases } from '../lib/whats-new.ts';
+import { releases } from '../lib/changelog.ts';
+test('8.4 "Apa yang baru": every release since the one last seen, none on a first visit or when up to date', () => {
+  const current = releases[0].version, at53 = releases.findIndex(r => r.version === '5.3');
+  assert.deepEqual(unseenReleases(releases, current, current, true), []);
+  assert.deepEqual(unseenReleases(releases, current, null, false), []);
+  assert.deepEqual(unseenReleases(releases, current, null, true).map(r => r.version), [current]);
+  // Last seen at 5.3: everything after 5.3, newest first, 5.3 itself not again.
+  const since53 = unseenReleases(releases, current, '5.3', true);
+  assert.equal(since53.length, at53);
+  assert.equal(since53[0].version, current);
+  assert.ok(!since53.some(r => r.version === '5.3'));
+  assert.deepEqual(unseenReleases(releases, current, releases[1].version, true).map(r => r.version), [current]);
+  // A version not in the list (renamed, removed): just the newest.
+  assert.deepEqual(unseenReleases(releases, current, '0.0-unknown', true).map(r => r.version), [current]);
+});

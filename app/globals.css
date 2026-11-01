@@ -8658,3 +8658,51 @@ button.int-more { justify-self: start; font-size: .74rem; }
   .qp-head { grid-template-columns: auto minmax(0, 1fr); }
   .qp-head > .qp-switch { grid-column: 2; justify-self: start; margin-top: -2px; }
 }
+
+/* 8.4 "Apa yang baru": shown once after an update (components/whats-new.tsx). */
+.wn-overlay { position: fixed; inset: 0; z-index: 260; background: color-mix(in srgb, var(--deep) 46%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fade .2s ease-out; }
+.wn-card { position: fixed; z-index: 261; left: 50%; top: 50%; translate: -50% -50%; width: min(460px, calc(100vw - 28px)); max-height: min(86dvh, 760px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border-radius: 28px; background: var(--paper); color: var(--ink); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); box-shadow: 0 34px 80px -30px color-mix(in srgb, var(--deep) 70%, transparent), var(--elev-3); animation: wn-pop .42s cubic-bezier(.2, .9, .25, 1.12) both; }
+.wn-card:focus { outline: none; }
+@keyframes wn-pop { from { opacity: 0; transform: scale(.92) translateY(14px); } to { opacity: 1; transform: none; } }
+.wn-hero { position: relative; isolation: isolate; overflow: hidden; padding: 22px 56px 22px 22px; color: #fff; background: radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--accent) 82%, #fff 10%) 0%, transparent 60%), radial-gradient(90% 110% at 100% 100%, color-mix(in srgb, var(--chart-4) 78%, transparent) 0%, transparent 64%), linear-gradient(150deg, var(--deep), color-mix(in srgb, var(--accent) 58%, var(--deep))); }
+.wn-hero::after { content: ''; position: absolute; z-index: -1; width: 220px; height: 220px; right: -70px; top: -110px; border-radius: 50%; background: radial-gradient(circle, #ffffff40, transparent 70%); }
+.wn-spark { position: absolute; z-index: -1; color: #ffd166; font-size: 14px; line-height: 1; opacity: .85; animation: wn-twinkle 2.6s ease-in-out infinite; }
+.wn-spark.is-a { right: 72px; top: 18px; }
+.wn-spark.is-b { right: 26px; bottom: 22px; font-size: 20px; animation-delay: .7s; }
+.wn-spark.is-c { right: 110px; bottom: 14px; font-size: 10px; animation-delay: 1.4s; color: #fff; }
+@keyframes wn-twinkle { 0%, 100% { transform: scale(.7) rotate(0); opacity: .45; } 50% { transform: scale(1.15) rotate(25deg); opacity: 1; } }
+.wn-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: #ffffff26; box-shadow: inset 0 0 0 1px #ffffff40; font-size: .74rem; font-weight: 800; letter-spacing: .02em; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.wn-title { margin: 12px 0 4px; color: #fff; font: 800 1.28rem/1.22 var(--font-head); letter-spacing: -.01em; text-wrap: balance; }
+.wn-version { margin: 0; color: #ffffffc7; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wn-x { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #ffffff26; color: #fff; cursor: pointer; box-shadow: inset 0 0 0 1px #ffffff3a; transition: background .15s ease, transform .15s ease; }
+.wn-x:hover { background: #ffffff3d; } .wn-x:active { transform: scale(.94); }
+.wn-x:focus-visible, .wn-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wn-body { overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 18px; display: grid; align-content: start; gap: 18px; }
+.wn-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.wn-items li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 13px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, var(--paper)), var(--paper) 75%); animation: wn-rise .45s var(--ease-out, ease) both; animation-delay: calc(.18s + var(--i, 0) * 70ms); }
+@keyframes wn-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.wn-emoji { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--paper); box-shadow: var(--elev-1); }
+.wn-emoji .emoji { width: 20px; height: 20px; }
+.wn-items p { margin: 0; font-size: .88rem; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.wn-older { display: grid; gap: 8px; }
+.wn-older h3 { margin: 0 2px; font: 800 .74rem var(--font-head); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.wn-older h3 b { color: var(--accent); }
+.wn-older > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wn-older details { border-radius: 14px; border: 1px solid var(--line); background: var(--paper); overflow: hidden; }
+.wn-older summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.wn-older summary::-webkit-details-marker { display: none; }
+.wn-older summary > svg { flex: none; color: var(--muted); transition: transform .2s ease; }
+.wn-older details[open] summary > svg { transform: rotate(180deg); }
+.wn-older details[open] summary { border-bottom: 1px solid var(--line); }
+.wn-chip { flex: none; min-width: 44px; padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); font: 800 .72rem var(--font-head); text-align: center; font-variant-numeric: tabular-nums; }
+.wn-line { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.wn-line strong { font-size: .84rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wn-line small { color: var(--muted); font-size: .72rem; }
+.wn-points { list-style: none; margin: 0; padding: 10px 12px 12px; display: grid; gap: 8px; }
+.wn-points li { display: flex; align-items: flex-start; gap: 8px; font-size: .8rem; line-height: 1.45; color: color-mix(in srgb, var(--ink) 88%, var(--muted)); }
+.wn-points .emoji { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.wn-more { justify-self: start; margin: 2px 2px 0; font-size: .82rem; }
+.wn-actions { display: grid; gap: 6px; justify-items: center; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 92%, var(--bg)); }
+.wn-go { width: 100%; min-height: 46px; border-radius: 14px; font-size: .95rem; }
+.wn-all { font-size: .82rem; }
+@media (prefers-reduced-motion: reduce) { .wn-card, .wn-overlay, .wn-items li, .wn-spark { animation: none; } }
