@@ -663,7 +663,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     }
     // 8.4 "catat pengeluaran" → what and how much. A bare amount is kept ("75rb" → "buat apa?") until the thing comes
     // ("makan siang" → «makan siang 75rb»); the thing with its amount is a card at once. Anything else leaves it.
-    const startKind = !pending && !(memory.calcPlan && memory.last === 'calc') ? readStart(t) : null;
+    const startKind = !(memory.calcPlan && memory.last === 'calc') ? readStart(t) : null;
     if (startKind) return talk('clarify', V.startAsk(v, startKind), {}, { start: { kind: startKind } });
     if (memory.start && !CANCEL.test(t) && !/\?\s*$/.test(raw)) {
       const start = memory.start, said = lower(typed), amounts = findAmounts(said).filter(a => a.value > 0);
@@ -676,9 +676,9 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (ctx.inspect(text).reading === 'record') return plan(text, { intent: 'fill' });
     }
     // 8.4 About the record just answered: "dia kapan bayar?", "udah lunas belum?", "buat apa dulu?", "berapa?".
-    const aboutIt = memory.about && !pending && !money ? aboutItem(t, memory.about, ctx, v) : null;
+    const aboutIt = memory.about && !money ? aboutItem(t, memory.about, ctx, v) : null;
     if (aboutIt) return v3Say(aboutIt, undefined, 'followup');
-    const picked = memory.list && !pending && !money ? fromList(t, memory.list, ctx, v) : null;
+    const picked = memory.list && !money ? fromList(t, memory.list, ctx, v) : null;
     if (picked) return v3Say(picked, undefined, 'followup');
     // 7.8 Teaching: the message after "Maksud “X” itu apa?" is what X means.
     if (memory.teaching) {
@@ -702,12 +702,12 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     }
     // 8.4 Everyday things: today's date and day, the time, the data in Excel, a forgotten PIN, "undo".
     const plainQ = t.replace(START_LEAD, '').replace(/(?:\s+(?:ya|yah|sih|dong|nih|kak|min|bang|bro|sis|gan|deh|kah|ini))+$/, '').replace(/[?!.]+$/, '').trim();
-    if (!money && !pending && (DATE_NOW.test(plainQ) || DAY_NOW.test(plainQ))) {
+    if (!money && (DATE_NOW.test(plainQ) || DAY_NOW.test(plainQ))) {
       const d = new Date(`${ctx.today}T00:00:00Z`), day = d.toLocaleDateString('id-ID', { weekday: 'long', timeZone: 'UTC' }), date = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
       const left = daysBetween(ctx.today, ctx.cycle.end);
       return talk('smalltalk', vo(v, { santai: `Hari ini ${day}, ${date}. ${left > 0 ? `Gajian ${left} hari lagi.` : 'Hari ini gajian!'}`, sopan: `Hari ini ${day}, ${date}.${left > 0 ? ` Gajian ${left} hari lagi.` : ''}`, gaul: `Sekarang ${day}, ${date}. ${left > 0 ? `Gajian ${left} hari lagi, sabar.` : 'Gajian hari ini, cuy!'}`, singkat: `${day}, ${date}.`, barbar: `${day}, ${date}. ${left > 0 ? `Gajian masih ${left} hari, tahan napsu belanja lo.` : 'Gajian hari ini, anjir!'}` }), { chips: ['sehari boleh jajan berapa', 'pengeluaran hari ini berapa'] });
     }
-    if (!money && !pending && TIME_NOW.test(plainQ)) {
+    if (!money && TIME_NOW.test(plainQ)) {
       const at = ctx.hour === undefined ? '' : ctx.minute === undefined ? `sekitar jam ${ctx.hour}` : `jam ${String(ctx.hour).padStart(2, '0')}.${String(ctx.minute).padStart(2, '0')}`;
       return talk('smalltalk', at ? vo(v, { santai: `Sekarang ${at}. Selamat ${partOfDay(ctx.hour)}!`, sopan: `Sekarang ${at}.`, gaul: `Sekarang ${at}, bro.`, singkat: `${cap(at)}.`, barbar: `Sekarang ${at}. Jangan begadang, anjir.` }) : 'Aku nggak bisa lihat jam di perangkatmu. Cek di pojok layar, ya.');
     }
@@ -1054,7 +1054,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
 
     // 8.4 (post-hoc) Something that would be a record with an amount ("barusan isi bensin"): how much? The next
     // message finishes it ("45 ribu" → «barusan isi bensin 45 ribu»).
-    if (!money && !pending && words >= 2 && words <= 8 && ins.reading === 'none' && SPENT_WORD.test(t) && !NOT_SPENT.test(t)) {
+    if (!money && words >= 2 && words <= 8 && ins.reading === 'none' && SPENT_WORD.test(t) && !NOT_SPENT.test(t)) {
       const probe = ctx.inspect(`${raw.replace(/[.!?]+$/, '')} 10rb`);
       if (probe.reading === 'record' && (probe.kind === 'expense' || probe.kind === 'income') && probe.subcategoryId) return talk('clarify', V.ask(v, 'amount'), {}, { start: { kind: probe.kind, item: raw.replace(/[.!?]+$/, '') } });
     }

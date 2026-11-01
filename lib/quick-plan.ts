@@ -657,7 +657,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     const capitals = [...new Set(unit.text.split(/[^\p{L}]+/u).filter((w, i) => i > 0 && /^\p{Lu}\p{Ll}{2,}$/u.test(w) && !walletWords.has(w.toLocaleLowerCase('id-ID'))))];
     if (capitals.length === 1 && !(r.person || '').toLocaleLowerCase('id-ID').split(/\s+/).includes(capitals[0].toLocaleLowerCase('id-ID')) && !known.includes((r.person || '').toLocaleLowerCase('id-ID'))) { r.person = capitals[0]; set('person', 'verified', `${capitals[0]} (ditulis dengan huruf besar)`); }
     else if (r.person) {
-      const person = r.person, others = leftoverWords(text, ctx, [person.toLocaleLowerCase('id-ID')]).filter(w => !/^(pinjem|pinjam|minjem|pinjemin|minjemin|talangin|nalangin|bayarin|utang|hutang|kasih|ngasih|pinjaman|dulu|nanti|ganti|gantiin|balikin|dia|makan)$/.test(w));
+      const person = r.person, others = leftoverWords(text, ctx, [person.toLocaleLowerCase('id-ID')]).filter(w => !/^(pinjem|pinjam|minjem|minjam|pinjemin|pinjamin|minjemin|dipinjem|dipinjam|dipinjemin|dipinjamin|talangin|nalangin|bayarin|utang|hutang|ngutang|piutang|piutangin|kasbon|kasih|ngasih|pinjaman|dulu|nanti|ganti|gantiin|balikin|dia|makan)$/.test(w));
       const sure = known.includes(person.toLocaleLowerCase('id-ID')) || capitals.some(c => c.toLocaleLowerCase('id-ID') === person.toLocaleLowerCase('id-ID')) || others.length === 0;
       set('person', sure ? 'verified' : 'check', sure ? person : `Nama orangnya ${person}? Kata lain: ${others.join(', ')}`);
     } else if (kind === 'receivable_new') set('person', 'missing', 'Siapa yang meminjam?');

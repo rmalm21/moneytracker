@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.4', date: '1 Nov 2026', title: 'Asisten chat v4 yang nyambung, sembunyikan nominal dua tingkat, dan popup “Apa yang baru”', items: [
+    ['🎉', 'Setelah update, popup “Apa yang baru” muncul sekali dan merangkum semua versi yang belum kamu lihat. Versi terbaru tampil lengkap, versi sebelumnya satu baris per versi yang bisa dibuka.'],
+    ['🛡️', 'Sembunyikan nominal kini tinggal dua tingkat: Super ketat dan Beranda & Dompet. “Angka penting saja” dihapus karena hasilnya masih belang-belang. Yang dulu memilihnya otomatis pindah ke Super ketat.'],
+    ['🤝', 'Asisten paham utang dan piutang dengan urutan kata apa pun, misalnya “516rb piutang”, “piutang yudi 516rb”, atau “td dipinjem mas agus 50rb”. Kalau namanya belum disebut, asisten bertanya “Siapa yang pinjam?”, cukup jawab “yudi”.'],
+    ['🤖', 'Percakapan berlanjut: “catat pengeluaran” → “75rb” → “makan siang” jadi satu kartu, “transfer 300rb” lalu “ke gopay”, dan “1,2jt” sebagai jawaban terbaca utuh. Setelah tanya total, bisa lanjut “rinciannya dong”, “yang paling besar apa?”, “kenapa banyak banget”, atau “dibanding sebelumnya gimana?”.'],
+    ['🧭', 'Setelah jawaban tentang satu utang atau piutang, cukup tanya “dia kapan bayar?”, “udah lunas belum?”, atau “buat apa dulu?”. Setelah daftar, tanya “yang paling lama siapa?” atau “totalnya?”.'],
+    ['💡', 'Hal umum juga dijawab: tanggal dan jam sekarang, “pagi min”, ekspor ke Excel, lupa PIN, “undo”, dan “gaji aku cukup ga” (dulu malah jadi kartu pemasukan). Kata pembuka “oke,” dan sapaan “kak” di awal atau akhir kalimat tidak lagi bikin salah baca.'],
+    ['✅', 'Diuji dengan set terpisah yang ditulis sebelum mesinnya diubah dan dijalankan sekali: 86% benar di percobaan pertama (versi 8.3.3: 64%), dan 95% di set tulisan tangan (8.3.3: 52%). Semua uji lama tetap lulus.'],
+  ] },
   { version: '8.3.3', date: '1 Nov 2026', title: 'Dompet, Split Bill, utang dan piutang tanpa dompet, dan perbarui saldo lewat chat', items: [
     ['💳', 'Dompet yang tidak dihitung di uang bebas tetap bisa dipakai bayar selama “Bisa membayar” dicentang. Dulu transaksinya tetap ditolak. Centang “Hitung dalam uang bebas” dan “Disimpan” juga tidak bisa lagi aktif bersamaan.'],
     ['🧾', 'Split Bill yang dibayar teman: buka transaksi bagianmu lalu pilih “Bayar ke … dari dompet”. Pengeluarannya tetap dihitung sekali. Total Keluar di Transaksi tidak lagi menghitung pelunasan Split Bill dua kali, dan barisnya kini bertanda “Pelunasan Split Bill”.'],

@@ -106,6 +106,19 @@ Pembersih kata ini sempat membuat dua kemunduran di uji lama, dan keduanya diper
   “undo” (“hapus transaksi terakhir”, baru terhapus kalau diketuk) tidak dihitung sebagai “catatan baru”. Ini memang
   cara kerja undo sejak 7.6.
 
+### Pemeriksaan di aplikasi demo
+
+Dicek di aplikasi demo (emulator, data demo, bukan data asli), di layar HP: popup “Apa yang baru” dari versi 5.3,
+“516rb piutang” → “yudi”, “catat pengeluaran” → “75rb” → “makan siang”, “barusan isi bensin” → “45 ribu”, daftar piutang
+→ “yang paling lama siapa?” → “dia kapan bayar?”, tanggal hari ini, “oke, kak hutang 150k”, dan pengaturan sembunyikan
+nominal dua tingkat. Ada tiga temuan yang tidak tertangkap uji, dan semuanya sudah diperbaiki:
+- kartu “516rb piutang ke yudi” masih bertanya “Siapa yang meminjam?”, karena Catat otomatis belum menganggap
+  “piutang” dan “dipinjem” sebagai kata kerja (nama Yudi ditandai “perlu dicek”);
+- saat ada kartu yang belum disimpan, tanya lanjut dari daftar dan tentang yang barusan tidak jalan, dan “dia kapan
+  bayar?” malah mencari catatan “yudi”;
+- dengan kartu yang belum disimpan, “barusan isi bensin” tidak ditanya nominalnya, sehingga “45 ribu” berikutnya
+  mengubah kartu yang lama.
+
 ## 4. Uji lama setelah 8.4
 
 | Uji | 8.3.3 | 8.4 |
@@ -119,7 +132,7 @@ Pembersih kata ini sempat membuat dua kemunduran di uji lama, dan keduanya diper
 | Pemeriksaan 1.712 kalimat chat (berubah dibanding 8.3.3) | – | 6: tiga kalimat HURUF BESAR kini ditulis kecil di kartu dan dua “oke …” tanpa “oke” (arti sama), plus “duitku masih aman ga” yang dulu tidak dipahami dan kini dijawab perkiraan sampai gajian |
 | Shadow Catat 1.368 kalimat (berubah dibanding 8.3.3) | – | 0 |
 | Struk: 9 kirimanmu, 90 + 90 buatan, 262 lama | 9/9 · 90/90 · 90/90 · 0 berubah | sama |
-| `npm test` | 798 | 808 lulus, 0 gagal |
+| `npm test` | 798 | 811 lulus, 0 gagal |
 
 Shadow Catat dibandingkan 7.8 tetap 4 perubahan uang. Keempatnya sudah ada sebelum 8.4 (terhadap 8.3.3: 0).
 

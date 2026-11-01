@@ -130,3 +130,28 @@ test('8.4 (after the first held-out run) an amount alone asks what for; a thing 
   // Not for a "no", a question, or something that is not money.
   for (const text of ['datanya aman kan ga dikirim', 'makan jangan dulu', 'catatannya lembur', 'gas']) assert.notEqual((await talk(text)).memory.start?.item, text, text);
 });
+
+import { parseQuickPlan } from '../lib/quick-plan.ts';
+test('8.4 a borrower named after "piutang" / "dipinjem" is sure: the card does not ask again', () => {
+  for (const text of ['516rb piutang ke yudi', '516rb dipinjem yudi']) {
+    const a = parseQuickPlan(text, ctx.quick).actions[0];
+    assert.equal(a.result.person, 'Yudi', text);
+    assert.equal(a.fields.person.status, 'verified', text);
+  }
+});
+
+test('8.4 a card still waiting does not block follow-ups to a list, a record, the date or a new record', async () => {
+  assert.match(said(await talk('516rb piutang', 'yudi', 'piutang aku siapa aja', 'yang paling lama siapa?')), /Dimas, sejak 28 Sep/);
+  assert.match(said(await talk('kopi 25rb', 'piutang aku siapa aja', 'yang paling lama siapa?', 'dia kapan bayar?')), /30 Okt/);
+  assert.match(said(await talk('kopi 25rb', 'tgl brp skrg')), /15 Oktober/);
+  assert.equal(card(await talk('kopi 25rb', 'catat pengeluaran', '40rb', 'laundry')).total, 40000);
+  // The card is still there to edit.
+  assert.equal(card(await talk('kopi 25rb', 'tgl brp skrg', 'jadi 30rb')).total, 30000);
+});
+
+test('8.4 with a card waiting, a new thing without an amount starts a new record, and a bare amount still edits the card', async () => {
+  const fuel = card(await talk('makan siang 30rb', 'barusan isi bensin', '45 ribu'));
+  assert.equal(fuel.subcategoryId, 'expense.transportasi.bensin');
+  assert.equal(fuel.total, 45000);
+  assert.equal(card(await talk('makan siang 30rb', '45 ribu')).total, 45000);
+});
