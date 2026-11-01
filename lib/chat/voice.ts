@@ -28,7 +28,7 @@ export const say = {
     sopan: `Selamat ${part}${name}. Ada yang bisa saya bantu? Anda bisa mencatat, bertanya, atau menghitung.`,
     singkat: `${cap(part)}${name}! Catat, tanya, atau hitung?`,
     gaul: `Yo${name}, met ${part}! Mau nyatet, nanya, atau ngitung apa nih?`,
-    barbar: `Woy${name}! Mau nyatet apa, nanya apa, atau mau gue roasting, anjir?`,
+    barbar: `Woy${name}, met ${part}! Mau nyatet apa, nanya apa, atau mau gue roasting, anjir?`,
   }),
   thanks: (v: Voice) => pick(v, { santai: 'Sama-sama! Kabari lagi kalau ada yang mau dicatat.', sopan: 'Sama-sama. Silakan hubungi saya lagi kapan saja.', singkat: 'Sama-sama!', gaul: 'Santuy, kabarin aja kalau ada lagi!' }),
   ackPending: (v: Voice) => pick(v, { santai: 'Oke. Kartunya tinggal disimpan, atau bilang kalau ada yang mau diubah.', sopan: 'Baik. Silakan tekan Simpan, atau sampaikan bagian yang ingin diubah.', singkat: 'Tinggal Simpan.', gaul: 'Sip. Tinggal pencet Simpan, atau bilang aja mau ganti apa.' }),

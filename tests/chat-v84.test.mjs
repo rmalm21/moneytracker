@@ -105,3 +105,28 @@ test('8.4 everyday things', async () => {
   // Data questions that start the same way are still data questions.
   assert.match(said(await talk('hari apa aku paling boros')), /paling boros/);
 });
+
+import { trimSurface } from '../lib/chat/engine.ts';
+test('8.4 (after the first held-out run) words around a message: "oke,", "kak", capitals', async () => {
+  assert.equal(trimSurface('oke, fajar ngutang 2jt ke aku kak'), 'fajar ngutang 2jt ke aku');
+  assert.equal(trimSurface('kak hutang 150k'), 'hutang 150k');
+  assert.equal(trimSurface('KAK TF 200RB KE GOPAY DARI JAGO DEH'), 'tf 200rb ke gopay dari jago deh');
+  // A name after "kak", a short reply and "ke kak" stay.
+  for (const text of ['kak tio ngutang 25k', 'oke deh', 'boleh kak', 'pinjem ke kak']) assert.equal(trimSurface(text), text);
+  const owed = card(await talk('oke, fajar ngutang 2jt ke aku kak'));
+  assert.equal(owed.kind, 'receivable_new');
+  assert.match(String(owed.person).toLowerCase(), /fajar/);
+  const debt = await talk('kak hutang 150k', 'dari kevin');
+  assert.equal(card(debt).kind, 'debt_new');
+  assert.match(String(card(debt).person).toLowerCase(), /kevin/);
+  assert.match(said(await talk('Kak saldo gopay berapa deh', 'kalau jago?')) + (await talk('Kak saldo gopay berapa deh', 'kalau jago?')).reply.text, /jago/);
+});
+test('8.4 (after the first held-out run) an amount alone asks what for; a thing without an amount asks how much', async () => {
+  assert.match(said(await talk('45 ribu')), /Rp45\.000[^]*Buat apa/);
+  assert.equal(card(await talk('45 ribu', 'bensin')).total, 45000);
+  const fuel = card(await talk('barusan isi bensin', '45 ribu'));
+  assert.equal(fuel.kind, 'expense');
+  assert.equal(fuel.total, 45000);
+  // Not for a "no", a question, or something that is not money.
+  for (const text of ['datanya aman kan ga dikirim', 'makan jangan dulu', 'catatannya lembur', 'gas']) assert.notEqual((await talk(text)).memory.start?.item, text, text);
+});

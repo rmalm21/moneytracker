@@ -514,7 +514,7 @@ export function aboutItem(t: string, ref: ItemRef, ctx: AnswerCtx, v: Voice): An
  * paling lama siapa?", "yang paling besar?", "yang paling dekat?", "totalnya?", "ada berapa?".
  */
 export type ListRef = { kind: ItemRef['kind']; ids: string[] };
-const LIST_WORDS = /^(?:yang|yg|paling|palin|ter\p{L}+|lama|dulu|duluan|awal|baru|akhir|besar|gede|banyak|mahal|kecil|dikit|sedikit|murah|dekat|deket|cepet|cepat|siapa|apa|mana|berapa|brp|total\p{L}*|semua\p{L}*|jumlah\p{L}*|ada|orang|item|biji|buah|ya|sih|dong|nih|tuh|itu|kalau|kalo|klo|jatuh|tempo|utang\p{L}*|hutang\p{L}*|nominal\p{L}*|nya|kira|kira2|kah|gitu|aja|saja)$/u;
+const LIST_WORDS = /^(?:yang|yg|paling|palin|ter\p{L}+|lama|dulu|duluan|awal|baru|akhir|besar|gede|banyak|mahal|kecil|dikit|sedikit|murah|dekat|deket|cepet|cepat|siapa|apa|mana|berapa|brp|total\p{L}*|semua\p{L}*|jumlah\p{L}*|ada|orang|item|biji|buah|ya|sih|dong|nih|tuh|itu|kalau|kalo|klo|jatuh|tempo|utang\p{L}*|hutang\p{L}*|nominal\p{L}*|nya|kira|kira2|kah|gitu|aja|saja|belum|blm|belom|bayar|dibayar|lunas|nunggak|nyicil|udah|sudah|masih|ngutang|minjem|pinjem)$/u;
 export function fromList(t: string, list: ListRef, ctx: AnswerCtx, v: Voice): Answer | null {
   const words = t.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
   if (!words.length || words.length > 7 || !words.every(w => LIST_WORDS.test(w))) return null;
