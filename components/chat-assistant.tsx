@@ -121,7 +121,8 @@ export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<L
     const userMsg: ChatMessage = { id: uid(), at: Date.now(), role: 'user', text: t };
     setMessages(list => [...list, userMsg]); setTyping(true);
     const started = Date.now();
-    const result = await chatReply(t, memory, chatCtx).catch(() => null);
+    const now = dateInTimeZone(new Date(), profile?.timeZone);
+    const result = await chatReply(t, memory, { ...chatCtx, hour: now.getHours(), minute: now.getMinutes() }).catch(() => null);
     if (!result) { busy.current = false; setTyping(false); return; }
     if (result.setVoice) changeSettings({ voice: result.setVoice });
     if (result.learn) changeSettings({ learned: learnPhrase(settings.learned, result.learn.phrase, result.learn.as) });

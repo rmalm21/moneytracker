@@ -1016,8 +1016,10 @@ const FILLER = /\b(pakai|via|lewat|dari|bayar|dibayar|bayarnya|juga|aja|saja|ya|
  */
 let inV4 = false;
 let inEveryday = false;
+/** 8.4: a word said to the app first ("eh kopi 25rb", "min, andi pinjem 75rb", "bot catat …") is not part of the entry. */
+const SAID_FIRST = /^(?:(?:eh+|eits|nah|oiya|btw)[,!.]?\s+(?=\S)|(?:min|mimin|admin|bot|kak|bang|bro|sis)\s*,\s*(?=\S)|bot\s+(?=\S))/i;
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
-  const raw = input.trim();
+  const raw = input.trim().replace(SAID_FIRST, '');
   if (!raw) return readPlan(raw, ctx, mode);
   // 7.9: everyday sentences rewritten into ones the grammar reads right (lib/catat/everyday.ts); what the rewrite knows
   // (a note, the arithmetic, numbers to confirm, a budget raised by an amount, items paid at once) goes on the card after.

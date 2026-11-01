@@ -81,7 +81,7 @@ export function readDraftEdit(message: string, pending: string, ctx: QuickContex
   const SAVE = /\s*,?\s*(?:(?:iya|ya|oke|ok)\s*,?\s*)?(?:simpan|simpen|save)(?:\s+(?:aja|ya|sekarang|semua))?\s*$/;
   if (SAVE.test(t)) { save = true; t = t.replace(SAVE, '').trim(); }
   if (!t) return null;
-  const parts = t.split(/\s*[,.;]\s*|\s+(?:terus|trus|eh)\s+/).map(p => p.trim()).filter(Boolean);
+  const parts = t.split(/\s*(?:;|[,.](?!\d)|(?<!\d)[,.])\s*|\s+(?:terus|trus|eh)\s+/).map(p => p.trim()).filter(Boolean);
   for (const raw of parts) {
     const part = unfill(raw);
     if (!part) continue;

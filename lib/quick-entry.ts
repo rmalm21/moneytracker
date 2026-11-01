@@ -379,7 +379,9 @@ const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|tala
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung(?!\s+(?:gas|elpiji|lpg|oksigen))|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
 const FILL_WORDS = /\b(isi|tambah|nambah|masukin|masukkan|top ?up)\b/;
-const LEND_OUT = /\b((?:ngasi|kasi)h? (?:pinjem|pinjam|pinjaman|utang|hutang)|pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin)\b/;
+const LEND_OUT = /\b((?:ngasi|kasi)h? (?:pinjem|pinjam|pinjaman|utang|hutang)|pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin|piutangin)\b/;
+/** 8.4: "516rb piutang", "piutang andi 516rb" (a receivable named as one), "dipinjem budi 75rb" (borrowed from me). */
+const RECEIVABLE_WORD = /\b(piutang|dipinjem|dipinjam)\b/;
 const LENT_TO_ME = /\b(?:pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|utangin|ngutangin)\s+(?:aku|saya|gue|gw|ku)\b/;
 const BORROW = /\b(pinjam|minjem|pinjem|minjam|meminjam|ngutang|ngehutang|berutang|berhutang|utang|hutang|dipinjemin|dipinjamin|dipinjami|kasbon|pinjaman)\b/;
 const PAY = /\b(bayar|byr|cicil|nyicil|angsur|lunas|lunasin|lunasi|balikin|ngembaliin|kembaliin|mengembalikan|transfer|tf|kirim|ngirim)\b/;
@@ -413,7 +415,7 @@ const PLAN_FILLERS = /\b(rencana|rencananya|berencana|planning|ingetin|ingatkan|
 /** Words that are never somebody's name. */
 /** Honorifics: skipped before a name ("kak tio" → Tio), the person themselves when alone ("ke ibu" → Ibu). */
 const HONORIFIC = new Set(['kak', 'kaka', 'mas', 'mbak', 'mba', 'bang', 'abang', 'pak', 'bapak', 'bu', 'ibu', 'om', 'tante', 'bro', 'sis', 'dek', 'adek', 'teh', 'aa', 'neng', 'cak', 'ning', 'mama', 'papa', 'mamah', 'papah', 'ayah', 'bunda', 'nenek', 'kakek', 'paman', 'bibi']);
-const NOT_A_NAME = new Set([...HONORIFIC, 'pagi', 'siang', 'sore', 'malam', 'aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli']);
+const NOT_A_NAME = new Set([...HONORIFIC, 'pagi', 'siang', 'sore', 'malam', 'aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli', 'ribu', 'rb', 'juta', 'jt', 'rupiah', 'perak', 'sejuta', 'setengah', 'ceban', 'goceng', 'gocap', 'cepek', 'gopek']);
 
 /** Common short names of places. */
 const PLACES: Record<string, string> = { alfa: 'Alfamart', alfamart: 'Alfamart', alfamidi: 'Alfamidi', indo: 'Indomaret', indomaret: 'Indomaret', sbux: 'Starbucks', starbuck: 'Starbucks', starbucks: 'Starbucks', kfc: 'KFC', mcd: "McDonald's", mekdi: "McDonald's", hokben: 'HokBen', janjiw: 'Janji Jiwa', kenangan: 'Kopi Kenangan', tokped: 'Tokopedia', tokopedia: 'Tokopedia', shopee: 'Shopee', grab: 'Grab', gojek: 'Gojek', pertamina: 'Pertamina', spbu: 'SPBU', superindo: 'Superindo', hypermart: 'Hypermart', transmart: 'Transmart' };
@@ -883,6 +885,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (LEND_OUT.test(text) && LENT_TO_ME.test(text)) return 'debt_new';
     if (LEND_OUT.test(text)) return 'receivable_new';
     if (receivable && (subject(receivable.words, PAY) || RECEIVE.test(text) && /\b(dari|dr)\b/.test(text))) return 'receivable_payment';
+    if (RECEIVABLE_WORD.test(text) && !/\b(dipinjemin|dipinjamin|dipinjami)\b/.test(text)) return PAY.test(text) || RECEIVE.test(text) || PAID_OFF.test(text) ? 'receivable_payment' : 'receivable_new';
     if (loanCost) return flowOf(flowText);
     if (PAY.test(text) && (debt || DEBT_WORDS.test(text))) return 'debt_payment';
     if (BORROW.test(text)) {
@@ -1098,7 +1101,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     const person = knownName && known.some(word => wordAt(lower(knownName), word) >= 0) ? knownName
       : flow === 'debt_new' && LENT_TO_ME.test(text) ? text.slice(0, Math.max(0, firstVerb(LEND_OUT))).trim().split(/\s+/).filter(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w)).pop() || ''
       : flow === 'debt_new' ? personAfter(text, /\b(dipinjemin|dipinjamin|dipinjami|dari|dr|sama|ama|sm|ke)\b/) || personAfter(text, BORROW)
-      : personAfter(text, LEND_OUT) || personAfter(text, /\b(buat|untuk|utk|ke|sama|ama)\b/) || text.slice(0, Math.max(0, firstVerb(BORROW))).trim().split(/\s+/).find(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w)) || '';
+      : personAfter(text, LEND_OUT) || personAfter(text, RECEIVABLE_WORD) || personAfter(text, /\b(buat|untuk|utk|ke|sama|ama)\b/) || text.slice(0, Math.max(0, firstVerb(BORROW))).trim().split(/\s+/).find(w => w && !NOT_A_NAME.has(w) && !/\d/.test(w)) || '';
     result.person = person ? title(person) : '';
     if (person) rest = rest.replace(new RegExp(`\\b${escape(lower(person))}\\b`), ' ');
   }

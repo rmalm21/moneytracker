@@ -13,7 +13,7 @@
  *
  * Each answer is a card; nothing is recorded.
  */
-import { metrics } from '../accounting.ts';
+import { metrics, transactionExpense, transactionIncome } from '../accounting.ts';
 import { categoryBreakdown, DEBT_GROUP } from '../category-analytics.ts';
 import { analyzeFinances } from '../advisor.ts';
 import { readPeriod, spendingShare } from '../catat/ask.ts';
@@ -33,7 +33,10 @@ export type Answer = {
   open?: { view: string; label: string }; chips?: string[]; why?: string;
   /** What a follow-up ("kalau 1jt per bulan?", "kalau dimas?") builds on. */
   saving?: Saving; item?: string;
+  /** 8.4 The one record answered ("dia kapan bayar?", "buat apa dulu?" are about it next). */
+  about?: ItemRef;
 };
+export type ItemRef = { kind: 'debt' | 'receivable' | 'fund' | 'wish' | 'recurring' | 'claim'; id: string };
 export type Saving = { rate?: number; unit?: Unit; target?: number; months?: number };
 type Unit = 'day' | 'week' | 'month';
 
@@ -202,7 +205,7 @@ const NEEDS = new Set(['expense.tagihan', 'expense.biaya-keuangan', 'expense.pen
 
 function periodOf(t: string, ctx: AnswerCtx) {
   const p = readPeriod(t, ctx.today, ctx.salaryDay);
-  return p ? { start: p.start, end: p.end, label: p.label, said: p.said } : { start: ctx.cycle.start, end: ctx.cycle.end, label: 'siklus ini', said: '' };
+  return p ? { start: p.start, end: p.end, label: p.label, said: p.said, prev: p.prev } : { start: ctx.cycle.start, end: ctx.cycle.end, label: 'siklus ini', said: '', prev: undefined as { start: string; end: string; label: string } | undefined };
 }
 /** Spending per main category, as Beranda and Laporan count it (debt payments without a category: "Bayar utang"). */
 function byCategory(ctx: AnswerCtx, start: string, end: string) {
@@ -242,6 +245,84 @@ function breakdown(t: string, ctx: AnswerCtx, v: Voice): Answer | null {
     hero: { label: `Total ${p.label}`, value: rp(total), tone: 'info' },
     bars: list.slice(0, 6).map(c => ({ label: c.name, value: rp(c.amount), ratio: c.amount / total, note: pct(c.amount / total) })),
     why: 'Pengeluaran dijumlah per kategori utama; transaksi yang dibagi ke beberapa kategori dihitung per bagiannya.', open: { view: 'report', label: 'Buka Laporan' }, chips: ['harus hemat di mana', 'kalau bulan lalu?'],
+  };
+}
+/**
+ * 8.4 Asked right after a spending total ("pengeluaran bulan ini berapa" → "yang paling besar apa?" / "kenapa banyak
+ * banget"): the period comes from that question. The biggest: the main category and the single biggest spending. Why so
+ * much: the categories it went to, and what grew most against the same days of the period before.
+ */
+export function spendingMore(kind: 'biggest' | 'why' | 'compare', asked: string, ctx: AnswerCtx, v: Voice): Answer | null {
+  if (kind === 'compare') return compareTotals(asked, ctx, v);
+  const p = periodOf(asked, ctx), list = byCategory(ctx, p.start, p.end), total = list.reduce((n, c) => n + c.amount, 0);
+  if (!total) return { intent: 'question', title: kind === 'why' ? 'Kenapa segitu' : 'Paling besar', text: `Belum ada pengeluaran ${p.label}.` };
+  const [top, second] = list, bars = list.slice(0, 5).map(c => ({ label: c.name, value: rp(c.amount), ratio: c.amount / total, note: pct(c.amount / total) }));
+  if (kind === 'biggest') {
+    const big = ctx.data.transactions.filter(x => x.date >= p.start && x.date < p.end && x.date <= ctx.today).map(x => ({ x, spent: transactionExpense(x) })).filter(y => y.spent > 0).sort((a, b) => b.spent - a.spent)[0];
+    const what = big ? (big.x.merchant || big.x.description || ctx.data.categories.find(c => c.id === (big.x.subcategoryId || big.x.categoryId))?.name || 'Tanpa nama') : '';
+    const one = big ? ` Transaksi terbesarnya ${what} ${rp(big.spent)} (${dm(big.x.date)}).` : '';
+    return {
+      intent: 'question', title: `Paling besar ${p.label}`,
+      text: vo(v, {
+        santai: `Paling banyak ${p.label} buat ${top.name}: ${rp(top.amount)} (${pct(top.amount / total)} dari ${rp(total)}).${one}`,
+        sopan: `Porsi terbesar ${p.label} adalah ${top.name} sebesar ${rp(top.amount)} (${pct(top.amount / total)} dari ${rp(total)}).${one}`,
+        gaul: `Paling gede ${p.label} ${top.name}, ${rp(top.amount)} (${pct(top.amount / total)}).${one}`,
+        singkat: `${top.name} ${rp(top.amount)} (${pct(top.amount / total)}).${one}`,
+        barbar: `Paling banyak lo buang ${p.label} buat ${top.name}, ${rp(top.amount)} (${pct(top.amount / total)}).${one}`,
+      }),
+      hero: { label: top.name, value: rp(top.amount), note: `${pct(top.amount / total)} dari ${rp(total)}`, tone: 'info' }, bars,
+      why: 'Pengeluaran dijumlah per kategori utama; transaksi terbesar dicari dari semua pengeluaran di periode itu.', open: { view: 'report', label: 'Buka Laporan' }, chips: ['harus hemat di mana', 'kalau bulan lalu?'],
+    };
+  }
+  const b = before(p, ctx.today), prev = b ? byCategory(ctx, b.start, b.end) : [], then = new Map(prev.map(c => [c.id, c.amount])), was = prev.reduce((n, c) => n + c.amount, 0);
+  const grew = list.map(c => ({ ...c, up: c.amount - (then.get(c.id) || 0) })).filter(c => c.up > 0).sort((x, y) => y.up - x.up)[0];
+  const parts = second ? `${top.name} ${rp(top.amount)} dan ${second.name} ${rp(second.amount)}` : `${top.name} ${rp(top.amount)}`;
+  const share = second ? pct((top.amount + second.amount) / total) : pct(top.amount / total);
+  const growth = b && was && grew ? ` Dibanding ${b.label}, yang paling naik ${grew.name} (+${rp(grew.up)}).` : '';
+  return {
+    intent: 'question', title: `Kenapa ${p.label} segitu`,
+    text: vo(v, {
+      santai: `Pengeluaran ${p.label} ${rp(total)}, ${share} di antaranya ${parts}.${growth}`,
+      sopan: `Dari pengeluaran ${p.label} sebesar ${rp(total)}, ${share} berasal dari ${parts}.${growth}`,
+      gaul: `${p.label.charAt(0).toUpperCase() + p.label.slice(1)} keluar ${rp(total)}, ${share}-nya ke ${parts}.${growth}`,
+      singkat: `${parts} (${share}).${growth}`,
+      barbar: `Duit ${p.label} ${rp(total)}, ${share}-nya kesedot ${parts}. Pantes.${growth}`,
+    }),
+    hero: { label: `Total ${p.label}`, value: rp(total), tone: 'info' }, bars,
+    why: b ? `Pengeluaran dijumlah per kategori utama, lalu dibandingkan dengan ${b.label}.` : 'Pengeluaran dijumlah per kategori utama.', open: { view: 'report', label: 'Buka Laporan' }, chips: ['harus hemat di mana', 'kasih tips hemat'],
+  };
+}
+/** The period before, cut to the same number of days when this one is not over yet ("1–15 Sep" for this month). */
+function before(p: { start: string; end: string; prev?: { start: string; end: string; label: string } }, today: string) {
+  if (!p.prev) return null;
+  const day = (iso: string, n: number) => { const d = D(iso); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const upTo = day(today, 1), running = p.end > upTo;
+  const end = running ? [day(p.prev.start, daysBetween(p.start, upTo)), p.prev.end].sort()[0] : p.prev.end, last = day(end, -1);
+  const label = !running ? p.prev.label : p.prev.start === last ? dm(last) : p.prev.start.slice(0, 7) === last.slice(0, 7) ? `${Number(p.prev.start.slice(8))}–${dm(last)}` : `${dm(p.prev.start)}–${dm(last)}`;
+  return { start: p.prev.start, end, label, running, nowEnd: running ? upTo : p.end };
+}
+/** 8.4 "dibanding sebelumnya gimana?" after a total: the same days of the period before when this one is not over yet. */
+function compareTotals(asked: string, ctx: AnswerCtx, v: Voice): Answer | null {
+  const p = periodOf(asked, ctx), b = before(p, ctx.today);
+  if (!b) return null;
+  const income = /\b(?:pemasukan|penghasilan|pendapatan|gaji|income|masuk)\b/.test(asked) && !/\b(?:pengeluaran|keluar|belanja|habis|abis)\b/.test(asked);
+  const running = b.running, prevLabel = b.label;
+  const sum = (start: string, end: string) => ctx.data.transactions.filter(x => x.date >= start && x.date < end && x.date <= ctx.today).reduce((n, x) => n + (income ? transactionIncome(x) : transactionExpense(x)), 0);
+  const now = sum(p.start, b.nowEnd), was = sum(b.start, b.end), diff = now - was;
+  const ratio = was ? Math.abs(diff) / was : 0, what = income ? 'Pemasukan' : 'Pengeluaran';
+  const word = diff === 0 ? 'sama' : income ? (diff > 0 ? 'naik' : 'turun') : (diff > 0 ? 'lebih boros' : 'lebih hemat');
+  const amount = diff === 0 ? '' : ` ${rp(Math.abs(diff))}${was ? ` (${pct(ratio)})` : ''}`;
+  return {
+    intent: 'question', title: `${p.label.charAt(0).toUpperCase() + p.label.slice(1)} vs ${prevLabel}`,
+    text: vo(v, {
+      santai: `${what} ${p.label} ${rp(now)}, ${word}${amount} dibanding ${prevLabel} (${rp(was)}).`,
+      sopan: `${what} ${p.label} ${rp(now)}, ${word}${amount} dibandingkan ${prevLabel} (${rp(was)}).`,
+      gaul: `${what} ${p.label} ${rp(now)}, ${word}${amount} dari ${prevLabel} (${rp(was)}).`,
+      singkat: `${rp(now)} vs ${rp(was)}: ${word}${amount}.`,
+      barbar: `${what} ${p.label} ${rp(now)}, ${word}${amount} dari ${prevLabel} (${rp(was)}).${!income && diff > 0 ? ' Rem, bos.' : ''}`,
+    }),
+    stats: [{ label: p.label.charAt(0).toUpperCase() + p.label.slice(1), value: rp(now) }, { label: prevLabel, value: rp(was) }, { label: 'Selisih', value: `${diff > 0 ? '+' : diff < 0 ? '−' : ''}${rp(Math.abs(diff))}`, tone: diff === 0 ? undefined : (diff > 0) === income ? 'good' : 'warn' }],
+    why: running ? `${p.label} belum selesai, jadi dibandingkan dengan hari yang sama di periode sebelumnya (${prevLabel}).` : `${p.label} dibandingkan dengan ${prevLabel}.`, chips: ['yang paling besar apa?', 'rinciannya dong'],
   };
 }
 function cutBack(ctx: AnswerCtx, v: Voice): Answer {
@@ -323,32 +404,32 @@ function itemAnswer(item: Item, ctx: AnswerCtx, v: Voice): Answer {
   if (item.kind === 'debt') {
     const d = data.debts.find(x => x.id === item.id)!, months = d.installmentAmount > 0 ? Math.ceil(d.outstandingAmount / d.installmentAmount) : 0;
     const who = d.provider && lower(d.provider) !== lower(d.name) ? ` (${d.provider})` : '';
-    return { intent: 'module', item: item.kind, title: d.name, text: `Sisa ${d.name}${who} ${rp(d.outstandingAmount)} dari ${rp(d.originalAmount)}. ${months ? `Cicilan ${rp(d.installmentAmount)}/bulan, lunas sekitar ${monthsText(months)} lagi (${monthYear(today, months)}).` : 'Belum ada cicilan rutin, jadi belum ada perkiraan lunas.'}${d.dueDate ? ` Jatuh tempo berikutnya ${dm(d.dueDate)}.` : ''}`,
+    return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: d.name, text: `Sisa ${d.name}${who} ${rp(d.outstandingAmount)} dari ${rp(d.originalAmount)}. ${months ? `Cicilan ${rp(d.installmentAmount)}/bulan, lunas sekitar ${monthsText(months)} lagi (${monthYear(today, months)}).` : 'Belum ada cicilan rutin, jadi belum ada perkiraan lunas.'}${d.dueDate ? ` Jatuh tempo berikutnya ${dm(d.dueDate)}.` : ''}`,
       hero: { label: 'Sisa utang', value: rp(d.outstandingAmount), note: months ? `lunas ±${monthYear(today, months)}` : undefined, tone: 'warn' }, open: { view: 'debts', label: 'Buka Utang' }, chips: ['total utang aku berapa'] };
   }
   if (item.kind === 'receivable') {
     const r = data.receivables.find(x => x.id === item.id)!;
-    return { intent: 'module', item: item.kind, title: `Piutang ${r.person}`, text: `${r.person} masih utang ${rp(r.remainingAmount)} ke ${you}${r.description ? ` (${r.description})` : ''}${r.originalAmount !== r.remainingAmount ? `, dari ${rp(r.originalAmount)}` : ''}. ${r.dueDate ? `Janji bayar ${dm(r.dueDate)}${r.dueDate < today ? ', sudah lewat' : ''}.` : 'Belum ada tanggal janji bayar.'}`,
+    return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: `Piutang ${r.person}`, text: `${r.person} masih utang ${rp(r.remainingAmount)} ke ${you}${r.description ? ` (${r.description})` : ''}${r.originalAmount !== r.remainingAmount ? `, dari ${rp(r.originalAmount)}` : ''}. ${r.dueDate ? `Janji bayar ${dm(r.dueDate)}${r.dueDate < today ? ', sudah lewat' : ''}.` : 'Belum ada tanggal janji bayar.'}`,
       hero: { label: 'Belum dibayar', value: rp(r.remainingAmount), note: r.dueDate ? `janji ${dm(r.dueDate)}` : undefined, tone: 'info' }, open: { view: 'receivables', label: 'Buka Piutang' }, chips: ['siapa aja yang belum bayar'] };
   }
   if (item.kind === 'fund') {
     const f = data.funds.find(x => x.id === item.id)!, left = Math.max(0, f.targetAmount - f.currentAmount), ratio = f.targetAmount ? f.currentAmount / f.targetAmount : 0;
     const months = f.monthlyContribution > 0 && left > 0 ? Math.ceil(left / f.monthlyContribution) : 0;
-    return { intent: 'module', item: item.kind, title: f.name, text: `${f.name}: terkumpul ${rp(f.currentAmount)} dari ${rp(f.targetAmount)} (${pct(ratio)}). ${left ? `Kurang ${rp(left)}.` : 'Sudah tercapai! 🎉'}${months ? ` Dengan ${rp(f.monthlyContribution)}/bulan, tercapai sekitar ${monthsText(months)} lagi (${monthYear(today, months)}).` : ''}${f.targetDate ? ` Targetnya ${D(f.targetDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric', timeZone: 'UTC' })}.` : ''}`,
+    return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: f.name, text: `${f.name}: terkumpul ${rp(f.currentAmount)} dari ${rp(f.targetAmount)} (${pct(ratio)}). ${left ? `Kurang ${rp(left)}.` : 'Sudah tercapai! 🎉'}${months ? ` Dengan ${rp(f.monthlyContribution)}/bulan, tercapai sekitar ${monthsText(months)} lagi (${monthYear(today, months)}).` : ''}${f.targetDate ? ` Targetnya ${D(f.targetDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric', timeZone: 'UTC' })}.` : ''}`,
       hero: { label: 'Terkumpul', value: rp(f.currentAmount), note: `${pct(ratio)} dari ${rp(f.targetAmount)}`, tone: 'good' }, bars: [{ label: f.name, value: pct(ratio), ratio: Math.min(1, ratio) }], open: { view: 'funds', label: 'Buka Tujuan' } };
   }
   if (item.kind === 'wish') {
     const w = (data.wishlist || []).find(x => x.id === item.id)!, left = Math.max(0, w.price - (w.saved || 0));
-    return { intent: 'module', item: item.kind, title: w.name, text: `${w.name} ${rp(w.price)}. ${w.saved ? `Sudah ditabung ${rp(w.saved)}, kurang ${rp(left)}.` : `Belum ada yang ditabung (Rp0), kurang ${rp(left)}.`}`,
+    return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: w.name, text: `${w.name} ${rp(w.price)}. ${w.saved ? `Sudah ditabung ${rp(w.saved)}, kurang ${rp(left)}.` : `Belum ada yang ditabung (Rp0), kurang ${rp(left)}.`}`,
       hero: { label: 'Kurang', value: rp(left), note: `dari ${rp(w.price)}`, tone: 'info' }, open: { view: 'wishlist', label: 'Buka Wish list' } };
   }
   if (item.kind === 'recurring') {
     const r = (data.recurring || []).find(x => x.id === item.id)!, every = { weekly: 'minggu', monthly: 'bulan', yearly: 'tahun' }[r.frequency], days = daysBetween(today, r.nextDate);
-    return { intent: 'module', item: item.kind, title: r.name, text: `${r.name} ${rp(r.amount)} per ${every}, berikutnya ${dm(r.nextDate)}${days >= 0 ? ` (${days === 0 ? 'hari ini' : days === 1 ? 'besok' : `${days} hari lagi`})` : ''}.`,
+    return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: r.name, text: `${r.name} ${rp(r.amount)} per ${every}, berikutnya ${dm(r.nextDate)}${days >= 0 ? ` (${days === 0 ? 'hari ini' : days === 1 ? 'besok' : `${days} hari lagi`})` : ''}.`,
       hero: { label: 'Berikutnya', value: dm(r.nextDate), note: rp(r.amount), tone: 'info' }, open: { view: 'recurring', label: 'Buka Transaksi rutin' } };
   }
   const c = data.claims.find(x => x.id === item.id)!, state = { draft: 'masih draf, belum diajukan', submitted: 'sudah diajukan, belum cair', waiting: 'masih menunggu, belum cair', approved: 'sudah disetujui, belum cair', paid: 'sudah cair', rejected: 'ditolak' }[c.status];
-  return { intent: 'module', item: item.kind, title: `Klaim ${c.name}`, text: `Klaim ${c.name} ${rp(c.remainingAmount)}: ${state}.${c.expectedPaymentDate ? ` Perkiraan cair ${dm(c.expectedPaymentDate)}.` : ''}`,
+  return { intent: 'module', item: item.kind, about: { kind: item.kind, id: item.id }, title: `Klaim ${c.name}`, text: `Klaim ${c.name} ${rp(c.remainingAmount)}: ${state}.${c.expectedPaymentDate ? ` Perkiraan cair ${dm(c.expectedPaymentDate)}.` : ''}`,
     hero: { label: 'Belum cair', value: rp(c.remainingAmount), note: c.expectedPaymentDate ? `perkiraan ${dm(c.expectedPaymentDate)}` : undefined, tone: 'info' }, open: { view: 'claims', label: 'Buka Klaim' } };
 }
 const NEAREST = /\b(?:tagihan|bayaran|cicilan|jatuh\s+tempo)\b.{0,20}\b(?:terdekat|paling\s+(?:deket|dekat)|duluan|berikutnya|selanjutnya)\b|\byang\s+harus\s+dibayar\s+(?:duluan|dulu|pertama)\b/;
@@ -356,14 +437,112 @@ const WISH_ALL = /\b(?:wish\s?list|barang\s+incaran|incaran)\b.{0,20}\b(?:apa|is
 const CLAIM_TOTAL = /\b(?:total|semua)\b.{0,20}\bklaim\b|\bklaim\b.{0,25}\b(?:yang\s+)?belum\s+(?:cair|balik|dibayar)\b.{0,15}\b(?:total|berapa)|\buang\s+klaim\b/;
 function nearestBill(ctx: AnswerCtx, v: Voice): Answer | null {
   const { data, today } = ctx;
-  const due = [...(data.recurring || []).filter(r => r.active && r.type === 'expense' && r.nextDate >= today).map(r => ({ name: r.name, date: r.nextDate, amount: r.amount })),
-    ...data.debts.filter(d => d.status !== 'paid' && d.dueDate && d.dueDate >= today).map(d => ({ name: d.name, date: d.dueDate, amount: d.installmentAmount || d.outstandingAmount }))].sort((a, b) => a.date.localeCompare(b.date));
+  const due = [...(data.recurring || []).filter(r => r.active && r.type === 'expense' && r.nextDate >= today).map(r => ({ name: r.name, date: r.nextDate, amount: r.amount, ref: { kind: 'recurring' as const, id: r.id } })),
+    ...data.debts.filter(d => d.status !== 'paid' && d.dueDate && d.dueDate >= today).map(d => ({ name: d.name, date: d.dueDate, amount: d.installmentAmount || d.outstandingAmount, ref: { kind: 'debt' as const, id: d.id } }))].sort((a, b) => a.date.localeCompare(b.date));
   if (!due.length) return null;
   const first = due[0], days = daysBetween(today, first.date);
-  return { intent: 'module', title: 'Tagihan terdekat', text: vo(v, {
+  return { intent: 'module', about: first.ref, title: 'Tagihan terdekat', text: vo(v, {
     santai: `Paling dekat ${first.name} ${rp(first.amount)}, ${dm(first.date)} (${days === 0 ? 'hari ini' : `${days} hari lagi`}).`, sopan: `Tagihan terdekat adalah ${first.name} sebesar ${rp(first.amount)} pada ${dm(first.date)}.`,
     gaul: `Yang paling deket ${first.name} ${rp(first.amount)}, ${dm(first.date)}.`, singkat: `${first.name} ${rp(first.amount)}, ${dm(first.date)}.`, barbar: `${first.name} ${rp(first.amount)} tanggal ${dm(first.date)}, jangan sampe lupa bayar, anjir.` }),
     lines: due.slice(0, 5).map(x => ({ label: `${x.name} · ${dm(x.date)}`, value: rp(x.amount) })), open: { view: 'upcoming', label: 'Buka Mendatang' } };
+}
+/**
+ * 8.4 A short question right after one record was answered is about that record: "dia kapan bayar?", "jatuh temponya
+ * kapan?", "udah lunas belum?", "buat apa dulu?", "berapa nominalnya", "sisa berapa bulan lagi". Anything naming
+ * something else is not (null), so "kapan gajian" after a receivable is still its own question.
+ */
+const ABOUT_WORDS = new Set('dia doi dianya itu tuh ini yang yg udah sudah dah belum blm belom lunas bayar dibayar bayarnya dibalikin balikin dikembaliin kembaliin ngembaliin cair cairnya kapan berapa brp brapa tanggal tanggalnya tgl jatuh tempo temponya jatuhtemponya janji janjinya janjiin sisa sisanya lagi bulan buat untuk apa dulu nominal nominalnya jumlah jumlahnya totalnya ya sih dong kah gimana harus musti mesti kira kira2 kira-kira deh nih kok emang memang pinjem pinjam minjem minjam ngutang utang utangnya hutang hutangnya keperluan keperluannya ngapain dipake dipakai kelar beres lunasnya siapa orangnya namanya nya kali terakhir masih'.split(' '));
+const WHEN = /\b(?:kapan|tanggal\p{L}*|tgl|jatuh\s*tempo\p{L}*|tempo\p{L}*|deadline|janji\p{L}*)\b/u;
+const PAID = /\b(?:lunas\p{L}*|dibayar|bayar\p{L}*|balikin|dibalikin|kembaliin|dikembaliin|cair\p{L}*|kelar|beres)\b/u;
+const WHAT_FOR = /\b(?:buat|untuk)\s+apa\b|\bkeperluan\p{L}*|\bngapain\b|\bdipak[ea]i?\s+apa\b/u;
+const HOW_MUCH = /\b(?:berapa|brp|brapa|nominal\p{L}*|jumlah\p{L}*|total\p{L}*|sisa\p{L}*)\b/u;
+export function aboutItem(t: string, ref: ItemRef, ctx: AnswerCtx, v: Voice): Answer | null {
+  const words = t.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(Boolean);
+  if (!words.length || words.length > 8 || words.some(w => !ABOUT_WORDS.has(w) && !/^\d+$/.test(w))) return null;
+  const { data, today } = ctx, base = { intent: 'module' as const, about: ref, item: ref.kind };
+  const when = WHEN.test(t) || /\bkapan\b/.test(t), paid = !when && PAID.test(t), whatFor = WHAT_FOR.test(t), months = HOW_MUCH.test(t) && /\bbulan\b/.test(t), much = HOW_MUCH.test(t);
+  const days = (iso: string) => { const n = daysBetween(today, iso); return n === 0 ? 'hari ini' : n === 1 ? 'besok' : n > 0 ? `${n} hari lagi` : `lewat ${-n} hari`; };
+  if (ref.kind === 'receivable') {
+    const r = data.receivables.find(x => x.id === ref.id); if (!r) return null;
+    const done = r.status === 'paid' || r.remainingAmount <= 0, paidSoFar = r.originalAmount - r.remainingAmount;
+    const hero = { label: done ? 'Sudah lunas' : 'Belum dibayar', value: rp(r.remainingAmount), note: r.dueDate ? `janji ${dm(r.dueDate)}` : undefined, tone: 'info' as const };
+    const open = { view: 'receivables', label: 'Buka Piutang' };
+    if (when) return { ...base, title: `Janji bayar ${r.person}`, text: done ? `${r.person} sudah lunas.` : r.dueDate ? `${r.person} janji bayar ${dm(r.dueDate)} (${days(r.dueDate)}). Masih ${rp(r.remainingAmount)}.` : `${r.person} belum ada tanggal janji bayar. Masih ${rp(r.remainingAmount)}. Kalau sudah janji, isi tanggalnya di Piutang biar diingatkan.`, hero, open };
+    if (paid) return { ...base, title: `Piutang ${r.person}`, text: done ? `Sudah lunas, ${r.person} sudah bayar semua ${rp(r.originalAmount)}.` : `Belum lunas. ${r.person} masih utang ${rp(r.remainingAmount)}${paidSoFar > 0 ? ` (sudah dibayar ${rp(paidSoFar)} dari ${rp(r.originalAmount)})` : ''}.`, hero, open };
+    if (whatFor) return { ...base, title: `Piutang ${r.person}`, text: r.description ? `Waktu itu buat ${r.description}, ${rp(r.originalAmount)} (${dm(r.date)}).` : `Nggak ada keterangannya. ${r.person} pinjam ${rp(r.originalAmount)} tanggal ${dm(r.date)}.`, hero, open };
+    if (much) return { ...base, title: `Piutang ${r.person}`, text: `${r.person} masih utang ${rp(r.remainingAmount)}${r.originalAmount !== r.remainingAmount ? ` dari ${rp(r.originalAmount)}` : ''}.`, hero, open };
+    return null;
+  }
+  if (ref.kind === 'debt') {
+    const d = data.debts.find(x => x.id === ref.id); if (!d) return null;
+    const left = d.installmentAmount > 0 ? Math.ceil(d.outstandingAmount / d.installmentAmount) : 0, done = d.status === 'paid' || d.outstandingAmount <= 0;
+    const hero = { label: 'Sisa utang', value: rp(d.outstandingAmount), note: d.dueDate ? `jatuh tempo ${dm(d.dueDate)}` : undefined, tone: 'warn' as const }, open = { view: 'debts', label: 'Buka Utang' };
+    if (when) return { ...base, title: d.name, text: done ? `${d.name} sudah lunas.` : d.dueDate ? `Jatuh tempo ${d.name} berikutnya ${dm(d.dueDate)} (${days(d.dueDate)})${d.installmentAmount ? `, ${rp(d.installmentAmount)}` : ''}.` : `${d.name} belum ada tanggal jatuh tempo. Sisanya ${rp(d.outstandingAmount)}.`, hero, open };
+    if (months) return { ...base, title: d.name, text: left ? `Sisa ${left} bulan lagi (${rp(d.installmentAmount)}/bulan), lunas sekitar ${monthYear(today, left)}.` : `Belum ada cicilan rutin, jadi belum bisa dihitung berapa bulan lagi. Sisanya ${rp(d.outstandingAmount)}.`, hero, open };
+    if (paid) return { ...base, title: d.name, text: done ? `${d.name} sudah lunas.` : `Belum lunas, sisa ${rp(d.outstandingAmount)} dari ${rp(d.originalAmount)}.`, hero, open };
+    if (whatFor) return { ...base, title: d.name, text: d.notes ? `${d.name}: ${d.notes}.` : `${d.name}${d.provider && lower(d.provider) !== lower(d.name) ? ` di ${d.provider}` : ''}, ${rp(d.originalAmount)}. Nggak ada catatan lain.`, hero, open };
+    if (much) return { ...base, title: d.name, text: `Sisa ${d.name} ${rp(d.outstandingAmount)} dari ${rp(d.originalAmount)}.`, hero, open };
+    return null;
+  }
+  if (ref.kind === 'recurring') {
+    const r = (data.recurring || []).find(x => x.id === ref.id); if (!r) return null;
+    const hero = { label: 'Berikutnya', value: dm(r.nextDate), note: rp(r.amount), tone: 'info' as const }, open = { view: 'recurring', label: 'Buka Transaksi rutin' };
+    if (when) return { ...base, title: r.name, text: `${r.name} berikutnya ${dm(r.nextDate)} (${days(r.nextDate)}).`, hero, open };
+    if (much) return { ...base, title: r.name, text: `${r.name} ${rp(r.amount)}, dibayar ${dm(r.nextDate)}.`, hero, open };
+    return null;
+  }
+  if (ref.kind === 'claim') {
+    const c = data.claims.find(x => x.id === ref.id); if (!c) return null;
+    const hero = { label: 'Belum cair', value: rp(c.remainingAmount), note: c.expectedPaymentDate ? `perkiraan ${dm(c.expectedPaymentDate)}` : undefined, tone: 'info' as const }, open = { view: 'claims', label: 'Buka Klaim' };
+    if (when) return { ...base, title: `Klaim ${c.name}`, text: c.status === 'paid' ? `Klaim ${c.name} sudah cair.` : c.expectedPaymentDate ? `Perkiraan cair ${dm(c.expectedPaymentDate)} (${days(c.expectedPaymentDate)}).` : 'Belum ada perkiraan tanggal cairnya.', hero, open };
+    if (paid) return { ...base, title: `Klaim ${c.name}`, text: c.status === 'paid' ? `Sudah cair.` : `Belum cair, masih ${rp(c.remainingAmount)}.`, hero, open };
+    if (whatFor) return { ...base, title: `Klaim ${c.name}`, text: c.description ? `${c.description}, ${rp(c.amount)}.` : `Klaim ${c.name} ${rp(c.amount)}.`, hero, open };
+    if (much) return { ...base, title: `Klaim ${c.name}`, text: `Klaim ${c.name} ${rp(c.remainingAmount)}${c.amount !== c.remainingAmount ? ` dari ${rp(c.amount)}` : ''}.`, hero, open };
+    return null;
+  }
+  if (ref.kind === 'fund') {
+    const f = data.funds.find(x => x.id === ref.id); if (!f) return null;
+    const left = Math.max(0, f.targetAmount - f.currentAmount), hero = { label: 'Terkumpul', value: rp(f.currentAmount), note: `dari ${rp(f.targetAmount)}`, tone: 'good' as const }, open = { view: 'funds', label: 'Buka Tujuan' };
+    if (when) { const m = f.monthlyContribution > 0 && left > 0 ? Math.ceil(left / f.monthlyContribution) : 0; return { ...base, title: f.name, text: !left ? `${f.name} sudah tercapai!` : m ? `Dengan ${rp(f.monthlyContribution)}/bulan, tercapai sekitar ${monthYear(today, m)}.` : f.targetDate ? `Targetnya ${dm(f.targetDate)}; kurang ${rp(left)}.` : `Belum ada setoran rutin atau tanggal target. Kurang ${rp(left)}.`, hero, open }; }
+    if (much) return { ...base, title: f.name, text: `${f.name} terkumpul ${rp(f.currentAmount)} dari ${rp(f.targetAmount)}, kurang ${rp(left)}.`, hero, open };
+    return null;
+  }
+  return null;
+}
+/**
+ * 8.4 Right after a list (piutang, utang, klaim, rutin, tujuan, wish list), a short question picks from it: "yang
+ * paling lama siapa?", "yang paling besar?", "yang paling dekat?", "totalnya?", "ada berapa?".
+ */
+export type ListRef = { kind: ItemRef['kind']; ids: string[] };
+const LIST_WORDS = /^(?:yang|yg|paling|palin|ter\p{L}+|lama|dulu|duluan|awal|baru|akhir|besar|gede|banyak|mahal|kecil|dikit|sedikit|murah|dekat|deket|cepet|cepat|siapa|apa|mana|berapa|brp|total\p{L}*|semua\p{L}*|jumlah\p{L}*|ada|orang|item|biji|buah|ya|sih|dong|nih|tuh|itu|kalau|kalo|klo|jatuh|tempo|utang\p{L}*|hutang\p{L}*|nominal\p{L}*|nya|kira|kira2|kah|gitu|aja|saja)$/u;
+export function fromList(t: string, list: ListRef, ctx: AnswerCtx, v: Voice): Answer | null {
+  const words = t.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  if (!words.length || words.length > 7 || !words.every(w => LIST_WORDS.test(w))) return null;
+  const { data } = ctx;
+  type Row = { id: string; name: string; amount: number; since?: string; due?: string };
+  const rows: Row[] = list.ids.map((id): Row | null => {
+    if (list.kind === 'receivable') { const r = data.receivables.find(x => x.id === id); return r ? { id, name: r.person, amount: r.remainingAmount, since: r.date, due: r.dueDate } : null; }
+    if (list.kind === 'debt') { const d = data.debts.find(x => x.id === id); return d ? { id, name: d.name || d.provider, amount: d.outstandingAmount, due: d.dueDate } : null; }
+    if (list.kind === 'claim') { const c = data.claims.find(x => x.id === id); return c ? { id, name: c.name, amount: c.remainingAmount || c.amount, since: c.submissionDate, due: c.expectedPaymentDate } : null; }
+    if (list.kind === 'recurring') { const r = (data.recurring || []).find(x => x.id === id); return r ? { id, name: r.name, amount: r.amount, due: r.nextDate } : null; }
+    if (list.kind === 'fund') { const f = data.funds.find(x => x.id === id); return f ? { id, name: f.name, amount: f.currentAmount, due: f.targetDate } : null; }
+    const w = (data.wishlist || []).find(x => x.id === id); return w ? { id, name: w.name, amount: w.price } : null;
+  }).filter((r): r is Row => Boolean(r));
+  if (!rows.length) return null;
+  const total = rows.reduce((n, r) => n + r.amount, 0);
+  if (/\b(?:total\p{L}*|semua\p{L}*|jumlah\p{L}*)\b/u.test(t) && !/\b(?:paling|ter\p{L}+)\b/u.test(t)) return { intent: 'module', title: 'Totalnya', text: `Totalnya ${rp(total)} dari ${rows.length} ${list.kind === 'receivable' ? 'piutang' : list.kind === 'debt' ? 'utang' : list.kind === 'claim' ? 'klaim' : 'catatan'}.`, hero: { label: 'Total', value: rp(total) }, lines: rows.slice(0, 6).map(r => ({ label: r.name, value: rp(r.amount) })) };
+  if (/\bada\s+berapa\b|\bberapa\s+(?:orang|item|biji|buah)\b/.test(t)) return { intent: 'module', title: 'Jumlahnya', text: `Ada ${rows.length}${list.kind === 'receivable' ? ` (${[...new Set(rows.map(r => r.name))].length} orang)` : ''}, totalnya ${rp(total)}.`, lines: rows.slice(0, 6).map(r => ({ label: r.name, value: rp(r.amount) })) };
+  const by = (f: (a: Row, b: Row) => number, keep: (r: Row) => boolean = () => true) => rows.filter(keep).sort(f)[0];
+  const pick = /\b(?:paling|ter)\s*(?:lama|dulu|awal)\b|\bterlama\b/.test(t) ? { row: by((a, b) => (a.since || '9').localeCompare(b.since || '9'), r => Boolean(r.since)), lead: (r: Row) => `Yang paling lama ${r.name}, sejak ${dm(r.since!)}.` }
+    : /\b(?:paling|ter)\s*(?:baru|akhir)\b|\bterbaru\b|\bterakhir\b/.test(t) ? { row: by((a, b) => (b.since || '').localeCompare(a.since || ''), r => Boolean(r.since)), lead: (r: Row) => `Yang paling baru ${r.name}, ${dm(r.since!)}.` }
+    : /\b(?:paling|ter)\s*(?:dekat|deket|cepet|cepat)\b|\bterdekat\b|\bduluan\b/.test(t) ? { row: by((a, b) => (a.due || '9').localeCompare(b.due || '9'), r => Boolean(r.due)), lead: (r: Row) => `Yang paling dekat ${r.name}, ${dm(r.due!)}.` }
+    : /\b(?:paling|ter)\s*(?:kecil|dikit|sedikit|murah)\b|\bterkecil\b/.test(t) ? { row: by((a, b) => a.amount - b.amount), lead: (r: Row) => `Yang paling kecil ${r.name}, ${rp(r.amount)}.` }
+    : /\b(?:paling|ter)\s*(?:besar|gede|banyak|mahal)\b|\bterbesar\b/.test(t) ? { row: by((a, b) => b.amount - a.amount), lead: (r: Row) => `Yang paling besar ${r.name}, ${rp(r.amount)}.` } : null;
+  if (!pick) return null;
+  if (!pick.row) return { intent: 'module', title: 'Belum ada datanya', text: 'Tanggalnya belum diisi di catatan-catatan itu, jadi belum bisa kuurutkan.' };
+  const item = items(data).find(x => x.kind === list.kind && x.id === pick.row!.id);
+  const detail = item ? itemAnswer(item, ctx, v) : null;
+  return { ...(detail || { intent: 'module' as const, title: pick.row.name, text: '' }), about: { kind: list.kind, id: pick.row.id }, item: list.kind, text: `${pick.lead(pick.row)}${detail ? ` ${detail.text}` : ''}` };
 }
 export function readItem(t: string, ctx: AnswerCtx, v: Voice, lastItem?: string): Answer | null {
   if (findAmounts(t).some(a => a.marked || a.value >= 1000)) return null;

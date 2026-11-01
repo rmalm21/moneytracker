@@ -27,7 +27,7 @@ export const say = {
     santai: `Selamat ${part}${name}! Mau catat, tanya, atau hitung apa hari ini?`,
     sopan: `Selamat ${part}${name}. Ada yang bisa saya bantu? Anda bisa mencatat, bertanya, atau menghitung.`,
     singkat: `${cap(part)}${name}! Catat, tanya, atau hitung?`,
-    gaul: `Yo${name}! Mau nyatet, nanya, atau ngitung apa nih?`,
+    gaul: `Yo${name}, met ${part}! Mau nyatet, nanya, atau ngitung apa nih?`,
     barbar: `Woy${name}! Mau nyatet apa, nanya apa, atau mau gue roasting, anjir?`,
   }),
   thanks: (v: Voice) => pick(v, { santai: 'Sama-sama! Kabari lagi kalau ada yang mau dicatat.', sopan: 'Sama-sama. Silakan hubungi saya lagi kapan saja.', singkat: 'Sama-sama!', gaul: 'Santuy, kabarin aja kalau ada lagi!' }),
@@ -58,11 +58,22 @@ export const say = {
   savedDate: (v: Voice, date: string) => pick(v, { santai: `Catatan tadi sudah tersimpan. Kupindah ke ${date}?`, sopan: `Catatan tadi sudah tersimpan. Pindahkan ke ${date}?`, singkat: `Pindah ke ${date}?`, gaul: `Yang tadi udah kesimpen. Pindahin ke ${date}?` }),
   savedOther: (v: Voice, what: string) => pick(v, { santai: `Catatan tadi sudah tersimpan. ${what}nya diubah lewat Transaksi: ketuk catatannya lalu Ubah.`, sopan: `Catatan tadi sudah tersimpan. ${what} dapat diubah melalui menu Transaksi.`, singkat: `Ubah ${what.toLowerCase()} lewat Transaksi.`, gaul: `Yang tadi udah kesimpen. ${what}nya ganti lewat Transaksi ya.` }),
   walletMissing: (v: Voice, w: string) => pick(v, { santai: `Dompet “${w}” belum ada di daftar dompetmu. Pilih salah satu:`, sopan: `Dompet “${w}” belum terdaftar. Silakan pilih salah satu:`, singkat: `“${w}” belum ada. Pilih:`, gaul: `Dompet “${w}” belum ada di daftar lo. Pilih yang ini aja:` }),
-  ask: (v: Voice, field: 'amount' | 'wallet' | 'to' | 'category' | 'date') => pick(v, {
-    santai: { amount: 'Nominalnya berapa?', wallet: 'Pakai dompet mana?', to: 'Ke dompet mana?', category: 'Masuk kategori apa?', date: 'Tanggal berapa?' }[field],
-    sopan: { amount: 'Berapa nominalnya?', wallet: 'Menggunakan dompet yang mana?', to: 'Ditujukan ke dompet yang mana?', category: 'Masuk ke kategori apa?', date: 'Tanggal berapa?' }[field],
-    singkat: { amount: 'Berapa?', wallet: 'Dompet?', to: 'Ke mana?', category: 'Kategori?', date: 'Tanggal?' }[field],
-    gaul: { amount: 'Berapa duitnya?', wallet: 'Pake dompet apa?', to: 'Ke dompet mana?', category: 'Masuk kategori apa nih?', date: 'Tanggal berapa?' }[field],
+  ask: (v: Voice, field: 'amount' | 'wallet' | 'to' | 'category' | 'date' | 'borrower' | 'lender') => pick(v, {
+    santai: { amount: 'Nominalnya berapa?', wallet: 'Pakai dompet mana?', to: 'Ke dompet mana?', category: 'Masuk kategori apa?', date: 'Tanggal berapa?', borrower: 'Siapa yang pinjam?', lender: 'Pinjam ke siapa?' }[field],
+    sopan: { amount: 'Berapa nominalnya?', wallet: 'Menggunakan dompet yang mana?', to: 'Ditujukan ke dompet yang mana?', category: 'Masuk ke kategori apa?', date: 'Tanggal berapa?', borrower: 'Siapa yang meminjam?', lender: 'Meminjam kepada siapa?' }[field],
+    singkat: { amount: 'Berapa?', wallet: 'Dompet?', to: 'Ke mana?', category: 'Kategori?', date: 'Tanggal?', borrower: 'Siapa?', lender: 'Ke siapa?' }[field],
+    gaul: { amount: 'Berapa duitnya?', wallet: 'Pake dompet apa?', to: 'Ke dompet mana?', category: 'Masuk kategori apa nih?', date: 'Tanggal berapa?', borrower: 'Siapa yang minjem?', lender: 'Minjem ke siapa?' }[field],
+  }),
+  /** 8.4 "catat pengeluaran" with nothing after it: what and how much; a bare amount first, then what it was for. */
+  startAsk: (v: Voice, kind: 'expense' | 'income' | 'any') => pick(v, kind === 'income' ? {
+    santai: 'Oke! Pemasukan dari apa dan berapa? Misalnya “freelance 750rb”.', sopan: 'Baik. Pemasukan dari apa dan berapa nominalnya? Contoh: “freelance 750rb”.', singkat: 'Dari apa, berapa?', gaul: 'Siap! Duit masuk dari apa, berapa? Contoh “freelance 750rb”.', barbar: 'Gas! Duit masuk dari mana, berapa? Contoh “freelance 750rb”.',
+  } : {
+    santai: 'Oke! Catat apa dan berapa? Misalnya “nasi padang 28rb”.', sopan: 'Baik. Apa yang ingin dicatat dan berapa nominalnya? Contoh: “nasi padang 28rb”.', singkat: 'Apa, berapa?', gaul: 'Siap! Nyatet apa, berapa? Contoh “nasi padang 28rb”.', barbar: 'Gas! Nyatet apaan, berapa? Contoh “nasi padang 28rb”.',
+  }),
+  startFor: (v: Voice, amount: string, kind: 'expense' | 'income' | 'any') => pick(v, kind === 'income' ? {
+    santai: `${amount}, oke. Dari apa?`, sopan: `${amount}, baik. Dari mana pemasukannya?`, singkat: `${amount}. Dari apa?`, gaul: `${amount}, sip. Dari apaan?`,
+  } : {
+    santai: `${amount}, oke. Buat apa?`, sopan: `${amount}, baik. Untuk apa?`, singkat: `${amount}. Buat apa?`, gaul: `${amount}, sip. Buat apaan?`, barbar: `${amount}, sip. Buat apaan tuh?`,
   }),
   askLead: (v: Voice) => pick(v, { santai: 'Satu lagi: ', sopan: 'Satu hal lagi: ', singkat: '', gaul: 'Eh satu lagi: ' }),
   unknown: (v: Voice) => pick(v, { santai: 'Hmm, aku belum nangkep maksudnya. Coba tulis seperti ini:', sopan: 'Mohon maaf, saya belum memahami maksudnya. Silakan coba seperti ini:', singkat: 'Belum paham. Contoh:', gaul: 'Waduh, gue belum ngeh maksudnya. Coba gini:' }),

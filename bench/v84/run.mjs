@@ -34,7 +34,9 @@ async function run(eng, c) {
       for (const w of want.has || []) if (!reply.text.toLowerCase().includes(w)) errs.push(`kalimat tanpa “${w}”`);
     }
   }
-  if (check.notRecord && record) errs.push('malah jadi catatan');
+  // A delete to confirm ("undo" → "hapus transaksi terakhir", saved only on a tap) is not a new record. (Checker fix made
+  // after the first dev runs, before any held-out or hand run; see REPORT.md.)
+  if (check.notRecord && record && ins.kind !== 'tx_delete') errs.push('malah jadi catatan');
   if (check.notUnknown && intent === 'unknown') errs.push('tidak paham');
   if (check.any && !check.any.some(re => new RegExp(re, 'i').test(said))) errs.push(`tanpa ${check.any.join(' / ').slice(0, 90)}`);
   for (const re of check.all || []) if (!new RegExp(re, 'i').test(said)) errs.push(`tanpa ${re.slice(0, 60)}`);

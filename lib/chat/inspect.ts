@@ -7,7 +7,7 @@ import { mayAsk } from '../catat/ask.ts';
 import type { QuickContext } from '../quick-entry.ts';
 
 export type Reading = 'record' | 'question' | 'unanswered' | 'none';
-export type AskField = 'amount' | 'wallet' | 'to' | 'category' | 'date';
+export type AskField = 'amount' | 'wallet' | 'to' | 'category' | 'date' | 'borrower' | 'lender';
 export type Inspection = { reading: Reading; ask?: { field: AskField; choices: string[] }; kind?: string; count?: number; /** 7.9: the person of the first entry ("dia" next time), the wallet named, the total of all entries. */ person?: string; walletId?: string; total?: number;
   /** 8.0: the category of a single entry (the same treat recorded again and again gets a tease). */ categoryId?: string; subcategoryId?: string };
 
@@ -22,6 +22,11 @@ export function inspect(text: string, quick: QuickContext): Inspection {
   const a = acts[0], r = a.result, name = (id: string) => quick.wallets.find(w => w.id === id)?.name || id;
   const base: Inspection = { reading: 'record', kind: r.kind, count: acts.length, ...(r.person ? { person: r.person } : {}), ...(r.preset.walletId ? { walletId: r.preset.walletId } : {}), total: acts.reduce((n, x) => n + (x.result.amount || 0), 0), ...(acts.length === 1 && r.preset.categoryId ? { categoryId: r.preset.categoryId } : {}), ...(acts.length === 1 && r.preset.subcategoryId ? { subcategoryId: r.preset.subcategoryId } : {}) };
   if (acts.length > 1) return base;
+  // 8.4 A receivable or a debt without a name ("516rb piutang"): who, asked first (the next message answers it).
+  if ((r.kind === 'receivable_new' || r.kind === 'debt_new') && !r.person) {
+    const names = r.kind === 'receivable_new' ? (quick.receivables || []).map(x => x.person) : (quick.debts || []).map(x => x.name);
+    return { ...base, ask: { field: r.kind === 'receivable_new' ? 'borrower' : 'lender', choices: [...new Set(names.filter(Boolean))].slice(0, 4) } };
+  }
   const ask = a.ask;
   if (ask && (ask.field === 'wallet' || ask.field === 'to')) return { ...base, ask: { field: ask.field, choices: (ask.choices || []).slice(0, 5).map(name) } };
   if (ask?.field === 'amount') return { ...base, ask: { field: 'amount', choices: (ask.choices || []).slice(0, 4).map(v => `${Number(v).toLocaleString('id-ID')}`) } };
