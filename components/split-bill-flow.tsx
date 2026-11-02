@@ -392,18 +392,24 @@ export function SplitFlow({ start, people, groups, bills = [], onClose, onSaved 
               <div className="form-grid"><Field label="Jatuh tempo"><Input type="date" value={bill.dueDate || ''} onChange={e => patch({ dueDate: e.target.value })}/></Field><Field label="Waktu"><Input type="time" value={bill.time || ''} disabled={bill.fromTransaction} onChange={e => patch({ time: e.target.value })}/></Field></div>
               <Field label="Catatan"><Input value={bill.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></Field>
             </details>
-            <details className="sb-more"><summary>Apa yang dicatat?</summary><div className="sb-explain">
-              {bill.payer === 'me' ? <>
-                <p><b>{bill.fromTransaction ? `Transaksi ${rupiah(result.total)} dari ${walletName} tetap satu` : `Saldo ${walletName} berkurang ${rupiah(result.total)}`}</b>, sesuai uang yang benar-benar keluar.</p>
-                <p>Pengeluaranmu hanya <b>{rupiah(me ? moneyOf(me.id) : 0)}</b> (bagianmu). <b>{rupiah(result.total - (me ? moneyOf(me.id) : 0))}</b> jadi piutang dari {others.filter(person => moneyOf(person.id) > 0).length} orang.</p>
-              </> : <>
-                <p><b>Saldo dompet belum berubah</b>, karena {payer ? personName(payer) : 'orang lain'} yang membayar.</p>
-                {me && moneyOf(me.id) > 0 ? <p>Bagianmu <b>{rupiah(moneyOf(me.id))}</b> dicatat sebagai pengeluaran dan jadi utang ke {payer ? personName(payer) : 'yang membayar'}.</p> : <p>Kamu tidak punya bagian di tagihan ini.</p>}
-              </>}
-            </div></details>
           </div>}
         </section>
 
+        {/* 8.4.1 What saving records, always in sight before saving (it used to be folded inside Pembayaran). */}
+        <section className="sb-explain sb-record-info" aria-label="Yang akan dicatat"><strong>Yang akan dicatat</strong>
+          {bill.payer === 'me' ? <>
+            <p><b>{bill.fromTransaction ? `Transaksi ${rupiah(result.total)} dari ${walletName} tetap satu` : bill.walletId ? `Saldo ${walletName} berkurang ${rupiah(result.total)}` : `Saldo dompet yang kamu pilih berkurang ${rupiah(result.total)}`}</b>, sesuai uang yang benar-benar keluar.</p>
+            <p>Pengeluaranmu hanya <b>{rupiah(me ? moneyOf(me.id) : 0)}</b> (bagianmu). <b>{rupiah(Math.max(0, result.total - (me ? moneyOf(me.id) : 0)))}</b> jadi piutang dari {others.filter(person => moneyOf(person.id) > 0).length} orang.</p>
+            <p className="muted">Saat teman membayar balik, saldo bertambah tapi tidak dihitung sebagai pemasukan.</p>
+          </> : <>
+            <p><b>Saldo dompet belum berubah</b>, karena {payer ? personName(payer) : 'orang lain'} yang membayar.</p>
+            {me && moneyOf(me.id) > 0 ? <>
+              <p>Bagianmu <b>{rupiah(moneyOf(me.id))}</b> langsung dihitung sebagai pengeluaran tanggal {formatDate(bill.date, false)} (anggaran ikut terpakai), dan jadi <b>utang ke {payer ? personName(payer) : 'yang membayar'}</b>.</p>
+              <p className="muted">Saat kamu bayar balik, pakai <b>Bayar ke {payer ? personName(payer) : 'dia'} dari dompet</b> di transaksi bagianmu, atau Bayar di menu Utang. Saldo berkurang, tapi tidak dihitung pengeluaran lagi. Jangan dicatat sebagai pengeluaran baru, nanti jadi dobel.</p>
+              {!bill.dueDate && <p className="muted">Isi jatuh tempo di “Jatuh tempo &amp; catatan” supaya kamu diingatkan, dan utangnya ikut dikurangkan dari Uang tersedia.</p>}
+            </> : <p>Kamu tidak punya bagian di tagihan ini.</p>}
+          </>}
+        </section>
         {hasPayments && <div className="notice"><strong>Split Bill ini sudah memiliki pembayaran.</strong><p>Perubahan dapat mengubah sisa tagihan. Riwayat pembayaran tetap tersimpan.</p><label className="check-row"><input type="checkbox" checked={understood} onChange={e => setUnderstood(e.target.checked)}/> Saya mengerti</label></div>}
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="sb-actions sb-one-actions">

@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.4.1', date: '2 Nov 2026', title: 'Info Split Bill, kategori di chat, menu bawah lebih halus, dan tampilan HP lebih lebar', items: [
+    ['🧾', 'Split Bill kini menjelaskan apa yang dicatat sebelum disimpan. Kalau teman yang bayar, bagianmu langsung dihitung sebagai pengeluaran dan jadi utang; saat kamu bayar balik dari dompet, saldo berkurang tapi tidak dihitung dua kali. Baris di Transaksi menulis “belum kamu ganti” sampai lunas.'],
+    ['🎯', 'Formulir transaksi mengingatkan kalau kamu mencatat pengeluaran ke orang yang masih punya utang Split Bill, dengan tombol “Jadikan Bayar utang” sekali ketuk, supaya tidak dobel.'],
+    ['🔧', 'Chat: menjawab “Masuk kategori apa?” tidak lagi membuat Kategori baru (terjadi kalau kalimatnya ada tanggal, misalnya “tgl 30”). Kalau kategorinya belum ada, asisten bilang terus terang dan kartunya tetap.'],
+    ['📝', '“14k susu bahagia nongkrong di blok m tgl 31 pake gopay” sekarang tercatat Susu Bahagia di Blok M, kategori Nongkrong. Kata kegiatan sesudah nama barang menentukan kategori, tidak ikut jadi keterangan.'],
+    ['⚡', 'Bubble menu bawah langsung bergerak saat diketuk dan geraknya lebih halus, tidak lagi menunggu halaman baru selesai dimuat.'],
+    ['📱', 'Di HP, ukuran tampilan S, XS, dan SS juga mempersempit tepi kiri-kanan, jadi isi layar lebih lebar. Atur di Pengaturan → Tampilan → Ukuran tampilan.'],
+  ] },
   { version: '8.4', date: '1 Nov 2026', title: 'Asisten chat v4 yang nyambung, sembunyikan nominal dua tingkat, dan popup “Apa yang baru”', items: [
     ['🎉', 'Setelah update, popup “Apa yang baru” muncul sekali dan merangkum semua versi yang belum kamu lihat. Versi terbaru tampil lengkap, versi sebelumnya satu baris per versi yang bisa dibuka.'],
     ['🛡️', 'Sembunyikan nominal kini tinggal dua tingkat: Super ketat dan Beranda & Dompet. “Angka penting saja” dihapus karena hasilnya masih belang-belang. Yang dulu memilihnya otomatis pindah ke Super ketat.'],

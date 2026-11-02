@@ -155,3 +155,29 @@ test('8.4 with a card waiting, a new thing without an amount starts a new record
   assert.equal(fuel.total, 45000);
   assert.equal(card(await talk('makan siang 30rb', '45 ribu')).total, 45000);
 });
+
+test('8.4.1 answering "kategori apa?" fills the category, never makes a new category (also with a date in the sentence)', async () => {
+  for (const [first, answer] of [['Kamu: 14k photobooth jago tgl 30', 'Nongkrong & Hiburan'], ['14k photobooth jago tgl 30', 'Hiburan'], ['14k photobooth jago', 'nongkrong']]) {
+    const c = card(await talk(first, answer));
+    assert.equal(c.kind, 'expense', `${first} / ${answer}`);
+    assert.equal(c.categoryId, 'expense.nongkrong-hiburan', `${first} / ${answer}`);
+    assert.equal(c.total, 14000);
+  }
+  // A category that is not in the list is said so; the card stays and the next answer still fills it.
+  const missing = await talk('14k photobooth jago tgl 30', 'hiburan malam');
+  assert.equal(missing.reply.kind, 'say');
+  assert.match(missing.reply.text, /belum ada/);
+  assert.equal(card(await talk('14k photobooth jago tgl 30', 'hiburan malam', 'Nongkrong & Hiburan')).categoryId, 'expense.nongkrong-hiburan');
+  // Asking for a new category on purpose still does.
+  assert.equal(parseQuickPlan('buat kategori baru photobooth', ctx.quick).actions[0].result.kind, 'category_new');
+});
+
+test('8.4.1 an activity said after the thing bought chooses the category and leaves the description', () => {
+  const read = text => { const a = parseQuickPlan(text, ctx.quick).actions[0]; return { d: a.result.preset.description, m: a.result.preset.merchant || '', c: a.result.preset.categoryId, w: a.result.preset.walletId || '' }; };
+  assert.deepEqual(read('14k susu bahagia nongkrong di blok m tgl 31 pake gopay'), { d: 'Susu Bahagia', m: 'Blok M', c: 'expense.nongkrong-hiburan', w: 'gopay' });
+  assert.equal(read('14k photobooth, nongkrong tgl 30').d, 'Photobooth');
+  // Said before the thing, or alone, it stays as written.
+  assert.equal(read('nonton avengers 50rb').d, 'Nonton Avengers');
+  assert.equal(read('di kongsi tiam nongkrong 77k').d, 'Nongkrong');
+  assert.equal(read('nongkrong 14k susu bahagia di blok m').d, 'Nongkrong Susu Bahagia');
+});

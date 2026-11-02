@@ -51,3 +51,18 @@ test('8.4 "Apa yang baru": every release since the one last seen, none on a firs
   // A version not in the list (renamed, removed): just the newest.
   assert.deepEqual(unseenReleases(releases, current, '0.0-unknown', true).map(r => r.version), [current]);
 });
+
+import { splitDebtNamed } from '../lib/split-bill.ts';
+test('8.4.1 spending to someone still owed for a Split Bill is flagged as the probable payback', () => {
+  const debts = [
+    { id: 'd1', name: 'yessy', outstandingAmount: 58853, sourceType: 'split_bill' },
+    { id: 'd2', name: 'Kredivo', outstandingAmount: 900000 },
+    { id: 'd3', name: 'rina', outstandingAmount: 0, sourceType: 'split_bill' },
+  ];
+  assert.equal(splitDebtNamed('transfer ke Yessy', debts)?.id, 'd1');
+  assert.equal(splitDebtNamed('Yessy Bungkushin', debts)?.id, 'd1');
+  // Not a different word that contains the name, not an ordinary debt, not a Split Bill already paid.
+  assert.equal(splitDebtNamed('yessyka', debts), undefined);
+  assert.equal(splitDebtNamed('cicilan kredivo', debts), undefined);
+  assert.equal(splitDebtNamed('makan sama rina', debts), undefined);
+});

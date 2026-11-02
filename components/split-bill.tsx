@@ -172,9 +172,11 @@ function BillDetail({ bill, state, notify, onClose, onEdit, groups }: { bill: Sp
         <div className="budget-line"><span>Pengeluaranmu (bagianmu)</span><strong>{rupiah(state.myShare)}</strong></div>
         <div className="budget-line"><span>Ditalangi untuk orang lain</span><strong>{rupiah(state.owed)}</strong></div>
         <div className="budget-line"><span>Sudah kembali</span><strong>{rupiah(state.paid)}</strong></div>
+        <p className="sb-note muted">Uang yang kembali dari teman menambah saldo, tapi tidak dihitung sebagai pemasukan.</p>
       </> : <>
         <div className="budget-line"><span>Bagianmu (pengeluaran)</span><strong>{rupiah(state.myShare)}</strong></div>
         <div className="budget-line"><span>Sisa utang ke {state.payerName}</span><strong>{rupiah(state.fromMe)}</strong></div>
+        <p className="sb-note muted">{state.fromMe > 0 ? `Bagianmu sudah dihitung sebagai pengeluaran di tanggal tagihan, walau belum ada uang yang keluar dari dompet. Saat bayar balik ke ${state.payerName}, pilih Bayar dari dompet (di transaksi bagianmu atau menu Utang): saldo berkurang, tapi tidak dihitung pengeluaran lagi.` : `Bagianmu sudah lunas ke ${state.payerName}. Pengeluarannya tetap dihitung sekali, di tanggal tagihan.`}</p>
       </>}
     </section>}
 

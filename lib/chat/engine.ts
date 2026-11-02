@@ -960,8 +960,10 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
         if (who) return plan(`${pending.text} ke ${who}`, { did: asking.field === 'borrower' ? `${cap(who)} yang pinjam` : `pinjam ke ${cap(who)}`, intent: 'fill' });
       }
       if (asking.field === 'category' && !amount && !date && /\p{L}/u.test(t) && !CANCEL.test(t)) {
-        const cat = unfill(t.replace(/^(?:kategori(?:nya)?|masuk(?:in)?(?:\s+ke)?)\s+/, ''));
-        return plan(withCategory(pending.text, cat), { did: V.editCategory(v, cat), intent: 'fill' });
+        const cat = unfill(t.replace(/^(?:kategori(?:nya)?|masuk(?:in)?(?:\s+ke)?)\s+/, '')), next = withCategory(pending.text, cat), read = ctx.inspect(next);
+        // 8.4.1 A category not in the list is said so (the card stays as it was); the answer never makes a new category.
+        if (read.reading !== 'record' || read.kind === 'category_new' || read.ask?.field === 'category') return sayR('fill', { kind: 'say', text: vo(v, { santai: `Kategori “${cat}” belum ada di daftarmu. Pilih salah satu, atau buat dulu di menu Kategori:`, sopan: `Kategori “${cat}” belum tersedia. Silakan pilih salah satu, atau buat terlebih dahulu di menu Kategori:`, gaul: `Kategori “${cat}” belum ada nih. Pilih salah satu, atau bikin dulu di menu Kategori:`, singkat: `“${cat}” belum ada. Pilih:` }), chips: asking.choices }, { ...mem, asking });
+        return plan(next, { did: V.editCategory(v, cat), intent: 'fill' });
       }
     }
     const target = pending || saved;

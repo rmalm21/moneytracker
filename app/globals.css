@@ -2454,7 +2454,7 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
   .ins-part-top { align-items: flex-start; flex: 1; }
   .ins-part-icon { width: 28px; height: 28px; }
   /* Tabs scroll sideways on phones instead of wrapping into many rows. */
-  .ins-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; scroll-padding-inline: 16px; }
+  .ins-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 2px var(--gutter, 16px) 6px; scroll-padding-inline: var(--gutter, 16px); }
   .ins-tabs::-webkit-scrollbar { display: none; }
   .ins-part > small { display: none; }
   .ins-card { padding: 16px; gap: 12px; }
@@ -3327,7 +3327,7 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
   .ins-part-top { align-items: flex-start; flex: 1; }
   .ins-part-icon { width: 28px; height: 28px; }
   /* Tabs scroll sideways on phones instead of wrapping into many rows. */
-  .ins-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; scroll-padding-inline: 16px; }
+  .ins-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gutter, 16px)); padding: 2px var(--gutter, 16px) 6px; scroll-padding-inline: var(--gutter, 16px); }
   .ins-tabs::-webkit-scrollbar { display: none; }
   .ins-part > small { display: none; }
   .ins-card { padding: 16px; gap: 12px; }
@@ -7822,16 +7822,21 @@ button.int-more { justify-self: start; font-size: .74rem; }
 :root[data-theme='dark'] { --nav-hi: rgba(255, 255, 255, .09); --nav-shade: rgba(0, 0, 0, .55); }
 @media (max-width: 760px) {
   /* Solid dock drawn by ::before (the drop shadow on the nav follows its shape). */
-  .bottom-nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); min-height: 66px; padding: 6px; border: 0; border-radius: 26px; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
-    filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--nav-shade) 45%, transparent)) drop-shadow(0 14px 22px var(--nav-shade)); }
+  /* 8.4.1 The dock's shadow is a plain box-shadow on its background (below), not a filter on the whole dock: a filter
+     was painted again on every frame of the moving pill. */
+  .bottom-nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); min-height: 66px; padding: 6px; border: 0; border-radius: 26px; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
   .bottom-nav::before { content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none;
     background: linear-gradient(180deg, var(--paper), var(--paper-2));
-    box-shadow: inset 0 1px 0 var(--nav-hi), inset 0 -2px 0 color-mix(in srgb, var(--ink) 6%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent);
+    box-shadow: inset 0 1px 0 var(--nav-hi), inset 0 -2px 0 color-mix(in srgb, var(--ink) 6%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent),
+      0 2px 3px color-mix(in srgb, var(--nav-shade) 45%, transparent), 0 14px 22px var(--nav-shade);
   }
-  .bn-pill { position: absolute; top: 6px; bottom: 6px; z-index: 0; left: calc(10px + (100% - 12px) / 5 * var(--at, 0)); width: calc((100% - 12px) / 5 - 8px); border-radius: 20px; pointer-events: none;
+  /* 8.4.1 The pill slides with transform (on the GPU, not held up while the new page renders); one column is its own
+     width plus the 8px between pills. */
+  .bn-pill { position: absolute; top: 6px; bottom: 6px; z-index: 0; left: 10px; width: calc((100% - 12px) / 5 - 8px); border-radius: 20px; pointer-events: none;
+    transform: translate3d(calc((100% + 8px) * var(--at, 0)), 0, 0); will-change: transform; backface-visibility: hidden;
     background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--paper)), color-mix(in srgb, var(--accent) 24%, var(--paper)));
     box-shadow: inset 0 1px 0 var(--nav-hi), inset 0 -3px 6px color-mix(in srgb, var(--accent) 16%, transparent), 0 2px 0 color-mix(in srgb, var(--accent) 22%, transparent), 0 8px 16px -6px color-mix(in srgb, var(--accent) 50%, transparent);
-    transition: left .45s cubic-bezier(.34, 1.45, .64, 1); }
+    transition: transform .42s cubic-bezier(.32, 1.28, .5, 1); }
   .bottom-nav button { position: relative; z-index: 1; min-height: 52px; gap: 2px; border-radius: 20px; transition: color .2s ease; }
   .bn-ico { display: grid; place-items: center; height: 26px; transition: transform .3s cubic-bezier(.34, 1.56, .64, 1); }
   .bottom-nav button.active .bn-ico { transform: translateY(-2px) scale(1.1); }
@@ -8706,3 +8711,19 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .wn-go { width: 100%; min-height: 46px; border-radius: 14px; font-size: .95rem; }
 .wn-all { font-size: .82rem; }
 @media (prefers-reduced-motion: reduce) { .wn-card, .wn-overlay, .wn-items li, .wn-spark { animation: none; } }
+/* 8.4.1 Split Bill: what saving records, always in sight; the payback hint in the transaction form. */
+.sb-record-info > strong { font-size: .9rem; }
+.tx-split-hint { display: grid; gap: 8px; }
+.tx-split-hint p { margin: 0; }
+.tx-split-hint .btn { white-space: normal; justify-self: start; text-align: left; }
+
+/* 8.4.1 On a phone the smaller display sizes also narrow the sides (16px at M and L, then 13 / 11 / 9px), so the
+   content gets wider; the top bar keeps the same edge as the page. */
+@media (max-width: 760px) {
+  :root { --gutter: 16px; }
+  :root[data-density='compact'] { --gutter: 13px; --row-x: 12px; }
+  :root[data-density='xs'] { --gutter: 11px; --row-x: 11px; }
+  :root[data-density='xxs'] { --gutter: 9px; --row-x: 10px; }
+  .content { padding-left: var(--gutter); padding-right: var(--gutter); }
+  .topbar { padding-left: var(--gutter); padding-right: var(--gutter); }
+}

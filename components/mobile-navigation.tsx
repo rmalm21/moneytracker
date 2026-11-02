@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { menuKeyOf } from './hubs';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, CreditCard, HandCoins, Home, ListFilter, Menu, Plus, Receipt, ReceiptText, ScanText, Sparkles, TrendingDown, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { QuickEntryBox } from './quick-entry';
@@ -23,8 +23,18 @@ export function MobileNavigation({ view, items, onNavigate, openTx, onScan }: { 
   const [moreOpen, setMoreOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false), [auto, setAuto] = useState(false);
   const showAdd = (open: boolean) => { setAddOpen(open); if (!open) setAuto(false); };
-  const secondary = !['dashboard', 'transactions', 'wallets'].includes(view);
+  // 8.4.1 The tab tapped shows at once (pill and icon), and the page is rendered after the pill's first frame: a heavy page
+  // no longer holds the pill still. Back to the page shown once it has changed (or the tap went nowhere).
+  const [tapped, setTapped] = useState<string | null>(null);
+  useEffect(() => { setTapped(null); }, [view]);
+  const shown = tapped || view;
+  const secondary = !['dashboard', 'transactions', 'wallets'].includes(shown);
   function navigate(key: string, target?: string) { setMoreOpen(false); setAddOpen(false); onNavigate(key, target); }
+  function openTab(key: string) {
+    if (key === view) { navigate(key); return; }
+    setTapped(key);
+    requestAnimationFrame(() => window.setTimeout(() => { navigate(key); window.setTimeout(() => setTapped(current => current === key ? null : current), 1500); }, 0));
+  }
   const handingOff = useRef(false);
   /**
    * From "Catat cepat" to the form without a gap: the form opens on top first (stacked dialogs show only the top one),
@@ -44,9 +54,9 @@ export function MobileNavigation({ view, items, onNavigate, openTx, onScan }: { 
   }
   return <>
     {/* A floating dock: the raised pill slides to the open tab (its column is --at), the add button sits in the middle. */}
-    <nav className="bottom-nav" aria-label="Navigasi seluler" style={{ '--at': secondary ? 4 : Math.max(0, tabs.findIndex(tab => tab.key === view)) } as CSSProperties}>
+    <nav className="bottom-nav" aria-label="Navigasi seluler" style={{ '--at': secondary ? 4 : Math.max(0, tabs.findIndex(tab => tab.key === shown)) } as CSSProperties}>
       <span className="bn-pill" aria-hidden="true"/>
-      {tabs.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-label={label} aria-current={(key === 'more' && secondary || key === view) ? 'page' : undefined} className={`${(key === 'more' ? secondary : view === key) ? 'active' : ''} ${key === 'add' ? 'add' : ''}`} onClick={() => key === 'more' ? setMoreOpen(true) : key === 'add' ? showAdd(true) : navigate(key)}>{key === 'add' ? <span className="nav-add-icon" aria-hidden="true"><Icon size={23} strokeWidth={2.5}/></span> : <span className="bn-ico" aria-hidden="true"><Icon size={21}/></span>}<span className="bn-label">{label}</span></button>)}
+      {tabs.map(({ key, label, icon: Icon }) => <button key={key} type="button" aria-label={label} aria-current={(key === 'more' && secondary || key === shown) ? 'page' : undefined} className={`${(key === 'more' ? secondary : shown === key) ? 'active' : ''} ${key === 'add' ? 'add' : ''}`} onClick={() => key === 'more' ? setMoreOpen(true) : key === 'add' ? showAdd(true) : openTab(key)}>{key === 'add' ? <span className="nav-add-icon" aria-hidden="true"><Icon size={23} strokeWidth={2.5}/></span> : <span className="bn-ico" aria-hidden="true"><Icon size={21}/></span>}<span className="bn-label">{label}</span></button>)}
     </nav>
     <Dialog open={moreOpen} onOpenChange={setMoreOpen}><DialogContent title="Semua menu" className="mobile-sheet"><div className="mobile-menu-groups">{groups.map(group => <section key={group.label}><h3>{group.label}</h3><div className="mobile-menu-grid">{group.items.map(key => { const item = items.find(entry => entry.key === key); if (!item) return null; return <button type="button" key={key} className={`${menuKeyOf(view) === key ? 'active' : ''} ${key === 'advisor' ? 'menu-special' : ''}`} onClick={() => navigate(key)}><item.icon size={19}/><span>{item.label}</span>{key === 'budgets' && <BudgetMeterBadge/>}{key === 'advisor' && <Sparkles size={14} className="nav-spark" aria-hidden="true"/>}</button>; })}</div></section>)}</div></DialogContent></Dialog>
     <Dialog open={addOpen} onOpenChange={showAdd}><DialogContent title={auto ? 'Catat otomatis' : 'Catat cepat'} className="mobile-sheet" onCloseAutoFocus={event => { if (handingOff.current) event.preventDefault(); }}>{auto ? <div className="auto-entry"><button type="button" className="link-button auto-back" onClick={() => setAuto(false)}><ChevronLeft size={16}/> Kembali ke menu</button><QuickEntryBox autoFocus onOpenForm={add} onNavigate={navigate} onDone={() => showAdd(false)}/></div> : <div className="mobile-menu-grid add-menu"><button type="button" className="menu-special auto-entry-button" onClick={() => setAuto(true)}><Sparkles size={20}/><span className="aeb-text"><strong>Catat otomatis</strong><small>Tulis sekali, untuk semua menu</small></span><ChevronRight size={18}/></button><button type="button" className="add-scan" onClick={() => handOff(onScan)}><ScanText size={20}/><span className="aeb-text"><strong>Scan struk</strong><small>Foto struk, dibaca otomatis</small></span></button><button type="button" onClick={() => add({ type: 'expense' })}><TrendingDown size={20}/> Pengeluaran</button><button type="button" onClick={() => add({ type: 'income' })}><TrendingUp size={20}/> Pemasukan</button><button type="button" onClick={() => add({ type: 'transfer' })}><ArrowLeftRight size={20}/> Transfer</button><button type="button" onClick={() => navigate('claims')}><Receipt size={20}/> Klaim kantor</button><button type="button" onClick={() => navigate('receivables')}><HandCoins size={20}/> Piutang</button><button type="button" onClick={() => add({ type: 'debt_payment' })}><CreditCard size={20}/> Bayar utang</button><button type="button" className="add-split" onClick={() => navigate('splitbill', 'new')}><ReceiptText size={20}/><span className="aeb-text"><strong>Split Bill</strong><small>Bagi tagihan bareng teman</small></span></button><button type="button" className="all-transactions" onClick={() => add()}>Pilih jenis transaksi lain →</button></div>}</DialogContent></Dialog>

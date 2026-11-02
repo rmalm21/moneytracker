@@ -463,3 +463,15 @@ export function scanSplitBills(bills: SplitBill[], receivables: Receivable[], de
   for (const tx of ledger) if (tx.type === 'expense' && tx.splitBillId && inactive(tx.splitBillId)) add(`split-orphan-tx:${tx.id}`, null, `Transaksi ${tx.description || tx.id} masih tertaut ke Split Bill yang tidak aktif`, tx.walletId ? 'Hanya sebagian nominalnya yang dihitung sebagai pengeluaran.' : 'Pengeluaran ini tidak punya tagihan asal.', 'Periksa transaksinya; buat ulang Split Bill bila perlu.');
   return issues;
 }
+
+/**
+ * 8.4.1 A spending written down to someone the user still owes for a Split Bill ("transfer ke yessy", merchant "Yessy"):
+ * probably the payback. Recorded as spending it would count the share twice and leave the Utang open, so the form says so.
+ * Returns that Split Bill Utang (the largest still open when the name is on more than one), or undefined.
+ */
+export function splitDebtNamed(text: string, debts: Pick<Debt, 'id' | 'name' | 'outstandingAmount' | 'sourceType'>[]) {
+  const words = ` ${text.toLocaleLowerCase('id-ID').replace(/[^\p{L}\p{N}]+/gu, ' ')} `;
+  return debts.filter(debt => debt.sourceType === 'split_bill' && debt.outstandingAmount > 0 && debt.name.trim().length >= 2)
+    .filter(debt => words.includes(` ${debt.name.toLocaleLowerCase('id-ID').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `))
+    .sort((a, b) => b.outstandingAmount - a.outstandingAmount)[0];
+}

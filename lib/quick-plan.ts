@@ -1018,7 +1018,27 @@ let inV4 = false;
 let inEveryday = false;
 /** 8.4: a word said to the app first ("eh kopi 25rb", "min, andi pinjem 75rb", "bot catat …") is not part of the entry. */
 const SAID_FIRST = /^(?:(?:eh+|eits|nah|oiya|btw)[,!.]?\s+(?=\S)|(?:min|mimin|admin|bot|kak|bang|bro|sis)\s*,\s*(?=\S)|bot\s+(?=\S))/i;
+/**
+ * 8.4.1 "14k susu bahagia nongkrong di blok m", "14k photobooth, nongkrong": an activity said after the thing bought is
+ * the setting, not part of its name. It already chose the category, so the description is the thing (Susu Bahagia).
+ * Said before the thing ("nonton avengers", "nongkrong di …" alone) it stays as written.
+ */
+const SETTING_AFTER = /^(.+?\p{L}.*?)[\s,]+(?:sambil\s+|pas\s+|waktu\s+|buat\s+|untuk\s+)?(?:nongkrong|nongki|hangout|healing|ngumpul|kumpul-kumpul|kumpul kumpul|piknik|jalan-jalan|jalan jalan)$/iu;
+function settingAfterThing(plan: QuickParseResult) {
+  for (const a of plan.actions) {
+    const r = a.result, d = r.preset.description;
+    if (r.kind !== 'expense' || !d || !r.preset.categoryId) continue;
+    const m = d.trim().match(SETTING_AFTER);
+    if (!m || !/\p{L}{2,}/u.test(m[1])) continue;
+    r.preset.description = m[1].trim();
+    a.evidence.push(`${d.slice(m[1].length).trim().replace(/^,\s*/, '')} dibaca sebagai kegiatannya (kategori), bukan bagian nama barang.`);
+  }
+  return plan;
+}
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
+  return settingAfterThing(parseQuickPlanAll(input, ctx, mode));
+}
+function parseQuickPlanAll(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const raw = input.trim().replace(SAID_FIRST, '');
   if (!raw) return readPlan(raw, ctx, mode);
   // 7.9: everyday sentences rewritten into ones the grammar reads right (lib/catat/everyday.ts); what the rewrite knows
@@ -1259,6 +1279,9 @@ function compose(plain: QuickParseResult, text: string, ctx: QuickContext): Quic
   const written = new Set(findAmounts(text.toLocaleLowerCase('id-ID')).map(a => a.value));
   const wallets = new Set(walletsIn(text.toLocaleLowerCase('id-ID'), ctx.wallets).map(w => w.id));
   const plainDates = new Set(plain.actions.map(a => a.result.date));
+  // 8.4.1 "14k photobooth jago tgl 30 kategori nongkrong": the word "kategori" alone made the plain reading a new
+  // category, which has no date of its own; the purchase with its day is the reading, not a change of date.
+  const categoryWordOnly = plain.actions.every(a => a.result.kind === 'category_new');
   const FLOW = new Set<QuickKind>(['expense', 'income']);
   if (!plan.actions.length) return reject('tidak ada entri');
   if (plan.confirm) return reject('nominal perlu konfirmasi');
@@ -1268,7 +1291,7 @@ function compose(plain: QuickParseResult, text: string, ctx: QuickContext): Quic
     if (!FLOW.has(a.result.kind) && !plain.actions.some(p => p.result.kind === a.result.kind)) return reject(`jenis ${a.result.kind} baru`);
     if (a.result.amount && !written.has(a.result.amount) && !(a.result.composition && written.has(a.result.composition.gross))) return reject(`nominal ${a.result.amount} tidak ditulis`);
     if (a.result.preset.walletId && !wallets.has(a.result.preset.walletId)) return reject('dompet tidak disebut');
-    if (!plainDates.has(a.result.date)) return reject('tanggal berubah');
+    if (!categoryWordOnly && !plainDates.has(a.result.date)) return reject('tanggal berubah');
   }
   // The money said must still be there: every plain amount that was a real event stays an event, unless it was an item price.
   const priced = new Set(comp.slots.flatMap(s => [...(s.items || []).map(i => i.amount || 0), ...(s.charges || [])]));
