@@ -38,7 +38,7 @@ import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { compileLanguagePack, curatedReading, normalizeGeneral, NAY_WORD, type Normalization } from './catat/language.ts';
 import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
 import { habitOf, placeMemory } from './catat/context-memory.ts';
-import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
+import { amountGuard, amountWords, DATE_PHRASES, findAmounts, GENERIC, nameLike, parseQuickText, QUICK_LABELS, readDate, SALARY_WHEN, walletsIn, type QuickContext, type QuickGroup, type QuickKind, type QuickResult } from './quick-entry.ts';
 
 export type FieldKey = 'kind' | 'amount' | 'date' | 'time' | 'wallet' | 'to' | 'link' | 'category' | 'person' | 'name' | 'purpose';
 export type FieldStatus = 'verified' | 'likely' | 'check' | 'missing';
@@ -1035,8 +1035,53 @@ function settingAfterThing(plan: QuickParseResult) {
   }
   return plan;
 }
+/**
+ * 8.5 A name said with a word of address ("mas agus", "bu ani", "om heru", "kasbon pak rt"): read as one person. The word of
+ * address is taken off before the sentence is read, so "pak budi bayar 50rb" still finds Budi's record and the description
+ * does not keep "Mas" or "Bu"; it is put back on the name shown for someone new ("Mas Agus"). A role after it ("pak rt",
+ * "bu kos") is that person's name ("Pak RT", "Bu Kos"). "mama", "bro" or "ke ibu" alone stay as they are.
+ */
+const ADDRESS_WORD = /(?<![\p{L}])(pak|bapak|bu|ibu|mas|mbak|mba|kak|kaka|bang|abang|om|tante|aa|cak|ning|dek|adek|neng|koh|cik|ci)\s+(\p{L}[\p{L}'’-]*)(?![\p{L}])/giu;
+const ADDRESS_ROLE = new Set('rt rw lurah camat kades haji hajah hajjah ustad ustadz ustaz ustadzah ustazah satpam kos kost kosan guru dosen dokter bidan supir sopir ojek ojol kurir tukang warung bos'.split(' '));
+const ADDRESS_SHOWN: Record<string, string> = { pak: 'Pak', bapak: 'Bapak', bu: 'Bu', ibu: 'Ibu', mas: 'Mas', mbak: 'Mbak', mba: 'Mbak', kak: 'Kak', kaka: 'Kak', bang: 'Bang', abang: 'Bang', om: 'Om', tante: 'Tante', aa: 'Aa', cak: 'Cak', ning: 'Ning', dek: 'Dek', adek: 'Dek', neng: 'Neng', koh: 'Koh', cik: 'Cik', ci: 'Ci' };
+const capWord = (w: string) => w.charAt(0).toLocaleUpperCase('id-ID') + w.slice(1).toLocaleLowerCase('id-ID');
+/** Only in a sentence about money with a person (a loan, paying back, sending); never a place named after someone. */
+const ABOUT_A_PERSON = /(?<![\p{L}])(?:pinjem|pinjam|minjem|minjam|pinjaman|pinjemin|minjemin|pinjamin|dipinjem|dipinjam|dipinjemin|dipinjamin|ngutang|utang|hutang|kasbon|nalangin|talangin|bayarin|balikin|ngembaliin|transfer|transferin|tf|kirim|kirimin|ngirim|ngasih|kasih|bayar|nyicil|lunasin|piutang)(?![\p{L}])/iu;
+const PLACE_BEFORE = /(?<![\p{L}])(?:di|@|warung|toko|kedai|depot|rm|resto|restoran|gerai|kios|lapak|sate|bakso|martabak|soto|mie|mi|nasi|ayam|pecel|gado|es|kopi|bengkel|salon|apotek|klinik)\s+$/iu;
+function addressedNames(input: string, ctx: QuickContext) {
+  const shown = new Map<string, string>();
+  if (!ABOUT_A_PERSON.test(input)) return { text: input, shown };
+  const text = input.replace(ADDRESS_WORD, (all, word: string, name: string, at: number, whole: string) => {
+    if (PLACE_BEFORE.test(whole.slice(Math.max(0, at - 24), at))) return all;
+    const w = word.toLocaleLowerCase('id-ID'), n = name.toLocaleLowerCase('id-ID'), label = ADDRESS_SHOWN[w] || capWord(w);
+    if (ADDRESS_ROLE.has(n)) { const token = `${w}${n}`; shown.set(token, `${label} ${/^r[tw]$/.test(n) ? n.toUpperCase() : capWord(n)}`); return token; }
+    // "mas antam", "mas batangan": gold, not somebody.
+    if (w === 'mas' && /^(?:antam|ubs|batangan|perhiasan|murni|kawin|gram|logam|galeri|lotus|hartadinata)$/.test(n)) return all;
+    if (nameLike(n, ctx)) { shown.set(n, `${label} ${capWord(name)}`); return name; }
+    return all;
+  });
+  return { text, shown };
+}
+function addressBack(plan: QuickParseResult, shown: Map<string, string>, ctx: QuickContext) {
+  if (!shown.size) return plan;
+  const known = new Set([...(ctx.receivables || []).map(r => r.person), ...(ctx.debts || []).map(d => d.name), ...(ctx.debts || []).map(d => d.provider), ...(ctx.people || [])].filter(Boolean).map(n => String(n).toLocaleLowerCase('id-ID')));
+  for (const a of plan.actions) {
+    const r = a.result, who = (r.person || '').toLocaleLowerCase('id-ID'), label = shown.get(who);
+    // A record already names this person (Budi): its name is kept, so the same person is not written two ways.
+    if (!label || r.preset.receivableId || r.preset.debtId || known.has(who)) continue;
+    const word = new RegExp(`(?<![\\p{L}])${who.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu');
+    r.person = label;
+    if (r.name) r.name = r.name.replace(word, label);
+    if (r.preset.description) r.preset.description = r.preset.description.replace(word, label);
+    a.evidence.push(`${label} dibaca sebagai satu nama.`);
+  }
+  return plan;
+}
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
-  return settingAfterThing(parseQuickPlanAll(input, ctx, mode));
+  const { text, shown } = addressedNames(input, ctx);
+  const plan = settingAfterThing(parseQuickPlanAll(text, ctx, mode));
+  if (shown.size && plan.sourceText === text) plan.sourceText = input;
+  return addressBack(plan, shown, ctx);
 }
 function parseQuickPlanAll(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const raw = input.trim().replace(SAID_FIRST, '');

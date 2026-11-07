@@ -27,10 +27,14 @@ const ENTITY = new Set(['person', 'description', 'merchant', 'purpose']);
 const LOAN = new Set(['debt_new', 'receivable_new', 'debt_payment', 'receivable_payment']);
 const side = k => k?.startsWith('debt') ? 'debt' : k?.startsWith('receivable') ? 'receivable' : '';
 /** V3.2: debtor and creditor from the user's side ('user' or the other person). */
-const roles = x => side(x.kind) === 'debt' ? [ 'user', norm(x.person) ] : [ norm(x.person), 'user' ];
+const roles = x => side(x.kind) === 'debt' ? [ 'user', norm(x.person).replace(ADDRESS, '') ] : [ norm(x.person).replace(ADDRESS, ''), 'user' ];
 const empty = v => v === undefined || v === null || v === '';
 const norm = v => String(v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-const same = (f, t, g) => t === null ? empty(g) : ['person', 'description', 'merchant', 'purpose', 'subject'].includes(f) ? norm(t) === norm(g) : g === t;
+// 8.5: a name now keeps its word of address ("Kak Tio" for "kak tio ngutang", a product decision); the expected bare name
+// still matches it. Only the person field, only a leading word of address.
+const ADDRESS = /^(?:pak|bapak|bu|ibu|mas|mbak|kak|bang|om|tante|aa|cak|ning|dek|neng|koh|cik|ci) /;
+const samePerson = (t, g) => norm(t) === norm(g) || norm(g).replace(ADDRESS, '') === norm(t);
+const same = (f, t, g) => t === null ? empty(g) : f === 'person' ? samePerson(t, g) : ['description', 'merchant', 'purpose', 'subject'].includes(f) ? norm(t) === norm(g) : g === t;
 
 function align(truth, pred) {
   const used = new Set(), pairs = [];

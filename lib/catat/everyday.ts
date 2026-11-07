@@ -215,7 +215,8 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
     const who = from[1], verb = from[2], rest = from[3].trim(), family = new RegExp(`^${FAMILY}$`).test(who);
     const owes = (ctx.receivables || []).some(r => lower(r.person) === who && r.remainingAmount > 0);
     if (/^balik\b/.test(rest) || /^(?:bayar|nyicil|cicil|ngembaliin)$/.test(verb) && !family) { if (!owes) { t = `${who} balikin ${rest.replace(/^balik\s*/, '')}`.trim(); said(`${who} membayar: piutang dibayar`); } }
-    else if (!owes && rest) { t = `dapat ${family ? 'kiriman' : 'transferan'} ${rest} dari ${who}`.replace(/\s+/g, ' ').trim(); said(`${who} mengirim uang: uang masuk`); }
+    // 8.5 "hen ngasih pinjaman 100rb": a loan to the user (an Utang), read by the loan rules, not money sent.
+    else if (!owes && rest && !/^(?:pinjem|pinjam|pinjaman|minjemin|utang|hutang|utangan|hutangan)\b/.test(rest)) { t = `dapat ${family ? 'kiriman' : 'transferan'} ${rest} dari ${who}`.replace(/\s+/g, ' ').trim(); said(`${who} mengirim uang: uang masuk`); }
   }
   // "tagihan dika 100rb, baru bayar 40rb", "dika masih utang 150rb, hari ini bayar 50rb".
   const owed = t.match(new RegExp(String.raw`^(?:(?:tagihan|tagihannya|utang|utangnya|hutang)\s+(\p{L}{3,})\s+(${AMT})|(\p{L}{3,})\s+(?:masih\s+)?(?:utang|hutang|ngutang|punya utang)\s+(${AMT}))\s*,?\s*(?:dia\s+)?(?:hari ini\s+|tadi\s+|barusan\s+|baru\s+|udah\s+|sudah\s+)*(?:bayar|nyicil|cicil|transfer|balikin|ngasih|lunasin|ngembaliin)\s+(${AMT})(.*)$`, 'u'));

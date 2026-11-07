@@ -38,7 +38,7 @@ import { RIDDLES, ROAST, TREAT, USER_PANTUN, USER_RIDDLE, guessUserRiddle, insul
 import { readGame, type GameState } from './games.ts';
 import { readHowto } from './howto.ts';
 import { readStats } from './stats.ts';
-import { aboutItem, fromList, readAnswer, readSaving, spendingMore, type Answer, type ItemRef, type ListRef, type Saving } from './answers.ts';
+import { aboutItem, debtPerson, fromList, readAnswer, readSaving, spendingMore, type Answer, type ItemRef, type ListRef, type Saving } from './answers.ts';
 import { understand } from './understand.ts';
 import { FUN_MORE, readFunContent, readTalk } from './talk.ts';
 import { opensMenu, readModule } from './modules.ts';
@@ -64,6 +64,9 @@ export type ChatMemory = {
   about?: ItemRef;
   /** 8.4 The records the last answer listed, for "yang paling lama siapa?" / "totalnya?". */
   list?: ListRef;
+  /** 8.5 When the record, the list and the question were answered (the reply's turn): they last a few light replies
+   * ("makasih", "wkwk", a joke), so "dia kapan bayar?" or "rinciannya dong" still belongs to them. */
+  aboutAt?: number; listAt?: number; questionAt?: number;
   /** The last sentence handed to Catat otomatis to record, and whether it was saved. */
   plan?: { text: string; status: 'pending' | 'saved' | 'dismissed' };
   /** The last question answered, for "kalau bulan lalu?". */
@@ -288,6 +291,13 @@ const SMALL: [RegExp, 'kabar' | 'bosan' | 'tidur' | 'puji' | 'kamu' | 'galau'][]
 const DESIRE = /\b(?:pengen|pengin|pingin|ingin|mau|target|rencana|berencana|niat|cita.?cita|impian)\b/;
 const SAVE_WORD = /\b(?:nabung|menabung|ngumpulin|ngumpulkan|kumpulin|nyisihin|sisihin|menyisihkan|nyiapin|siapin|menyiapkan)\b|\bdana (?:darurat|pendidikan|pensiun|nikah|menikah|haji|umroh|kuliah)\b|\bpunya (?:rumah|mobil|motor|tabungan)\b|\b(?:target|tujuan) (?:nabung|tabungan)\b/;
 const LATER = /\b(?:tahun depan|bulan depan|tahun ini|akhir tahun|nanti|suatu hari)\b/;
+/** 8.5 Replies that do not change the subject: the record, list and question before them are still the ones meant. */
+const LIGHT = new Set<ChatIntent>(['greet', 'thanks', 'ack', 'smalltalk', 'banter', 'joke', 'fun', 'riddle', 'swear', 'apology', 'mood', 'curhat', 'angry', 'decline']);
+/** 8.5 For how many replies a record, a list or a question can still be meant ("dia kapan bayar?" three messages on). */
+const REFS_LAST = 3;
+const WHOLE_LIST = /\b(?:total\p{L}*|semua\p{L}*|jumlah\p{L}*)\b|\bada\s+berapa\b|\bberapa\s+(?:orang|item|biji|buah)\b/u;
+/** 8.5 "bayar ke dia", "transfer ke doi", "kasih dia": the person talked about, inside a record. */
+const TO_HIM = /\b(ke|sama|buat|untuk|dari|bayar|bayarin|transfer|tf|kasih|ngasih|balikin|kembaliin|minjemin|pinjemin)\s+(?:dia|doi|dianya)\b/i;
 const LEARNABLE = new Set<ChatIntent>(['summary', 'tips', 'help', 'examples', 'about', 'greet', 'thanks', 'budget', 'payday', 'mood', 'smalltalk', 'joke', 'banter', 'serious']);
 
 /* ------------------------------------------------------------------ 7.8 conversation */
@@ -562,9 +572,21 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
   // What lasts one reply only: the field asked, the offer made, the explanation, the phrase being taught.
   const mem: ChatMemory = { ...memory, asking: undefined, offer: undefined, explain: undefined, teaching: undefined, pendingQ: undefined, people: undefined, unitAsk: undefined, riddle: undefined, userRiddle: undefined, game: undefined, saving: undefined, item: undefined, start: undefined, about: undefined, list: undefined };
   const turn = (memory.turn || 0) + 1;
+  // 8.5 The record and the list answered lately are kept for three replies, while the talk in between was light.
+  const young = (at?: number) => at !== undefined && turn - at <= REFS_LAST;
+  if (young(memory.aboutAt)) { mem.about = memory.about; mem.aboutAt = memory.aboutAt; } else mem.aboutAt = undefined;
+  if (young(memory.listAt)) { mem.list = memory.list; mem.listAt = memory.listAt; } else mem.listAt = undefined;
+  const questionLive = memory.last === 'question' || young(memory.questionAt);
   const finish = (r: ChatResult): ChatResult => {
     const next: ChatMemory = { ...r.memory, turn, misses: r.intent === 'unknown' ? (memory.misses || 0) + 1 : 0 };
     if (r.intent !== 'unknown' && r.intent !== 'teach') next.unknown = undefined;
+    // 8.5 What was answered this turn is dated now; what was carried over stays only past light talk.
+    const light = LIGHT.has(r.intent);
+    if (next.about && next.aboutAt !== turn && !light) { next.about = undefined; next.aboutAt = undefined; }
+    // Talking about one of the listed records keeps the list ("yang paling lama siapa?" → "dia kapan bayar?" → "kalau yang paling besar?").
+    if (next.list && next.aboutAt === turn && next.about && next.list.kind === next.about.kind && next.list.ids.includes(next.about.id)) next.listAt = turn;
+    if (next.list && next.listAt !== turn && next.aboutAt !== turn && !light) { next.list = undefined; next.listAt = undefined; }
+    if (next.last === 'question') next.questionAt = turn; else if (!light) next.questionAt = undefined;
     return { ...r, memory: next };
   };
   const learnedAs = depth === 0 && !memory.teaching ? ctx.learned?.[typed] ?? ctx.learned?.[t] : undefined;
@@ -646,12 +668,18 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     const talk = (intent: ChatIntent, text: string, extra: Partial<Extract<ChatReply, { kind: 'say' }>> = {}, next: Partial<ChatMemory> = {}): ChatResult =>
       sayR(intent, { kind: 'say', card: 'talk', text, ...extra }, { ...mem, topic: intent, ...next });
     const addNote = (r: ChatResult, note: string): ChatResult => ({ ...r, reply: r.reply.kind === 'say' ? { ...r.reply, note: [note, r.reply.note].filter(Boolean).join(' ') } : { ...r.reply, intro: [note, r.reply.intro].filter(Boolean).join(' ') } });
+    /** 8.5 Whom a record is about, for "dia" later: the person of a receivable, or of a debt owed to a person. */
+    const personOf = (ref: ItemRef): string => {
+      if (ref.kind === 'receivable') return lower(ctx.data.receivables.find(r => r.id === ref.id)?.person || '');
+      const d = ref.kind === 'debt' ? ctx.data.debts.find(x => x.id === ref.id) : undefined;
+      return d ? debtPerson(d, [...(ctx.quick.people || []), ...ctx.data.receivables.map(r => r.person)].map(lower)) : '';
+    };
     /** 8.3 A v3 answer as a card; a question about a period can be asked again ("kalau bulan lalu?"). */
     const v3Say = (a: Answer, asked?: string, intent?: ChatIntent): ChatResult => sayR(intent || a.intent, {
       kind: 'say', card: a.intent === 'calc' ? 'calc' : a.intent === 'tips' ? 'tips' : a.intent === 'payday' ? 'payday' : a.intent === 'module' ? 'talk' : 'summary',
       title: a.title, text: a.text, ...(a.hero ? { hero: { ...a.hero, tone: a.hero.tone === 'info' ? undefined : a.hero.tone } } : {}), ...(a.stats?.length ? { stats: a.stats } : {}), ...(a.lines?.length ? { lines: a.lines } : {}), ...(a.bars?.length ? { bars: a.bars } : {}),
       ...(a.open ? { open: a.open } : {}), ...(a.chips?.length ? { chips: a.chips } : {}), ...(a.why ? { why: a.why } : {}), tone: 'info',
-    }, { ...mem, topic: intent || a.intent, saving: a.saving, item: a.item, about: a.about, ...(a.about?.kind === 'receivable' ? { person: lower(ctx.data.receivables.find(r => r.id === a.about!.id)?.person || '') || mem.person } : {}), ...(asked && a.intent === 'question' ? { question: asked, last: 'question' as const } : {}) });
+    }, { ...mem, topic: intent || a.intent, saving: a.saving, item: a.item, about: a.about, ...(a.about ? { aboutAt: turn, person: personOf(a.about) || mem.person } : {}), ...(asked && a.intent === 'question' ? { question: asked, last: 'question' as const } : {}) });
 
     // 8.3.3 Right after a wallet's balance ("saldo mandiri brp" → Rp599.800), "adjust ke 564.800" sets that wallet's balance
     // through Catat otomatis (Perbarui saldo), the same as "saldo mandiri sekarang 564.800"; nothing is saved without a tap.
@@ -676,9 +704,11 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (ctx.inspect(text).reading === 'record') return plan(text, { intent: 'fill' });
     }
     // 8.4 About the record just answered: "dia kapan bayar?", "udah lunas belum?", "buat apa dulu?", "berapa?".
-    const aboutIt = memory.about && !money ? aboutItem(t, memory.about, ctx, v) : null;
+    // 8.5 With a list still meant, "totalnya?" / "ada berapa?" is about all of it, not the one record picked from it.
+    const picked = mem.list && !money ? fromList(t, mem.list, ctx, v) : null;
+    if (picked && WHOLE_LIST.test(t)) return v3Say(picked, undefined, 'followup');
+    const aboutIt = mem.about && !money ? aboutItem(t, mem.about, ctx, v) : null;
     if (aboutIt) return v3Say(aboutIt, undefined, 'followup');
-    const picked = memory.list && !money ? fromList(t, memory.list, ctx, v) : null;
     if (picked) return v3Say(picked, undefined, 'followup');
     // 7.8 Teaching: the message after "Maksud “X” itu apa?" is what X means.
     if (memory.teaching) {
@@ -730,6 +760,8 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     }
     // "dia baru balikin 40rb ke tunai": the person talked about just now.
     if (he && memory.person && depth === 0) return chatReply(raw.replace(/^\s*(?:dia|doi|dianya)\b/i, memory.person), mem, ctx, 1);
+    // 8.5 "bayar ke dia 500rb", "transfer ke doi 200rb": the person inside a record with an amount.
+    if (!he && money && memory.person && depth === 0 && TO_HIM.test(raw)) return chatReply(raw.replace(TO_HIM, (_m, verb: string) => `${verb} ${memory.person}`), mem, ctx, 1);
     if (SELF_HARM.test(t)) return talk('curhat', safety(v), { tone: 'warn' }, { curhat: (memory.curhat || 0) + 1, serious: true });
     // 8.0 Riddles: the guess at the assistant's riddle; the person's own riddle (its question, then its punchline).
     if (memory.riddle !== undefined && RIDDLES[memory.riddle] && !money && words <= 8 && !CANCEL.test(t)) return talk('riddle', riddleAnswer(v, RIDDLES[memory.riddle], t, turn), { chips: ['tebak-tebakan lagi', 'kasih jokes dong'] }, { topic: 'joke' });
@@ -936,7 +968,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     }
     // 8.0 Every menu: opening it, or what is in it ("utang gue berapa", "langganan apa aja"), with a button to it.
     const module = !money ? readModule(t, ctx.data, ctx.today, v) : null;
-    if (module) return sayR('module', { kind: 'say', card: 'talk', title: module.title, text: module.text, ...(module.hero ? { hero: module.hero } : {}), ...(module.lines?.length ? { lines: module.lines } : {}), ...(module.bars?.length ? { bars: module.bars } : {}), ...(module.chips?.length ? { chips: module.chips } : {}), open: module.open }, module.list ? { ...mem, list: module.list, topic: 'module' } : mem);
+    if (module) return sayR('module', { kind: 'say', card: 'talk', title: module.title, text: module.text, ...(module.hero ? { hero: module.hero } : {}), ...(module.lines?.length ? { lines: module.lines } : {}), ...(module.bars?.length ? { bars: module.bars } : {}), ...(module.chips?.length ? { chips: module.chips } : {}), open: module.open }, module.list ? { ...mem, list: module.list, listAt: turn, topic: 'module' } : mem);
     // "untung gue segitu kan?" after a sale: recorded as money in, and what profit still needs.
     if (money && /\b(?:untung|laba|profit|cuan)\b.*\b(?:kan|ya|bukan|gak|nggak|ga|kah)\s*$/.test(t)) {
       const clean = raw.replace(/\s*,?\s*(?:itu\s+)?(?:untung|laba|profit|cuan)\b.*$/i, '').trim(), ins = ctx.inspect(clean);
@@ -1001,7 +1033,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (again) { const c = calculate(`${mem.number!.toLocaleString('id-ID', { maximumFractionDigits: 6 })} ${again[1]} ${again[2]}`); if (c) return sayR('calc', calcReply(c, true, v), { ...mem, number: c.value, last: 'calc' }); }
     // 8.4 Right after a spending total: "rinciannya dong", "yang paling besar apa?", "dibanding sebelumnya gimana?",
     // "kenapa banyak banget" — about the period that question named.
-    if (mem.question && mem.last === 'question' && !money && words <= 7) {
+    if (mem.question && questionLive && !money && words <= 7) {
       const asked = lower(mem.question), totalAsked = SPEND_ASKED.test(asked) || INCOME_ASKED.test(asked);
       const more = !totalAsked ? null : MORE_WHY.test(t) && SPEND_ASKED.test(asked) ? 'why' : MORE_COMPARE.test(t) ? 'compare' : MORE_BIGGEST.test(t) && SPEND_ASKED.test(asked) ? 'biggest' : MORE_BREAKDOWN.test(t) && SPEND_ASKED.test(asked) ? 'breakdown' : null;
       const said = readPeriod(asked, ctx.today, ctx.salaryDay)?.said || '';
@@ -1009,10 +1041,10 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (a) return v3Say(a, undefined, 'followup');
     }
     // The last question again, with a new period or subject.
-    if (mem.question && (mem.last === 'question' || readPeriod(t, ctx.today, ctx.salaryDay))) {
+    if (mem.question && (questionLive || readPeriod(t, ctx.today, ctx.salaryDay))) {
       const f = t.match(FOLLOW), onlyPeriod = readPeriod(t, ctx.today, ctx.salaryDay);
       // 7.9 "makan siang aja, kopi jangan": the subject narrowed.
-      const only = mem.last === 'question' ? t.match(/^([\p{L}\s]{3,30}?)\s+(?:aja|saja|doang)(?:\s*,\s*[\p{L}\s]+?\s+(?:jangan|ga usah|gak usah|nggak usah|nggak|gak|enggak))?$/u) : null;
+      const only = questionLive ? t.match(/^([\p{L}\s]{3,30}?)\s+(?:aja|saja|doang)(?:\s*,\s*[\p{L}\s]+?\s+(?:jangan|ga usah|gak usah|nggak usah|nggak|gak|enggak))?$/u) : null;
       // 8.3 "kalau bulan lalu? sih": the words around the new period or subject are not part of it.
       const rest = (f ? f[1] : only ? only[1] : onlyPeriod && unfill(t.replace(onlyPeriod.said, ' ')).replace(/[\s?!.]/g, '') === '' ? t : '').replace(/[^\p{L}\p{N}\s]+/gu, ' ').replace(/\b(?:sih|dong|ya|deh|nih|kak|min|bot|gimana|berapa|brp)\b/g, ' ').replace(/\s{2,}/g, ' ').trim();
       if (rest && ctx.inspect(t).reading !== 'record' && !findAmounts(t).some(a => a.marked)) {

@@ -451,7 +451,19 @@ function nearestBill(ctx: AnswerCtx, v: Voice): Answer | null {
  * kapan?", "udah lunas belum?", "buat apa dulu?", "berapa nominalnya", "sisa berapa bulan lagi". Anything naming
  * something else is not (null), so "kapan gajian" after a receivable is still its own question.
  */
-const ABOUT_WORDS = new Set('dia doi dianya itu tuh ini yang yg udah sudah dah belum blm belom lunas bayar dibayar bayarnya dibalikin balikin dikembaliin kembaliin ngembaliin cair cairnya kapan berapa brp brapa tanggal tanggalnya tgl jatuh tempo temponya jatuhtemponya janji janjinya janjiin sisa sisanya lagi bulan buat untuk apa dulu nominal nominalnya jumlah jumlahnya totalnya ya sih dong kah gimana harus musti mesti kira kira2 kira-kira deh nih kok emang memang pinjem pinjam minjem minjam ngutang utang utangnya hutang hutangnya keperluan keperluannya ngapain dipake dipakai kelar beres lunasnya siapa orangnya namanya nya kali terakhir masih'.split(' '));
+/** 8.5 Whom a debt is owed to, when it is a person ("Pinjaman Kak Rina" → "kak rina"): "dia" can then mean them. A lender (Kredivo, a bank, a card) is not. */
+const LENDER = /\b(?:cicilan|angsuran|kredit|paylater|kredivo|akulaku|spaylater|gopaylater|atome|indodana|home\s*credit|kredit\s*pintar|adakami|easycash|julo|kartu|cc|bank|bca|bri|bni|bsi|mandiri|btn|cimb|danamon|permata|jago|jenius|seabank|blu|pegadaian|koperasi|kpr|leasing|adira|fif|wom|bpr|pinjol|shopee|tokopedia|gopay|ovo|dana|kantor|perusahaan|pt|cv)\b/iu;
+const KIN_OR_ADDRESS = /^(?:pak|bapak|bu|ibu|mas|mbak|mba|kak|kaka|bang|abang|om|tante|aa|cak|ning|dek|adek|neng|koh|cik|ci|teh|teteh|mama|mamah|papa|papah|ayah|bunda|nenek|kakek|paman|bibi|budhe|bude|pakde|bulek)\b/iu;
+export function debtPerson(d: { name: string; provider?: string }, people: string[] = []): string {
+  const who = (d.provider || '').trim() || (d.name.match(/^(?:pinjaman|pinjam|pinjem|utang|hutang|minjem)\s+(?:ke|dari|sama)?\s*(.+)$/iu)?.[1] || '').trim();
+  if (!who || LENDER.test(who) || who.split(/\s+/).length > 3) return '';
+  const low = who.toLocaleLowerCase('id-ID');
+  if (KIN_OR_ADDRESS.test(who) || people.includes(low) || /^\p{Lu}\p{Ll}+$/u.test(who)) return low;
+  return '';
+}
+const ABOUT_WORDS = new Set('dia doi dianya itu tuh ini yang yg udah sudah dah belum blm belom lunas bayar dibayar bayarnya dibalikin balikin dikembaliin kembaliin ngembaliin cair cairnya kapan berapa brp brapa tanggal tanggalnya tgl jatuh tempo temponya jatuhtemponya janji janjinya janjiin sisa sisanya lagi bulan buat untuk apa dulu nominal nominalnya jumlah jumlahnya totalnya ya sih dong kah gimana harus musti mesti kira kira2 kira-kira deh nih kok emang memang pinjem pinjam minjem minjam ngutang utang utangnya hutang hutangnya keperluan keperluannya ngapain dipake dipakai kelar beres lunasnya siapa orangnya namanya nya kali terakhir masih tadi aku gue gua saya ke sama piutang piutangnya cicilan cicilannya klaim klaimnya tagihan tagihannya'.split(' '));
+/** 8.5 A word naming the kind of record: the question is about that record only when it is that kind ("piutangnya" after a debt is not). */
+const KIND_WORDS: Record<string, ItemRef['kind'][]> = { piutang: ['receivable'], piutangnya: ['receivable'], cicilan: ['debt', 'recurring'], cicilannya: ['debt', 'recurring'], klaim: ['claim'], klaimnya: ['claim'], tagihan: ['debt', 'recurring'], tagihannya: ['debt', 'recurring'] };
 const WHEN = /\b(?:kapan|tanggal\p{L}*|tgl|jatuh\s*tempo\p{L}*|tempo\p{L}*|deadline|janji\p{L}*)\b/u;
 const PAID = /\b(?:lunas\p{L}*|dibayar|bayar\p{L}*|balikin|dibalikin|kembaliin|dikembaliin|cair\p{L}*|kelar|beres)\b/u;
 const WHAT_FOR = /\b(?:buat|untuk)\s+apa\b|\bkeperluan\p{L}*|\bngapain\b|\bdipak[ea]i?\s+apa\b/u;
@@ -459,6 +471,7 @@ const HOW_MUCH = /\b(?:berapa|brp|brapa|nominal\p{L}*|jumlah\p{L}*|total\p{L}*|s
 export function aboutItem(t: string, ref: ItemRef, ctx: AnswerCtx, v: Voice): Answer | null {
   const words = t.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(Boolean);
   if (!words.length || words.length > 8 || words.some(w => !ABOUT_WORDS.has(w) && !/^\d+$/.test(w))) return null;
+  if (words.some(w => KIND_WORDS[w] && !KIND_WORDS[w].includes(ref.kind))) return null;
   const { data, today } = ctx, base = { intent: 'module' as const, about: ref, item: ref.kind };
   const when = WHEN.test(t) || /\bkapan\b/.test(t), paid = !when && PAID.test(t), whatFor = WHAT_FOR.test(t), months = HOW_MUCH.test(t) && /\bbulan\b/.test(t), much = HOW_MUCH.test(t);
   const days = (iso: string) => { const n = daysBetween(today, iso); return n === 0 ? 'hari ini' : n === 1 ? 'besok' : n > 0 ? `${n} hari lagi` : `lewat ${-n} hari`; };
