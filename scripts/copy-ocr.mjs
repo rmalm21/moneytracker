@@ -54,3 +54,12 @@ for (const name of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']
   fs.mkdirSync(path.dirname(target), { recursive: true });
   if (!fs.existsSync(target) || fs.statSync(target).size !== fs.statSync(source).size) fs.copyFileSync(source, target);
 }
+
+// 8.7 The PDF statement reader: pdf.js (Apache-2.0), the legacy build so older Android browsers can run it too. Served from
+// /pdf and loaded only when a PDF statement is chosen; nothing is fetched from an outside host.
+for (const name of ['pdf.min.mjs', 'pdf.worker.min.mjs']) {
+  const source = path.join(root, 'node_modules/pdfjs-dist/legacy/build', name), target = path.join(root, 'public', 'pdf', name);
+  if (!fs.existsSync(source)) { console.warn(`PDF: ${name} tidak ditemukan, impor mutasi PDF tidak tersedia.`); continue; }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  if (!fs.existsSync(target) || fs.statSync(target).size !== fs.statSync(source).size) fs.copyFileSync(source, target);
+}

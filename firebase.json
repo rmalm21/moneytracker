@@ -7,7 +7,8 @@
       {"source": "/sw.js", "headers": [{"key":"Cache-Control","value":"no-cache"}]},
       {"source": "/**", "headers": [{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},{"key":"Cache-Control","value":"no-store"}]},
       {"regex": "^/(?:$|[^l_].*|_[^_].*|l(?:$|[^o].*)|lo(?:$|[^g].*)|log(?:$|[^i].*)|logi(?:$|[^n].*)|login[^/].*)$", "headers": [{"key":"Cross-Origin-Opener-Policy","value":"same-origin"},{"key":"Cross-Origin-Embedder-Policy","value":"require-corp"}]},
-      {"source": "/ocr/**", "headers": [{"key":"Cache-Control","value":"public,max-age=2592000"}]}
+      {"source": "/ocr/**", "headers": [{"key":"Cache-Control","value":"public,max-age=2592000"}]},
+      {"source": "/pdf/**", "headers": [{"key":"Cache-Control","value":"public,max-age=2592000"}]}
     ]
   },
   "firestore": {"rules":"firestore.rules", "indexes":"firestore.indexes.json"}

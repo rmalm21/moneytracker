@@ -8808,6 +8808,65 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .si-bill > span { display: grid; min-width: 0; }
 .si-bill > span small { color: var(--muted); font-size: .78rem; }
 .si-bills > small { color: var(--muted); line-height: 1.45; }
+/* 8.7 A PDF statement locked with a password. */
+.si-password { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
+.si-password > strong { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+.si-password > small { color: var(--muted); line-height: 1.45; }
+.si-password .field { margin: 0; }
+.si-ok { display: flex; align-items: flex-start; gap: 6px; }
+.si-ok svg { flex: none; margin-top: 2px; color: var(--good-ink, #1f7a4d); }
+/* 8.7 Import rows that can be changed or removed before saving. */
+.si-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--paper); }
+.si-row { display: grid; gap: 6px; padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); }
+.si-row:first-child { border-top: 0; }
+.si-row.needs { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--warn-ink, #8a5a00) 55%, transparent); }
+.si-row.is-open { background: color-mix(in srgb, var(--accent) 5%, var(--paper)); }
+.si-row-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.si-row-main { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.si-row-main > span { display: grid; min-width: 0; }
+.si-row-main > span strong { font-size: .88rem; overflow-wrap: anywhere; }
+.si-row-main > span small { color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
+.si-row-main > b { flex: none; font-size: .88rem; }
+.si-row-actions { flex: none; display: inline-flex; gap: 2px; }
+.si-row-actions .icon-button, .si-saved .icon-button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.si-row-actions .icon-button:hover, .si-saved .icon-button:hover { background: var(--accent-soft); color: var(--ink); }
+.si-del:hover { color: var(--danger-ink, #a13847) !important; background: var(--danger-soft, #fdeef0) !important; }
+.si-ask { display: grid; gap: 6px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--paper)); border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.si-ask > small { color: var(--ink); font-weight: 700; font-size: .8rem; overflow-wrap: anywhere; }
+.si-ask > small + .si-chips + small { font-weight: 500; color: var(--muted); }
+.si-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.si-chip { min-height: 34px; padding: 0 12px; border: 1px solid var(--line-strong, var(--line)); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.si-chip:hover { border-color: var(--accent); }
+.si-chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.si-chip.is-hint { border-color: var(--accent); background: var(--accent-soft); }
+.si-problem { color: var(--warn-ink, #8a5a00); font-size: .76rem; line-height: 1.4; overflow-wrap: anywhere; }
+.si-editor { display: grid; gap: 10px; padding: 10px 0 4px; border-top: 1px dashed var(--line); }
+.si-editor .field { margin: 0; }
+.si-editor > small.muted { font-size: .74rem; overflow-wrap: anywhere; }
+.si-edit-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.si-save { display: grid; gap: 8px; }
+.si-save .btn { width: 100%; justify-content: center; }
+.si-save > small { text-align: center; }
+.si-people { margin: 0; }
+.si-done { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--good-ink, #1f7a4d) 30%, var(--line)); background: color-mix(in srgb, var(--good-ink, #1f7a4d) 6%, var(--paper)); }
+.si-done > strong { display: flex; align-items: center; gap: 6px; color: var(--good-ink, #1f7a4d); font-size: .92rem; }
+.si-done > small { color: var(--muted); line-height: 1.45; }
+.si-saved { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--paper); }
+.si-saved li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 12px; border-top: 1px solid var(--line); }
+.si-saved li:first-child { border-top: 0; }
+.si-saved li > span:first-child { display: grid; min-width: 0; }
+.si-saved li > span:first-child strong { font-size: .88rem; overflow-wrap: anywhere; }
+.si-saved li > span:first-child small { color: var(--muted); font-size: .76rem; }
+.si-saved-side { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .88rem; }
+.si-saved li.is-gone { opacity: .5; }
+.si-saved li.is-gone strong { text-decoration: line-through; }
+.si-dupes { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--warn-ink, #8a5a00) 30%, var(--line)); background: color-mix(in srgb, var(--warn-ink, #8a5a00) 6%, var(--paper)); }
+.si-dupes > strong { display: flex; align-items: center; gap: 6px; font-size: .92rem; color: var(--warn-ink, #8a5a00); }
+.si-dupes > small, .si-dupes li small { color: var(--muted); line-height: 1.45; }
+.si-dupes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.si-dupes li { display: grid; gap: 2px; font-size: .86rem; min-width: 0; overflow-wrap: anywhere; }
+.inbox-double { display: block; margin-top: 4px; color: var(--warn-ink, #8a5a00); font-size: .78rem; line-height: 1.4; overflow-wrap: anywhere; }
+.inbox-ask { margin-top: 6px; }
 /* 8.6 The form's code is fetched on first open (normally already warmed while idle). */
 .form-loading { padding: 28px 8px; text-align: center; color: var(--muted); font-size: .9rem; }
 /* 8.6 The chat loads on the first touch of its button. */

@@ -48,10 +48,10 @@ self.addEventListener('fetch', event => {
   // Other pages (the receipt benchmark): the network, or the saved app if offline.
   if (request.mode === 'navigate') { event.respondWith(fetch(request).catch(() => caches.match('/').then(page => page || Response.error()))); return; }
   // Hashed build files never change, and the receipt readers' models and runtime (/ocr: Tesseract, PP-OCRv6, ONNX
-  // Runtime) only change with a new app version: serve from cache first, download once.
+  // Runtime) and the PDF statement reader (/pdf: pdf.js) only change with a new app version: serve from cache first, download once.
   // The page is cross-origin isolated (for the receipt reader's threads), and the browser then only starts a worker whose
   // script says so too: every copy served from here carries those headers, also a copy saved before they existed.
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/ocr/')) {
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/ocr/') || url.pathname.startsWith('/pdf/')) {
     event.respondWith(caches.match(request).then(saved => saved || fetch(request).then(response => {
       if (response.ok) { const copy = response.clone(); caches.open(RUNTIME).then(cache => cache.put(request, copy)); }
       return response;

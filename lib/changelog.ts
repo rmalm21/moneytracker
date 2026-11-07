@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.7', date: '7 Nov 2026', title: 'Impor mutasi dari PDF, termasuk e-statement yang dikunci password', items: [
+    ['📥', 'Impor mutasi sekarang bisa dari file PDF: riwayat transaksi e-wallet (seperti GoPay) dan e-statement bank, termasuk bank digital yang punya kantong. PDF dibaca di HP-mu dan tidak diunggah, sama seperti CSV dan Excel.'],
+    ['🛡️', 'E-statement yang dikunci password (Mandiri, BCA, dan bank lain) bisa dibuka: ketik password-nya sekali. Password hanya dipakai untuk membuka file di HP-mu, tidak disimpan dan tidak dikirim ke mana pun.'],
+    ['🎯', 'Total di PDF dicek: saldo awal, saldo akhir, atau total masuk dan keluar di ringkasan bank harus sama dengan baris yang terbaca. Kalau sama, ada tanda bahwa tidak ada baris yang terlewat.'],
+    ['🤝', 'Uang ke atau dari rekeningmu sendiri, top up e-wallet, dan tarik dari GoPay/OVO/DANA/ShopeePay dibaca sebagai pindah dompet, bukan pengeluaran atau pemasukan. Pindah saldo antar kantong dan cashback berupa koin dilewati.'],
+    ['📝', 'Hasil impor bisa diubah dulu sebelum disimpan: nama, untuk apa, kategori, dompet, tanggal, dan nominal, atau dihapus per baris. Lalu pilih Simpan sebagai draft (masuk Konfirmasi) atau Catat sekarang. Setelah disimpan, tiap hasil impor bisa dihapus lagi dari daftarnya.'],
+    ['💡', 'Transfer ke atau dari orang ditanya dulu untuk apa: bayar sesuatu, pinjamkan (jadi piutang), bayar utang, pelunasan piutang, atau pinjam (jadi utang). Kalau ada utang/piutang yang belum lunas dengan orang itu, langsung disarankan.'],
+    ['🛡️', 'Cek dobel: tiap baris dibandingkan dengan semua catatan lamamu, termasuk yang dicatat di dompet lain, tanggalnya geser 2–3 hari, atau nominalnya beda sedikit karena biaya layanan. Yang mungkin dobel ditunjukkan berdampingan, tidak ikut dicatat sekaligus, dan diberi tanda di Konfirmasi. Impor sebelumnya yang masih menunggu juga tidak dimasukkan dua kali.'],
+    ['🧾', 'Nama baris mutasi lebih rapi: “Ditransfer ke Sari” jadi “Transfer ke Sari”, dan pajak bunga tidak lagi tertulis sebagai bunga.'],
+  ] },
   { version: '8.6', date: '7 Nov 2026', title: 'Buka aplikasi lebih cepat, impor mutasi cocokkan saldo, dan chat yang nyambung ke Rekap', items: [
     ['⚡', 'Aplikasi terbuka sekitar 40% lebih cepat di HP biasa: chat, formulir, pemindai struk, dan grafik baru dimuat saat dibutuhkan. Tombol chat tetap langsung tampil, dan tombol “+” tetap langsung terbuka.'],
     ['🧾', 'Impor mutasi kini membandingkan saldo bank di file dengan saldo dompetmu. Kalau cocok, ada tanda “Saldo cocok dengan bank”; kalau beda, tombol Samakan saldo membuka Koreksi saldo yang sudah terisi (tetap kamu yang menekan Simpan).'],

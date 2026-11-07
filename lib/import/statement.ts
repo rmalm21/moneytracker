@@ -14,7 +14,7 @@ import { walletsIn } from '../quick-entry.ts';
 import type { Category, Draft, LedgerTx, Recurring, TxType, Wallet } from '../types';
 import { isOldExcel, isZip, readXlsx } from './xlsx.ts';
 
-export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean; /** 8.6 The balance after this row, when the file shows it. */ balance?: number };
+export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean; /** 8.6 The balance after this row, when the file shows it. */ balance?: number; /** 8.7 The bank's own kind of row ("Transfer Keluar"), when it has a column for it. */ kind?: string };
 export type StatementRead = {
   rows: StatementRow[];
   /** The columns read, by their header text (for "Kolom yang dibaca: …"). */
@@ -26,8 +26,16 @@ export type StatementRead = {
   from?: string; to?: string;
   /** 8.6 The bank's own balances: at the start and end of the file, and whether the rows read add up from one to the
    * other (opening + money in − money out = closing), which tells that no row was missed. */
-  balance?: { opening?: number; closing?: number; closingDate?: string; complete?: boolean };
+  balance?: { opening?: number; closing?: number; closingDate?: string; complete?: boolean; totalIn?: number; totalOut?: number };
+  /** 8.7 Moves between the account's own pockets (Krom "Pemindahan Saldo"): not money in or out, left out. */
+  internal?: number;
+  /** 8.7 The account holder's name (from a PDF statement), to tell transfers to and from their own accounts. */
+  owner?: string;
+  /** 8.7 Rows in points, not money (GoPay Coins cashback): left out. */
+  points?: number;
 };
+/** 8.7 Figures read around the table of a PDF statement (its summary), which beat what the rows alone suggest. */
+export type StatementMeta = { opening?: number; closing?: number; totalIn?: number; totalOut?: number; owner?: string; /** GoPay "Total Coins dipakai": paid with points, inside the amounts but not in the money total. */ pointsUsed?: number };
 
 /* ------------------------------------------------------------------ Reading the file */
 
@@ -72,14 +80,23 @@ function splitLine(line: string, sep: string) {
 export async function readStatementFile(bytes: Uint8Array): Promise<string[][]> {
   if (isOldExcel(bytes)) throw Error('File .xls lama belum bisa dibaca. Buka di Excel/Google Sheets lalu simpan sebagai .xlsx atau .csv.');
   if (isZip(bytes)) return readXlsx(bytes);
-  if (bytes.subarray(0, 5).every((b, i) => b === [0x25, 0x50, 0x44, 0x46, 0x2d][i])) throw Error('File PDF belum bisa dibaca. Unduh mutasi dalam format CSV atau Excel dari internet/mobile banking.');
+  if (isPdf(bytes)) throw Error('File PDF dibaca lewat readStatementSource.');
   return parseDelimited(decodeText(bytes));
+}
+export const isPdf = (bytes: Uint8Array) => bytes.subarray(0, 5).every((b, i) => b === [0x25, 0x50, 0x44, 0x46, 0x2d][i]);
+/**
+ * 8.7 Any statement file: CSV, Excel, or PDF (read with pdf.js, loaded only here; a password-protected PDF needs its
+ * password, used once to open it and never kept). Returns the table and, for a PDF, the summary figures around it.
+ */
+export async function readStatementSource(bytes: Uint8Array, opts: { password?: string; today?: string } = {}): Promise<{ table: string[][]; meta?: StatementMeta; kind: 'pdf' | 'sheet' }> {
+  if (isPdf(bytes)) { const { readPdfStatement } = await import('./pdf.ts'); const r = await readPdfStatement(bytes, opts); return { table: r.table, meta: r.meta, kind: 'pdf' }; }
+  return { table: await readStatementFile(bytes), kind: 'sheet' };
 }
 
 /* ------------------------------------------------------------------ Amounts and dates */
 
 /** An amount as banks write it, with its sign when the cell says (-, DB/CR, parentheses). Cents are dropped. */
-export function parseAmount(raw: string): { value: number; sign: -1 | 0 | 1 } | null {
+export function parseAmount(raw: string): { value: number; sign: -1 | 0 | 1; /** 8.7 With the cents (for adding up to the bank's totals). */ exact: number } | null {
   let s = String(raw ?? '').replace(/[ \s]+/g, ' ').trim();
   if (!s) return null;
   let sign: -1 | 0 | 1 = 0;
@@ -91,13 +108,13 @@ export function parseAmount(raw: string): { value: number; sign: -1 | 0 | 1 } | 
   s = s.replace(/^(?:rp\.?|idr)\s*/i, '').replace(/\s/g, '');
   if (!/^\d[\d.,]*$/.test(s)) return null;
   const dot = s.lastIndexOf('.'), comma = s.lastIndexOf(',');
-  let int: string;
-  if (dot >= 0 && comma >= 0) int = (dot > comma ? s.slice(0, dot).replace(/,/g, '') : s.slice(0, comma).replace(/\./g, ''));
-  else if (comma >= 0) int = /,\d{1,2}$/.test(s) && !/,\d{3}(?:,|$)/.test(s.slice(0, comma + 4)) ? s.slice(0, comma).replace(/,/g, '') : s.replace(/,/g, '');
-  else if (dot >= 0) int = /\.\d{1,2}$/.test(s) && (s.match(/\./g) || []).length === 1 ? s.slice(0, dot) : s.replace(/\./g, '');
+  let int: string, frac = '';
+  if (dot >= 0 && comma >= 0) { int = (dot > comma ? s.slice(0, dot).replace(/,/g, '') : s.slice(0, comma).replace(/\./g, '')); frac = s.slice(Math.max(dot, comma) + 1); }
+  else if (comma >= 0) { const decimal = /,\d{1,2}$/.test(s) && !/,\d{3}(?:,|$)/.test(s.slice(0, comma + 4)); int = decimal ? s.slice(0, comma).replace(/,/g, '') : s.replace(/,/g, ''); if (decimal) frac = s.slice(comma + 1); }
+  else if (dot >= 0) { const decimal = /\.\d{1,2}$/.test(s) && (s.match(/\./g) || []).length === 1; int = decimal ? s.slice(0, dot) : s.replace(/\./g, ''); if (decimal) frac = s.slice(dot + 1); }
   else int = s;
-  const value = Number(int);
-  return Number.isFinite(value) ? { value, sign } : null;
+  const value = Number(int), exact = value + (frac ? Number(`0.${frac}`) : 0);
+  return Number.isFinite(value) ? { value, sign, exact } : null;
 }
 
 const MONTHS: Record<string, number> = { jan: 1, januari: 1, january: 1, feb: 2, peb: 2, februari: 2, february: 2, mar: 3, maret: 3, march: 3, apr: 4, april: 4, mei: 5, may: 5, jun: 6, juni: 6, june: 6, jul: 7, juli: 7, july: 7, agu: 8, agt: 8, ags: 8, agus: 8, agustus: 8, aug: 8, august: 8, sep: 9, sept: 9, september: 9, okt: 10, oct: 10, oktober: 10, october: 10, nov: 11, nop: 11, november: 11, des: 12, dec: 12, desember: 12, december: 12 };
@@ -148,13 +165,15 @@ const ROLE: Record<'date' | 'desc' | 'debit' | 'credit' | 'amount' | 'kind' | 'b
 };
 type Role = keyof typeof ROLE;
 const roleOf = (cell: string): Role | null => { const n = norm(cell); if (!n) return null; for (const r of Object.keys(ROLE) as Role[]) if (ROLE[r].test(n)) return r; return null; };
+/** 8.7 What a header names (for the PDF reader, which keeps the bank's words only when they read the same here). */
+export const headerRole = roleOf;
 
 const NOT_A_ROW = /^(?:saldo awal|saldo akhir|opening balance|closing balance|beginning balance|ending balance|saldo sebelumnya|previous balance|total|sub ?total|mutasi debet|mutasi kredit|mutasi debit|jumlah|grand total|total debet|total kredit|total debit|total credit)\b/i;
 const OUT_WORD = /^(?:db|d|dr|debit|debet|keluar|uang keluar|out|outgoing|withdrawal|pembayaran|payment|pengeluaran|transfer keluar|purchase|pembelian)$/i;
 const IN_WORD = /^(?:cr|k|kr|kredit|credit|masuk|uang masuk|in|incoming|deposit|top ?up|pemasukan|transfer masuk|refund|cashback|setoran)$/i;
 
 /** The table read: header found by its words, rows read into date, description, amount and direction. */
-export function readStatement(table: string[][], today: string, knownYear?: number): StatementRead {
+export function readStatement(table: string[][], today: string, knownYear?: number, meta: StatementMeta = {}): StatementRead {
   const rows = table.map(r => r.map(c => String(c ?? '').trim()));
   // The header: the first of the first 40 rows naming a date column and a money column.
   let header = -1, roles: (Role | null)[] = [];
@@ -166,6 +185,7 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const above = rows.slice(0, header < 0 ? 15 : header).map(r => r.join(' ')).join(' ');
   const periodYear = knownYear ?? (Number(above.match(/(?:periode|period|tanggal|statement)[^\d]{0,20}\d{1,2}[/.-]\d{1,2}[/.-](\d{4})/i)?.[1] || above.match(/\b(20\d{2})\b/)?.[1] || 0) || undefined);
   if (header < 0) return inferWithoutHeader(rows, today, periodYear);
+  const INTERNAL = /\b(?:pemindahan saldo|balance movement|pindah antar kantong|pindah kantong|antar kantong)\b/i;
   const pick = (role: Role) => roles.indexOf(role);
   const dateCol = pick('date'), debit = pick('debit'), credit = pick('credit'), amountCol = pick('amount'), balanceCol = pick('balance');
   let kindCol = pick('kind');
@@ -185,8 +205,15 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const parts = body.map(r => dateParts(r[dateCol] || '')).filter((p): p is NonNullable<typeof p> => Boolean(p && !p.iso));
   if (!parts.some(p => p.a > 12) && parts.some(p => p.b > 12)) order = 'mdy';
   const out: StatementRow[] = [];
-  let skipped = 0, unsure = 0, opening: number | undefined, closing: number | undefined;
-  const signed = (a: { value: number; sign: -1 | 0 | 1 } | null) => a ? (a.sign < 0 ? -a.value : a.value) : undefined;
+  let skipped = 0, unsure = 0, internal = 0, opening: number | undefined, closing: number | undefined, sumIn = 0, sumOut = 0;
+  const signed = (a: { exact: number; sign: -1 | 0 | 1 } | null) => a ? (a.sign < 0 ? -a.exact : a.exact) : undefined;
+  // 8.7 Minus marks money out and plus is never written (GoPay: "-Rp26.700", "Rp71"): an unsigned amount is money in.
+  const amountCells = amountCol >= 0 ? body.map(r => parseAmount(r[amountCol] || '')).filter((a): a is NonNullable<ReturnType<typeof parseAmount>> => Boolean(a && a.exact > 0)) : [];
+  const minusOnly = amountCells.some(a => a.sign < 0) && !amountCells.some(a => a.sign > 0) && !body.some(r => /^\s*\+/.test(r[amountCol] || ''));
+  // 8.7 Amounts written with "Rp" everywhere but on a few rows: those are points (GoPay Coins cashback), not money.
+  const amountTexts = amountCol >= 0 ? body.map(r => r[amountCol] || '').filter(c => /\d/.test(c)) : [];
+  const withCurrency = amountTexts.filter(c => /\b(?:rp|idr)\b|rp\s?\d/i.test(c)).length, currencyAlways = amountTexts.length >= 4 && withCurrency >= amountTexts.length * .7;
+  let points = 0;
   // "Saldo Awal" / "Saldo Akhir" lines (above or below the table): the first amount on the line.
   const lineAmount = (r: string[]) => { for (const c of r) { if (/\p{L}{3,}/u.test(c.replace(/\b(?:rp|idr|db|cr)\b/gi, ''))) continue; const a = parseAmount(c); if (a && (a.value > 0 || /\d/.test(c))) return signed(a); } return undefined; };
   for (const r of rows) {
@@ -202,20 +229,28 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
     const rowBalance = balanceCol >= 0 ? signed(parseAmount(r[balanceCol] || '')) : undefined;
     let amount = 0, type: 'expense' | 'income' | null = null, unsureRow = false;
     const out1 = debit >= 0 ? parseAmount(r[debit] || '') : null, in1 = credit >= 0 ? parseAmount(r[credit] || '') : null;
-    if (out1 && out1.value > 0) { amount = out1.value; type = 'expense'; } else if (in1 && in1.value > 0) { amount = in1.value; type = 'income'; }
+    if (out1 && out1.exact > 0) { amount = out1.exact; type = 'expense'; } else if (in1 && in1.exact > 0) { amount = in1.exact; type = 'income'; }
     else if (amountCol >= 0) {
       const a = parseAmount(r[amountCol] || '');
-      if (a && a.value > 0) {
-        amount = a.value;
+      if (a && a.exact > 0 && currencyAlways && !/\b(?:rp|idr)\b|rp\s?\d/i.test(r[amountCol] || '')) { points++; return; }
+      if (a && a.exact > 0) {
+        amount = a.exact;
         const kind = kindCol >= 0 ? norm(r[kindCol] || '') : '';
-        type = kind && OUT_WORD.test(kind) ? 'expense' : kind && IN_WORD.test(kind) ? 'income' : a.sign < 0 ? 'expense' : a.sign > 0 ? 'income' : /\b(?:db|debit|debet)\b/i.test(description) ? 'expense' : /\b(?:cr|kredit|credit)\b/i.test(description) ? 'income' : null;
+        type = kind && OUT_WORD.test(kind) ? 'expense' : kind && IN_WORD.test(kind) ? 'income' : a.sign < 0 ? 'expense' : a.sign > 0 ? 'income' : minusOnly ? 'income' : /\b(?:db|debit|debet)\b/i.test(description) ? 'expense' : /\b(?:cr|kredit|credit)\b/i.test(description) ? 'income' : null;
         if (!type) { type = 'expense'; unsureRow = true; }
       }
     }
     if (!type || amount <= 0) { skipped++; return; }
+    // Every amount counts towards the bank's totals (cents and pocket moves too); a move between pockets is not imported.
+    if (type === 'income') sumIn += amount; else sumOut += amount;
+    if (INTERNAL.test(`${kindCol >= 0 ? r[kindCol] || '' : ''} ${description}`)) { internal++; return; }
+    if (Math.round(amount) < 1) { skipped++; return; }
     if (unsureRow) unsure++;
-    out.push({ line: header + 2 + k, date, description, amount: Math.round(amount), type, ...(unsureRow ? { unsure: true } : {}), ...(rowBalance !== undefined ? { balance: rowBalance } : {}) });
+    out.push({ line: header + 2 + k, date, description, amount: Math.round(amount), type, ...(unsureRow ? { unsure: true } : {}), ...(rowBalance !== undefined ? { balance: rowBalance } : {}), ...(kindCol >= 0 && /\p{L}{3,}/u.test(r[kindCol] || '') ? { kind: r[kindCol] } : {}) });
   });
+  // The summary of a PDF statement beats what the lines say.
+  if (meta.opening !== undefined) opening = meta.opening;
+  if (meta.closing !== undefined) closing = meta.closing;
   // Oldest first or newest first: the closing balance is the one after the latest row; the opening one is before the earliest.
   const withBalance = out.filter(r => r.balance !== undefined);
   if (withBalance.length) {
@@ -224,15 +259,22 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
     closing ??= latest.balance;
     opening ??= earliest.balance! - (earliest.type === 'income' ? earliest.amount : -earliest.amount);
   }
-  const net = out.reduce((n, r) => n + (r.type === 'income' ? r.amount : -r.amount), 0);
-  const balance = opening !== undefined || closing !== undefined ? {
-    ...(opening !== undefined ? { opening: Math.round(opening) } : {}), ...(closing !== undefined ? { closing: Math.round(closing), ...(out.length ? { closingDate: out.map(r => r.date).sort().pop()! } : {}) } : {}),
-    ...(opening !== undefined && closing !== undefined ? { complete: Math.abs(opening + net - closing) <= Math.max(1, out.length) } : {}),
+  // Complete when the amounts read add up: opening + in − out = closing, or (8.7, no balances) to the totals the bank states.
+  const tolerance = 1 + (out.length + internal) * .01, totals = meta.totalIn !== undefined && meta.totalOut !== undefined;
+  // Points spent (GoPay Coins) are inside the amounts read but not in the money the bank counts.
+  const outMatches = (out: number, total: number) => Math.abs(out - total) <= tolerance || (meta.pointsUsed !== undefined && Math.abs(out - meta.pointsUsed - total) <= tolerance);
+  const complete = opening !== undefined && closing !== undefined ? Math.abs(opening + sumIn - sumOut - closing) <= tolerance || (meta.pointsUsed !== undefined && Math.abs(opening + sumIn - sumOut + meta.pointsUsed - closing) <= tolerance)
+    : totals ? Math.abs(sumIn - meta.totalIn!) <= tolerance && outMatches(sumOut, meta.totalOut!) : undefined;
+  const closingDate = out.length ? out.map(r => r.date).sort().pop()! : undefined;
+  const balance = opening !== undefined || closing !== undefined || totals ? {
+    ...(opening !== undefined ? { opening: Math.round(opening) } : {}), ...(closing !== undefined ? { closing: Math.round(closing), ...(closingDate ? { closingDate } : {}) } : {}),
+    ...(totals ? { totalIn: Math.round(meta.totalIn!), totalOut: Math.round(meta.totalOut!) } : {}),
+    ...(complete !== undefined ? { complete } : {}),
   } : undefined;
   // With no sign anywhere, every amount was read as spending: said, so the person checks.
   const dates = out.map(r => r.date).sort();
   return {
-    rows: out, skipped, unsure, ...(balance ? { balance } : {}),
+    rows: out, skipped, unsure, ...(balance ? { balance } : {}), ...(internal ? { internal } : {}), ...(points ? { points } : {}), ...(meta.owner ? { owner: meta.owner } : {}),
     columns: { date: rows[header][dateCol], description: descCols.map(i => rows[header][i] || `Kolom ${i + 1}`), ...(amountCol >= 0 ? { amount: rows[header][amountCol] } : {}), ...(debit >= 0 ? { debit: rows[header][debit] } : {}), ...(credit >= 0 ? { credit: rows[header][credit] } : {}), ...(kindCol >= 0 ? { kind: rows[header][kindCol] || 'DB/CR' } : {}) },
     ...(dates.length ? { from: dates[0], to: dates[dates.length - 1] } : {}),
   };
@@ -266,7 +308,7 @@ const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-bank
 const KNOWN: [RegExp, string][] = [
   [/\b(?:tarik(?:an)?\s*(?:tunai\s*)?atm|tarik\s*tunai|penarikan\s*tunai|atm\s*withdrawal|cash\s*withdrawal|tarikan)\b/i, 'Tarik tunai'],
   [/\b(?:biaya\s*adm(?:in(?:istrasi)?)?|adm(?:in)?\s*fee|monthly\s*fee|biaya\s*bulanan|biaya\s*kartu|card\s*fee)\b/i, 'Biaya admin bank'],
-  [/\b(?:pajak\s*bunga|tax\s*on\s*interest|pph\s*bunga)\b/i, 'Pajak bunga'],
+  [/\b(?:pajak\s*(?:atas\s*)?bunga|tax\s*on\s*interest|interest\s*tax|pph\s*bunga)\b/i, 'Pajak bunga'],
   [/\b(?:bunga|interest|jasa\s*giro)\b/i, 'Bunga tabungan'],
   [/\b(?:biaya\s*transfer|transfer\s*fee|biaya\s*trf)\b/i, 'Biaya transfer'],
 ];
@@ -276,12 +318,19 @@ const titleCase = (s: string) => s.toLowerCase().replace(/(^|[\s(/&-])(\p{L})/gu
 export function nameFor(description: string): string {
   const d = description.replace(/[*#_]+/g, ' ').replace(/\s+/g, ' ').trim();
   for (const [re, name] of KNOWN) if (re.test(d)) return name;
+  // 8.7 E-wallet histories: "Ditransfer ke Sari Wulandari", "Diterima dari Andi".
+  const sent = d.match(/^(?:di)?(?:transfer|kirim)(?:kan)?\s+ke\s+([\p{L}][\p{L}\s.'-]{1,40}?)(?:\s+·|$)/iu), got = d.match(/^(?:diterima|terima|transfer|kiriman|dikirim)\s+dari\s+([\p{L}][\p{L}\s.'-]{1,40}?)(?:\s+·|$)/iu);
+  if (sent) return `Transfer ke ${titleCase(sent[1].trim())}`.slice(0, 60);
+  if (got) return `Transfer dari ${titleCase(got[1].trim())}`.slice(0, 60);
   const topUp = d.match(/\b(?:top\s*-?up|topup|isi\s*saldo)\s+([a-z]+(?:\s*pay)?)/i);
   if (topUp) return `Top up ${titleCase(topUp[1].replace(/\s+/g, ''))}`.replace(/Gopay/, 'GoPay').replace(/Shopeepay/, 'ShopeePay').replace(/Ovo/, 'OVO');
   const qris = d.match(/\bqris\b\s*(?:payment|pembayaran)?\s*(?:[\d/.:-]+\s+)*([\p{L}][\p{L}\s.&'-]{2,40})/iu);
   const wordsOf = (text: string) => text.split(/[\s·|,;:]+/).filter(w => w && !CODE.test(w) && !BANK_WORDS.has(w.toLowerCase()) && /\p{L}{2,}/u.test(w));
   // After "QRIS" comes the merchant; when nothing is left there, the whole line ("Warung Padang · QRIS Payment").
-  const words = qris && wordsOf(qris[1]).length ? wordsOf(qris[1]) : wordsOf(d);
+  // 8.7 The first part that says something ("Dompet Anak Bangsa · Cimb Niaga | 845…"), else the whole line (BCA puts the
+  // name on a later line: "TRSF E-BANKING DB · 0110/FTSCY · SARI WULANDARI").
+  const firstUseful = d.split(/\s+·\s+/).map(wordsOf).find(w => w.length);
+  const words = qris && wordsOf(qris[1]).length ? wordsOf(qris[1]) : firstUseful || wordsOf(d);
   const name = titleCase(words.slice(0, 6).join(' ')).replace(/\s+/g, ' ').trim();
   return (name || 'Transaksi dari mutasi').slice(0, 60);
 }
@@ -296,15 +345,23 @@ export type ImportItem = StatementRow & {
   already?: 'recorded' | 'imported' | 'skipped' | 'scheduled';
   /** 8.6 How the category was chosen: from your own records of this place, or from what kind of place it is. */
   from?: 'history' | 'place';
+  /** 8.7 Maybe recorded before in a looser way: in another wallet, a few days apart, or a slightly different amount
+   * (a service fee, a tip). The record it looks like, and why it is only "maybe". */
+  maybe?: { name: string; date: string; amount: number; walletId: string; why: 'wallet' | 'date' | 'amount' };
+  /** 8.7 Money sent to or received from a person (not a shop, not the person's own account): what it was for (paying for
+   * something, lending, paying a debt, being paid back…) is asked before it is recorded. */
+  person?: string;
 };
 export type ImportCtx = {
   walletId: string;
   wallets: Pick<Wallet, 'id' | 'name' | 'isArchived' | 'type'>[];
   categories: Category[];
-  transactions: Pick<LedgerTx, 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId'>[];
-  drafts: (Pick<Draft, 'id'> & Partial<Pick<Draft, 'status' | 'source' | 'amount' | 'walletId' | 'plannedDate'>>)[];
+  transactions: (Pick<LedgerTx, 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId'> & { id?: string })[];
+  drafts: (Pick<Draft, 'id'> & Partial<Pick<Draft, 'status' | 'source' | 'amount' | 'walletId' | 'destinationWalletId' | 'plannedDate' | 'name'>>)[];
   /** Import rows the person skipped before (kept on this device). */
   skipped?: Set<string>;
+  /** 8.7 The person's own names (the statement's account holder, the app profile): money sent to or from them is a move between their own accounts. */
+  owners?: string[];
 };
 
 /** FNV-1a: a short stable code for a description, so importing the same file twice finds the same rows. */
@@ -336,9 +393,56 @@ const PLACE_KIND: [RegExp, string][] = [
   [/\b(?:bpjs)\b/i, 'iuran bpjs kesehatan'],
 ];
 
+/** 8.7 The company names banks print for e-wallets and banks, said the way people name those wallets. */
+const WALLET_ALIAS: [RegExp, string][] = [
+  [/\bdompet anak bangsa\b|\bgo-?pay\b/i, 'gopay'], [/\bvisionet\b/i, 'ovo'], [/\bespay\b/i, 'dana'], [/\bairpay\b|\bshopee\s?pay\b/i, 'shopeepay'],
+  [/\bfinarya\b|\blink\s?aja\b/i, 'linkaja'], [/\bsmbc\b|\bjenius\b/i, 'jenius'], [/\bbank central asia\b|\bbca\b/i, 'bca'], [/\bbank rakyat indonesia\b|\bbri\b/i, 'bri'],
+  [/\bbank negara indonesia\b|\bbni\b/i, 'bni'], [/\bbank syariah indonesia\b|\bbsi\b/i, 'bsi'], [/\bmandiri\b/i, 'mandiri'], [/\bcimb\b/i, 'cimb'], [/\bjago\b/i, 'jago'],
+  [/\bkrom\b/i, 'krom'], [/\bseabank\b/i, 'seabank'], [/\bpermata\b/i, 'permata'], [/\bdanamon\b/i, 'danamon'], [/\bbtn\b/i, 'btn'],
+];
+/** E-wallet companies: money to one is a top-up, money from one is cash taken out of it. */
+const E_WALLET_CO = /\b(?:dompet anak bangsa|visionet|espay|airpay|finarya)\b/i;
+const aliasWords = (low: string) => WALLET_ALIAS.filter(([re]) => re.test(low)).map(([, w]) => w).join(' ');
+const nameKey = (s: string) => s.toLowerCase().replace(/[^\p{L}]/gu, '');
+/** A part of the line naming one of the person's own names ("Ditransfer ke Budi Santoso", "BUDI SANTO" cut by the bank). */
+function ownName(description: string, owners: string[]) {
+  const keys = owners.map(o => ({ key: nameKey(o), words: o.trim().split(/\s+/).length })).filter(o => o.key.length >= 3);
+  if (!keys.length) return false;
+  return description.split(/\s+·\s+|\s*\|\s*/).some(part => {
+    const key = nameKey(part.replace(/^(?:di)?(?:transfer|trf|trsf|kirim)?\s*(?:ke|dari|kepada|to|from)\s+/i, '').replace(/\b(?:bapak|ibu|bpk|sdr|sdri|mr|mrs|ms)\.?\s+/gi, ''));
+    // The whole name, or (a full name of two words or more) the bank's cut-off start of it, or the full name inside
+    // the bank's line ("TRSF E-BANKING DB BUDI SANTOSO", "Nur Aini" for "Nuraini").
+    const seq = part.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+    const inside = (o: { key: string; words: number }) => o.words >= 2 && seq.some((_, i) => { let joined = ''; for (let j = i; j < seq.length && joined.length < o.key.length; j++) joined += seq[j]; return joined === o.key; });
+    return key.length >= 3 && keys.some(o => key === o.key || (o.words >= 2 && key.length >= 8 && (o.key.startsWith(key) || key.startsWith(o.key))) || inside(o));
+  });
+}
+
+/** 8.7 Words that say which place or person a line is about (not bank words or "bayar", "transfer"…), to tell a likely double. */
+const GENERIC = new Set('transfer dari bayar beli pembelian belanja tabungan rekening sendiri dompet saldo masuk keluar biaya admin pajak bunga gopay saldo coins'.split(' '));
+const wordsIn = (...texts: (string | undefined)[]) => new Set(texts.join(' ').toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(w => w.length >= 4 && !BANK_WORDS.has(w) && !GENERIC.has(w)));
+/** 8.7 A transfer to or from someone: the bank says transfer, and the name reads as a person's (no shop or company words). */
+const TRANSFERISH = /\b(?:di)?transfer\b|\btransfer (?:masuk|keluar)\b|\btrsf\b|\btrf\b|\bkirim\b|\bbi-?fast\b|\bswitching\b|\bkliring\b|\brtgs\b|\bskn\b|\bditerima dari\b|\bincoming transfer\b|\boutgoing transfer\b/i;
+const BUSINESS = /\b(?:pt|cv|tbk|ud|toko|warung|shop|store|mart|market|resto|restoran|restaurant|cafe|kafe|kopi|coffee|bakery|indonesia|bank|laundry|apotek|apotik|klinik|rs|rumah sakit|koperasi|kopkar|digital|payment|pay|merchant|bengkel|salon|studio|official|group|express|ekspres|travel|tour|hotel|garage|sekolah|universitas|yayasan|masjid|gereja|pln|pdam|bpjs|telkom|indihome|tagihan|cashback|bunga|pajak|biaya|admin|top up|gaji|payroll|refund|transaksi|mutasi|rekening)\b/i;
+function personIn(row: StatementRow, name: string, wallets: ImportCtx['wallets']) {
+  if (!TRANSFERISH.test(`${row.kind || ''} ${row.description}`)) return undefined;
+  const who = name.replace(/^Transfer (?:ke|dari)\s+/i, '').trim(), words = who.split(/\s+/);
+  if (!who || words.length > 5 || !/^[\p{L}][\p{L}\s.'-]*$/u.test(who) || who.length < 3 || BUSINESS.test(who) || E_WALLET_CO.test(who)) return undefined;
+  if (wallets.some(w => w.name.toLowerCase() === who.toLowerCase()) || WALLET_ALIAS.some(([re]) => re.test(who))) return undefined;
+  return who;
+}
+const daysApart = (a: string, b: string) => Math.round(Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 864e5);
+
 export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
   const seen = new Map<string, number>(), ids = new Set(ctx.drafts.map(d => d.id));
-  const used = new Set<number>();
+  const used = new Set<number>(), usedMaybe = new Set<number>();
+  // Records by day, so each row only looks at the week around it (the whole history can be thousands of records).
+  const byDate = new Map<string, number[]>();
+  ctx.transactions.forEach((t, i) => { const list = byDate.get(t.date) || []; list.push(i); byDate.set(t.date, list); });
+  const around = (date: string, days: number) => { const out: number[] = []; for (let d = -days; d <= days; d++) out.push(...(byDate.get(dayAfter(date, d)) || [])); return out; };
+  // 8.7 Rows of an earlier import still waiting in Perlu dikonfirmasi (the same month from a CSV, now from a PDF).
+  const waitingImports = ctx.drafts.filter(d => d.status === 'pending' && d.source === 'import' && d.amount && d.plannedDate);
+  const usedImports = new Set<string>();
   const live = ctx.wallets.filter(w => !w.isArchived && w.id !== ctx.walletId);
   const cash = live.find(w => w.type === 'cash') || live.find(w => /\b(?:tunai|cash|dompet\s*fisik)\b/i.test(w.name));
   const brands = brandCategories(ctx.transactions);
@@ -351,11 +455,26 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
     const id = `imp_${key}_${n}`.replace(/[^\w-]/g, '').slice(0, 140);
     const name = nameFor(row.description), low = row.description.toLowerCase();
     // Money moved to another of the person's own wallets: a transfer, not spending ("Top up GoPay", "Tarik tunai").
-    let flow: TxType = row.type, destinationWalletId: string | null = null;
+    let flow: TxType = row.type, destinationWalletId: string | null = null, walletId = ctx.walletId, moveName = '';
+    // 8.7 The wallet a line names, also by the company the bank prints ("Dompet Anak Bangsa" is GoPay).
+    const named = (text: string) => walletsIn(`${text} ${aliasWords(text)}`, live).find(w => w.id !== ctx.walletId) || walletsIn(aliasWords(text), live).find(w => w.id !== ctx.walletId);
+    const mine = ownName(row.description, [...(ctx.owners || []), ...(read.owner ? [read.owner] : [])]);
+    const eWallet = E_WALLET_CO.test(low);
     if (row.type === 'expense') {
-      const other = /\b(?:top\s*-?up|topup|isi\s*saldo|transfer\s*ke|trf\s*ke|pindah\s*dana)\b/.test(low) ? walletsIn(low, live).find(w => w.id !== ctx.walletId) : undefined;
+      const other = /\b(?:top\s*-?up|topup|isi\s*saldo|transfer\s*ke|trf\s*ke|pindah\s*dana)\b/.test(low) || mine || eWallet ? named(low) : undefined;
       const toCash = name === 'Tarik tunai' && cash;
       if (other || toCash) { flow = 'transfer'; destinationWalletId = (other?.id || cash!.id); }
+      // To the person's own account the app does not know yet: still not spending; the wallet is picked when confirming.
+      else if (mine) flow = 'transfer';
+      if (flow === 'transfer' && !toCash) moveName = eWallet && other ? `Top up ${other.name}` : `Transfer ke ${other?.name || 'rekening sendiri'}`;
+    } else {
+      // 8.7 Money in from the person's own account or a top-up of this wallet ("GoPay Tabungan top up"): a move into it.
+      const topUp = /\b(?:top\s*-?up|topup|isi\s*saldo)\b/.test(low);
+      const other = topUp || mine || eWallet ? named(low) : undefined;
+      if (other || mine || topUp) {
+        flow = 'transfer'; destinationWalletId = ctx.walletId; walletId = other?.id || '';
+        moveName = topUp && !other ? `Top up ${ctx.wallets.find(w => w.id === ctx.walletId)?.name || ''}`.trim() : `Transfer dari ${other?.name || 'rekening sendiri'}`;
+      }
     }
     // The person's own choice for this brand first, then the reader (it also learns exact names), then the kind of place.
     const own = flow === 'transfer' ? undefined : brands.get(`${row.type}:${brandOf(name)}`);
@@ -365,12 +484,43 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
     if (kind) { guess = suggestCategory({ text: kind[1], item: kind[1], amount: row.amount, type: row.type }, { categories: ctx.categories, history: [] }); if (guess) from = 'place'; }
     const pick = own || guess;
     // Already recorded: a transaction of this amount from or to this wallet, that day or a day next to it (each used once).
-    const matchAt = ctx.transactions.findIndex((t, i) => !used.has(i) && t.amount === row.amount && (t.walletId === ctx.walletId || t.destinationWalletId === ctx.walletId) && (t.date === row.date || t.date === dayAfter(row.date, 1) || t.date === dayAfter(row.date, -1)) && (row.type === 'income' ? t.type === 'income' || t.destinationWalletId === ctx.walletId : t.type !== 'income'));
+    // Money into or out of a wallet: a transfer by its direction, a loan taken or a debt paid back to you is money in.
+    const sameSide = (t: ImportCtx['transactions'][number]) => {
+      if (t.type === 'adjustment') return false;
+      const into = t.type === 'transfer' ? t.destinationWalletId === ctx.walletId : ['income', 'borrowing', 'receivable_payment', 'claim_payment'].includes(t.type);
+      return row.type === 'income' ? into : !into;
+    };
+    const matchAt = around(row.date, 1).find(i => { const t = ctx.transactions[i]; return !used.has(i) && t.amount === row.amount && (t.walletId === ctx.walletId || t.destinationWalletId === ctx.walletId) && sameSide(t); }) ?? -1;
     if (matchAt >= 0) used.add(matchAt);
+    const earlier = matchAt < 0 && !ids.has(id) ? waitingImports.find(d => !usedImports.has(d.id) && d.amount === row.amount && (d.walletId === ctx.walletId || d.destinationWalletId === ctx.walletId) && daysApart(d.plannedDate!, row.date) <= 1) : undefined;
+    if (earlier) usedImports.add(earlier.id);
     const draft = matchAt < 0 && !ids.has(id) ? waiting.find(d => !usedDrafts.has(d.id) && d.amount === row.amount && Math.abs(Date.parse(`${d.plannedDate}T00:00:00Z`) - Date.parse(`${row.date}T00:00:00Z`)) <= 3 * 864e5) : undefined;
     if (draft) usedDrafts.add(draft.id);
-    const already = ids.has(id) ? 'imported' as const : matchAt >= 0 ? 'recorded' as const : draft ? 'scheduled' as const : ctx.skipped?.has(id) ? 'skipped' as const : undefined;
-    return { ...row, id, name, walletId: ctx.walletId, destinationWalletId, flow, categoryId: pick?.categoryId || null, subcategoryId: pick?.subcategoryId || null, ...(from && pick ? { from } : {}), ...(already ? { already } : {}) };
+    const already = ids.has(id) || earlier ? 'imported' as const : matchAt >= 0 ? 'recorded' as const : draft ? 'scheduled' as const : ctx.skipped?.has(id) ? 'skipped' as const : undefined;
+    // 8.7 Maybe a double: the same amount within 3 days in any wallet (with the same place or person named, an amount
+    // that is not a round number, or this same wallet), or about the same amount (a fee or tip apart) naming the same place.
+    let maybe: ImportItem['maybe'];
+    if (!already) {
+      const mine = wordsIn(moveName || name, row.description);
+      let best = -1, score = -1;
+      for (const i of around(row.date, 3)) {
+        const t = ctx.transactions[i];
+        if (used.has(i) || usedMaybe.has(i) || !sameSide(t)) continue;
+        const gap = Math.abs(t.amount - row.amount), exact = gap === 0, near = !exact && gap <= Math.min(10_000, row.amount * .1);
+        const theirs = wordsIn(t.description, t.merchant), alike = [...mine].some(w => theirs.has(w) || [...theirs].some(v => v.length >= 5 && w.length >= 5 && (v.startsWith(w) || w.startsWith(v))));
+        const here = t.walletId === ctx.walletId || t.destinationWalletId === ctx.walletId;
+        if (!(exact && (alike || row.amount % 5000 !== 0 || here)) && !(near && alike)) continue;
+        const s = (exact ? 4 : 0) + (alike ? 2 : 0) + (here ? 1 : 0) - daysApart(t.date, row.date) * .1;
+        if (s > score) { score = s; best = i; }
+      }
+      if (best >= 0) {
+        usedMaybe.add(best);
+        const t = ctx.transactions[best], here = t.walletId === ctx.walletId || t.destinationWalletId === ctx.walletId;
+        maybe = { name: t.description || t.merchant || 'Transaksi', date: t.date, amount: t.amount, walletId: t.walletId, why: !here ? 'wallet' : t.amount !== row.amount ? 'amount' : 'date' };
+      }
+    }
+    const person = flow !== 'transfer' ? personIn(row, name, ctx.wallets) : undefined;
+    return { ...row, id, name: moveName || name, walletId, destinationWalletId, flow, categoryId: pick?.categoryId || null, subcategoryId: pick?.subcategoryId || null, ...(from && pick ? { from } : {}), ...(already ? { already } : {}), ...(maybe ? { maybe } : {}), ...(person ? { person } : {}) };
   });
 }
 

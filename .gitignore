@@ -6,6 +6,7 @@ out
 *.tsbuildinfo
 .DS_Store
 public/ocr
+public/pdf
 bench/receipts/out
 bench/quick/out
 # Real receipts and screenshots (may hold personal data): kept local unless explicitly added.

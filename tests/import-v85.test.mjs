@@ -146,9 +146,9 @@ test('8.5 Excel (.xlsx): shared strings, numbers and date cells', async () => {
   assert.deepEqual(r.rows.map(x => [x.date, x.description, x.amount, x.type]), [['2026-10-01', 'GRAB FOOD & MART', 64000, 'expense'], ['2026-10-26', 'Gaji Oktober', 8000000, 'income'], ['2026-10-27', 'Parkir', 5000, 'expense']]);
 });
 
-test('8.5 old .xls and PDF are refused with what to do', async () => {
+test('8.5 old .xls is refused with what to do (8.7: a PDF goes to the PDF reader, see import-v87)', async () => {
   await assert.rejects(readStatementFile(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0])), /\.xlsx atau \.csv/);
-  await assert.rejects(readStatementFile(enc('%PDF-1.7 ...')), /CSV atau Excel/);
+  await assert.rejects(readStatementFile(enc('%PDF-1.7 ...')), /PDF/);
 });
 
 test('8.5 the plan: categories guessed, transfers to own wallets, already recorded and already imported found', async () => {
