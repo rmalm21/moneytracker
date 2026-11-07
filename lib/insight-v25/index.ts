@@ -28,6 +28,7 @@ import { priceSignals } from './signals/prices.ts';
 import { receivableSignals } from './signals/receivable.ts';
 import { recurringSignals } from './signals/recurring.ts';
 import { spendingSignals } from './signals/spending.ts';
+import { weeklySignals } from './signals/weekly.ts';
 import type { DeepDive, Domain, InsightSignal, Story } from './types.ts';
 
 export type { InsightSignal, Story } from './types.ts';
@@ -72,7 +73,7 @@ export function analyzeInsight(input: AdvisorInput, options: InsightOptions = {}
   const spendingChecked = !learning && ctx.current.progress >= .15;
   const raw = [
     ...spendingSignals(ctx), ...budgetSignals(ctx), ...incomeSignals(ctx), ...claimSignals(ctx), ...receivableSignals(ctx),
-    ...debtSignals(ctx), ...goalSignals(ctx), ...recurringSignals(ctx), ...anomalySignals(ctx), ...dataQualitySignals(ctx),
+    ...debtSignals(ctx), ...goalSignals(ctx), ...recurringSignals(ctx), ...anomalySignals(ctx), ...weeklySignals(ctx), ...dataQualitySignals(ctx),
   ];
   raw.push(...(options.extend?.(ctx, raw, advice) || []));
   const { adapted } = bridgeAdvisor(advice, raw, ctx.today);

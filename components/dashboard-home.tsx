@@ -19,6 +19,7 @@ const chartLoading = () => <div className="chart-skeleton" aria-hidden="true"/>;
 const TrendMiniChart = dynamic(() => import('./trend-mini-chart'), { ssr: false, loading: chartLoading });
 const ForecastWidget = dynamic(() => import('./forecast').then(m => m.ForecastWidget), { ssr: false, loading: () => <div className="panel"><div className="chart-skeleton" aria-hidden="true"/></div> });
 const CategoryDonut = dynamic(() => import('./category-donut').then(m => m.CategoryDonut), { ssr: false, loading: chartLoading });
+const WrappedView = dynamic(() => import('./wrapped').then(m => m.WrappedView), { ssr: false });
 import { budgetCurrent, budgetIconCategoryId, countedBudgets, metrics, rupiah } from '@/lib/accounting';
 import { availableMoney, budgetCommitted, committedAmount, safeDaily, upcomingEvents } from '@/lib/finance-control';
 import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
@@ -93,6 +94,16 @@ function useProgressiveCount(total:number,all:boolean){
  useEffect(()=>{if(all||count>=total)return;const idle=(globalThis as {requestIdleCallback?:(f:()=>void,o?:{timeout:number})=>number}).requestIdleCallback;const run=()=>startTransition(()=>setCount(n=>Math.min(total,n+STEP)));const id=idle?idle(run,{timeout:200}):window.setTimeout(run,60);return()=>{const cancel=(globalThis as {cancelIdleCallback?:(id:number)=>void}).cancelIdleCallback;if(idle&&cancel)cancel(id);else window.clearTimeout(id)}},[count,total,all]);
  return all?total:count;
 }
+/** 8.5 In the first week of a month, last month's Rekap is offered once (closed for that month with ×). */
+const MONTH_NAMES=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+function RekapBanner({today}:{today:string}){
+ const day=Number(today.slice(8,10)),y=Number(today.slice(0,4)),m=Number(today.slice(5,7)),lastKey=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`,label=MONTH_NAMES[Number(lastKey.slice(5,7))-1];
+ const storeKey=`dompet-ajaib:rekap-seen:${lastKey}`;
+ const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem(storeKey)==='1'}catch{return false}}),[open,setOpen]=useState(false);
+ if(day>7||(hidden&&!open))return null;
+ const close=()=>{setHidden(true);try{localStorage.setItem(storeKey,'1')}catch{/* only a convenience */}};
+ return <>{!hidden&&<div className="wr-banner"><span><strong>Rekap {label} sudah siap 🎉</strong><small>Ke mana uangmu pergi bulan lalu, dalam beberapa geser.</small></span><button type="button" className="wr-open" onClick={()=>{setOpen(true);close()}}>Lihat</button><button type="button" className="wr-x" aria-label="Tutup" onClick={close}><X size={15}/></button></div>}{open&&<WrappedView initial={lastKey} onClose={()=>setOpen(false)}/>}</>;
+}
 export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;navigate:(view:string,focus?:string)=>void;notify:(message:string)=>void}){
  const {data,profile,cycle,user}=useApp();// Every card starts open; a card the user folds stays folded until the page is opened again.
  const open=true;const [customize,setCustomize]=useState(false),[picker,setPicker]=useState(false),[configure,setConfigure]=useState<string|null>(null),[pending,setPending]=useState<string[]|null>(null),[error,setError]=useState('');
@@ -157,6 +168,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
    <div className="hh-payday" role="progressbar" aria-label={`Siklus gaji berjalan, gajian ${formatDate(cycle.end)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={cyclePct} style={{'--pct':`${cyclePct}%`} as React.CSSProperties}><span className="hh-ring" aria-hidden="true"/><span className="hh-days"><strong>{cycle.daysRemaining}</strong><small>hari</small></span><small className="hh-payday-label"><CalendarDays size={12}/> {formatDate(cycle.end)}</small></div></div>
   <div className="home-hero-chips">{heroId!=='netWorth'&&<button type="button" onClick={()=>navigate('wallets')}><span>Aset bersih</span><b>{rupiah(stat.netWorth)}</b></button>}{heroId!=='reserved'&&<button type="button" onClick={()=>navigate('wallets')}><span>Disimpan</span><b>{rupiah(stat.reserved)}</b></button>}</div>
  </section>
+ {!customize&&<RekapBanner today={today}/>}
  {customize&&<div className="dashboard-toolbar"><Button className="small" variant="secondary" onClick={()=>setPicker(x=>!x)}>+ Tambah kartu</Button><button type="button" className="link-button" onClick={()=>layout([...defaultLayout])}>Atur ulang</button></div>}
  {customize&&picker&&<WidgetPicker selected={selected} label={label} onAdd={id=>layout([...selected,id])} onClose={()=>setPicker(false)}/>}
  {error&&<p className="form-error" role="alert">{error}</p>}<details className="panel dashboard-period"><summary><span>Periode: <strong>{periodLabel(range)}</strong></span></summary><PeriodSelector value={period} onChange={setPeriod} custom={profile?.dashboardCustom} onCustomChange={setCustom}/>{history.error&&<p role="alert" className="form-error">{history.error}</p>}</details>

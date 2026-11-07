@@ -373,3 +373,21 @@ test('safety: debt payments without a category are never suggested as something 
   assert.ok(!all.some(f => f.id === 'cut-debt-payment'), all.map(f => f.id).join(','));
   assert.ok(!report.brief.some(b => /Kurangi Bayar utang/.test(b.text)));
 });
+
+// ——— 8.5 Habits that jumped this week ———
+test('8.5 weekly: a habit at twice its usual week in the last 7 days is named ("Kopi minggu ini 2,x× rata-ratamu")', () => {
+  const quiet = analyzeInsight(scenario('stable').input);
+  assert.ok(!quiet.signals.some(s => s.signature.startsWith('spending:week:')), 'a steady ledger has no weekly spike');
+  const { input } = scenario('stable', { build: ({ data, today, tx, addDays }) => {
+    for (let d = 0; d < 6; d++) data.transactions.push(tx('expense', 38_000, addDays(today, -d), { categoryId: 'food', subcategoryId: 'food-coffee', merchant: 'Kopi Kenangan', walletId: 'gopay', description: 'Kopi', time: '15:00' }));
+  } });
+  const report = analyzeInsight(input);
+  const week = report.signals.find(s => s.signature === 'spending:week:food-coffee');
+  assert.ok(week, 'the coffee week is named');
+  assert.match(week.title, /minggu ini [\d,]+× rata-ratamu$/);
+  assert.ok(week.current >= week.baseline * 2);
+  assert.ok(week.evidence[0].txIds.length >= 6);
+  // A one-off big purchase is left to "Tidak biasa", not a weekly habit.
+  const { input: once } = scenario('stable', { build: ({ data, today, tx }) => { data.transactions.push(tx('expense', 900_000, today, { categoryId: 'shop', merchant: 'Erafone', walletId: 'bca', description: 'Earphone', time: '13:00' })); } });
+  assert.ok(!analyzeInsight(once).signals.some(s => s.signature.startsWith('spending:week:shop')));
+});
