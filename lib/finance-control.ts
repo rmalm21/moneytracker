@@ -11,7 +11,8 @@ export const isCycleClosed=(date:string,snapshots:CycleSnapshot[])=>snapshots.so
 export type Commitment={id:string;title:string;date:string;amount:number;categoryId:string|null;subcategoryId:string|null;walletId:string|null;source:'inbox'|'planned'|'recurring'};
 export function commitments(data:Data,range?:DateRange):Commitment[]{
   const items:Commitment[]=[];
-  for(const draft of data.drafts)if(draft.status==='pending'&&draft.type==='expense')items.push({id:`draft:${draft.id}`,title:draft.name,date:draft.plannedDate,amount:draft.amount,categoryId:draft.categoryId,subcategoryId:null,walletId:draft.walletId,source:'inbox'});
+  // 8.5 Imported statement rows already happened at the bank: they are not plans still to pay.
+  for(const draft of data.drafts)if(draft.status==='pending'&&draft.type==='expense'&&draft.source!=='import')items.push({id:`draft:${draft.id}`,title:draft.name,date:draft.plannedDate,amount:draft.amount,categoryId:draft.categoryId,subcategoryId:null,walletId:draft.walletId,source:'inbox'});
   for(const plan of data.plannedTransactions)if(plan.status==='planned'&&plan.committed&&plan.type==='expense')items.push({id:`plan:${plan.id}`,title:plan.title,date:plan.date,amount:plan.amount,categoryId:plan.categoryId,subcategoryId:plan.subcategoryId,walletId:plan.walletId,source:'planned'});
   if(range)for(const recurring of data.recurring.filter(row=>row.active&&row.type==='expense'&&row.mode!=='reminder')){
     let day=recurring.nextDate,count=0;
@@ -49,7 +50,7 @@ export function upcomingEvents(data:Data,profile:Profile,range:DateRange):Upcomi
   const events:UpcomingEvent[]=[];
   const add=(event:UpcomingEvent)=>{if(inRange(event.date,range))events.push(event);};
   for(const plan of data.plannedTransactions.filter(x=>x.status==='planned'))add({id:`plan:${plan.id}`,date:plan.date,title:plan.title,amount:plan.type==='income'?plan.amount:-plan.amount,kind:plan.type,status:'planned',categoryId:plan.categoryId,walletId:plan.walletId});
-  for(const draft of data.drafts.filter(x=>x.status==='pending'))add({id:`draft:${draft.id}`,date:draft.plannedDate,title:draft.name,amount:draft.type==='income'?draft.amount:-draft.amount,kind:draft.type==='income'?'income':'expense',status:'pending',categoryId:draft.categoryId,walletId:draft.walletId});
+  for(const draft of data.drafts.filter(x=>x.status==='pending'&&x.source!=='import'))add({id:`draft:${draft.id}`,date:draft.plannedDate,title:draft.name,amount:draft.type==='income'?draft.amount:-draft.amount,kind:draft.type==='income'?'income':'expense',status:'pending',categoryId:draft.categoryId,walletId:draft.walletId});
   for(const recurring of data.recurring.filter(x=>x.active)){
     let date=recurring.nextDate,count=0;
     while(date&&date<range.end&&count++<60){add({id:`recurring:${recurring.id}:${date}`,date,title:recurring.name,amount:recurring.type==='income'?recurring.amount:-recurring.amount,kind:recurring.type==='income'?'income':'expense',status:'planned',categoryId:recurring.categoryId,walletId:recurring.walletId});date=advanceSchedule(date,recurring.frequency,scheduleDay(recurring));}

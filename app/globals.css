@@ -8727,3 +8727,19 @@ button.int-more { justify-self: start; font-size: .74rem; }
   .content { padding-left: var(--gutter); padding-right: var(--gutter); }
   .topbar { padding-left: var(--gutter); padding-right: var(--gutter); }
 }
+
+/* 8.5 Impor mutasi bank / e-wallet */
+.statement-import .si-summary { display: grid; gap: 10px; }
+.statement-import .si-summary p { margin: 0; }
+.si-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); gap: 8px; }
+.si-stats > span { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); min-width: 0; }
+.si-stats small { color: var(--muted); font-size: .75rem; }
+.si-stats strong { font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-preview { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.si-preview li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); }
+.si-preview li:first-child { border-top: 0; }
+.si-preview li > span { display: grid; min-width: 0; }
+.si-preview li > span strong { font-size: .88rem; overflow-wrap: anywhere; }
+.si-preview li > span small { color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
+.si-preview li > strong { flex: none; font-size: .88rem; }
+.inbox-import-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; }
