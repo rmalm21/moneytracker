@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.6', date: '7 Nov 2026', title: 'Buka aplikasi lebih cepat, impor mutasi cocokkan saldo, dan chat yang nyambung ke Rekap', items: [
+    ['⚡', 'Aplikasi terbuka sekitar 40% lebih cepat di HP biasa: chat, formulir, pemindai struk, dan grafik baru dimuat saat dibutuhkan. Tombol chat tetap langsung tampil, dan tombol “+” tetap langsung terbuka.'],
+    ['🧾', 'Impor mutasi kini membandingkan saldo bank di file dengan saldo dompetmu. Kalau cocok, ada tanda “Saldo cocok dengan bank”; kalau beda, tombol Samakan saldo membuka Koreksi saldo yang sudah terisi (tetap kamu yang menekan Simpan).'],
+    ['🎯', 'Impor makin pintar: kategori yang kamu pilih untuk satu merchant dipakai lagi untuk cabang lain (Indomaret Ciputat → Indomaret Pamulang), minimarket dan SPBU langsung dapat kategori, dan tagihan yang muncul tiap bulan ditawari “Jadikan rutin”. Baris yang sudah menunggu dari jadwal rutin tidak dimasukkan dua kali.'],
+    ['🤖', 'Chat: “rekap bulan lalu” memberi ringkasan plus tombol Buka Rekap, dan “kenapa minggu ini boros?” membandingkan 7 hari terakhir dengan minggu-minggu sebelumnya serta menyebut yang paling naik.'],
+    ['🤝', '“kasbon pak rt 300rb” sekarang ditanya dulu: Pak RT yang kasbon ke kamu atau kamu yang kasbon ke Pak RT? Cukup jawab “aku” atau “dia”.'],
+    ['📝', '“pertamina 150rb” di Catat otomatis langsung masuk Bensin.'],
+    ['📊', 'Daftar Transaksi lebih ringan digambar: angka rupiah dan tanggal tidak lagi diformat ulang dari nol untuk setiap baris.'],
+  ] },
   { version: '8.5', date: '7 Nov 2026', title: 'Impor mutasi bank, Rekap bulanan yang bisa dibagikan, pengingat mencatat, dan halaman lebih kencang', items: [
     ['🧾', 'Impor mutasi bank atau e-wallet dari file CSV atau Excel (.xlsx): Konfirmasi → Impor mutasi. File dibaca di HP-mu dan tidak diunggah. Semua baris masuk ke Konfirmasi lengkap dengan nama dan tebakan kategori; top up dan tarik tunai jadi transfer ke dompetmu sendiri, dan yang sudah tercatat atau sudah pernah diimpor dilewati.'],
     ['🎉', 'Rekap bulanan dan tahunan: ketuk Rekap di Insight, lalu geser untuk melihat masuk-keluar, kategori terbesar, tempat favorit, hari paling boros, dan rajin mencatat. Bisa disembunyikan nominalnya, dan Bagikan membuat gambar langsung di HP. Di minggu pertama tiap bulan, rekap bulan lalu juga ditawarkan di Beranda.'],
