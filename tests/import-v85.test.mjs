@@ -251,3 +251,48 @@ test('8.6 the wallet against the bank: recorded up to the last day, plus the new
   // A wallet that started at a different balance in the app: the difference is said.
   assert.equal(reconcile(r, chosen, { id: 'bca', cachedBalance: 2_306_000 }, history).diff, 45_000);
 });
+
+// ——— 8.6 Smarter import ———
+import { recurringHints } from '../lib/import/statement.ts';
+import { v3Ctx } from '../bench/v83/state.mjs';
+test('8.6 categories: your own choice for a brand, then the kind of place; rows already waiting from a schedule', async () => {
+  const cats = v3Ctx.data.categories, byName = n => cats.find(c => c.name === n);
+  const daily = byName('Perlengkapan Harian'), coffee = byName('Kopi & Minuman');
+  const r = await read(`Tanggal;Keterangan;Debit;Kredit
+05/10/2026;KARTU DEBIT INDOMARET PAMULANG;45.000,00;
+06/10/2026;KARTU DEBIT ALFAMART SERPONG;30.000,00;
+07/10/2026;SPBU PERTAMINA 34.153;150.000,00;
+08/10/2026;NETFLIX.COM;54.000,00;
+`);
+  const wallets = [{ id: 'bca', name: 'BCA', type: 'bank', isArchived: false }];
+  const history = [{ id: 'h1', type: 'expense', amount: 50_000, date: '2026-09-02', walletId: 'bca', destinationWalletId: null, description: 'Indomaret Ciputat', merchant: '', categoryId: coffee.parentId, subcategoryId: coffee.id }];
+  const drafts = [{ id: 'r-netflix_2026-10-07', status: 'pending', amount: 54_000, walletId: 'bca', plannedDate: '2026-10-07' }];
+  const items = planImport(r, { walletId: 'bca', wallets, categories: cats, transactions: history, drafts });
+  const cat = x => cats.find(c => c.id === (x.subcategoryId || x.categoryId))?.name;
+  // Indomaret was recorded as coffee by this person before: another branch follows the person, not the generic reading.
+  assert.equal(cat(items[0]), 'Kopi & Minuman'); assert.equal(items[0].from, 'history');
+  assert.equal(items[1].from, 'place'); assert.ok(cat(items[1]), 'Alfamart gets a daily-needs category');
+  assert.equal(cat(items[2]), 'Bensin');
+  assert.equal(items[3].already, 'scheduled', 'Netflix is already waiting from its schedule');
+  void daily;
+  // Two brands seen with different categories: no guess from history.
+  const mixed = [...history, { ...history[0], id: 'h2', subcategoryId: daily.id, categoryId: daily.parentId }];
+  assert.notEqual(planImport(r, { walletId: 'bca', wallets, categories: cats, transactions: mixed, drafts: [] })[0].from, 'history');
+});
+test('8.6 bills that come every month are offered as a schedule', async () => {
+  const r = await read(`Tanggal;Keterangan;Debit;Kredit
+03/10/2026;SPOTIFY P1A2B3;54.990,00;
+05/10/2026;KOPI KENANGAN;25.000,00;
+`);
+  const wallets = [{ id: 'bca', name: 'BCA', type: 'bank', isArchived: false }];
+  const items = planImport(r, { walletId: 'bca', wallets, categories: [], transactions: [], drafts: [] });
+  const history = [
+    { type: 'expense', amount: 54_990, date: '2026-09-03', walletId: 'bca', destinationWalletId: null, description: 'Spotify', merchant: '', categoryId: 'bills', subcategoryId: null },
+    { type: 'expense', amount: 54_990, date: '2026-08-04', walletId: 'bca', destinationWalletId: null, description: 'Spotify', merchant: '', categoryId: 'bills', subcategoryId: null },
+    { type: 'expense', amount: 31_000, date: '2026-09-20', walletId: 'bca', destinationWalletId: null, description: 'Kopi Kenangan', merchant: '', categoryId: null, subcategoryId: null },
+  ];
+  const hints = recurringHints(items, history, [], '2026-11-07');
+  assert.equal(hints.length, 1, 'coffee on different days and amounts is not a bill');
+  assert.equal(hints[0].name, 'Spotify'); assert.equal(hints[0].months, 3); assert.equal(hints[0].day, 3); assert.equal(hints[0].nextDate, '2026-11-03' < '2026-11-07' ? '2026-12-03' : '2026-11-03');
+  assert.equal(recurringHints(items, history, [{ name: 'Spotify Premium', amount: 54_990, active: true }], '2026-11-07').length, 0, 'already a schedule');
+});

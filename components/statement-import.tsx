@@ -5,9 +5,9 @@ import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Field, Select } from './fields';
 import { emojiOrFallback } from './visual-identity';
-import { addImportedDrafts, loadAllTransactions } from '@/lib/firestore';
-import { planImport, readStatement, readStatementFile, reconcile, type ImportItem, type StatementRead } from '@/lib/import/statement';
-import type { LedgerTx } from '@/lib/types';
+import { addImportedDrafts, loadAllTransactions, saveRecord } from '@/lib/firestore';
+import { planImport, readStatement, readStatementFile, reconcile, recurringHints, type ImportItem, type StatementRead } from '@/lib/import/statement';
+import type { LedgerTx, Recurring } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
 import { formatDate } from '@/lib/period';
 
@@ -38,6 +38,16 @@ export function StatementImport({ onDone, openTx }: { onDone: (count: number) =>
   useEffect(() => { if (!user || read?.balance?.closing === undefined) return; let live = true; void loadAllTransactions(user.uid).then(items => { if (live) setHistory(items); }).catch(() => { if (live) setHistory(null); }); return () => { live = false; }; }, [user?.uid, read]);
   const wallet = data.wallets.find(w => w.id === walletId);
   const match = read && wallet && history ? reconcile(read, chosen, wallet, history) : null;
+  // 8.6 Bills that came every month (this file and your records), offered as a schedule; one tap each.
+  const [madeRecurring, setMadeRecurring] = useState<string[]>([]);
+  const hints = useMemo(() => !walletId || !plan.length ? [] : recurringHints(plan, history || data.transactions, data.recurring, today).filter(h => !madeRecurring.includes(h.key)), [plan, history, data.transactions, data.recurring, walletId, madeRecurring, today]);
+  async function makeRecurring(h: (typeof hints)[number]) {
+    if (!user) return;
+    try {
+      await saveRecord<Recurring>(user.uid, 'recurring', { name: h.name, type: 'expense', amount: h.amount, walletId: h.walletId, destinationWalletId: null, categoryId: h.categoryId, frequency: 'monthly', mode: 'inbox', nextDate: h.nextDate, anchorDay: h.day, active: true });
+      setMadeRecurring(list => [...list, h.key]);
+    } catch (err) { setError((err as Error).message || 'Jadwal rutin belum tersimpan.'); }
+  }
   const count = (k: ImportItem['already']) => plan.filter(x => x.already === k).length;
   const sum = (rows: ImportItem[]) => rows.reduce((n, x) => n + x.amount, 0);
   const out = chosen.filter(x => x.flow === 'expense'), inn = chosen.filter(x => x.flow === 'income'), moved = chosen.filter(x => x.flow === 'transfer');
@@ -94,9 +104,13 @@ export function StatementImport({ onDone, openTx }: { onDone: (count: number) =>
         </div>}
         {read.balance && read.balance.complete === false && <p className="notice">Saldo awal ditambah mutasi yang terbaca tidak sama dengan saldo akhir di file. Mungkin ada baris yang tidak terbaca, cek lagi filenya.</p>}
         {read.unsure > 0 && <p className="notice">{read.unsure} nominal tanpa tanda masuk/keluar, jadi dibaca sebagai pengeluaran. Cek lagi saat konfirmasi.</p>}
-        {(count('imported') > 0 || count('skipped') > 0) && <p className="muted">{[count('imported') && `${count('imported')} sudah pernah diimpor`, count('skipped') && `${count('skipped')} pernah kamu lewati`].filter(Boolean).join(' · ')}: tidak dimasukkan lagi.</p>}
+        {(count('imported') > 0 || count('skipped') > 0 || count('scheduled') > 0) && <p className="muted">{[count('imported') && `${count('imported')} sudah pernah diimpor`, count('scheduled') && `${count('scheduled')} sudah menunggu dari jadwal rutin`, count('skipped') && `${count('skipped')} pernah kamu lewati`].filter(Boolean).join(' · ')}: tidak dimasukkan lagi.</p>}
+        {(hints.length > 0 || madeRecurring.length > 0) && <div className="si-bills"><strong>Sepertinya tagihan rutin</strong>
+          {hints.map(h => <div key={h.key} className="si-bill"><span><b>{h.name}</b><small>{rupiah(h.amount)} tiap tanggal {h.day} · muncul {h.months} bulan</small></span><Button variant="secondary" className="small" onClick={() => void makeRecurring(h)}>Jadikan rutin</Button></div>)}
+          {madeRecurring.length > 0 && <small>{madeRecurring.length} jadwal rutin dibuat. Tiap bulan muncul di Perlu dikonfirmasi, dan baris mutasinya nanti tidak dimasukkan dua kali.</small>}
+        </div>}
         {count('recorded') > 0 && <label className="check-row"><input type="checkbox" checked={withRecorded} onChange={e => setWithRecorded(e.target.checked)} /><span>Ikutkan {count('recorded')} baris yang sepertinya sudah tercatat (nominal & tanggal sama di dompet ini)</span></label>}
-        <ul className="si-preview">{chosen.slice(0, 8).map(x => <li key={x.id}><span><strong>{x.name}</strong><small>{formatDate(x.date)} · {catName(x)}{x.already === 'recorded' ? ' · mungkin sudah tercatat' : ''}</small></span><strong className={x.flow === 'income' ? 'amount-positive' : ''}>{x.flow === 'income' ? '+' : ''}{rupiah(x.amount)}</strong></li>)}</ul>
+        <ul className="si-preview">{chosen.slice(0, 8).map(x => <li key={x.id}><span><strong>{x.name}</strong><small>{formatDate(x.date)} · {catName(x)}{x.from === 'history' ? ' (dari catatanmu)' : ''}{x.already === 'recorded' ? ' · mungkin sudah tercatat' : ''}</small></span><strong className={x.flow === 'income' ? 'amount-positive' : ''}>{x.flow === 'income' ? '+' : ''}{rupiah(x.amount)}</strong></li>)}</ul>
         {chosen.length > 8 && <p className="muted">dan {chosen.length - 8} baris lainnya.</p>}
         <p className="muted">Kalau saldo dompet ini di aplikasi sudah kamu samakan dengan bank, konfirmasi hanya transaksi yang memang belum tercatat supaya saldo tidak dobel.</p>
         <div className="settings-actions start"><Button onClick={() => void save()} disabled={busy || !chosen.length}><Inbox size={16} /> {busy ? 'Menyimpan…' : chosen.length ? `Masukkan ${chosen.length} ke Perlu dikonfirmasi` : 'Tidak ada baris baru'}</Button></div>

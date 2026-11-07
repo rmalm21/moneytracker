@@ -8802,3 +8802,9 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .si-match li b { flex: none; }
 .si-match small { color: var(--muted); line-height: 1.45; }
 .si-match .btn { justify-self: start; }
+.si-bills { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line-strong, var(--line)); background: var(--paper); }
+.si-bills > strong { font-size: .9rem; }
+.si-bill { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.si-bill > span { display: grid; min-width: 0; }
+.si-bill > span small { color: var(--muted); font-size: .78rem; }
+.si-bills > small { color: var(--muted); line-height: 1.45; }

@@ -11,7 +11,7 @@
 import { effects } from '../accounting.ts';
 import { suggestCategory } from '../categorize.ts';
 import { walletsIn } from '../quick-entry.ts';
-import type { Category, Draft, LedgerTx, TxType, Wallet } from '../types';
+import type { Category, Draft, LedgerTx, Recurring, TxType, Wallet } from '../types';
 import { isOldExcel, isZip, readXlsx } from './xlsx.ts';
 
 export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean; /** 8.6 The balance after this row, when the file shows it. */ balance?: number };
@@ -261,8 +261,8 @@ function inferWithoutHeader(rows: string[][], today: string, year?: number): Sta
 /** A reference code (letters with digits, a number, one or two letters): not part of a name. "Bu" and "Om" stay. */
 const CODE = /^(?:[\p{L}]*\d[\w/.:-]*|\d+[\w/.:-]*|(?!(?:bu|om|pa|ko|ci|ka)$)\p{L}{1,2})$/iu;
 /** Short names written in capitals that stay so ("PLN", "BPJS", "KFC"). */
-const ACRONYM = new Set('pln bpjs kai krl mrt lrt pdam atm kfc mcd ovo bca bri bni bsi btn xl im3 ptpn jne jnt sicepat ikea ace'.split(' '));
-const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-banking ib db cr kr debit debet kredit credit switching bi-fast bifast bif biz fast ftscy ftfva sknbi rtgs prmt online otomatis auto via ke dari to from ref no rek rekening norek trx tx transaksi pembayaran payment byr bayar idr rp kartu card pos edc qr qris mcm va virtual account berita pt cv tbk persero esb intrabank interbank antarbank overbooking ob'.split(' '));
+const ACRONYM = new Set('pln bpjs kai krl mrt lrt pdam atm kfc mcd ovo bca bri bni bsi btn xl im3 ptpn jne jnt sicepat ikea ace spbu'.split(' '));
+const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-banking ib db cr kr debit debet kredit credit switching bi-fast bifast bif biz fast ftscy ftfva sknbi rtgs prmt online otomatis auto via ke dari to from ref no rek rekening norek trx tx transaksi pembayaran payment byr bayar idr rp kartu card pos edc qr qris mcm va virtual account berita pt cv tbk persero esb intrabank interbank antarbank overbooking ob incoming outgoing purchase'.split(' '));
 const KNOWN: [RegExp, string][] = [
   [/\b(?:tarik(?:an)?\s*(?:tunai\s*)?atm|tarik\s*tunai|penarikan\s*tunai|atm\s*withdrawal|cash\s*withdrawal|tarikan)\b/i, 'Tarik tunai'],
   [/\b(?:biaya\s*adm(?:in(?:istrasi)?)?|adm(?:in)?\s*fee|monthly\s*fee|biaya\s*bulanan|biaya\s*kartu|card\s*fee)\b/i, 'Biaya admin bank'],
@@ -291,15 +291,18 @@ export function nameFor(description: string): string {
 export type ImportItem = StatementRow & {
   id: string; name: string; walletId: string; destinationWalletId: string | null; flow: TxType;
   categoryId: string | null; subcategoryId: string | null;
-  /** Already recorded (a transaction of the same amount in this wallet, that day or the day next to it), or already imported. */
-  already?: 'recorded' | 'imported' | 'skipped';
+  /** Already recorded (a transaction of the same amount in this wallet, that day or the day next to it), already imported,
+   * skipped before, or (8.6) already waiting in Perlu dikonfirmasi from a schedule. */
+  already?: 'recorded' | 'imported' | 'skipped' | 'scheduled';
+  /** 8.6 How the category was chosen: from your own records of this place, or from what kind of place it is. */
+  from?: 'history' | 'place';
 };
 export type ImportCtx = {
   walletId: string;
   wallets: Pick<Wallet, 'id' | 'name' | 'isArchived' | 'type'>[];
   categories: Category[];
   transactions: Pick<LedgerTx, 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'description' | 'merchant' | 'categoryId' | 'subcategoryId'>[];
-  drafts: Pick<Draft, 'id'>[];
+  drafts: (Pick<Draft, 'id'> & Partial<Pick<Draft, 'status' | 'source' | 'amount' | 'walletId' | 'plannedDate'>>)[];
   /** Import rows the person skipped before (kept on this device). */
   skipped?: Set<string>;
 };
@@ -308,11 +311,40 @@ export type ImportCtx = {
 function code(s: string) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
 const dayAfter = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 
+/** 8.6 The first word of a place's name, its "brand" ("indomaret" for "Indomaret Ciputat"), to learn from other branches. */
+const brandOf = (name: string) => { const w = name.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').trim().split(/\s+/)[0] || ''; return w.length >= 4 && !BANK_WORDS.has(w) ? w : ''; };
+/** Categories the person gave to places of the same brand: used when they all agree (the person's own choice wins). */
+function brandCategories(history: ImportCtx['transactions']) {
+  const seen = new Map<string, Map<string, { categoryId: string; subcategoryId: string | null; n: number }>>();
+  for (const t of history) {
+    if ((t.type !== 'expense' && t.type !== 'income') || !t.categoryId) continue;
+    for (const b of new Set([brandOf(t.description || ''), brandOf(t.merchant || '')].filter(Boolean))) {
+      const key = `${t.type}:${b}`, cats = seen.get(key) || new Map(), cat = `${t.categoryId}/${t.subcategoryId || ''}`;
+      const c = cats.get(cat) || { categoryId: t.categoryId, subcategoryId: t.subcategoryId || null, n: 0 }; c.n++; cats.set(cat, c); seen.set(key, cats);
+    }
+  }
+  const out = new Map<string, { categoryId: string; subcategoryId: string | null }>();
+  for (const [key, cats] of seen) if (cats.size === 1) { const c = [...cats.values()][0]; out.set(key, { categoryId: c.categoryId, subcategoryId: c.subcategoryId }); }
+  return out;
+}
+/** What kind of place a name is, said in words the category reader knows (a minimarket's purchase is daily needs, a fuel station's is fuel). */
+const PLACE_KIND: [RegExp, string][] = [
+  [/\b(?:indomaret|alfamart|alfamidi|alfa ?express|lawson|family ?mart|circle ?k|superindo|super indo|hypermart|transmart|giant|lotte ?mart|carrefour|hero supermarket|ranch market|yogya|griya|tip ?top)\b/i, 'belanja kebutuhan harian di minimarket'],
+  [/\b(?:pertamina|spbu|shell|bp akr|vivo energy|mypertamina)\b/i, 'isi bensin'],
+  [/\b(?:pln|token listrik)\b/i, 'token listrik pln'],
+  [/\b(?:pdam)\b/i, 'tagihan air pdam'],
+  [/\b(?:bpjs)\b/i, 'iuran bpjs kesehatan'],
+];
+
 export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
   const seen = new Map<string, number>(), ids = new Set(ctx.drafts.map(d => d.id));
   const used = new Set<number>();
   const live = ctx.wallets.filter(w => !w.isArchived && w.id !== ctx.walletId);
   const cash = live.find(w => w.type === 'cash') || live.find(w => /\b(?:tunai|cash|dompet\s*fisik)\b/i.test(w.name));
+  const brands = brandCategories(ctx.transactions);
+  // Waiting schedule drafts (Netflix next month…): a bank row for the same amount close to its date is that one.
+  const waiting = ctx.drafts.filter(d => d.status === 'pending' && d.source !== 'import' && d.amount && d.walletId === ctx.walletId && d.plannedDate);
+  const usedDrafts = new Set<string>();
   return read.rows.map(row => {
     const key = `${ctx.walletId}_${row.date}_${row.amount}_${row.type[0]}_${code(row.description.toLowerCase())}`;
     const n = (seen.get(key) || 0) + 1; seen.set(key, n);
@@ -325,12 +357,20 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
       const toCash = name === 'Tarik tunai' && cash;
       if (other || toCash) { flow = 'transfer'; destinationWalletId = (other?.id || cash!.id); }
     }
-    const guess = flow === 'transfer' ? null : suggestCategory({ text: `${name} ${low}`.toLowerCase(), item: name.toLowerCase(), amount: row.amount, type: row.type }, { categories: ctx.categories, history: ctx.transactions as LedgerTx[] });
+    // The person's own choice for this brand first, then the reader (it also learns exact names), then the kind of place.
+    const own = flow === 'transfer' ? undefined : brands.get(`${row.type}:${brandOf(name)}`);
+    let guess = own || flow === 'transfer' ? null : suggestCategory({ text: `${name} ${low}`.toLowerCase(), item: name.toLowerCase(), amount: row.amount, type: row.type }, { categories: ctx.categories, history: ctx.transactions as LedgerTx[] });
+    let from: ImportItem['from'] = own ? 'history' : undefined;
+    const kind = !own && !guess && flow !== 'transfer' ? PLACE_KIND.find(([re]) => re.test(low)) : undefined;
+    if (kind) { guess = suggestCategory({ text: kind[1], item: kind[1], amount: row.amount, type: row.type }, { categories: ctx.categories, history: [] }); if (guess) from = 'place'; }
+    const pick = own || guess;
     // Already recorded: a transaction of this amount from or to this wallet, that day or a day next to it (each used once).
     const matchAt = ctx.transactions.findIndex((t, i) => !used.has(i) && t.amount === row.amount && (t.walletId === ctx.walletId || t.destinationWalletId === ctx.walletId) && (t.date === row.date || t.date === dayAfter(row.date, 1) || t.date === dayAfter(row.date, -1)) && (row.type === 'income' ? t.type === 'income' || t.destinationWalletId === ctx.walletId : t.type !== 'income'));
     if (matchAt >= 0) used.add(matchAt);
-    const already = ids.has(id) ? 'imported' as const : matchAt >= 0 ? 'recorded' as const : ctx.skipped?.has(id) ? 'skipped' as const : undefined;
-    return { ...row, id, name, walletId: ctx.walletId, destinationWalletId, flow, categoryId: guess?.categoryId || null, subcategoryId: guess?.subcategoryId || null, ...(already ? { already } : {}) };
+    const draft = matchAt < 0 && !ids.has(id) ? waiting.find(d => !usedDrafts.has(d.id) && d.amount === row.amount && Math.abs(Date.parse(`${d.plannedDate}T00:00:00Z`) - Date.parse(`${row.date}T00:00:00Z`)) <= 3 * 864e5) : undefined;
+    if (draft) usedDrafts.add(draft.id);
+    const already = ids.has(id) ? 'imported' as const : matchAt >= 0 ? 'recorded' as const : draft ? 'scheduled' as const : ctx.skipped?.has(id) ? 'skipped' as const : undefined;
+    return { ...row, id, name, walletId: ctx.walletId, destinationWalletId, flow, categoryId: pick?.categoryId || null, subcategoryId: pick?.subcategoryId || null, ...(from && pick ? { from } : {}), ...(already ? { already } : {}) };
   });
 }
 
@@ -355,4 +395,39 @@ export function reconcile(read: StatementRead, chosen: ImportItem[], wallet: Pic
   const app = wallet.cachedBalance - history.filter(t => t.date > date).reduce((n, t) => n + (effects(t)[wallet.id] || 0), 0);
   const pending = chosen.filter(x => x.date <= date).reduce((n, x) => n + rowEffect(x, wallet.id), 0);
   return { bank, date, app, pending, diff: bank - (app + pending) };
+}
+
+/* ------------------------------------------------------------------ 8.6 Bills that come every month */
+
+export type RecurringHint = { key: string; name: string; amount: number; day: number; months: number; categoryId: string | null; walletId: string; nextDate: string };
+const billKey = (name: string) => name.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ');
+/**
+ * The same name and about the same amount (within 10%) on about the same day (within 6 days) in at least two different
+ * months, in this file and the person's records: offered as "Jadikan transaksi rutin". Names already set up as a
+ * schedule are not offered again.
+ */
+export function recurringHints(items: ImportItem[], history: ImportCtx['transactions'], recurring: Pick<Recurring, 'name' | 'amount' | 'active'>[], today: string): RecurringHint[] {
+  type Seen = { name: string; amount: number; date: string; categoryId: string | null; walletId: string; inFile?: boolean };
+  const groups = new Map<string, Seen[]>();
+  const add = (key: string, s: Seen) => { if (key.length < 3) return; const g = groups.get(key) || []; g.push(s); groups.set(key, g); };
+  for (const x of items) if (x.flow === 'expense' && x.amount >= 10_000 && x.already !== 'imported') add(billKey(x.name), { name: x.name, amount: x.amount, date: x.date, categoryId: x.subcategoryId || x.categoryId, walletId: x.walletId, inFile: true });
+  for (const t of history) if (t.type === 'expense' && t.amount >= 10_000 && t.description) add(billKey(t.description), { name: t.description, amount: t.amount, date: t.date, categoryId: t.subcategoryId || t.categoryId, walletId: t.walletId });
+  const known = recurring.filter(r => r.active !== false).map(r => r.name.toLowerCase());
+  const out: RecurringHint[] = [];
+  for (const [key, list] of groups) {
+    // Only bills in this file (your records only confirm that they come every month).
+    if (!list.some(s => s.inFile) || known.some(n => n.includes(key) || key.includes(n))) continue;
+    const byMonth = new Map<string, Seen>();
+    for (const s of list.sort((a, b) => a.date.localeCompare(b.date))) byMonth.set(s.date.slice(0, 7), s);
+    const months = [...byMonth.values()];
+    if (months.length < 2) continue;
+    const amounts = months.map(m => m.amount).sort((a, b) => a - b), median = amounts[Math.floor(amounts.length / 2)];
+    const days = months.map(m => Number(m.date.slice(8, 10)));
+    if (amounts.some(a => Math.abs(a - median) > median * .1) || Math.max(...days) - Math.min(...days) > 6) continue;
+    const last = months[months.length - 1], day = Number(last.date.slice(8, 10)), fromFile = list.find(s => s.inFile)!;
+    let y = Number(last.date.slice(0, 4)), m = Number(last.date.slice(5, 7)), next = '';
+    do { m++; if (m > 12) { m = 1; y++; } const dim = new Date(Date.UTC(y, m, 0)).getUTCDate(); next = `${y}-${String(m).padStart(2, '0')}-${String(Math.min(day, dim)).padStart(2, '0')}`; } while (next < today);
+    out.push({ key, name: last.name, amount: last.amount, day, months: months.length, categoryId: last.categoryId || fromFile.categoryId, walletId: fromFile.walletId, nextDate: next });
+  }
+  return out.sort((a, b) => b.months - a.months || b.amount - a.amount).slice(0, 4);
 }

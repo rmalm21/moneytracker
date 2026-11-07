@@ -167,7 +167,7 @@ const RULES: Rule[] = [
   R(/\b(resto|restoran|restaurant|rumah makan|fine dining)\b/, 'restaurant', 4.4),
   R(/\b(gofood|go-?food|grabfood|grab ?food|shopeefood|shopee ?food|pesan antar|delivery)\b|\b(gojek|grab|shopee|maxim)\s+(?:makan|makanan|food)\b/, 'delivery', 4.6),
   // Transport and vehicles
-  R(/\b(bensin|pertalite|pertamax|pertamax turbo|dexlite|solar|bbm|spbu|shell|bp akr|isi bensin)\b/, 'fuel', 4.6, { veto: /\bshell (?:kerang|laut)\b|\b(?:bbm|bensin|solar|shell|spbu)\s+(?:cafe|kafe|coffee|resto|restoran|kitchen|bakery|bar|grill|store|shop)\b/ }),
+  R(/\b(bensin|pertalite|pertamax|pertamax turbo|dexlite|solar|bbm|spbu|shell|bp akr|isi bensin|pertamina|mypertamina)\b/, 'fuel', 4.6, { veto: /\bshell (?:kerang|laut)\b|\b(?:bbm|bensin|solar|shell|spbu)\s+(?:cafe|kafe|coffee|resto|restoran|kitchen|bakery|bar|grill|store|shop)\b/ }),
   R(/\b(parkir|parking)\b/, 'parking', 4.6),
   R(/\b(uang jalan|ongkos jalan|bajaj)\b/, 'transport', 3.6),
   R(/\b(tol|toll|e-?toll|etoll)\b/, 'toll', 4.2),
