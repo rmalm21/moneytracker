@@ -30,7 +30,7 @@ export function passwordReady(value: string, repeat: string, previous?: string) 
   return value.length >= 8 && value === repeat && (previous === undefined || value !== previous);
 }
 
-/** "rama@gmail.com" → "ra••@gmail.com": shows where a link went without spelling out the address. */
+/** "budi@gmail.com" → "bu••@gmail.com": shows where a link went without spelling out the address. */
 export function maskEmail(email: string) {
   const at = email.lastIndexOf('@');
   if (at < 1) return email;

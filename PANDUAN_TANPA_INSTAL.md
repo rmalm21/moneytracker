@@ -7,7 +7,7 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 1. Buka https://console.firebase.google.com/ dan pilih project `money-manage-32467`.
 2. Buka Project settings (roda gigi) → Your apps. Pilih Web app. Jika belum ada, klik ikon `</>` dan buat aplikasi Web.
 3. Pilih tampilan konfigurasi `Config`. Siapkan nilai `firebaseConfig`: `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`.
-4. Authentication → Sign-in method: aktifkan Email/Password. Tab Users: buat pengguna pertama, misalnya `rama@gmail.com`.
+4. Authentication → Sign-in method: aktifkan Email/Password. Tab Users: buat pengguna pertama, misalnya `budi@gmail.com`.
 5. Pastikan Firestore Database sudah dibuat. Skrip ini tidak mengubah Rules milik project; jika aplikasi menampilkan galat izin, minta bantuan untuk memeriksa Rules yang sudah ada sebelum mengubahnya.
 
 ## Unggah dan jalankan dari browser
@@ -26,7 +26,7 @@ Semua proses dilakukan lewat browser. Google Cloud Shell adalah komputer sementa
 
 5. Saat diminta nilai Firebase, tempel satu per satu dari langkah awal lalu Enter. Tempel nilainya saja, tanpa nama field atau tanda petik.
 6. Tunggu proses build selesai. Ketik `COBA` hanya jika ingin membuat link pratinjau sementara di site `dompetajaib`. Skrip tidak mengubah alamat live utama.
-7. Cloud Shell akan menampilkan Preview URL. Klik alamat itu di browser. Untuk akun `rama@gmail.com`, masukkan username `rama` dan password yang dibuat di Firebase.
+7. Cloud Shell akan menampilkan Preview URL. Klik alamat itu di browser. Untuk akun `budi@gmail.com`, masukkan username `budi` dan password yang dibuat di Firebase.
 
 ## Jika terkendala
 

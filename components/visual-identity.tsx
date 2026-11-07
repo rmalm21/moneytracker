@@ -3,7 +3,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Emoji } from './emoji';
 import { ChevronDown, Search } from 'lucide-react';
 import { Dialog, DialogContent } from './ui/dialog';
-import { colorPresets } from '@/lib/category-templates';
+import { categoryTemplates, colorPresets, normalizeCategoryName } from '@/lib/category-templates';
 import type { Category } from '@/lib/types';
 
 type EmojiGroup = { label: string; items: [string, string][] };
@@ -73,7 +73,7 @@ export const emojiLibrary: EmojiGroup[] = [
     👜 tas
     💍 perhiasan cincin`),
   g('Hiburan', `🎵 musik langganan
-    🎬 film bioskop streaming
+    🎬 film bioskop streaming hiburan
     🎮 game gaming
     🎤 konser
     🎳 aktivitas bowling
@@ -148,6 +148,30 @@ export const emojiLibrary: EmojiGroup[] = [
     🔁 berulang`),
 ];
 export const categoryEmojis = emojiLibrary.flatMap(group => group.items.map(([emoji]) => emoji));
+/** Template category names with their emoji ("Kopi" → ☕), for categories made without one. */
+let templateIcons: Map<string, string> | null = null;
+const templateIcon = (name: string) => {
+  templateIcons ??= new Map(categoryTemplates.flatMap(t => [[normalizeCategoryName(t.name), t.icon] as [string, string], ...t.subcategories.map(s => [normalizeCategoryName(s.name), s.icon] as [string, string])]));
+  return templateIcons.get(normalizeCategoryName(name));
+};
+/** An emoji whose words match a name: the whole name first ("pesan antar" → 🥡), then each word in order ("tiket pesawat" → ✈️). */
+function emojiForName(name: string) {
+  const low = name.toLowerCase().replace(/[^a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!low) return undefined;
+  const items = emojiLibrary.flatMap(group => group.items);
+  const whole = items.find(([, keys]) => ` ${keys} `.includes(` ${low} `));
+  if (whole) return whole[0];
+  for (const word of low.split(' ').filter(w => w.length >= 3)) { const hit = items.find(([, keys]) => keys.split(' ').includes(word)); if (hit) return hit[0]; }
+  return undefined;
+}
+/**
+ * 8.7 The emoji a category shows in pickers: its own; else one that fits its name (a template's, or the icon library's:
+ * "Kopi" → ☕, "Hotel" → 🏨); else its main category's; else the plain folder.
+ */
+export function categoryEmoji(category: Pick<Category, 'icon' | 'name'>, parent?: Pick<Category, 'icon' | 'name'>): string {
+  if (category.icon) return emojiOrFallback(category.icon);
+  return templateIcon(category.name) || emojiForName(category.name) || (parent ? categoryEmoji(parent) : '🗂️');
+}
 /** Bank and e-wallet marks, drawn as brand-coloured name tiles (stored as `brand:<key>`). */
 export type BrandIcon = { key: string; label: string; text: string; bg: string; fg: string; group: 'Bank' | 'Bank digital' | 'E-wallet' | 'Uang elektronik' | 'Investasi'; words: string };
 export const brandIcons: BrandIcon[] = [

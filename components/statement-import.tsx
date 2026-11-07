@@ -5,7 +5,7 @@ import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input, Money, Select, categoryOptions } from './fields';
-import { emojiOrFallback } from './visual-identity';
+import { categoryEmoji, emojiOrFallback } from './visual-identity';
 import { loadAllTransactions, saveRecord } from '@/lib/firestore';
 import { planImport, readStatement, readStatementSource, reconcile, recurringHints, type ImportItem, type StatementRead } from '@/lib/import/statement';
 import { PURPOSES, finalize, missing, suggestFor, type FinalRow, type Purpose, type RowEdit } from '@/lib/import/edit';
@@ -79,7 +79,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   function describe(r: FinalRow) {
     if (!r.purpose) return 'Belum ditentukan';
     if (r.purpose === 'transfer') return r.direction === 'out' ? `→ ${walletName(r.destinationWalletId) || 'pilih dompet tujuan'}` : `← dari ${walletName(r.walletId) || 'pilih dompet asal'}`;
-    if (r.purpose === 'expense' || r.purpose === 'income') { const c = data.categories.find(k => k.id === (r.subcategoryId || r.categoryId)); return c ? `${emojiOrFallback(c.icon)} ${c.name}` : 'Kategori belum dipilih'; }
+    if (r.purpose === 'expense' || r.purpose === 'income') { const c = data.categories.find(k => k.id === (r.subcategoryId || r.categoryId)); return c ? `${categoryEmoji(c, data.categories.find(k => k.id === c.parentId))} ${c.name}` : 'Kategori belum dipilih'; }
     if (r.purpose === 'debt_payment') return `Bayar utang${r.debtId ? `: ${data.debts.find(d => d.id === r.debtId)?.name || ''}` : ''}`;
     if (r.purpose === 'receivable_payment') return `Pelunasan piutang${r.receivableId ? `: ${data.receivables.find(x => x.id === r.receivableId)?.person || ''}` : ''}`;
     return r.purpose === 'receivable_issue' ? `Piutang baru ke ${r.person || '…'}` : `Utang baru dari ${r.person || '…'}`;

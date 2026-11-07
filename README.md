@@ -69,7 +69,7 @@ Untuk pembaruan link percobaan melalui browser tanpa memasang program di laptop,
 
 ## Aktifkan Firebase
 
-1. Di Firebase Console untuk project `money-manage-32467`, aktifkan **Authentication → Sign-in method → Email/Password**. Buat akun pengguna secara manual di **Authentication → Users** (misalnya `rama@gmail.com`). Tidak ada pendaftaran publik.
+1. Di Firebase Console untuk project `money-manage-32467`, aktifkan **Authentication → Sign-in method → Email/Password**. Buat akun pengguna secara manual di **Authentication → Users** (misalnya `budi@gmail.com`). Tidak ada pendaftaran publik.
 2. Aktifkan **Cloud Firestore** (Cloud Storage tidak dipakai). Pastikan site Firebase Hosting dengan ID `dompetajaib` tersedia.
 3. Di **Authentication → Settings → Authorized domains**, pastikan `dompetajaib.web.app` dan domain pengembangan yang dipakai tersedia.
 4. Salin `.env.example` menjadi `.env.local`, lalu isi keenam nilai `NEXT_PUBLIC_FIREBASE_*` dari **Project settings → Your apps → Web app**. Domain login pendek dapat diubah lewat `NEXT_PUBLIC_AUTH_EMAIL_DOMAIN`. Nilai Firebase web config boleh ada dalam bundel frontend; perlindungan data bertumpu pada autentikasi dan security rules.
@@ -80,7 +80,7 @@ npm ci
 npm run dev
 ```
 
-Buka `http://localhost:3000`. Login dapat memakai `rama` untuk akun `rama@gmail.com`; email penuh juga bisa. Pada login pertama, buat dompet atau pilih contoh anggaran secara eksplisit.
+Buka `http://localhost:3000`. Login dapat memakai `budi` untuk akun `budi@gmail.com`; email penuh juga bisa. Pada login pertama, buat dompet atau pilih contoh anggaran secara eksplisit.
 
 ## Uji lokal tanpa project Firebase
 

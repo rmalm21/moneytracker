@@ -9,7 +9,7 @@ type SelectChange = { target: { value: string } };
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & { onChange?: (event: SelectChange) => void; render?: (value: string, place: 'trigger' | 'menu') => ReactNode; menuClassName?: string; menuWidth?: number };
 type Item = { value: string; label: ReactNode; text: string; disabled: boolean };
 /** Plain-text labels (e.g. "🍜 Makan") get the Fluent Emoji artwork; anything richer is shown as is. */
-const showLabel = (label: ReactNode) => { const parts = Array.isArray(label) ? label : [label]; return parts.every(part => typeof part === 'string' || typeof part === 'number') ? <EmojiText text={parts.join('')}/> : label; };
+const showLabel = (label: ReactNode, unindent = false) => { const parts = Array.isArray(label) ? label : [label]; return parts.every(part => typeof part === 'string' || typeof part === 'number') ? <EmojiText text={unindent ? parts.join('').replace(/^[\u2003\s]+/, '') : parts.join('')}/> : label; };
 type MenuPosition = { top: number; left: number; width: number; maxHeight: number };
 
 export function AppSelect({ children, value, defaultValue, onChange, disabled, required, name, className = '', title, style, render, menuClassName = '', menuWidth = 0, 'aria-label': ariaLabel, ...rest }: Props) {
@@ -98,7 +98,7 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
 
   return <span className="app-select" style={style}>
     <button ref={trigger} type="button" role="combobox" aria-label={ariaLabel} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="listbox" aria-activedescendant={open ? `${id}-${active}` : undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} className={`input app-select-trigger ${!current ? 'is-placeholder' : ''} ${invalid ? 'is-invalid' : ''} ${className}`} title={title} disabled={disabled} onClick={() => { setActive(Math.max(0, options.findIndex(item => item.value === current && !item.disabled))); setOpen(wasOpen => !wasOpen); }} onKeyDown={keyDown}>
-      <span className="app-select-value">{render ? render(selected ? selected.value : '', 'trigger') : selected ? showLabel(selected.label) : 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
+      <span className="app-select-value">{render ? render(selected ? selected.value : '', 'trigger') : selected ? showLabel(selected.label, true) : 'Pilih opsi'}</span><ChevronDown size={17} aria-hidden="true" className={open ? 'rotated' : ''}/>
     </button>
     <select {...rest} name={name} required={required} disabled={disabled} value={current} tabIndex={-1} aria-hidden="true" className="app-select-validation" onChange={event => onChange?.({ target: { value: event.target.value } })} onInvalid={event => { event.preventDefault(); setInvalid(true); trigger.current?.focus(); }}>{children}</select>
     {open && position && createPortal(<div ref={menu} id={id} role="listbox" aria-label={ariaLabel ?? title ?? 'Pilih opsi'} className={`app-select-menu ${menuClassName}`} style={{ position: host ? 'absolute' : 'fixed', ...position }}>
