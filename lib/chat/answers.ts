@@ -618,3 +618,85 @@ export function readAnswer(t: string, ctx: AnswerCtx, v: Voice, memory: { item?:
   if (FREE.test(t) && !NOT_FREE.test(t)) return freeMoney(ctx, v);
   return null;
 }
+
+/* ------------------------------------------------------------------ 8.6 Rekap and "kenapa minggu ini boros?" */
+
+const MONTH_WORDS: Record<string, number> = { januari: 1, jan: 1, februari: 2, feb: 2, maret: 3, mar: 3, april: 4, apr: 4, mei: 5, juni: 6, jun: 6, juli: 7, jul: 7, agustus: 8, agu: 8, agt: 8, september: 9, sep: 9, sept: 9, oktober: 10, okt: 10, november: 11, nov: 11, desember: 12, des: 12 };
+const REKAP_MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const REKAP = /\b(?:rekap(?:an|nya)?|recap|wrapped|kilas balik)\b/;
+/**
+ * "rekap bulan lalu", "rekap oktober", "wrapped tahun ini": the Rekap (slides) opened from the chat, for that month or
+ * year. The numbers are worked out by the Rekap itself from the whole history on this device.
+ */
+export function rekapAsk(t: string, ctx: AnswerCtx, v: Voice): Answer | null {
+  if (!REKAP.test(t) || findAmounts(t).some(a => a.value >= 1000)) return null;
+  const y = Number(ctx.today.slice(0, 4)), m = Number(ctx.today.slice(5, 7)), d = Number(ctx.today.slice(8, 10));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  let key = '';
+  if (/\btahun\s+(?:lalu|kemarin|kemaren)\b/.test(t)) key = String(y - 1);
+  else if (/\btahun\s+ini\b|\b(?:setahun|tahunan)\b/.test(t)) key = String(y);
+  else if (/\bbulan\s+ini\b/.test(t)) key = `${y}-${pad(m)}`;
+  else if (/\bbulan\s+(?:lalu|kemarin|kemaren|kmrn)\b/.test(t)) key = m === 1 ? `${y - 1}-12` : `${y}-${pad(m - 1)}`;
+  else {
+    const named = t.match(new RegExp(`\\b(${Object.keys(MONTH_WORDS).join('|')})\\b(?:\\s+(20\\d{2}))?`));
+    if (named) { const mm = MONTH_WORDS[named[1]], yy = named[2] ? Number(named[2]) : mm > m ? y - 1 : y; key = `${yy}-${pad(mm)}`; }
+    else { const yr = t.match(/\b(20\d{2})\b/); key = yr ? yr[1] : d <= 7 ? (m === 1 ? `${y - 1}-12` : `${y}-${pad(m - 1)}`) : `${y}-${pad(m)}`; }
+  }
+  const label = key.length === 4 ? `tahun ${key}` : `${REKAP_MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
+  return { intent: 'module', title: `Rekap ${label}`, text: vo(v, {
+    santai: `Rekap ${label} siap! Ketuk tombol di bawah: masuk-keluar, kategori terbesar, tempat favorit, hari paling boros, dan rajin mencatat. Bisa disembunyikan nominalnya dan dibagikan.`,
+    sopan: `Rekap ${label} sudah siap. Silakan ketuk tombol di bawah untuk melihatnya.`,
+    gaul: `Rekap ${label} udah jadi, cuy! Tap tombol di bawah, bisa dishare juga.`,
+    singkat: `Rekap ${label} siap.`,
+    barbar: `Rekap ${label} nih. Siap-siap kaget liat duit lo ke mana aja, anjir.` }),
+    open: { view: `rekap:${key}`, label: `Buka Rekap ${label}` }, chips: ['ringkasan bulan ini', 'kenapa minggu ini boros?'] };
+}
+
+const WEEK_WHY = /\b(?:minggu|pekan)\s+ini\b.*\b(?:boros\p{L}*|bengkak|jebol|parah|kebanyakan)\b|\b(?:minggu|pekan)\s+ini\b.*\b(?:kok|kenapa|knp)\b.*\b(?:banyak|gede|besar|mahal)\b|\b(?:kok|kenapa|knp)\b.*\b(?:minggu|pekan)\s+ini\b.*\b(?:boros\p{L}*|banyak|gede|besar)\b|\bseminggu\s+(?:ini|terakhir)\b.*\bboros\p{L}*\b/u;
+/**
+ * "kenapa minggu ini boros?", "minggu ini aku boros di mana": the last 7 days against the weeks before that this device
+ * holds (up to 8), by category: what went up most. Says honestly when it is not more than usual.
+ */
+export function weekAsk(t: string, ctx: AnswerCtx, v: Voice): Answer | null {
+  if (!WEEK_WHY.test(t) || findAmounts(t).some(a => a.value >= 1000)) return null;
+  const { data, today } = ctx, day = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 864e5), now = day(today);
+  const spends = data.transactions.filter(x => !x.recurringTransactionId).flatMap(x => { const amount = transactionExpense(x); return amount > 0 ? [{ x, amount }] : []; });
+  if (!spends.length) return null;
+  const oldest = Math.min(...data.transactions.map(x => day(x.date)));
+  const weeks = Math.max(0, Math.min(8, Math.floor((now - 6 - oldest) / 7)));
+  const lookup = new Map(data.categories.map(c => [c.id, c]));
+  const nameOf = (id: string) => lookup.get(id)?.name || 'Tanpa kategori';
+  const topOf = (x: (typeof spends)[number]['x']) => { const c = lookup.get(x.categoryId || ''); return c?.parentId ? c.parentId : x.categoryId || 'none'; };
+  const nowBy = new Map<string, number>(), beforeBy = new Map<string, number>();
+  let nowTotal = 0, beforeTotal = 0;
+  for (const { x, amount } of spends) {
+    const back = now - day(x.date);
+    if (back >= 0 && back <= 6) { nowTotal += amount; nowBy.set(topOf(x), (nowBy.get(topOf(x)) || 0) + amount); }
+    else if (back > 6 && back <= 6 + weeks * 7) { beforeTotal += amount; beforeBy.set(topOf(x), (beforeBy.get(topOf(x)) || 0) + amount); }
+  }
+  const usual = weeks ? beforeTotal / weeks : 0;
+  const rows = [...nowBy.entries()].map(([id, amount]) => ({ id, amount, usual: weeks ? (beforeBy.get(id) || 0) / weeks : 0 })).sort((a, b) => (b.amount - b.usual) - (a.amount - a.usual));
+  const up = rows.filter(r => r.amount - r.usual > 0).slice(0, 3);
+  const times = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('id-ID')}×`;
+  const line = (r: (typeof rows)[number]) => ({ label: nameOf(r.id), value: weeks ? `${rp(r.amount)} · ${r.usual > 0 ? `${times(r.amount / r.usual)} biasanya` : 'baru minggu ini'}` : rp(r.amount) });
+  const hero = { label: '7 hari terakhir', value: rp(nowTotal), note: weeks ? `biasanya ±${rp(usual)} seminggu` : undefined, tone: (weeks && nowTotal > usual * 1.1 ? 'warn' : 'info') as 'warn' | 'info' };
+  const open = { view: 'transactions', label: 'Lihat transaksinya' };
+  if (!weeks) return { intent: 'module', title: 'Minggu ini', text: `7 hari terakhir keluar ${rp(nowTotal)}. Riwayat di HP ini belum cukup untuk dibandingkan dengan minggu-minggu sebelumnya. Paling banyak: ${rows.slice(0, 3).map(r => nameOf(r.id)).join(', ')}.`, hero, lines: [...nowBy.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id, amount]) => ({ label: nameOf(id), value: rp(amount) })), open };
+  const basis = `rata-rata ${weeks} minggu sebelumnya`;
+  // Nothing recorded this week: more likely forgotten than saved.
+  if (nowTotal === 0) return { intent: 'module', title: 'Minggu ini', text: `7 hari terakhir belum ada pengeluaran yang tercatat (${basis} ±${rp(usual)}). Kalau ada yang kelewat, catat dulu biar hitungannya pas.`, hero, open, chips: ['catat pengeluaran', 'ringkasan bulan ini'] };
+  if (nowTotal <= usual * 1.1) return { intent: 'module', title: 'Minggu ini', text: vo(v, {
+    santai: `Sebenarnya nggak boros kok: 7 hari terakhir ${rp(nowTotal)}, ${basis} ${rp(usual)}.${up[0] ? ` Yang agak naik cuma ${nameOf(up[0].id)}.` : ''}`,
+    sopan: `Pengeluaran 7 hari terakhir ${rp(nowTotal)}, tidak lebih besar dari ${basis} (${rp(usual)}).`,
+    gaul: `Santai, minggu ini masih normal: ${rp(nowTotal)} vs biasanya ${rp(usual)}.`,
+    singkat: `${rp(nowTotal)} (biasanya ${rp(usual)}). Normal.`,
+    barbar: `Boros dari mana? ${rp(nowTotal)} doang, biasanya ${rp(usual)}. Aman, anjir.` }), hero, lines: up.map(line), open };
+  return { intent: 'module', title: 'Kenapa minggu ini boros', text: vo(v, {
+    santai: `7 hari terakhir keluar ${rp(nowTotal)}, ${basis} ±${rp(usual)}. Paling naik: ${up.map(r => nameOf(r.id)).join(', ')}.`,
+    sopan: `Pengeluaran 7 hari terakhir ${rp(nowTotal)}, dibanding ${basis} sekitar ${rp(usual)}. Kenaikan terbesar: ${up.map(r => nameOf(r.id)).join(', ')}.`,
+    gaul: `Minggu ini ${rp(nowTotal)}, biasanya ±${rp(usual)}. Biang keroknya: ${up.map(r => nameOf(r.id)).join(', ')}.`,
+    singkat: `${rp(nowTotal)} (biasanya ${rp(usual)}). Naik: ${up.map(r => nameOf(r.id)).join(', ')}.`,
+    barbar: `${rp(nowTotal)} seminggu, biasanya ${rp(usual)}. Biang keroknya ${up.map(r => nameOf(r.id)).join(', ')}, anjir.` }),
+    hero, lines: up.map(line), open, chips: ['kasih tips hemat', 'ringkasan bulan ini'],
+    why: `7 hari terakhir (${dm(new Date((now - 6) * 864e5).toISOString().slice(0, 10))}–${dm(today)}) dibanding ${basis} yang ada di HP ini, per kategori utama. Jadwal rutin tidak dihitung.` };
+}

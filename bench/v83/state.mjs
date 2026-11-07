@@ -95,6 +95,11 @@ const balance = { jago: 9500000, gopay: 650000, cash: 300000 };
 const wallets = fullCtx.data.wallets.map(w => ({ ...w, cachedBalance: balance[w.id] ?? w.cachedBalance }));
 export const data = { drafts: [], plannedTransactions: [], categorizationRules: [], financialNotes: [], cycleSnapshots: [], ...fullCtx.data, ...more, wallets, budgets, transactions };
 // The app gives Catat otomatis and the chat the same payday (the profile's); the older fixtures used 25 for Catat.
-const quick = { ...chatCtx.quick, salaryDay: chatCtx.salaryDay, wallets, budgets, history: transactions.slice(-60), ask: { ...chatCtx.quick.ask, transactions, wallets, budgets } };
+// 8.6 In the app, Catat otomatis knows the same debts and receivables as the chat. The older fixture names (Sinta, Dina,
+// Atuy, Rudi, Aldi) stay so earlier sets read the same; the chat's own records (Dimas, Budi, Sari, Kak Rina, Cicilan HP) are
+// added, so "dimas bayar 250rb" is measured as it works in the app.
+const receivables = [...(chatCtx.quick.receivables || []), ...more.receivables.filter(r => !(chatCtx.quick.receivables || []).some(x => x.person.toLowerCase() === r.person.toLowerCase())).map(r => ({ id: r.id, person: r.person, description: r.description, remainingAmount: r.remainingAmount, date: r.date, originalAmount: r.originalAmount }))];
+const debts = [...(chatCtx.quick.debts || []), ...more.debts.filter(d => !(chatCtx.quick.debts || []).some(x => x.name === d.name)).map(d => ({ id: (chatCtx.quick.debts || []).some(x => x.id === d.id) ? `chat-${d.id}` : d.id, name: d.name, provider: d.provider, outstandingAmount: d.outstandingAmount }))];
+const quick = { ...chatCtx.quick, salaryDay: chatCtx.salaryDay, wallets, budgets, receivables, debts, history: transactions.slice(-60), ask: { ...chatCtx.quick.ask, transactions, wallets, budgets } };
 export const v3Ctx = { ...chatCtx, data, quick, inspect: text => inspect(text, quick) };
 export { transactions };
