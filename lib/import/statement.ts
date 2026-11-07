@@ -8,12 +8,13 @@
  * whether it may already be recorded. Rows go to Perlu dikonfirmasi; nothing changes a balance until the person
  * confirms it.
  */
+import { effects } from '../accounting.ts';
 import { suggestCategory } from '../categorize.ts';
 import { walletsIn } from '../quick-entry.ts';
 import type { Category, Draft, LedgerTx, TxType, Wallet } from '../types';
 import { isOldExcel, isZip, readXlsx } from './xlsx.ts';
 
-export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean };
+export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean; /** 8.6 The balance after this row, when the file shows it. */ balance?: number };
 export type StatementRead = {
   rows: StatementRow[];
   /** The columns read, by their header text (for "Kolom yang dibaca: …"). */
@@ -23,6 +24,9 @@ export type StatementRead = {
   /** Amounts with no sign or debit/credit column: read as spending, to check. */
   unsure: number;
   from?: string; to?: string;
+  /** 8.6 The bank's own balances: at the start and end of the file, and whether the rows read add up from one to the
+   * other (opening + money in − money out = closing), which tells that no row was missed. */
+  balance?: { opening?: number; closing?: number; closingDate?: string; complete?: boolean };
 };
 
 /* ------------------------------------------------------------------ Reading the file */
@@ -163,7 +167,7 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const periodYear = knownYear ?? (Number(above.match(/(?:periode|period|tanggal|statement)[^\d]{0,20}\d{1,2}[/.-]\d{1,2}[/.-](\d{4})/i)?.[1] || above.match(/\b(20\d{2})\b/)?.[1] || 0) || undefined);
   if (header < 0) return inferWithoutHeader(rows, today, periodYear);
   const pick = (role: Role) => roles.indexOf(role);
-  const dateCol = pick('date'), debit = pick('debit'), credit = pick('credit'), amountCol = pick('amount');
+  const dateCol = pick('date'), debit = pick('debit'), credit = pick('credit'), amountCol = pick('amount'), balanceCol = pick('balance');
   let kindCol = pick('kind');
   const descCols = roles.map((r, i) => r === 'desc' ? i : -1).filter(i => i >= 0);
   const body = rows.slice(header + 1);
@@ -181,12 +185,21 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const parts = body.map(r => dateParts(r[dateCol] || '')).filter((p): p is NonNullable<typeof p> => Boolean(p && !p.iso));
   if (!parts.some(p => p.a > 12) && parts.some(p => p.b > 12)) order = 'mdy';
   const out: StatementRow[] = [];
-  let skipped = 0, unsure = 0;
+  let skipped = 0, unsure = 0, opening: number | undefined, closing: number | undefined;
+  const signed = (a: { value: number; sign: -1 | 0 | 1 } | null) => a ? (a.sign < 0 ? -a.value : a.value) : undefined;
+  // "Saldo Awal" / "Saldo Akhir" lines (above or below the table): the first amount on the line.
+  const lineAmount = (r: string[]) => { for (const c of r) { if (/\p{L}{3,}/u.test(c.replace(/\b(?:rp|idr|db|cr)\b/gi, ''))) continue; const a = parseAmount(c); if (a && (a.value > 0 || /\d/.test(c))) return signed(a); } return undefined; };
+  for (const r of rows) {
+    const text = r.join(' ').toLowerCase();
+    if (/\b(?:saldo awal|opening balance|beginning balance|saldo sebelumnya|previous balance)\b/.test(text) && opening === undefined) opening = lineAmount(r);
+    else if (/\b(?:saldo akhir|closing balance|ending balance)\b/.test(text) && !/\b(?:tanggal|periode)\b/.test(text)) closing = lineAmount(r) ?? closing;
+  }
   body.forEach((r, k) => {
     if (!r.some(Boolean)) return;
     const description = descCols.map(i => r[i]).filter(Boolean).join(' · ').replace(/\s+/g, ' ').trim();
     const date = parseDate(r[dateCol] || '', { order, year: periodYear, today });
     if (!date || NOT_A_ROW.test(description) || NOT_A_ROW.test(r[dateCol] || '')) { skipped++; return; }
+    const rowBalance = balanceCol >= 0 ? signed(parseAmount(r[balanceCol] || '')) : undefined;
     let amount = 0, type: 'expense' | 'income' | null = null, unsureRow = false;
     const out1 = debit >= 0 ? parseAmount(r[debit] || '') : null, in1 = credit >= 0 ? parseAmount(r[credit] || '') : null;
     if (out1 && out1.value > 0) { amount = out1.value; type = 'expense'; } else if (in1 && in1.value > 0) { amount = in1.value; type = 'income'; }
@@ -201,12 +214,25 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
     }
     if (!type || amount <= 0) { skipped++; return; }
     if (unsureRow) unsure++;
-    out.push({ line: header + 2 + k, date, description, amount: Math.round(amount), type, ...(unsureRow ? { unsure: true } : {}) });
+    out.push({ line: header + 2 + k, date, description, amount: Math.round(amount), type, ...(unsureRow ? { unsure: true } : {}), ...(rowBalance !== undefined ? { balance: rowBalance } : {}) });
   });
+  // Oldest first or newest first: the closing balance is the one after the latest row; the opening one is before the earliest.
+  const withBalance = out.filter(r => r.balance !== undefined);
+  if (withBalance.length) {
+    const newestFirst = out.length > 1 && out[0].date > out[out.length - 1].date;
+    const latest = newestFirst ? withBalance[0] : withBalance[withBalance.length - 1], earliest = newestFirst ? withBalance[withBalance.length - 1] : withBalance[0];
+    closing ??= latest.balance;
+    opening ??= earliest.balance! - (earliest.type === 'income' ? earliest.amount : -earliest.amount);
+  }
+  const net = out.reduce((n, r) => n + (r.type === 'income' ? r.amount : -r.amount), 0);
+  const balance = opening !== undefined || closing !== undefined ? {
+    ...(opening !== undefined ? { opening: Math.round(opening) } : {}), ...(closing !== undefined ? { closing: Math.round(closing), ...(out.length ? { closingDate: out.map(r => r.date).sort().pop()! } : {}) } : {}),
+    ...(opening !== undefined && closing !== undefined ? { complete: Math.abs(opening + net - closing) <= Math.max(1, out.length) } : {}),
+  } : undefined;
   // With no sign anywhere, every amount was read as spending: said, so the person checks.
   const dates = out.map(r => r.date).sort();
   return {
-    rows: out, skipped, unsure,
+    rows: out, skipped, unsure, ...(balance ? { balance } : {}),
     columns: { date: rows[header][dateCol], description: descCols.map(i => rows[header][i] || `Kolom ${i + 1}`), ...(amountCol >= 0 ? { amount: rows[header][amountCol] } : {}), ...(debit >= 0 ? { debit: rows[header][debit] } : {}), ...(credit >= 0 ? { credit: rows[header][credit] } : {}), ...(kindCol >= 0 ? { kind: rows[header][kindCol] || 'DB/CR' } : {}) },
     ...(dates.length ? { from: dates[0], to: dates[dates.length - 1] } : {}),
   };
@@ -224,7 +250,8 @@ function inferWithoutHeader(rows: string[][], today: string, year?: number): Sta
   if (!moneyCols.length) throw Error('Kolom nominal tidak ditemukan di file ini.');
   // A balance column is the last of several money columns; the amount is the one before it.
   const amountCol = moneyCols.length > 1 ? moneyCols[moneyCols.length - 2] : moneyCols[0];
-  const table = [Array.from({ length: width }, (_, i) => i === dateCol ? 'Tanggal' : i === amountCol ? 'Jumlah' : i === descCol ? 'Keterangan' : ''), ...rows];
+  const balanceCol = moneyCols.length > 1 ? moneyCols[moneyCols.length - 1] : -1;
+  const table = [Array.from({ length: width }, (_, i) => i === dateCol ? 'Tanggal' : i === amountCol ? 'Jumlah' : i === descCol ? 'Keterangan' : i === balanceCol ? 'Saldo' : ''), ...rows];
   const read = readStatement(table, today, year);
   return { ...read, columns: { date: `Kolom ${dateCol + 1}`, description: descCol !== undefined ? [`Kolom ${descCol + 1}`] : [], amount: `Kolom ${amountCol + 1}` } };
 }
@@ -305,4 +332,27 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
     const already = ids.has(id) ? 'imported' as const : matchAt >= 0 ? 'recorded' as const : ctx.skipped?.has(id) ? 'skipped' as const : undefined;
     return { ...row, id, name, walletId: ctx.walletId, destinationWalletId, flow, categoryId: guess?.categoryId || null, subcategoryId: guess?.subcategoryId || null, ...(already ? { already } : {}) };
   });
+}
+
+/* ------------------------------------------------------------------ 8.6 Matching the bank's balance */
+
+export type Reconcile = {
+  /** The bank's balance at the end of the file, and that day. */
+  bank: number; date: string;
+  /** The wallet in the app on that day (everything recorded up to and including it). */
+  app: number;
+  /** What the new rows (not yet recorded) would add to or take from the wallet. */
+  pending: number;
+  /** Bank minus app-with-new-rows: 0 means it matches once the new rows are confirmed. */
+  diff: number;
+};
+/** The wallet's change from one row (a transfer out of it takes money; one into it adds). */
+const rowEffect = (x: ImportItem, walletId: string) => x.flow === 'income' ? x.amount : x.flow === 'transfer' ? (x.destinationWalletId === walletId ? x.amount : -x.amount) : -x.amount;
+/** The app side starts from the balance the person sees now and takes back what was recorded after the file's last day. */
+export function reconcile(read: StatementRead, chosen: ImportItem[], wallet: Pick<Wallet, 'id' | 'cachedBalance'>, history: LedgerTx[]): Reconcile | null {
+  const bank = read.balance?.closing, date = read.balance?.closingDate;
+  if (bank === undefined || !date) return null;
+  const app = wallet.cachedBalance - history.filter(t => t.date > date).reduce((n, t) => n + (effects(t)[wallet.id] || 0), 0);
+  const pending = chosen.filter(x => x.date <= date).reduce((n, x) => n + rowEffect(x, wallet.id), 0);
+  return { bank, date, app, pending, diff: bank - (app + pending) };
 }

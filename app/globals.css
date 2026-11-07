@@ -8791,3 +8791,14 @@ button.int-more { justify-self: start; font-size: .74rem; }
 @media (prefers-reduced-motion: reduce) { .wr-overlay { animation: none; } .wr-track { scroll-behavior: auto; } }
 .ix-head-actions { display: inline-flex; align-items: center; gap: 8px; flex: none; }
 .ix-rekap-btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #08181a)); color: #fff; font-weight: 800; cursor: pointer; box-shadow: var(--elev-1); }
+/* 8.6 Impor mutasi: the bank's balance against the wallet. */
+.si-match { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--paper); }
+.si-match > strong { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+.si-match.is-ok > strong { color: var(--good-ink, #1f7a4d); }
+.si-match.is-off > strong { color: var(--warn-ink, #8a5a00); }
+.si-match ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.si-match li { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; }
+.si-match li span { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.si-match li b { flex: none; }
+.si-match small { color: var(--muted); line-height: 1.45; }
+.si-match .btn { justify-self: start; }

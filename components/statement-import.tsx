@@ -1,12 +1,13 @@
 'use client';
-import { useMemo, useState, type ChangeEvent } from 'react';
-import { FileSpreadsheet, Inbox } from 'lucide-react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { CheckCircle2, FileSpreadsheet, Inbox, Scale } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Field, Select } from './fields';
 import { emojiOrFallback } from './visual-identity';
-import { addImportedDrafts } from '@/lib/firestore';
-import { planImport, readStatement, readStatementFile, type ImportItem, type StatementRead } from '@/lib/import/statement';
+import { addImportedDrafts, loadAllTransactions } from '@/lib/firestore';
+import { planImport, readStatement, readStatementFile, reconcile, type ImportItem, type StatementRead } from '@/lib/import/statement';
+import type { LedgerTx } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
 import { formatDate } from '@/lib/period';
 
@@ -24,14 +25,19 @@ const MAX_ROWS = 1000;
  * 8.5 Import a bank or e-wallet statement (CSV or Excel) into Perlu dikonfirmasi. The file is read on this device and
  * never uploaded; only the suggested rows are saved, as drafts that change no balance until each is confirmed.
  */
-export function StatementImport({ onDone }: { onDone: (count: number) => void }) {
+export function StatementImport({ onDone, openTx }: { onDone: (count: number) => void; /** 8.6 Opens the form (here: a balance correction) when the page has one. */ openTx?: (preset: Partial<LedgerTx>) => void }) {
   const { data, user } = useApp();
   const wallets = useMemo(() => data.wallets.filter(w => !w.isArchived).sort((a, b) => Number(b.type === 'bank' || b.type === 'ewallet') - Number(a.type === 'bank' || a.type === 'ewallet')), [data.wallets]);
   const [walletId, setWalletId] = useState(''), [fileName, setFileName] = useState(''), [read, setRead] = useState<StatementRead | null>(null);
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [withRecorded, setWithRecorded] = useState(false);
   const today = new Date().toLocaleDateString('en-CA');
-  const plan: ImportItem[] = useMemo(() => !read || !walletId || !user ? [] : planImport({ ...read, rows: read.rows.slice(-MAX_ROWS) }, { walletId, wallets: data.wallets, categories: data.categories, transactions: data.transactions, drafts: data.drafts, skipped: readSkippedImports(user.uid) }), [read, walletId, user, data.wallets, data.categories, data.transactions, data.drafts]);
+  const plan: ImportItem[] = useMemo(() => !read || !walletId || !user ? [] : planImport({ ...read, rows: [...read.rows].sort((a, b) => a.date.localeCompare(b.date)).slice(-MAX_ROWS) }, { walletId, wallets: data.wallets, categories: data.categories, transactions: data.transactions, drafts: data.drafts, skipped: readSkippedImports(user.uid) }), [read, walletId, user, data.wallets, data.categories, data.transactions, data.drafts]);
   const chosen = plan.filter(x => !x.already || (withRecorded && x.already === 'recorded'));
+  // 8.6 The bank's closing balance against the wallet on that day (from the whole history on this device) plus the new rows.
+  const [history, setHistory] = useState<LedgerTx[] | null>(null);
+  useEffect(() => { if (!user || read?.balance?.closing === undefined) return; let live = true; void loadAllTransactions(user.uid).then(items => { if (live) setHistory(items); }).catch(() => { if (live) setHistory(null); }); return () => { live = false; }; }, [user?.uid, read]);
+  const wallet = data.wallets.find(w => w.id === walletId);
+  const match = read && wallet && history ? reconcile(read, chosen, wallet, history) : null;
   const count = (k: ImportItem['already']) => plan.filter(x => x.already === k).length;
   const sum = (rows: ImportItem[]) => rows.reduce((n, x) => n + x.amount, 0);
   const out = chosen.filter(x => x.flow === 'expense'), inn = chosen.filter(x => x.flow === 'income'), moved = chosen.filter(x => x.flow === 'transfer');
@@ -75,6 +81,18 @@ export function StatementImport({ onDone }: { onDone: (count: number) => void })
           <span><small>Masuk</small><strong className="amount-positive">{rupiah(sum(inn))}</strong><small>{inn.length} baris</small></span>
           {moved.length > 0 && <span><small>Pindah dompet</small><strong>{rupiah(sum(moved))}</strong><small>{moved.length} baris</small></span>}
         </div>}
+        {match && <div className={`si-match ${Math.abs(match.diff) < 1 ? 'is-ok' : 'is-off'}`}>
+          <strong>{Math.abs(match.diff) < 1 ? <><CheckCircle2 size={16}/> Saldo cocok dengan bank</> : <><Scale size={16}/> Saldo belum cocok, beda {rupiah(Math.abs(match.diff))}</>}</strong>
+          <ul>
+            <li><span>Saldo bank per {formatDate(match.date)}</span><b>{rupiah(match.bank)}</b></li>
+            <li><span>{wallet!.name} di aplikasi per {formatDate(match.date)}</span><b>{rupiah(match.app)}</b></li>
+            {match.pending !== 0 && <li><span>Kalau {chosen.filter(x => x.date <= match.date).length} baris baru dikonfirmasi</span><b>{match.pending > 0 ? '+' : '−'}{rupiah(Math.abs(match.pending))}</b></li>}
+          </ul>
+          {Math.abs(match.diff) < 1 ? <small>{match.pending !== 0 ? 'Setelah semua baris baru dikonfirmasi, saldo di aplikasi sama persis dengan bank.' : 'Semua transaksi di file ini sudah tercatat.'}</small>
+            : <><small>{match.diff > 0 ? 'Bank lebih besar' : 'Bank lebih kecil'} dari catatanmu{match.pending !== 0 ? ' (sudah menghitung baris baru)' : ''}. Biasanya ada transaksi yang tidak masuk file ini atau saldo awal dompet yang beda.</small>
+              {openTx && <Button variant="secondary" className="small" onClick={() => openTx({ type: 'adjustment', amount: Math.abs(match.diff), adjustmentDirection: match.diff > 0 ? 'in' : 'out', walletId: wallet!.id, date: match.date, description: 'Disamakan dengan mutasi bank' })}>Samakan saldo {wallet!.name}</Button>}</>}
+        </div>}
+        {read.balance && read.balance.complete === false && <p className="notice">Saldo awal ditambah mutasi yang terbaca tidak sama dengan saldo akhir di file. Mungkin ada baris yang tidak terbaca, cek lagi filenya.</p>}
         {read.unsure > 0 && <p className="notice">{read.unsure} nominal tanpa tanda masuk/keluar, jadi dibaca sebagai pengeluaran. Cek lagi saat konfirmasi.</p>}
         {(count('imported') > 0 || count('skipped') > 0) && <p className="muted">{[count('imported') && `${count('imported')} sudah pernah diimpor`, count('skipped') && `${count('skipped')} pernah kamu lewati`].filter(Boolean).join(' · ')}: tidak dimasukkan lagi.</p>}
         {count('recorded') > 0 && <label className="check-row"><input type="checkbox" checked={withRecorded} onChange={e => setWithRecorded(e.target.checked)} /><span>Ikutkan {count('recorded')} baris yang sepertinya sudah tercatat (nominal & tanggal sama di dompet ini)</span></label>}

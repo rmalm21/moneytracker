@@ -201,3 +201,53 @@ test('8.5 the daily "nothing recorded yet" reminder', () => {
   assert.match(quietReminder('2026-11-05', '2026-11-07').title, /^Sudah 2 hari belum ada catatan/);
   assert.match(quietReminder('', '2026-11-07').title, /^Hari ini/);
 });
+
+// ——— 8.6 Matching the bank's balance ———
+import { reconcile } from '../lib/import/statement.ts';
+const bcaFile = `Periode : 01/10/2026 - 31/10/2026
+
+Tanggal Transaksi,Keterangan,Cabang,Jumlah,,Saldo
+'01/10,TRSF E-BANKING DB SARI,0000,"50,000.00",DB,"2,450,000.00"
+'02/10,KARTU DEBIT INDOMARET,0000,"23,500.00",DB,"2,426,500.00"
+'25/10,TRSF E-BANKING CR GAJI,0000,"8,000,000.00",CR,"10,426,500.00"
+'31/10,BIAYA ADM,0000,"15,000.00",DB,"10,411,500.00"
+Saldo Awal,,,"2,500,000.00"
+Saldo Akhir,,,"10,411,500.00"
+`;
+test('8.6 the bank balances are read, and the rows add up from opening to closing', async () => {
+  const r = await read(bcaFile);
+  assert.deepEqual(r.balance, { opening: 2_500_000, closing: 10_411_500, closingDate: '2026-10-31', complete: true });
+  // A row the reader could not read: the sums no longer meet, which is said.
+  const broken = await read(bcaFile.replace(`'02/10,KARTU DEBIT INDOMARET,0000,"23,500.00",DB,"2,426,500.00"`, `'02/10,KARTU DEBIT INDOMARET,0000,"dua puluh ribu",DB,"2,426,500.00"`));
+  assert.equal(broken.balance.complete, false);
+  // Newest first, balance column only (no Saldo Awal line): opening worked out from the earliest row.
+  const desc = await read(`Tanggal;Keterangan;Debit;Kredit;Saldo
+31/10/2026;BIAYA ADM;15.000,00;;985.000,00
+10/10/2026;GAJI;;500.000,00;1.000.000,00
+05/10/2026;KOPI;20.000,00;;500.000,00
+`);
+  assert.deepEqual(desc.balance, { opening: 520_000, closing: 985_000, closingDate: '2026-10-31', complete: true });
+  // No balance anywhere: nothing to match.
+  const none = await read(`Tanggal,Keterangan,Jumlah
+15/10/2026,Belanja,-250000
+`);
+  assert.equal(none.balance, undefined);
+});
+test('8.6 the wallet against the bank: recorded up to the last day, plus the new rows', async () => {
+  const r = await read(bcaFile);
+  const wallets = [{ id: 'bca', name: 'BCA', type: 'bank', isArchived: false }];
+  const history = [
+    { id: 'a', type: 'expense', amount: 50_000, date: '2026-10-01', walletId: 'bca', destinationWalletId: null, description: 'sari', merchant: '', categoryId: null, subcategoryId: null },
+    { id: 'z', type: 'expense', amount: 99_000, date: '2026-11-03', walletId: 'bca', destinationWalletId: null, description: 'later', merchant: '', categoryId: null, subcategoryId: null },
+  ];
+  const items = planImport(r, { walletId: 'bca', wallets, categories: [], transactions: history, drafts: [] });
+  const chosen = items.filter(x => !x.already);
+  assert.equal(chosen.length, 3, 'the 50.000 on 1 Oktober is already recorded');
+  const m = reconcile(r, chosen, { id: 'bca', cachedBalance: 2_351_000 }, history);
+  assert.equal(m.bank, 10_411_500);
+  assert.equal(m.app, 2_450_000, 'the balance now (2.351.000) with the 99.000 of 3 November given back');
+  assert.equal(m.pending, 8_000_000 - 23_500 - 15_000);
+  assert.equal(m.diff, 0);
+  // A wallet that started at a different balance in the app: the difference is said.
+  assert.equal(reconcile(r, chosen, { id: 'bca', cachedBalance: 2_306_000 }, history).diff, 45_000);
+});
