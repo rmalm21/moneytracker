@@ -180,3 +180,24 @@ test('8.5 the plan: categories guessed, transfers to own wallets, already record
   assert.ok(again.every(x => x.already === 'imported'));
   assert.ok(first.every(x => /^imp_[\w-]+$/.test(x.id) && x.id.length <= 140));
 });
+
+// 8.5 2c — "Hari ini belum ada catatan": at the chosen time, only on a day with nothing recorded by the person.
+import { dueReminders, lastRecordDate, quietReminder, defaultReminders } from '../lib/reminders.ts';
+test('8.5 the daily "nothing recorded yet" reminder', () => {
+  const config = { ...defaultReminders, quietEnabled: true, quietTime: '20:30' };
+  assert.deepEqual(dueReminders(config, '20:00', []).fire, []);
+  const due = dueReminders(config, '20:31', []);
+  assert.deepEqual(due.fire, ['quiet']); assert.deepEqual(due.consumed, ['quiet@20:30']);
+  assert.deepEqual(dueReminders(config, '20:45', ['quiet@20:30']).fire, []);
+  // Opened long after the time: marked as done without a reminder.
+  const late = dueReminders(config, '23:59', []);
+  assert.deepEqual(late.fire, []); assert.deepEqual(late.consumed, ['quiet@20:30']);
+  assert.deepEqual(dueReminders({ ...config, quietEnabled: false }, '20:31', []).fire, []);
+  // Interest and schedules recorded by themselves are not the person's records.
+  const txs = [{ id: 'a', date: '2026-11-05' }, { id: 'wint_bca_2026-11-07', date: '2026-11-07' }, { id: 'r', date: '2026-11-07', recurringTransactionId: 'netflix' }];
+  assert.equal(lastRecordDate(txs), '2026-11-05');
+  assert.equal(quietReminder('2026-11-07', '2026-11-07'), null);
+  assert.match(quietReminder('2026-11-06', '2026-11-07').title, /^Hari ini belum ada catatan/);
+  assert.match(quietReminder('2026-11-05', '2026-11-07').title, /^Sudah 2 hari belum ada catatan/);
+  assert.match(quietReminder('', '2026-11-07').title, /^Hari ini/);
+});

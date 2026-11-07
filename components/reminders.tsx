@@ -13,7 +13,7 @@ import { formatDate, nextDate, todayInTimeZone } from '@/lib/period';
 import { showAppNotification } from '@/lib/system-notify';
 import { systemNoticeText } from './hide-amounts';
 import { budgetCurrent, budgetIconCategoryId } from '@/lib/accounting';
-import { defaultReminders, dueReminders, presetTimes, validTime, type ReminderConfig } from '@/lib/reminders';
+import { defaultReminders, dueReminders, lastRecordDate, presetTimes, quietReminder, validTime, type ReminderConfig } from '@/lib/reminders';
 
 const STATE_CACHE = 'dompet-ajaib-state';
 const localDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -31,20 +31,22 @@ let queue: Promise<void> = Promise.resolve();
 export function reminderConfig(profile: { reminders?: Partial<ReminderConfig> } | null | undefined): ReminderConfig { return { ...defaultReminders, ...(profile?.reminders || {}) }; }
 
 /** Runs while the app is open (and in the background where the browser allows): shows reminders at the chosen times. */
-export function useReminderEngine(navigate: (view: string) => void) {
+export function useReminderEngine(navigate: (view: string) => void, openRecord?: () => void) {
   const { data, profile, user } = useApp();
   const { push } = useNotify();
   const config = reminderConfig(profile);
-  const latest = useRef({ data, profile, config, navigate });
-  latest.current = { data, profile, config, navigate };
+  const latest = useRef({ data, profile, config, navigate, openRecord });
+  latest.current = { data, profile, config, navigate, openRecord };
+  // 8.5 The last day something was recorded, for "Hari ini belum ada catatan" (also checked by the service worker).
+  const lastRecord = lastRecordDate(data.transactions);
 
   // Share the schedule (and the next week's bills) with the service worker for background checks.
   useEffect(() => {
     if (!user || !profile) return;
     const today = todayInTimeZone(profile.timeZone); let end = today; for (let i = 0; i < 8; i++) end = nextDate(end);
     const bills = upcomingEvents(data, profile, { start: today, end }).filter(e => e.kind !== 'note' && e.amount < 0).map(e => ({ date: e.date, title: e.title, amount: Math.abs(e.amount) }));
-    void writeJson('/__reminders.json', { ...config, bills });
-    if (!config.balanceEnabled && !config.billsEnabled) return;
+    void writeJson('/__reminders.json', { ...config, bills, lastRecord });
+    if (!config.balanceEnabled && !config.billsEnabled && !config.quietEnabled) return;
     void (async () => {
       try {
         const registration = await navigator.serviceWorker?.ready;
@@ -54,13 +56,13 @@ export function useReminderEngine(navigate: (view: string) => void) {
         if (status.state === 'granted') await sync.register('dompet-reminders', { minInterval: 60 * 60 * 1000 });
       } catch { /* Background checks are a bonus where supported. */ }
     })();
-  }, [user?.uid, JSON.stringify(config), data.recurring, data.plannedTransactions, data.debts, data.claims, data.receivables, profile?.timeZone]);
+  }, [user?.uid, JSON.stringify(config), data.recurring, data.plannedTransactions, data.debts, data.claims, data.receivables, profile?.timeZone, lastRecord]);
 
   useEffect(() => {
     if (!user) return;
     async function run() {
       {
-        const { config, data, profile, navigate } = latest.current;
+        const { config, data, profile, navigate, openRecord } = latest.current;
         // Budget alerts: once per budget per period when it reaches its warning level, and again when it runs out.
         if (config.budgetAlerts !== false && profile && data.budgets.length) {
           const alerts = (await readJson<Record<string, string>>('/__budget-alerts.json')) || {};
@@ -82,7 +84,7 @@ export function useReminderEngine(navigate: (view: string) => void) {
           }
           if (changed) await writeJson('/__budget-alerts.json', alerts);
         }
-        if (!config.balanceEnabled && !config.billsEnabled) return;
+        if (!config.balanceEnabled && !config.billsEnabled && !config.quietEnabled) return;
         const day = localDay(), state = await readJson<{ date: string; fired: string[] }>('/__reminders-fired.json');
         const fired = state?.date === day ? state.fired : [];
         const { fire, consumed } = dueReminders(config, localTime(), fired);
@@ -93,6 +95,12 @@ export function useReminderEngine(navigate: (view: string) => void) {
             const title = 'Waktunya perbarui saldo 💰', body = `Cocokkan saldo ${data.wallets.filter(w => !w.isArchived).length} dompetmu dan catat transaksi yang terlewat hari ini.`;
             const shown = document.visibilityState === 'hidden' && await showSystemNotification(title, body, '/?view=wallets', 'balance');
             push({ title, body, kind: 'info', app: true, action: { label: 'Buka dompet', run: () => navigate('wallets') }, history: !shown });
+          } else if (kind === 'quiet') {
+            // Only on a day with nothing recorded yet; otherwise it stays quiet.
+            const quiet = quietReminder(lastRecordDate(data.transactions), day);
+            if (!quiet) continue;
+            const shown = document.visibilityState === 'hidden' && await showSystemNotification(quiet.title, quiet.body, '/?action=expense', 'quiet');
+            push({ title: quiet.title, body: quiet.body, kind: 'info', app: true, action: { label: 'Catat sekarang', run: () => openRecord ? openRecord() : navigate('transactions') }, history: !shown });
           } else if (profile) {
             const today = todayInTimeZone(profile.timeZone); let end = today; for (let i = 0; i <= config.billDaysBefore; i++) end = nextDate(end);
             const due = upcomingEvents(data, profile, { start: today, end }).filter(e => e.kind !== 'note' && e.amount < 0);
@@ -130,7 +138,8 @@ export function ReminderSettings() {
     if (!user) return;
     const times = [...new Set(draft.times.filter(validTime))].sort();
     if (draft.balanceEnabled && !times.length) { notify('Pilih minimal satu jam pengingat.'); return; }
-    if ((draft.balanceEnabled || draft.billsEnabled) && permission === 'default') await allow();
+    if (draft.quietEnabled && !validTime(draft.quietTime || '')) { notify('Pilih jam pengingat catatan.'); return; }
+    if ((draft.balanceEnabled || draft.billsEnabled || draft.quietEnabled) && permission === 'default') await allow();
     try { await saveProfile(user.uid, { reminders: { ...draft, times } }); notify('Pengingat disimpan.'); } catch (e) { notify((e as Error).message || 'Pengingat belum tersimpan.'); }
   }
   return <div className="panel reminder-settings">
@@ -149,6 +158,11 @@ export function ReminderSettings() {
     {draft.billsEnabled && <div className="reminder-block form-grid">
       <Field label="Ingatkan sejak"><div className="segment">{[[0, 'Hari H'], [1, 'H-1'], [3, 'H-3']].map(([value, label]) => <button type="button" key={value} className={draft.billDaysBefore === value ? 'active' : ''} onClick={() => set({ billDaysBefore: value as number })}>{label}</button>)}</div></Field>
       <Field label="Jam pengingat tagihan"><AppTimePicker value={draft.billTime} onChange={e => set({ billTime: e.target.value })} required/></Field>
+    </div>}
+
+    <label className="switch-row"><input type="checkbox" checked={Boolean(draft.quietEnabled)} onChange={e => set({ quietEnabled: e.target.checked })}/><span><strong>Ingatkan kalau belum mencatat</strong><small>“Hari ini belum ada catatan, ada yang kelewat?” Muncul hanya di hari yang belum ada catatannya.</small></span></label>
+    {draft.quietEnabled && <div className="reminder-block form-grid">
+      <Field label="Jam pengingat"><AppTimePicker value={draft.quietTime || defaultReminders.quietTime!} onChange={e => set({ quietTime: e.target.value })} required/></Field>
     </div>}
 
     <label className="switch-row"><input type="checkbox" checked={draft.budgetAlerts !== false} onChange={e => set({ budgetAlerts: e.target.checked })}/><span><strong>Peringatan anggaran</strong><small>Saat anggaran mencapai batas peringatan dan saat terlampaui (sekali per periode).</small></span></label>

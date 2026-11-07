@@ -99,7 +99,7 @@ const toMinutes = time => { const [h, m] = String(time).split(':').map(Number); 
 const pad = n => String(n).padStart(2, '0');
 async function checkReminders() {
   const config = await readJson('/__reminders.json');
-  if (!config || (!config.balanceEnabled && !config.billsEnabled)) return;
+  if (!config || (!config.balanceEnabled && !config.billsEnabled && !config.quietEnabled)) return;
   const now = new Date(), day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`, current = now.getHours() * 60 + now.getMinutes();
   const state = await readJson('/__reminders-fired.json'), fired = state && state.date === day ? state.fired : [];
   const consumed = [], show = [];
@@ -116,6 +116,15 @@ async function checkReminders() {
     // "Super ketat" hides amounts on the lock screen too (the page shares its choice in /__hide-amounts.json).
     const hide = await readJson('/__hide-amounts.json'), money = n => hide && hide.ketat ? 'Rp•••••' : `Rp${Number(n).toLocaleString('id-ID')}`;
     if (due.length && current - toMinutes(config.billTime) <= 180) show.push([due.length === 1 ? `Tagihan: ${due[0].title}` : `${due.length} tagihan segera jatuh tempo`, due.slice(0, 3).map(b => `${b.title} ${money(b.amount)}`).join('\n'), '/?view=upcoming', 'bills']);
+  }
+  // 8.5 "Hari ini belum ada catatan": only when the page's last record day (shared in /__reminders.json) is before today.
+  const quiet = config.quietTime || '20:30';
+  if (config.quietEnabled && toMinutes(quiet) <= current && !fired.includes(`quiet@${quiet}`)) {
+    consumed.push(`quiet@${quiet}`);
+    if (current - toMinutes(quiet) <= 180 && !(config.lastRecord && config.lastRecord >= day)) {
+      const days = config.lastRecord ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${config.lastRecord}T00:00:00Z`)) / 864e5) : 0;
+      show.push([days >= 2 ? `Sudah ${days} hari belum ada catatan ✍️` : 'Hari ini belum ada catatan ✍️', 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.', '/?action=expense', 'quiet']);
+    }
   }
   if (!consumed.length) return;
   await writeJson('/__reminders-fired.json', { date: day, fired: [...fired, ...consumed] });
