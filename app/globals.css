@@ -8743,3 +8743,11 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .si-preview li > span small { color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
 .si-preview li > strong { flex: none; font-size: .88rem; }
 .inbox-import-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; }
+
+/* 8.5 Beranda: a card still to be drawn keeps its place (no jump when it appears). */
+.widget-slot.widget-pending { min-height: 168px; border-radius: var(--radius, 18px); background: color-mix(in srgb, var(--paper) 70%, transparent); border: 1px solid var(--line); opacity: .55; }
+/* 8.5 Transaksi: a long line under a name ("Split Bill · dibayar yessy · belum kamu ganti") goes on to a second line instead of
+   widening every day card past the screen (".data-row-main small" made it a block, so the one-line rules above never applied). */
+.tx-days { grid-template-columns: minmax(0, 1fr); }
+.tx-results .data-row-main .tx-meta { display: flex; flex-wrap: wrap; row-gap: 3px; min-width: 0; white-space: normal; }
+.tx-results .data-row-main .tx-meta > span:not(.tx-cat) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }

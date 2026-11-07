@@ -5,7 +5,7 @@ import { isEmergencyFund, isKantong, kantongWallets, pocketEmoji } from '@/lib/p
 import { PocketSheet, type PocketStart } from './pockets';
 import { Emoji, EmojiText } from './emoji';
 import { Coins as SumCoins, CreditCard as SumCreditCard, Hourglass as SumHourglass } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, startTransition } from 'react';
 import { Archive, Ban, CalendarDays, Check, ChevronRight, Download, Edit3, Hourglass, Layers, Minus, MoreHorizontal, PencilLine, Percent, ReceiptText, Repeat, Trash2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { GlassHero, GlassRing, closeMenu, dueText } from './glass';
 import { useApp } from './app-provider';
@@ -32,6 +32,8 @@ function Heading({title,detail,children}:{title:string;detail:string;children?:R
 function useAction(notify:(message:string)=>void){const {track}=useNotify();const [saving,setSaving]=useState(false),[error,setError]=useState('');async function perform(action:()=>Promise<unknown>,success:string,after?:()=>void,reopen?:()=>void){if(after&&reopen){after();track(action(),{pending:'Menyimpan…',success,failure:'Belum tersimpan',retry:{label:'Buka lagi',run:reopen}});return;}setError('');setSaving(true);try{await action();notify(success);after?.();}catch(e){if((e as {committed?:boolean}).committed){notify((e as Error).message);after?.()}else setError((e as Error).message||'Tindakan gagal.');}finally{setSaving(false);}}return {saving,error,perform,setError};}
 function Failure({message}:{message:string}){return message?<p role="alert" className="form-error">{message}</p>:null}
 const PAGE=50;
+/** 8.5 Rows drawn in the first frame (about one phone screen). */
+const FIRST_ROWS=6;
 const claimStatus:Record<Claim['status'],string>={draft:'Draf',submitted:'Diajukan',waiting:'Menunggu cair',approved:'Disetujui',paid:'Sudah cair',rejected:'Ditolak'};
 const claimSteps:Claim['status'][]=['draft','submitted','waiting','approved','paid'];
 const stepLabels:Partial<Record<Claim['status'],string>>={draft:'Draf',submitted:'Diajukan',waiting:'Menunggu',approved:'Disetujui',paid:'Cair'};
@@ -67,7 +69,10 @@ export function TransactionsView({notify,openTx,revision,focus:rawFocus}:Props&{
   return text.includes(query);
  }).sort((a,b)=>sort==='highest'?b.amount-a.amount||newestFirst(a,b):sort==='oldest'?newestFirst(b,a):newestFirst(a,b)),[data.categories,data.wallets,source,query,type,walletFilter,categoryFilter,txIds,sort]);
  useEffect(()=>setLimit(PAGE),[query,type,walletFilter,categoryFilter,txIds,sort,allHistory,period,custom?.start,custom?.end]);
- const shown=filtered.slice(0,limit);
+ // 8.5 The first screenful of rows is drawn first; the rest of the page follows as a low-priority update a tap can interrupt.
+ const [firstPaint,setFirstPaint]=useState(true);
+ useEffect(()=>{const idle=(globalThis as {requestIdleCallback?:(f:()=>void,o?:{timeout:number})=>number}).requestIdleCallback;const run=()=>startTransition(()=>setFirstPaint(false));if(idle){const id=idle(run,{timeout:250});return()=>(globalThis as {cancelIdleCallback?:(id:number)=>void}).cancelIdleCallback?.(id)}const id=window.setTimeout(run,60);return()=>window.clearTimeout(id)},[]);
+ const shown=filtered.slice(0,firstPaint?Math.min(limit,FIRST_ROWS):limit);
  async function csv(){if(!user)return;try{const rows=(await loadAllTransactions(user.uid)).sort(newestFirst).map(t=>[t.date,typeLabels[t.type]||t.type,(t.walletId?walletLabel(data.wallets.find(w=>w.id===t.walletId)):'')||'',(t.destinationWalletId?walletLabel(data.wallets.find(w=>w.id===t.destinationWalletId)):undefined)||'',(t.splits?.length?t.splits.map(line=>`${data.categories.find(c=>c.id===line.categoryId)?.name||'Kategori'} ${line.amount}`).join(' + '):data.categories.find(c=>c.id===(t.subcategoryId||t.categoryId))?.name||data.categories.find(c=>c.id===t.categoryId)?.name||''),t.merchant,t.description,t.amount,t.notes,t.tags?.join('|')||'']);const safe=(v:unknown)=>`"${String(v??'').replace(/^[=+@\-]/,"'$&").replaceAll('"','""')}"`;const text=[['Tanggal','Jenis','Dompet','Tujuan','Kategori','Merchant','Keterangan','Nominal','Catatan','Tag'],...rows].map(row=>row.map(safe).join(',')).join('\r\n');const blob=new Blob(['\ufeff',text],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dompet-ajaib-transaksi.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);notify('CSV berhasil diunduh.');}catch(e){setError((e as Error).message);}}
 
  async function loadHistory(){if(!user)return;setLoadingAll(true);setError('');try{const items=await loadAllTransactions(user.uid);setAll({uid:user.uid,items});setAllHistory(true);notify('Seluruh riwayat dimuat.')}catch(e){setError((e as Error).message)}finally{setLoadingAll(false)}}

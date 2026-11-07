@@ -13,14 +13,24 @@ export function PeriodSelector({ value, onChange, custom, onCustomChange, label 
   return <div className="period-control"><Field label={label}><Select value={value} onChange={event => change(event.target.value as PeriodPreset)}>{periodOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field><small>{periodLabel(range)}</small>{value === 'custom' && onCustomChange && <div className="period-dates"><Field label="Dari"><Input type="date" required value={custom?.start || range.start} onChange={event => {const start=event.target.value;onCustomChange({ start, end: (custom?.end || range.end) <= start ? nextDate(start) : custom?.end || range.end });}}/></Field><Field label="Sampai"><Input type="date" required value={previousDate(custom?.end || range.end)} onChange={event => {const end=nextDate(event.target.value);onCustomChange({ start: (custom?.start || range.start) >= end ? event.target.value : custom?.start || range.start, end });}}/></Field></div>}</div>;
 }
 
+/**
+ * 8.5 The last list read for each period, kept in memory: opening Beranda or Transaksi again shows it at once (one render,
+ * not an empty page first) while the device copy is read again; the fresh list replaces it a moment later.
+ */
+const lastRead = new Map<string, LedgerTx[]>();
+function remember(key: string, items: LedgerTx[]) {
+  lastRead.delete(key); lastRead.set(key, items);
+  while (lastRead.size > 12) lastRead.delete(lastRead.keys().next().value as string);
+}
 export function usePeriodTransactions(range: DateRange) {
   const { user } = useApp();
   const key = `${user?.uid || ''}:${range.start}:${range.end}`;
-  const [state, setState] = useState<{ key: string; items: LedgerTx[]; error: string }>({ key: '', items: [], error: '' });
+  const [state, setState] = useState<{ key: string; items: LedgerTx[]; error: string }>(() => { const hit = lastRead.get(key); return hit ? { key, items: hit, error: '' } : { key: '', items: [], error: '' }; });
   useEffect(() => {
     if (!user || !range.start || !range.end || range.start >= range.end) return;
     const requested = `${user.uid}:${range.start}:${range.end}`;
-    return subscribePeriodTransactions(user.uid, range.start, range.end, items => setState({ key: requested, items, error: '' }), error => setState({ key: requested, items: [], error: error.message || 'Riwayat belum bisa dimuat.' }));
+    return subscribePeriodTransactions(user.uid, range.start, range.end, items => { remember(requested, items); setState({ key: requested, items, error: '' }); }, error => setState({ key: requested, items: [], error: error.message || 'Riwayat belum bisa dimuat.' }));
   }, [user?.uid, range.start, range.end]);
-  return { items: state.key === key ? state.items : [], loading: Boolean(user) && state.key !== key, error: state.key === key ? state.error : '' };
+  const cached = state.key === key ? null : lastRead.get(key);
+  return { items: state.key === key ? state.items : cached || [], loading: Boolean(user) && state.key !== key && !cached, error: state.key === key ? state.error : '' };
 }
