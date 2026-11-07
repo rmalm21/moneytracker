@@ -8808,3 +8808,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .si-bill > span { display: grid; min-width: 0; }
 .si-bill > span small { color: var(--muted); font-size: .78rem; }
 .si-bills > small { color: var(--muted); line-height: 1.45; }
+/* 8.6 The form's code is fetched on first open (normally already warmed while idle). */
+.form-loading { padding: 28px 8px; text-align: center; color: var(--muted); font-size: .9rem; }
+/* 8.6 The chat loads on the first touch of its button. */
+.chat-fab.is-loading { opacity: .75; }

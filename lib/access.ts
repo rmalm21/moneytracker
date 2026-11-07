@@ -25,6 +25,15 @@ const okKey = (uid: string) => `dompet-ajaib:access:${uid}`;
 const revokedKey = (uid: string) => `dompet-ajaib:revoked:${uid}`;
 /** "May open" (offline too) and, separately, "the owner took access back" (until access is given again). */
 const remember = (uid: string, ok: boolean, revoked = false) => { try { if (ok) { localStorage.setItem(okKey(uid), '1'); localStorage.removeItem(revokedKey(uid)); sessionStorage.removeItem(`dompet-ajaib:asked:${uid}`); } else { localStorage.removeItem(okKey(uid)); if (revoked) localStorage.setItem(revokedKey(uid), '1'); } } catch { /* optional */ } };
+const adminKey = (uid: string) => `dompet-ajaib:admin:${uid}`;
+/**
+ * 8.6 What this device last learned about the account: allowed in (and whether as the owner). The app opens on it at
+ * once and checks again in the background; Firestore rules still refuse every read for an account without access.
+ */
+export function knownAccess(uid: string): { granted: boolean; admin: boolean } {
+  try { return { granted: localStorage.getItem(okKey(uid)) === '1' && !wasRevoked(uid), admin: localStorage.getItem(adminKey(uid)) === '1' }; } catch { return { granted: false, admin: false }; }
+}
+const rememberAdmin = (uid: string, admin: boolean) => { try { if (admin) localStorage.setItem(adminKey(uid), '1'); else localStorage.removeItem(adminKey(uid)); } catch { /* only a convenience */ } };
 const wasRevoked = (uid: string) => { try { return localStorage.getItem(revokedKey(uid)) === '1'; } catch { return false; } };
 const need = () => { if (!db) throw Error('Konfigurasi cloud belum tersedia.'); return db; };
 const toDate = (v: unknown) => v instanceof Timestamp ? v.toDate() : undefined;
@@ -49,6 +58,7 @@ export async function checkAccess(user: User): Promise<{ state: AccessState; adm
     const config = await getDoc(doc(store, 'appConfig', 'access')).catch(() => null);
     admin = Boolean(config?.exists() && (config.data().admins || []).includes(user.uid));
     const own = await getDoc(grant).catch(async error => { const cached = await getDocFromCache(grant).catch(() => null); if (cached) return cached; throw error; });
+    rememberAdmin(user.uid, admin);
     if (own.exists()) { remember(user.uid, true); return { state: 'granted', admin, revoked: false }; }
     if (admin) { await setDoc(grant, { code: 'owner', email: user.email || '', at: serverTimestamp() }); remember(user.uid, true); return { state: 'granted', admin, revoked: false }; }
     const revoked = before || wasRevoked(user.uid);

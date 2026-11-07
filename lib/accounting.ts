@@ -1,7 +1,9 @@
 import type { Budget, Category, Data, LedgerTx, Wallet } from './types';
 import { isKantong, kantongWalletIds } from './pockets.ts';
 import { walletSplit } from './wallet-portions.ts';
-export function rupiah(value: number) { const rounded = Math.round(value || 0); return (rounded < 0 ? '-Rp' : 'Rp') + Math.abs(rounded).toLocaleString('id-ID'); }
+/** 8.6 One number formatter for the whole app (toLocaleString makes a new one on every call, about 14× slower). */
+const idNumber = new Intl.NumberFormat('id-ID');
+export function rupiah(value: number) { const rounded = Math.round(value || 0); return (rounded < 0 ? '-Rp' : 'Rp') + idNumber.format(Math.abs(rounded)); }
 export function readMoney(value: string) { const n = Number(value.replace(/\D/g, '')); return Number.isSafeInteger(n) ? n : 0; }
 /** Newest first: by date, then time, then when it was recorded (unsaved local writes count as newest). */
 export function newestFirst(a: LedgerTx, b: LedgerTx) {

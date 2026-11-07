@@ -10,6 +10,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, Banknote, BookOpen, Gamepad2, Brain, Calculator, CalendarClock, ChartPie, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronUp, Copy, HeartHandshake, LayoutGrid, Lightbulb, ListChecks, MessageCircle, MessageCircleQuestion, PenLine, PiggyBank, SendHorizontal, ShoppingBag, SlidersHorizontal, Smile, Sparkles, StickyNote, Tag, Target, Trash2, Undo2, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
+import { ChatMark } from './chat-mark';
 import { QuickEntryBox } from './quick-entry';
 import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
@@ -45,18 +46,10 @@ const CARD_LOOK: Record<SayCard, { icon: LucideIcon; tone: string }> = {
 const plainText = (m: ChatMessage) => m.role === 'user' ? m.text : [m.text, m.reply?.kind === 'plan' ? m.status === 'saved' ? m.summary : `“${m.reply.text}”` : ''].filter(Boolean).join(' ');
 
 /** The assistant's mark: a speech bubble with a spark, drawn for the round button. */
-function ChatMark({ size = 22 }: { size?: number }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 3.2c-4.9 0-8.8 3.4-8.8 7.7 0 2.3 1.1 4.3 2.9 5.7l-.6 3.2c-.1.5.4.9.9.6l3.4-1.8c.7.2 1.4.2 2.2.2 4.9 0 8.8-3.4 8.8-7.7S16.9 3.2 12 3.2Z" fill="currentColor" opacity=".22"/>
-    <path d="M12 3.2c-4.9 0-8.8 3.4-8.8 7.7 0 2.3 1.1 4.3 2.9 5.7l-.6 3.2c-.1.5.4.9.9.6l3.4-1.8c.7.2 1.4.2 2.2.2 4.9 0 8.8-3.4 8.8-7.7S16.9 3.2 12 3.2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-    <path d="M12 7.4c.3 1.6 1.1 2.4 2.7 2.7-1.6.3-2.4 1.1-2.7 2.7-.3-1.6-1.1-2.4-2.7-2.7 1.6-.3 2.4-1.1 2.7-2.7Z" fill="currentColor"/>
-    <circle cx="16.4" cy="13.2" r="1" fill="currentColor"/>
-  </svg>;
-}
 
-export function ChatLauncher({ openTx, navigate }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void }) {
+export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean }) {
   const { user, data, profile, cycle } = useApp();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [messages, setMessages] = useState<ChatMessage[]>([]), [memory, setMemory] = useState<ChatMemory>({});
   const [loaded, setLoaded] = useState(false), [shown, setShown] = useState(PAGE), [draft, setDraft] = useState(''), [typing, setTyping] = useState(false);
