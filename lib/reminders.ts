@@ -50,6 +50,6 @@ export function quietReminder(lastRecord: string, today: string): { title: strin
   if (lastRecord && lastRecord >= today) return null;
   const days = lastRecord ? dayNumber(today) - dayNumber(lastRecord) : 0;
   return days >= 2
-    ? { title: `Sudah ${days} hari belum ada catatan ✍️`, body: 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.' }
-    : { title: 'Hari ini belum ada catatan ✍️', body: 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.' };
+    ? { title: `Sudah ${days} hari belum ada catatan 📝`, body: 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.' }
+    : { title: 'Hari ini belum ada catatan 📝', body: 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.' };
 }

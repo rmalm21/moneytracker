@@ -123,7 +123,7 @@ async function checkReminders() {
     consumed.push(`quiet@${quiet}`);
     if (current - toMinutes(quiet) <= 180 && !(config.lastRecord && config.lastRecord >= day)) {
       const days = config.lastRecord ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${config.lastRecord}T00:00:00Z`)) / 864e5) : 0;
-      show.push([days >= 2 ? `Sudah ${days} hari belum ada catatan ✍️` : 'Hari ini belum ada catatan ✍️', 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.', '/?action=expense', 'quiet']);
+      show.push([days >= 2 ? `Sudah ${days} hari belum ada catatan 📝` : 'Hari ini belum ada catatan 📝', 'Ada yang kelewat? Jajan, parkir, atau transfer kecil, catat sekarang biar saldo tetap cocok.', '/?action=expense', 'quiet']);
     }
   }
   if (!consumed.length) return;

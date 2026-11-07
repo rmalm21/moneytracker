@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.5', date: '7 Nov 2026', title: 'Impor mutasi bank, Rekap bulanan yang bisa dibagikan, pengingat mencatat, dan halaman lebih kencang', items: [
+    ['🧾', 'Impor mutasi bank atau e-wallet dari file CSV atau Excel (.xlsx): Konfirmasi → Impor mutasi. File dibaca di HP-mu dan tidak diunggah. Semua baris masuk ke Konfirmasi lengkap dengan nama dan tebakan kategori; top up dan tarik tunai jadi transfer ke dompetmu sendiri, dan yang sudah tercatat atau sudah pernah diimpor dilewati.'],
+    ['🎉', 'Rekap bulanan dan tahunan: ketuk Rekap di Insight, lalu geser untuk melihat masuk-keluar, kategori terbesar, tempat favorit, hari paling boros, dan rajin mencatat. Bisa disembunyikan nominalnya, dan Bagikan membuat gambar langsung di HP. Di minggu pertama tiap bulan, rekap bulan lalu juga ditawarkan di Beranda.'],
+    ['📊', 'Insight memberi tahu kebiasaan yang melonjak minggu ini, misalnya “Kopi minggu ini 2,3× rata-ratamu”. Rata-ratanya dari 8 minggu sebelumnya, dan hanya untuk kebiasaan yang memang sering muncul.'],
+    ['📝', 'Pengingat baru “Hari ini belum ada catatan, ada yang kelewat?” di jam pilihanmu. Muncul hanya di hari yang belum ada catatannya. Nyalakan di Pengaturan → Pengingat.'],
+    ['🤝', 'Nama dengan sapaan dibaca utuh: “kasbon pak rt 300rb” jadi Pak RT, “mas kev bayar 20rb” jadi Mas Kev. Nama tempat seperti “warung bu sri” tetap tempat.'],
+    ['🤖', 'Asisten chat ingat lebih lama: setelah “makasih” atau “wkwk”, “dia kapan bayar?” dan “rinciannya dong” masih nyambung sampai tiga pesan. “Dia” kini juga untuk utang ke orang, misalnya “bayar ke dia 500rb”.'],
+    ['⚡', 'Beranda tampil sekitar dua kali lebih cepat di HP biasa, dan Transaksi juga lebih cepat muncul. Kartu di bawah layar digambar sesudah halaman tampil.'],
+    ['🔧', 'Perbaikan: keterangan panjang di baris Split Bill (“… belum kamu ganti”) membuat kartu di Transaksi melebar sampai nominalnya terpotong di HP. Sekarang turun ke baris kedua.'],
+  ] },
   { version: '8.4.1', date: '2 Nov 2026', title: 'Info Split Bill, kategori di chat, menu bawah lebih halus, dan tampilan HP lebih lebar', items: [
     ['🧾', 'Split Bill kini menjelaskan apa yang dicatat sebelum disimpan. Kalau teman yang bayar, bagianmu langsung dihitung sebagai pengeluaran dan jadi utang; saat kamu bayar balik dari dompet, saldo berkurang tapi tidak dihitung dua kali. Baris di Transaksi menulis “belum kamu ganti” sampai lunas.'],
     ['🎯', 'Formulir transaksi mengingatkan kalau kamu mencatat pengeluaran ke orang yang masih punya utang Split Bill, dengan tombol “Jadikan Bayar utang” sekali ketuk, supaya tidak dobel.'],
