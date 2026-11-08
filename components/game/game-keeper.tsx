@@ -8,10 +8,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../app-provider';
 import { useNotify } from '../notifications';
 import { transactionExpense } from '@/lib/accounting';
-import { addDays, advance, BADGES, challengeProgress, localDay, mondayOf, sharedStreak, spaceDays, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
+import { addDays, advance, BADGES, challengeProgress, coinResult, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
-import { celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, useGame, visitedToday } from './game-store';
+import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
 import { play } from '@/lib/game-sound';
 import { openGroup } from '@/lib/space-chat';
 
@@ -36,7 +36,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     if (!uid) return;
     // 9.5 The step of now (not the one from when this started): an old one still thought Pribadi was open, so in a
     // Ruang Bersama every save counted that space's records a second time for Pribadi (XP, missions).
-    return subscribeGameState(uid, state => { remote.current = { state, loaded: true }; latest.current = state; setGame({ state, ready: true }); stepRef.current(); });
+    return subscribeGameState(uid, state => { remote.current = { state, loaded: true }; latest.current = state; setGame({ state, ready: true }); cacheState(uid, state); stepRef.current(); });
   }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** One look at the records now, turned into an observation for the rules. */
@@ -91,7 +91,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     checkinWanted.current = false;
     const text = JSON.stringify(state);
     if (text !== JSON.stringify(prev)) {
-      latest.current = state; setGame({ state });
+      latest.current = state; setGame({ state }); cacheState(uid, state);
       if (saving.current !== text) { saving.current = text; void saveGameState(uid, state).catch(() => { saving.current = ''; }); }
     }
     if (o.week && state.challenge) setGame({ challengeView: challengeProgress(state.challenge, weekCtx(state.days, mondayOf(today), today, o.week), false) });
@@ -113,6 +113,16 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   useEffect(() => { if (space) publishSpace(space.id); }, [space?.id, data.transactions, sharedNow[space?.id || ''] === undefined, publishSpace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stepRef = useRef(step); stepRef.current = step;
+  /** Changes the saved game outside a look at the records (the mini games); then a look, for level ups and badges. */
+  function apply<T extends { state: GameState }>(fn: (s: GameState) => T | null): T | null {
+    const prev = latest.current; if (!uid || !prev) return null;
+    const out = fn(prev); if (!out) return null;
+    latest.current = out.state; setGame({ state: out.state }); cacheState(uid, out.state);
+    const text = JSON.stringify(out.state); saving.current = text;
+    void saveGameState(uid, out.state).catch(() => { saving.current = ''; });
+    window.setTimeout(() => stepRef.current(), 300);
+    return out;
+  }
   // Look again when the records change, every minute (a new day, the evening), and when asked.
   useEffect(() => { if (!loading && !since.current) since.current = Date.now(); }, [loading]);
   useEffect(() => { step(); }, [step, data.transactions]);
@@ -121,7 +131,11 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     setGameActions({
       checkin: () => { checkinWanted.current = true; step(); },
       checkinSpace: spaceId => { const today = todayInTimeZone(tz); publishSpace(spaceId, [today]); play('mission'); celebrate([{ kind: 'note', title: 'Hari aman tercatat', text: 'Kamu sudah nyala untuk api bareng hari ini' }]); },
+      // 9.6 Mini games: the prize is worked out and saved at once (closing the game mid-way keeps it).
+      spin: () => { const out = apply(s => spinWheel(s, todayInTimeZone(tz), uid || '')); return out && { index: out.index, xp: out.xp, shield: out.shield }; },
+      coinDone: score => { const out = apply(s => coinResult(s, todayInTimeZone(tz), score)); return out && { xp: out.xp, record: out.record, best: out.best }; },
     });
+    if (takePendingCheckin()) { checkinWanted.current = true; step(); }
     const onView = (e: Event) => { const view = (e as CustomEvent<string>).detail; if (uid && markVisited(uid, todayInTimeZone(tz), view)) step(); };
     // The menu already open when the keeper starts (it loads a moment after the first screen).
     const current = document.querySelector('main[data-view]')?.getAttribute('data-view');
@@ -133,7 +147,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   const spaceIds = spaces.map(s => s.id).join('|');
   useEffect(() => {
     if (!uid || !spaces.length) return;
-    const stops = spaces.map(s => subscribeSharedFire(s.id, members => setGame(g => ({ shared: { ...g.shared, [s.id]: members } }))));
+    const stops = spaces.map(s => subscribeSharedFire(s.id, members => { cacheShared(s.id, uid, members); setGame(g => ({ shared: { ...g.shared, [s.id]: members } })); }));
     return () => stops.forEach(stop => stop());
   }, [uid, spaceIds]); // eslint-disable-line react-hooks/exhaustive-deps
   // Evening: a flame about to go out (yours, or a space's), said once a day in the bell. Milestones of api bareng.

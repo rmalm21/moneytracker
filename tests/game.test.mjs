@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACHIEVEMENTS, advance, addDays, BADGE_GROUPS, BADGE_TOTAL, BADGES, badgeList, challengeFor, nearestBadge, spaceDays, TIERS, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
+import { ACHIEVEMENTS, canSpin, COIN_XP_CAP, coinResult, coinXpLeft, SPIN_PRIZES, spinIndex, spinWheel, advance, addDays, BADGE_GROUPS, BADGE_TOTAL, BADGES, badgeList, challengeFor, nearestBadge, spaceDays, TIERS, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
 
 // 9.4 Arena Catat — the recording streak, perisai, badges, XP, missions, weekly challenge, api bareng.
 const T = '2026-11-08'; // a Sunday
@@ -149,9 +149,9 @@ test('9.5 api bareng counts only what is done in that space', () => {
   assert.equal(advance(s, obs({ root: 'space:s1', recordedToday: 1 })).state.days.includes(T), true);
 });
 
-test('9.5 more badges: 30 in four tiers, by group, unlocked once with XP, quiet on the first look', () => {
-  assert.equal(BADGE_TOTAL, 30); assert.equal(ACHIEVEMENTS.length, 22);
-  assert.equal(new Set(ACHIEVEMENTS.map(a => a.id)).size, 22);
+test('9.5 more badges: 33 in four tiers, by group, unlocked once with XP, quiet on the first look', () => {
+  assert.equal(BADGE_TOTAL, 33); assert.equal(ACHIEVEMENTS.length, 25);
+  assert.equal(new Set(ACHIEVEMENTS.map(a => a.id)).size, 25);
   assert.ok(ACHIEVEMENTS.every(a => BADGE_GROUPS.some(g => g.id === a.group) && TIERS[a.tier]));
   // The first look gives the badges already earned without a party.
   const first = advance(null, obs({ history: run('2026-10-20', 20) }));
@@ -180,7 +180,7 @@ test('9.5 more badges: 30 in four tiers, by group, unlocked once with XP, quiet 
 test('9.5 badge list: progress for every badge and the nearest one', () => {
   const s = { ...emptyState(), days: run('2026-11-01', 8), best: 8, badges: [3, 7], stats: { ...emptyState().stats, missions: 25 }, achievements: { misi1: '2026-11-02' } };
   const list = badgeList(s, T);
-  assert.equal(list.length, 30);
+  assert.equal(list.length, 33);
   const api14 = list.find(b => b.id === 'api14');
   assert.deepEqual([api14.value, api14.target, api14.got, api14.tier], [8, 14, null, 'perak']);
   assert.equal(list.find(b => b.id === 'api7').got, 'ya');
@@ -188,4 +188,45 @@ test('9.5 badge list: progress for every badge and the nearest one', () => {
   assert.equal(list.find(b => b.id === 'misi30').value, 25);
   assert.equal(nearestBadge(list).id, 'misi30'); // 25/30 is the closest
   assert.equal(list.filter(b => b.group === 'Api').length, BADGES.length);
+});
+
+test('9.6 streak badges each have their own picture and climb the tiers', () => {
+  assert.equal(new Set(BADGES.map(b => b.emoji)).size, BADGES.length);
+  const list = badgeList({ ...emptyState() }, T).filter(b => b.group === 'Api');
+  assert.deepEqual(list.map(b => b.tier), ['perunggu', 'perak', 'perak', 'emas', 'emas', 'legenda', 'legenda', 'legenda']);
+});
+
+test('9.6 Putar Roda: once a day after the flame is lit, a fixed prize per day', () => {
+  assert.equal(SPIN_PRIZES.reduce((n, p) => n + p.weight, 0), 100);
+  assert.equal(spinIndex('u1', T), spinIndex('u1', T)); // the same day lands on the same prize
+  const counts = SPIN_PRIZES.map(() => 0);
+  for (let i = 0; i < 2000; i++) counts[spinIndex(`u${i % 37}`, addDays('2026-01-01', i))]++;
+  assert.ok(counts.every(n => n > 0)); assert.ok(counts[6] < counts[0]); // +100 is rarer than +10
+  const s = { ...emptyState(), days: run('2026-11-01', 7), xp: 100 };
+  assert.equal(canSpin(s, T), false); assert.equal(spinWheel(s, T, 'u1'), null); // not lit yet today
+  const lit = { ...s, days: [...s.days, T] };
+  const r = spinWheel(lit, T, 'u1');
+  assert.ok(r); assert.equal(r.state.spinDay, T); assert.equal(r.state.stats.spins, 1);
+  const p = SPIN_PRIZES[r.index];
+  if (p.shield) assert.ok(r.shield || r.xp === 50); else assert.equal(r.state.xp, 100 + p.xp);
+  assert.equal(spinWheel(r.state, T, 'u1'), null); // once a day
+  // A perisai prize with a full hand turns into +50 XP.
+  const seed = Array.from({ length: 500 }, (_, i) => `s${i}`).find(x => SPIN_PRIZES[spinIndex(x, T)].shield);
+  const full = spinWheel({ ...lit, shields: 2 }, T, seed); assert.equal(full.shield, false); assert.equal(full.xp, 50); assert.equal(full.state.shields, 2);
+  const room = spinWheel({ ...lit, shields: 0 }, T, seed); assert.equal(room.shield, true); assert.equal(room.state.shields, 1); assert.equal(room.xp, 0);
+});
+
+test('9.6 Tangkap Koin: a third of the score in XP, at most 30 a day; best score kept', () => {
+  const s = { ...emptyState(), xp: 50 };
+  const a = coinResult(s, T, 40);
+  assert.deepEqual([a.xp, a.record, a.best, a.state.xp, a.state.coinXp], [13, true, 40, 63, 13]);
+  const b = coinResult(a.state, T, 70); assert.equal(b.xp, 17); assert.equal(b.best, 70); assert.equal(coinXpLeft(b.state, T), 0);
+  const c = coinResult(b.state, T, 90); assert.equal(c.xp, 0); assert.equal(c.record, true); assert.equal(c.state.coinBest, 90); // XP full, record still counts
+  const d = coinResult(c.state, T, 10); assert.equal(d.record, false);
+  assert.equal(coinXpLeft(d.state, addDays(T, 1)), COIN_XP_CAP); // a new day
+  assert.equal(coinResult(d.state, addDays(T, 1), 30).xp, 10);
+  assert.equal(d.state.stats.coinGames, 4); assert.equal(d.state.stats.coinBest, 90);
+  // The badges for the mini games come from these counters.
+  const r = advance({ ...d.state, missionDay: T, missionIds: [] }, obs());
+  assert.ok(r.state.achievements.koin30 && r.state.achievements.koin80);
 });

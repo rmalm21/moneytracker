@@ -10,12 +10,13 @@ import { Emoji } from '../emoji';
 import { Flame } from './flame';
 import { confetti } from './confetti';
 import { nextCelebration, useGame, type Celebration } from './game-store';
-import { flameOf, levelOf, nextFlame, TIERS, titleOfLevel, type Tier } from '@/lib/game';
+import { BADGES, flameOf, levelOf, nextFlame, streakTier, TIERS, titleOfLevel, type Tier } from '@/lib/game';
 import { play } from '@/lib/game-sound';
 
 const FIRE = ['#ff7a1a', '#ffc24b', '#ff4d1a', '#fff2b3', '#ff4d6d'];
 const TIER_COLORS: Record<Tier, string[]> = { perunggu: ['#e9a66b', '#c27a3d', '#ffd7b0', '#fff'], perak: ['#eef2f6', '#c0c7d1', '#9aa4b1', '#ffffff', '#cfe3ff'], emas: ['#ffe58a', '#f4c542', '#ffb800', '#fff6cc', '#ffffff'], legenda: ['#b06bff', '#ff6bd6', '#6bd0ff', '#ffe58a', '#ffffff'] };
 const ORDER: Tier[] = ['perunggu', 'perak', 'emas', 'legenda'];
+const toneOf = (t: Tier) => t === 'legenda' ? 'legend' : t === 'perunggu' ? 'bronze' : t === 'perak' ? 'silver' : 'gold';
 const topTier = (tiers: Tier[]) => tiers.reduce<Tier>((a, t) => ORDER.indexOf(t) > ORDER.indexOf(a) ? t : a, 'perunggu');
 function useCount(to: number, ms = 900, from = 0) {
   const [n, setN] = useState(from);
@@ -30,7 +31,7 @@ function useCount(to: number, ms = 900, from = 0) {
 
 /** A big celebration waits while another window is open (a dialog, "Apa yang baru", the PIN screen): a modal there
  * holds every tap outside it, so the celebration's button could not be pressed. */
-const BUSY = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], .pin-screen, .onboarding';
+const BUSY = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], .pin-screen, .onboarding, .mg-overlay';
 const big = (c?: Celebration) => Boolean(c) && !['lit', 'mission', 'shield-full', 'note'].includes(c!.kind);
 function useFree(wanted: boolean) {
   const [free, setFree] = useState(false);
@@ -55,7 +56,8 @@ export function Celebrations() {
     if (k === 'lit') { play('lit'); confetti({ count: 60, colors: FIRE, spread: .6, origin: { x: .5, y: .62 } }); }
     else if (k === 'mission') play('mission');
     else if (k === 'level') { play('level'); confetti({ count: 180 }); }
-    else if (k === 'badge' || k === 'challenge' || k === 'shared-badge') { play('badge'); confetti({ count: 200, colors: k === 'challenge' ? undefined : FIRE }); }
+    else if (k === 'badge') { play('badge'); confetti({ count: 200, colors: TIER_COLORS[streakTier(item.days)] }); }
+    else if (k === 'challenge' || k === 'shared-badge') { play('badge'); confetti({ count: 200, colors: k === 'challenge' ? undefined : FIRE }); }
     else if (k === 'missions-all') { play('badge'); confetti({ count: 140 }); }
     else if (k === 'shield-earned' || k === 'shield-used') play('shield');
     else if (k === 'welcome') { play('welcome'); confetti({ count: 160, colors: FIRE }); }
@@ -99,7 +101,7 @@ function BigCard({ item, xp }: { item: Celebration; xp: number }) {
         <ul className="cel-rules"><li><Emoji e="🔥"/> Catat atau cek-in tiap hari, apimu makin besar dan berubah warna</li><li><Emoji e="🛡️"/> Perisai Api menyelamatkan streak kalau kamu lupa sehari</li><li><Emoji e="🎯"/> 3 misi harian dan 1 tantangan mingguan buat kumpulin XP</li><li><Emoji e="🏅"/> Naik level dan kumpulkan 30 lencana, dari Perunggu sampai Legenda</li></ul></>;
       reward = [item.xp ? `+${item.xp} XP bonus pembuka` : '', item.shields ? `${item.shields} Perisai hadiah` : ''].filter(Boolean).join(' · '); button = 'Gas, mulai!'; break;
     }
-    case 'badge': visual = <span className="cel-emoji"><Emoji e="🏆"/></span>; kicker = 'Lencana baru'; title = item.name; body = <p><b>{item.days} hari</b> berturut-turut mencatat. Keren banget!</p>; reward = `+${item.xp} XP`; tone = 'gold'; break;
+    case 'badge': { const b = BADGES.find(x => x.days === item.days), t = streakTier(item.days); visual = <span className={`cel-medal tier-${t}`}><Emoji e={b?.emoji || '🔥'}/></span>; kicker = `Lencana ${TIERS[t].name}`; title = item.name; } body = <p><b>{item.days} hari</b> berturut-turut mencatat. Keren banget!</p>; reward = `+${item.xp} XP`; tone = toneOf(streakTier(item.days)); break;
     case 'level': { const next = titleOfLevel(item.level + 1); visual = <span className="cel-level"><span className="cel-level-n">{item.level}</span><span className="cel-level-emoji"><Emoji e={item.emoji}/></span></span>; kicker = 'Naik level!'; title = item.title; body = <p>Kamu sekarang <b>Level {item.level}</b>. Berikutnya: {next.title} di {next.from.toLocaleString('id-ID')} XP.</p>; tone = 'level'; break; }
     case 'shield-earned': visual = <span className="cel-emoji"><Emoji e="🛡️"/></span>; kicker = 'Hadiah 7 hari'; title = 'Dapat Perisai Api!'; body = <p>Kamu punya <b>{item.shields} perisai</b>. Kalau lupa mencatat sehari, perisai otomatis menyelamatkan apimu.</p>; tone = 'ice'; break;
     case 'shield-used': visual = <span className="cel-emoji is-shake"><Emoji e="🛡️"/></span>; kicker = 'Fiuh, selamat!'; title = 'Perisai menyelamatkan apimu'; body = <p>{item.days.length > 1 ? `${item.days.length} hari` : 'Kemarin'} kamu belum mencatat, tapi api <b>{item.streak} hari</b> tetap aman. Yuk catat hari ini!</p>; tone = 'ice'; break;
@@ -113,7 +115,7 @@ function BigCard({ item, xp }: { item: Celebration; xp: number }) {
       kicker = items.length === 1 ? `Lencana ${TIERS[items[0].tier].name}` : 'Lencana baru';
       title = items.length === 1 ? items[0].name : `${items.length} lencana sekaligus!`;
       body = items.length === 1 ? <p>{items[0].desc}</p> : <ul className="cel-ach">{items.map(x => <li key={x.id} className={`tier-${x.tier}`}><Emoji e={x.emoji}/><span><b>{x.name}</b><small>{TIERS[x.tier].name} · {x.desc}</small></span></li>)}</ul>;
-      reward = `+${sum} XP`; tone = top === 'legenda' ? 'legend' : top === 'perunggu' ? 'bronze' : top === 'perak' ? 'silver' : 'gold'; button = 'Keren!'; break;
+      reward = `+${sum} XP`; tone = toneOf(top); button = 'Keren!'; break;
     }
     case 'shared-badge': visual = <Flame tier={flameOf(item.days).tier} size={140}/>; kicker = `Api bareng ${item.space}`; title = `${item.days} hari nyala bareng!`; body = <p>Lencana bareng: <b>{item.name}</b>. Semua anggota mencatat {item.days} hari berturut-turut.</p>; tone = 'gold'; break;
     default: return null;

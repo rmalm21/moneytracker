@@ -83,15 +83,16 @@ type Others = { uid: string; name: string }[];
 type RowProps = {
   m: GroupMessage; me: { uid: string; name: string }; run: boolean; armed: boolean; seen: string | null;
   readers: string[]; others: Others; names: string[]; onArm: () => void; onReply: () => void; onDelete: () => void; onCopy: () => void;
+  /** 9.6 Several messages from one person in the same minute show the time (and ticks) once, on the last one. */ stamp: boolean;
   onJump: (id: string) => void; onOpenTx: (tx: { id: string; date: string }) => void;
 };
-function GroupRow({ m, me, run, armed, seen, readers, others, names, onArm, onReply, onDelete, onCopy, onJump, onOpenTx }: RowProps) {
+function GroupRow({ m, me, run, armed, seen, readers, others, names, onArm, onReply, onDelete, onCopy, onJump, onOpenTx, stamp }: RowProps) {
   const mine = m.by === me.uid && m.kind !== 'bot', at = ms(m);
   const { row, slide, moved, handlers } = useSwipe(onReply, !mine);
   const tagMe = (t: string) => [me.name, first(me.name)].some(n => t.slice(1).toLocaleLowerCase('id-ID') === n.toLocaleLowerCase('id-ID'));
   const readAll = others.length > 0 && readers.length >= others.length;
   const readName = (id: string) => others.find(o => o.uid === id)?.name || 'Anggota';
-  return <div ref={row} data-id={m.id} className={`gc-row ${mine ? 'is-mine' : m.kind === 'bot' ? 'is-bot' : 'is-other'} ${run ? 'is-run' : ''} ${m.mentions?.includes(me.uid) ? 'is-tagged' : ''}`} {...handlers}>
+  return <div ref={row} data-id={m.id} className={`gc-row ${mine ? 'is-mine' : m.kind === 'bot' ? 'is-bot' : 'is-other'} ${run ? 'is-run' : ''} ${stamp ? '' : 'is-joined'} ${m.mentions?.includes(me.uid) ? 'is-tagged' : ''}`} {...handlers}>
     {!mine && <span className="gc-swipe-ico is-l" aria-hidden="true"><CornerUpLeft size={16}/></span>}
     <div className="gc-slide" ref={slide}>
       {m.kind === 'bot' ? <span className="cm-avatar" aria-hidden="true"><ChatMark size={14}/></span> : !mine && <span className={`gc-avatar ${run ? 'is-blank' : ''}`} aria-hidden="true">{(m.byName || '?')[0].toUpperCase()}</span>}
@@ -104,7 +105,7 @@ function GroupRow({ m, me, run, armed, seen, readers, others, names, onArm, onRe
         {m.kind === 'bot' && m.bot?.question && <small className="gc-asked">“{m.bot.question}”</small>}
         {m.text && <div className="gc-bubble">{splitMentions(m.text, names).map((p, i) => p.tag ? <b key={i} className={`gc-tag ${tagMe(p.text) ? 'is-me' : ''}`}>{p.text}</b> : <Fragment key={i}>{p.text}</Fragment>)}</div>}
         {m.kind === 'bot' && (m.bot?.hero || m.bot?.lines?.length) && <div className="gc-figures">{m.bot.hero && <div className="gc-hero"><small>{m.bot.hero.label}</small><b>{m.bot.hero.value}</b></div>}{m.bot.lines?.map(l => <div key={l.label} className="gc-line"><span>{l.label}</span><b>{l.value}</b></div>)}</div>}
-        <span className="gc-meta"><time className="cm-time">{clock(at)}</time>{mine && <span className={`gc-ticks ${readAll ? 'is-read' : readers.length ? 'is-some' : ''}`} aria-label={readAll ? 'Dibaca' : readers.length ? `Dibaca ${list3(readers.map(readName))}` : 'Terkirim'}>{readers.length ? <CheckCheck size={14}/> : <Check size={14}/>}</span>}</span>
+        {(stamp || armed) && <span className="gc-meta"><time className="cm-time">{clock(at)}</time>{mine && <span className={`gc-ticks ${readAll ? 'is-read' : readers.length ? 'is-some' : ''}`} aria-label={readAll ? 'Dibaca' : readers.length ? `Dibaca ${list3(readers.map(readName))}` : 'Terkirim'}>{readers.length ? <CheckCheck size={14}/> : <Check size={14}/>}</span>}</span>}
         {seen && !armed && <small className="gc-seen">{seen}</small>}
         {armed && <div className="gc-actions" onClick={e => e.stopPropagation()}>
           {mine && <small className="gc-readinfo">{others.length === 0 ? 'Belum ada anggota lain.' : readAll ? (others.length === 1 ? `Dibaca ${others[0].name}` : 'Dibaca semua anggota') : readers.length ? `Dibaca ${list3(readers.map(readName))} · belum: ${list3(others.filter(o => !readers.includes(o.uid)).map(o => o.name))}` : `Belum dibaca ${list3(others.map(o => o.name))}`}</small>}
@@ -185,10 +186,11 @@ export function GroupChat({ list, reads, read, ask, onOpenTx, seed = '' }: { lis
         const at = ms(m), prev = list[i - 1];
         // Several messages in a row from the same person (within 5 minutes) show the name and the initial once.
         const run = Boolean(prev) && prev.by === m.by && prev.kind !== 'bot' && m.kind !== 'bot' && !m.replyTo && dayKey(ms(prev)) === dayKey(at) && at - ms(prev) < 5 * 60e3;
-        const mine = m.by === me.uid && m.kind !== 'bot';
+        const mine = m.by === me.uid && m.kind !== 'bot', next = list[i + 1];
+        const stamp = !next || next.by !== m.by || next.kind === 'bot' || m.kind === 'bot' || dayKey(ms(next)) !== dayKey(at) || clock(ms(next)) !== clock(at);
         return <Fragment key={m.id}>
           {(i === 0 || dayKey(ms(list[i - 1])) !== dayKey(at)) && <div className="chat-day"><span>{dayKey(at) === dayKey(Date.now()) ? 'Hari ini' : dayKey(at) === dayKey(Date.now() - 864e5) ? 'Kemarin' : new Date(at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</span></div>}
-          <GroupRow m={m} me={me} run={run} armed={armed === m.id} seen={mine && m.id === lastMine ? seenLabel(m) : null} readers={mine ? readersOf(at, me.uid, space.memberIds, reads) : []}
+          <GroupRow m={m} me={me} run={run} stamp={stamp} armed={armed === m.id} seen={mine && m.id === lastMine ? seenLabel(m) : null} readers={mine ? readersOf(at, me.uid, space.memberIds, reads) : []}
             others={others} names={names} onArm={() => setArmed(a => a === m.id ? '' : m.id)} onReply={() => startReply(m)} onJump={jump} onOpenTx={onOpenTx}
             onCopy={() => { setArmed(''); void navigator.clipboard?.writeText(m.text).then(() => setNote('Disalin.'), () => setNote('Belum bisa menyalin.')); }}
             onDelete={() => { setArmed(''); void deleteMessage(space.id, m.id).catch(err => setError((err as Error).message)); }}/>

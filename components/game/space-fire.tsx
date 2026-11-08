@@ -9,7 +9,7 @@ import { useApp } from '../app-provider';
 import { Emoji } from '../emoji';
 import { Flame } from './flame';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { arenaMini, gameActions, setArenaMini, useGame } from './game-store';
+import { arenaMini, cachedShared, gameActions, setArenaMini, useGame } from './game-store';
 import { CheckinButton } from './arena';
 import { flameOf, nextFlame, sharedStreak } from '@/lib/game';
 import { openGroup } from '@/lib/space-chat';
@@ -22,7 +22,8 @@ export function SpaceFire() {
   const { space, account, personalProfile } = useApp(), g = useGame();
   if (!space || !account || space.memberIds.length < 2) return null;
   const today = g.today || todayInTimeZone(personalProfile?.timeZone);
-  const members = g.shared[space.id] || {};
+  // 9.6 The last seen on this device until the live one arrives.
+  const members = g.shared[space.id] || cachedShared(space.id, account.uid) || {};
   const sh = sharedStreak(members, space.memberIds, today), f = flameOf(sh.current), nf = nextFlame(sh.current);
   const mineLit = (members[account.uid] || []).includes(today);
   const checkin = () => gameActions().checkinSpace(space.id);

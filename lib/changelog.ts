@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.6', date: '9 Nov 2026', title: 'Mini game & Rekap mewah', items: [
+    ['🎡', 'Mini game baru di Arena: Putar Roda Harian. Sekali sehari setelah api nyala, putar rodanya buat dapat XP (sampai +100) atau Perisai Api.'],
+    ['🪙', 'Mini game Tangkap Koin: 30 detik geser dompet buat nangkep koin, permata, dan bintang, hindari tagihan dan jajan boros. Makin beruntun makin besar poinnya. Dapat XP maksimal 30 sehari, ada rekor skor dan 3 lencana baru (jadi 33 lencana).'],
+    ['✨', 'Rekap jauh lebih mewah: tema malam dan emas, aurora bergerak, emblem di tiap slide, angka berkilau emas. Gambar yang dibagikan sekarang ukuran story dengan desain baru, dan cuma ada tanda Dompet Ajaib.'],
+    ['🔥', 'Kartu Arena langsung tampil begitu Beranda dibuka, nggak muncul belakangan lagi. Api bareng juga.'],
+    ['🏅', 'Lencana streak sekarang beda-beda: 🔥 ⚡ 💥 🎆 🌋 ☄️ 🌟 👑, dengan tingkat Perunggu sampai Legenda. Angka hari di lencana nggak kepotong lagi.'],
+    ['💡', 'Chat: pesan yang dikirim di menit yang sama dari orang yang sama digabung, jamnya cukup di pesan terakhir seperti di WhatsApp. Tombol Asisten | Grup diberi jarak dari judul.'],
+    ['🔧', 'Perbaikan: di Rekap, "Lebih besar pasak" diganti jadi "Sisa" atau "Tekor" yang jelas. Kilau bar XP sekarang sampai ujung, kotak Level di Cara main sejajar, dan suara konfeti diganti jadi lebih enak didengar.'],
+  ] },
   { version: '9.5', date: '9 Nov 2026', title: 'Arena Catat makin keren', items: [
     ['🏅', 'Lencana diperkaya jadi 30, dalam 4 tingkat (Perunggu, Perak, Emas, Legenda) dan 7 kelompok: Api, Rajin, Misi, Tantangan, Kebiasaan, Bertahan, dan Bareng. Ketuk lencana buat lihat syarat dan kemajuannya, ada juga "Hampir dapat" untuk lencana yang paling dekat.'],
     ['💡', 'Cara main jadi 7 langkah yang bisa digeser, masing-masing dengan animasi kecil, lalu ditutup tombol "Siap main!".'],

@@ -15,8 +15,9 @@ type Store = {
   queue: Celebration[];
   /** What the Beranda card shows next to the time (refreshed every minute). */ today: string; hour: number;
   /** This week's challenge, how far it is (worked out by the keeper from the records). */ challengeView: { value: number; won: boolean; lost: boolean } | null;
+  /** 9.6 The mini game open on screen. */ minigame: 'spin' | 'coin' | null;
 };
-let store: Store = { state: null, ready: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null };
+let store: Store = { state: null, ready: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
 const listeners = new Set<() => void>();
 export function setGame(patch: Partial<Store> | ((s: Store) => Partial<Store>)) {
   store = { ...store, ...(typeof patch === 'function' ? patch(store) : patch) };
@@ -28,14 +29,33 @@ export const gameNow = () => store;
 
 /** Actions the cards ask of the keeper (it owns the data it needs to answer them). */
 /** checkin: "Hari ini aman" for the person's own flame (Beranda Pribadi). checkinSpace: for a space's api bareng only. */
-type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void };
-let actions: Actions = { checkin: () => {}, checkinSpace: () => {} };
+export type SpinOutcome = { index: number; xp: number; shield: boolean };
+export type CoinOutcome = { xp: number; record: boolean; best: number };
+type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void; /** 9.6 */ spin: () => SpinOutcome | null; coinDone: (score: number) => CoinOutcome | null };
+let actions: Actions = { checkin: () => { pendingCheckin = true; }, checkinSpace: () => {}, spin: () => null, coinDone: () => null };
 export const setGameActions = (a: Actions) => { actions = a; };
 export const gameActions = () => actions;
 export function celebrate(items: Celebration[]) { if (items.length) setGame(s => ({ queue: [...s.queue, ...items] })); }
 export function nextCelebration() { setGame(s => ({ queue: s.queue.slice(1) })); }
+export const openMinigame = (minigame: Store['minigame']) => setGame({ minigame });
 
 // ——— Per device ———
+/** 9.6 The last game seen on this device, so the Arena card is part of Beranda from the first moment (not popping in
+ * a second later when the game arrives from the account). Removed with the account's other local data. */
+const CACHE = (uid: string) => `dompet-ajaib:game-cache:${uid}`;
+let mem: { uid: string; state: GameState | null } | null = null;
+export function cachedState(uid: string): GameState | null {
+  if (mem?.uid === uid) return mem.state;
+  let state: GameState | null = null; try { const t = localStorage.getItem(CACHE(uid)); state = t ? JSON.parse(t) as GameState : null; } catch { state = null; }
+  mem = { uid, state }; return state;
+}
+export function cacheState(uid: string, state: GameState | null) { if (!state) return; mem = { uid, state }; try { localStorage.setItem(CACHE(uid), JSON.stringify(state)); } catch { /* only a head start */ } }
+const FIRE_CACHE = (spaceId: string, uid: string) => `dompet-ajaib:fire-cache:${spaceId}:${uid}`;
+export function cachedShared(spaceId: string, uid: string): Record<string, string[]> | null { try { const t = localStorage.getItem(FIRE_CACHE(spaceId, uid)); return t ? JSON.parse(t) : null; } catch { return null; } }
+export function cacheShared(spaceId: string, uid: string, members: Record<string, string[]>) { try { localStorage.setItem(FIRE_CACHE(spaceId, uid), JSON.stringify(members)); } catch { /* only a head start */ } }
+/** "Hari ini aman" tapped before the keeper has started (it loads a moment after the first screen). */
+let pendingCheckin = false;
+export const takePendingCheckin = () => { const p = pendingCheckin; pendingCheckin = false; return p; };
 const HIDE = (uid: string) => `dompet-ajaib:arena-hidden:${uid}`;
 export function arenaHidden(uid: string) { try { return localStorage.getItem(HIDE(uid)) === '1'; } catch { return false; } }
 export function setArenaHidden(uid: string, hidden: boolean) { try { localStorage.setItem(HIDE(uid), hidden ? '1' : '0'); } catch { /* preference */ } setGame({}); }

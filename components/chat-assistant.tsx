@@ -261,7 +261,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
             <div className={`cm-row is-${m.role} ${picked?.has(m.id) ? 'is-picked' : ''}`} {...rowProps(m.id)} aria-selected={picked ? picked.has(m.id) : undefined}>
               {picked && <span className="cm-check" aria-hidden="true">{picked.has(m.id) && <Check size={13} strokeWidth={3}/>}</span>}
               {m.role === 'user'
-                ? <div className="cm cm-user"><div className="cm-bubble">{m.text}</div><time className="cm-time">{clock(m.at)}</time></div>
+                ? <div className="cm cm-user"><div className="cm-bubble">{m.text}</div>{(visible[i + 1]?.role !== 'user' || clock(visible[i + 1].at) !== clock(m.at) || dayKey(visible[i + 1].at) !== dayKey(m.at)) && <time className="cm-time">{clock(m.at)}</time>}</div>
                 : <BotMessage m={m} onChip={send} onOpenForm={preset => { mark(m.id, 'form'); openTx(preset); }} onNavigate={go} onSaved={(planText, summary) => saved(m.id, planText, summary)} onDismiss={() => { mark(m.id, 'dismissed'); setMemory(x => x.plan?.status === 'pending' && m.reply?.kind === 'plan' && x.plan.text === m.reply.text ? { ...x, plan: { ...x.plan, status: 'dismissed' } } : x); }}/>}
             </div>
           </Fragment>)}
