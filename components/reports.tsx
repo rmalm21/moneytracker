@@ -15,6 +15,7 @@ import { budgetCurrent, metrics, rupiah, splitBillFlows, transactionExpense } fr
 import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
 import { cumulativeSpending, monthlyTotals, incomeBreakdown, largestExpenses, sizeBands, timeOfDaySpending, topPlaces, walletFlows, weekdaySpending } from '@/lib/insights';
 import { saveProfile } from '@/lib/firestore';
+import { SpaceContributions } from './space-report';
 import { dateInTimeZone, daysInRange, formatDate, groupTransactions, percentChange, periodLabel, previousComparableRange, resolvePeriodRange, summarizeTransactions, todayInTimeZone, type DateRange, type Granularity, type PeriodPreset } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 
@@ -113,7 +114,7 @@ function SplitBillReport({ items, go }: { items: LedgerTx[]; go: (key: string, f
 }
 
 function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: string) => void; toggle: ReactNode }) {
-  const { data, cycle, profile } = useApp();
+  const { data, cycle, profile, space } = useApp();
   const pair = usePeriodPair();
   const go = (key: string, focus?: string) => navigate?.(key, focus);
   const summary = useMemo(() => summarizeTransactions(pair.items), [pair.items]);
@@ -137,6 +138,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
     <PeriodBar pair={pair}/>
     <div className="report-title"><span className="eyebrow ink">LAPORAN PERIODE</span><h2>{periodLabel(pair.range)}</h2><small className="muted">{length} hari · {pair.items.length} transaksi{filtered ? ' · dengan filter' : ''}</small></div>
     {pair.loading ? <div className="panel" role="status">Memuat transaksi periode ini…</div> : <>
+      {space && <SpaceContributions items={pair.items}/>}
       <div className="card-grid report-kpis">
         <Kpi label="Pemasukan" icon={TrendingUp} tone="in" value={summary.income} previous={pair.prevReady ? prev.income : undefined} basis={pair.basis} />
         <Kpi label="Pengeluaran" icon={TrendingDown} tone="out" value={summary.expense} previous={pair.prevReady ? prev.expense : undefined} good="down" basis={pair.basis}/>

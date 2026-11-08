@@ -9023,3 +9023,49 @@ html[data-theme="dark"] .sp-colors button { background: var(--sw-dark); color: #
 .sp-settings .set-card + .set-card, .sp-current .set-card + .set-card { margin-top: 0; }
 .sp-current { display: grid; gap: 14px; }
 .sp-settings { display: grid; gap: 14px; }
+.tx-meta .tx-by { color: var(--accent); font-weight: 600; }
+.sp-invite .muted { display: flex; gap: 6px; align-items: flex-start; }
+.sp-invite .muted svg { flex: none; margin-top: 3px; }
+.sp-history ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.sp-act { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px dashed var(--line); }
+.sp-act:first-child { border-top: 0; }
+.sp-act-text { flex: 1; min-width: 0; font-size: .86rem; line-height: 1.35; }
+.sp-act-text > span { color: var(--ink); font-weight: 600; }
+.sp-act-text small { display: block; color: var(--muted); font-size: .74rem; }
+.sp-act.is-delete .sp-act-text b { color: var(--danger, #c2410c); }
+.sp-history h3 svg { color: var(--accent); }
+.sp-home { margin: 0 0 14px; padding: 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--paper)), var(--paper)); box-shadow: var(--elev-1); display: grid; gap: 12px; }
+.sp-home > header { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sp-home small svg { vertical-align: -2px; }
+.sp-home-total { display: grid; text-align: right; flex: none; }
+.sp-home-total small { color: var(--muted); font-size: .72rem; }
+.sp-home-total b { font-size: 1.02rem; }
+.sp-home-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sp-balances { display: grid; gap: 8px; }
+.sp-balance { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); }
+.sp-balance > span { min-width: 0; font-size: .86rem; line-height: 1.35; }
+.sp-balance strong { display: block; font-size: 1rem; margin-top: 2px; }
+.sp-balance.is-in { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+.sp-even { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .84rem; }
+.sp-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+.sp-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-radius: 11px; background: transparent; color: var(--muted); font: 700 .9rem/1 inherit; cursor: pointer; }
+.sp-seg button.on { background: var(--paper); color: var(--accent); box-shadow: var(--elev-1); }
+.sp-outcome p { margin: 0; }
+.sp-outcome p + p { margin-top: 6px; }
+.sp-modes { display: grid; gap: 8px; }
+.sp-modes button { display: grid; gap: 3px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.sp-modes button small { color: var(--muted); font-size: .8rem; }
+.sp-modes button.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.sp-modes button:disabled { opacity: .55; cursor: not-allowed; }
+.sp-shares { display: grid; gap: 8px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 4%, var(--paper)); }
+.sp-share { display: grid; grid-template-columns: auto 1fr minmax(0, 140px); align-items: center; gap: 8px; font-size: .9rem; }
+.sp-share .input { min-height: 38px; }
+.sp-paid-entry { display: block; width: 100%; margin: -4px 0 12px; padding: 9px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; background: transparent; color: var(--ink); font: inherit; font-size: .84rem; text-align: left; cursor: pointer; }
+.sp-paid-entry b { color: var(--accent); }
+.sp-flow { display: grid; gap: 12px; }
+.sp-flow .notice p { margin: 0; }
+.sp-flow .notice p + p { margin-top: 6px; }
+.sp-report ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 12px; }
+.sp-report-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.sp-report-bar { height: 8px; margin: 6px 0 4px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 8%, var(--paper)); overflow: hidden; }
+.sp-report-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }

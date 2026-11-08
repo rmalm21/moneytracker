@@ -4,13 +4,18 @@
  * period, members, invite code, requests to join, leaving and deleting. Rules for all of it: firestore.rules.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Check, Clock, Copy, LogOut, Plus, Share2, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Clock, Copy, History, LogOut, Plus, RotateCcw, Share2, Trash2, UserPlus, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input } from './fields';
 import { Emoji } from './emoji';
 import { SPACE_COLORS, SPACE_EMOJIS } from '@/lib/space-look';
+import { ACTIVITY_DAYS, markRestored, restorable, subscribeActivity, tidyActivity, type Activity } from '@/lib/space-activity';
+import { upsertTransaction } from '@/lib/firestore';
+import { spaceKey } from '@/lib/space-key';
+import { rupiah } from '@/lib/accounting';
+import { balances } from '@/lib/space-math';
 import {
   MAX_MEMBERS, MAX_SPACES, acceptRequest, cancelInvite, cancelRequest, createInvite, createSpace, declineRequest, deleteSpace,
   forgetRequest, formatCode, isMember, leaveSpace, readInvite, requestJoin, requestWaiting, subscribeRequests, updateSpace,
@@ -33,6 +38,32 @@ function Looks({ emoji, color, onEmoji, onColor }: { emoji: string; color: strin
   </>;
 }
 
+const verbs: Record<string, string> = { add: 'menambah', edit: 'mengubah', delete: 'menghapus', restore: 'mengembalikan' };
+const whenText = (a: Activity) => a.at ? a.at.toDate().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'baru saja';
+/** Riwayat ruang: the last 30 days of added, changed and deleted transactions; a deleted one can be put back. */
+function SpaceHistory({ space, notify }: { space: Space; notify: (m: string) => void }) {
+  const me = useAccount();
+  const [list, setList] = useState<Activity[]>([]), [all, setAll] = useState(false), [busy, setBusy] = useState('');
+  useEffect(() => subscribeActivity(space.id, setList), [space.id]);
+  useEffect(() => { void tidyActivity(space.id); }, [space.id]);
+  if (!me) return null;
+  async function restore(a: Activity) {
+    if (!a.before) return; setBusy(a.id);
+    try { await upsertTransaction(spaceKey(space.id), restorable(a.before)); await markRestored(space.id, a.id, me!.uid); notify(`“${a.title || 'Transaksi'}” dikembalikan.`); }
+    catch (e) { notify((e as Error).message || 'Belum bisa dikembalikan.'); } finally { setBusy(''); }
+  }
+  const shown = all ? list : list.slice(0, 8);
+  return <div className="set-card sp-history">
+    <h3><History size={18}/> Riwayat ruang</h3>
+    <p className="muted">Siapa menambah, mengubah, atau menghapus transaksi selama {ACTIVITY_DAYS} hari terakhir. Transaksi yang dihapus bisa dikembalikan.</p>
+    {!list.length ? <p className="muted">Belum ada perubahan.</p> : <ul>{shown.map(a => <li key={a.id} className={`sp-act is-${a.kind}`}>
+      <span className="sp-act-text"><b>{a.by === me.uid ? 'Kamu' : a.byName}</b> {verbs[a.kind] || a.kind} <span>{a.title || 'transaksi'}</span> · {rupiah(a.amount)}<small>{whenText(a)}{a.date ? ` · tanggal ${a.date.slice(8)}/${a.date.slice(5, 7)}` : ''}{a.restoredBy ? ` · sudah dikembalikan${a.restoredBy === me.uid ? ' olehmu' : ''}` : ''}</small></span>
+      {a.kind === 'delete' && a.before?.walletId && !a.before.memberFlow && !a.restoredBy && <Button className="small" variant="secondary" disabled={Boolean(busy)} onClick={() => void restore(a)}><RotateCcw size={14}/> {busy === a.id ? 'Mengembalikan…' : 'Kembalikan'}</Button>}
+    </li>)}</ul>}
+    {list.length > 8 && <button type="button" className="link-button" onClick={() => setAll(v => !v)}>{all ? 'Tampilkan lebih sedikit' : `Lihat semua (${list.length})`}</button>}
+  </div>;
+}
+
 /** Inside a space: settings, members, invite, requests, leave or delete. */
 function CurrentSpace({ space, notify }: { space: Space; notify: (m: string) => void }) {
   const me = useAccount();
@@ -45,6 +76,9 @@ function CurrentSpace({ space, notify }: { space: Space; notify: (m: string) => 
   const dirty = name.trim() !== space.name || emoji !== (space.emoji || '🏠') || color !== (space.color || 'rose') || day !== (space.salaryCycleStartDay || 1);
   const invite = space.invite && space.invite.expiresAt?.toMillis?.() > Date.now() ? space.invite : null;
   const full = space.memberIds.length >= MAX_MEMBERS, last = space.memberIds.length === 1;
+  // Leaving with something still to pay back (either way): said first.
+  const nameOf = (uid: string) => uid === me.uid ? 'kamu' : space.members[uid]?.name || 'anggota';
+  const open = balances(space).filter(b => b.from === me.uid || b.to === me.uid).map(b => `${nameOf(b.from)} perlu mengganti ${nameOf(b.to)} ${rupiah(b.amount)}`);
   async function run(key: string, task: () => Promise<unknown>, done?: string) {
     setBusy(key); setError('');
     try { await task(); if (done) notify(done); } catch (e) { setError((e as Error).message || 'Belum berhasil. Coba lagi.'); } finally { setBusy(''); }
@@ -98,8 +132,9 @@ function CurrentSpace({ space, notify }: { space: Space; notify: (m: string) => 
       </div>
     </div>
 
+    <SpaceHistory space={space} notify={notify}/>
     <div className="set-card sp-danger">
-      {!last ? <Confirm title={`Keluar dari ${space.name}?`} description="Catatan yang pernah kamu buat tetap ada di ruang ini dengan namamu. Catatan Pribadi-mu tidak tersentuh. Untuk kembali, kamu perlu kode undangan baru." confirmLabel="Ya, keluar" onConfirm={() => run('leave', async () => { await leaveSpace(me, space); switchTo(null); }, `Kamu sudah keluar dari ${space.name}.`)}>
+      {!last ? <Confirm title={`Keluar dari ${space.name}?`} description={`${open.length ? `Masih ada yang belum lunas: ${open.join('; ')}. Sebaiknya lunasi dulu. ` : ''}Catatan yang pernah kamu buat tetap ada di ruang ini dengan namamu. Catatan Pribadi-mu tidak tersentuh. Untuk kembali, kamu perlu kode undangan baru.`} confirmLabel="Ya, keluar" onConfirm={() => run('leave', async () => { await leaveSpace(me, space); switchTo(null); }, `Kamu sudah keluar dari ${space.name}.`)}>
         <button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari ruang ini</button>
       </Confirm>
         : <Confirm title={`Hapus ${space.name}?`} description="Kamu anggota terakhir. Semua catatan di ruang ini (transaksi, dompet, anggaran, kategori) akan dihapus permanen. Catatan Pribadi-mu tidak tersentuh." confirmLabel="Hapus permanen" onConfirm={() => run('delete', async () => { switchTo(null); await deleteSpace(me, space, setProgress); }, `${space.name} sudah dihapus.`)}>

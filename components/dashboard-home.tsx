@@ -28,6 +28,7 @@ import { saveProfile } from '@/lib/firestore';
 import { dateInTimeZone, formatDate, previousComparableRange, groupTransactions, nextDate, periodLabel, resolvePeriodRange, summarizeTransactions, todayInTimeZone, type DateRange, type PeriodPreset } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
+import { SpaceHome } from './space-money';
 
 export const dashboardOptions=[
  ['free','Uang Bebas'],['budget','Sisa Anggaran'],['income','Pemasukan'],['expenses','Pengeluaran'],['cashFlow','Selisih Masuk & Keluar'],
@@ -43,6 +44,8 @@ export const dashboardOptions=[
 type WidgetId=typeof dashboardOptions[number][0];
 type BookRow={id:string;name:string;icon?:string;color?:string;amount:number};
 const known=new Set<string>(dashboardOptions.map(([id])=>id)),extraSet=new Set<string>(extraWidgets);
+/** 9.0 Cards about the person's own money (Utang, Piutang, Klaim, Split Bill, Tujuan dana, Wish list): not in a Ruang Bersama. */
+const personalCards=new Set<string>(['debts','receivables','claims','splitBill','funds','wishlist','emergency']);
 /** "Tambah kartu": every card in exactly one category; each category opens like a dropdown. */
 const widgetGroups:{key:string;title:string;note:string;icon:LucideIcon;ids:WidgetId[]}[]=[
  {key:'free',title:'Uang bebas & gajian',note:'Uang siap pakai, jatah harian, hitung mundur gajian',icon:Sparkles,ids:['free','money','safeDaily','daysUntilSalary']},
@@ -106,7 +109,7 @@ function RekapBanner({today}:{today:string}){
  return <>{!hidden&&<div className="wr-banner"><span><strong>Rekap {label} sudah siap 🎉</strong><small>Ke mana uangmu pergi bulan lalu, dalam beberapa geser.</small></span><button type="button" className="wr-open" onClick={()=>{setOpen(true);close()}}>Lihat</button><button type="button" className="wr-x" aria-label="Tutup" onClick={close}><X size={15}/></button></div>}{open&&<WrappedView initial={lastKey} onClose={()=>setOpen(false)}/>}</>;
 }
 export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;navigate:(view:string,focus?:string)=>void;notify:(message:string)=>void}){
- const {data,profile,cycle,user}=useApp();// Every card starts open; a card the user folds stays folded until the page is opened again.
+ const {data,profile,cycle,user,space}=useApp();// Every card starts open; a card the user folds stays folded until the page is opened again.
  const open=true;const [customize,setCustomize]=useState(false),[picker,setPicker]=useState(false),[configure,setConfigure]=useState<string|null>(null),[pending,setPending]=useState<string[]|null>(null),[error,setError]=useState('');
  const period=profile?.dashboardPeriod||'salary_cycle';const range=resolvePeriodRange(period,profile?.salaryCycleStartDay||24,dateInTimeZone(new Date(),profile?.timeZone),profile?.dashboardCustom);
  const history=usePeriodTransactions(range);const summary=useMemo(()=>summarizeTransactions(history.items),[history.items]);const day=dateInTimeZone(new Date(),profile?.timeZone),today=todayInTimeZone(profile?.timeZone);
@@ -114,7 +117,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
   // 8.10 "Bisa dicoba di sini": the card on Beranda starts its features here.
   useTipTry({ home_layout: () => { setCustomize(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }, home_cards: () => { setCustomize(true); setPicker(true); }, home_chartcfg: () => setCustomize(true), /* Catat cepat buttons are edited on their card: with the card off Beranda, offer the card first. */ home_quick: () => { if (!selected.includes('quickActions')) { setCustomize(true); setPicker(true); } }, home_tapcard: () => { featureUsed('home_tapcard'); navigate('transactions', `type:income@${range.start}..${range.end}`); } });
  const stat=useMemo(()=>metrics(data,cycle.start,cycle.end,profile?.salaryCycleStartDay,day,Boolean(profile?.netWorthIncludesReceivables)),[data,cycle.start,cycle.end,profile?.salaryCycleStartDay,profile?.netWorthIncludesReceivables,profile?.timeZone]);
- const saved=profile?.dashboardWidgets?.length&&!oldDefaults.includes(profile.dashboardWidgets.join())?withNewCards(profile.dashboardWidgets,profile.dashboardWidgetsVersion):null;const current=(pending||saved||defaultLayout).filter((key):key is WidgetId=>known.has(key));
+ const saved=profile?.dashboardWidgets?.length&&!oldDefaults.includes(profile.dashboardWidgets.join())?withNewCards(profile.dashboardWidgets,profile.dashboardWidgetsVersion):null;const current=(pending||saved||defaultLayout).filter((key):key is WidgetId=>known.has(key)&&!(space&&personalCards.has(key)));
  const selected=current.length?current:defaultLayout;const laterCount=selected.filter(id=>!metricIds.has(id)&&id!=='quickActions').length;const laterShown=useProgressiveCount(laterCount,customize);const inbox=data.drafts.filter(d=>d.status==='pending');let weekEnd=today;for(let i=0;i<7;i++)weekEnd=nextDate(weekEnd);
  const due=upcomingEvents(data,profile!,{start:today,end:weekEnd}).filter(e=>e.kind!=='note');const committed=committedAmount(data,today,cycle.end,profile||{});
  const after=availableMoney(stat.free,committed,profile||{});
@@ -171,7 +174,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
    <div className="hh-payday" role="progressbar" aria-label={`Siklus gaji berjalan, gajian ${formatDate(cycle.end)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={cyclePct} style={{'--pct':`${cyclePct}%`} as React.CSSProperties}><span className="hh-ring" aria-hidden="true"/><span className="hh-days"><strong>{cycle.daysRemaining}</strong><small>hari</small></span><small className="hh-payday-label"><CalendarDays size={12}/> {formatDate(cycle.end)}</small></div></div>
   <div className="home-hero-chips">{heroId!=='netWorth'&&<button type="button" onClick={()=>navigate('wallets')}><span>Aset bersih</span><b>{rupiah(stat.netWorth)}</b></button>}{heroId!=='reserved'&&<button type="button" onClick={()=>navigate('wallets')}><span>Disimpan</span><b>{rupiah(stat.reserved)}</b></button>}</div>
  </section>
- {!customize&&<RekapBanner today={today}/>}{!customize&&<FeatureTips menu="home" navigate={navigate}/>}
+ {!customize&&space&&<SpaceHome/>}{!customize&&!space&&<RekapBanner today={today}/>}{!customize&&<FeatureTips menu="home" navigate={navigate}/>}
  {customize&&<div className="dashboard-toolbar"><Button className="small" variant="secondary" onClick={()=>setPicker(x=>!x)}>+ Tambah kartu</Button><button type="button" className="link-button" onClick={()=>layout([...defaultLayout])}>Atur ulang</button></div>}
  {customize&&picker&&<WidgetPicker selected={selected} label={label} onAdd={id=>layout([...selected,id])} onClose={()=>setPicker(false)}/>}
  {error&&<p className="form-error" role="alert">{error}</p>}<details className="panel dashboard-period"><summary><span>Periode: <strong>{periodLabel(range)}</strong></span></summary><PeriodSelector value={period} onChange={setPeriod} custom={profile?.dashboardCustom} onCustomChange={setCustom}/>{history.error&&<p role="alert" className="form-error">{history.error}</p>}</details>
@@ -179,10 +182,10 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
 }
 
 /** "Tambah kartu": search, or open a category to see its cards. The list stays open so several cards can be added in a row. */
-function WidgetPicker({selected,label,onAdd,onClose}:{selected:string[];label:(id:string)=>string;onAdd:(id:WidgetId)=>void;onClose:()=>void}){
+function WidgetPicker({selected,label,onAdd,onClose}:{selected:string[];label:(id:string)=>string;onAdd:(id:WidgetId)=>void;onClose:()=>void}){const {space}=useApp();
  const [query,setQuery]=useState(''),[open,setOpen]=useState<string[]>([]),[added,setAdded]=useState('');
  const search=query.trim().toLowerCase(),free=(ids:WidgetId[])=>ids.filter(id=>!selected.includes(id));
- const groups=widgetGroups.map(group=>({...group,list:free(group.ids).filter(id=>!search||`${label(id)} ${widgetHints[id][1]} ${group.title}`.toLowerCase().includes(search))}));
+ const groups=widgetGroups.map(group=>({...group,list:free(group.ids).filter(id=>!(space&&personalCards.has(id))).filter(id=>!search||`${label(id)} ${widgetHints[id][1]} ${group.title}`.toLowerCase().includes(search))}));
  const allOpen=open.length===widgetGroups.length,left=dashboardOptions.length-selected.length;
  const option=(id:WidgetId)=>{const [Icon,hint]=widgetHints[id];return <button type="button" key={id} className="widget-option" onClick={()=>{onAdd(id);setAdded(label(id))}}><span className="widget-option-icon" aria-hidden="true"><Icon size={17}/></span><span className="widget-option-text"><strong>{label(id)}</strong><small>{hint}</small></span><Plus size={16} className="widget-option-plus" aria-hidden="true"/></button>};
  const head=(group:typeof groups[number],count:number)=><><span className="wp-group-icon" aria-hidden="true"><group.icon size={18}/></span><span className="wp-group-text"><strong>{group.title} <span className={`wp-count ${count?'':'is-full'}`}>{count?`${count} kartu`:'Terpasang'}</span></strong><small>{group.note}</small></span></>;

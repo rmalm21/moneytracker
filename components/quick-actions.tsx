@@ -28,14 +28,15 @@ const transactionKinds: QuickAction['kind'][] = ['expense', 'income', 'transfer'
 function isTransactionKind(kind: QuickAction['kind']): kind is 'expense' | 'income' | 'transfer' { return transactionKinds.includes(kind); }
 
 export function QuickActions({ openTx, navigate, notify }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (view: string) => void; notify: (message: string) => void }) {
-  const { user, profile, data } = useApp();
+  const { user, profile, data, space } = useApp();
   const [open, setOpen] = useState(false);
   const [actions, setActions] = useState<QuickAction[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<QuickAction>({ id: '', label: '', kind: 'expense' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const visible = (profile?.quickActions ?? defaults).filter(action => !isLegacy(action));
+  // 9.0 In a Ruang Bersama only recording buttons (Klaim kantor, Piutang and Utang are the person's own).
+  const visible = (profile?.quickActions ?? defaults).filter(action => !isLegacy(action) && (!space || isTransactionKind(action.kind)));
 
   function start() { setActions(visible.map(action => ({ ...action }))); setEditing(null); setError(''); setOpen(true); }
   // 8.10 The tip "Ubah tombol Catat cepat" opens the editor with the current buttons; its suggestion ("Kamu sering mencatat

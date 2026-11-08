@@ -29,7 +29,7 @@ function dataError(error:unknown) {
 }
 export function AppProvider({children}:{children:React.ReactNode}) {
   const [user,setUser]=useState<User|null>(null),[access,setAccess]=useState<AccessState>('checking'),[admin,setAdmin]=useState(false),[accessRequests,setAccessRequests]=useState(0),[revoked,setRevoked]=useState(false),[profile,setProfile]=useState<Profile|null>(null),[data,setData]=useState<Data>(emptyData),[loading,setLoading]=useState(true),[error,setError]=useState(''),[sync,setSync]=useState<'syncing'|'synced'|'offline'|'error'>('syncing');
-  const [spaces,setSpaces]=useState<Space[]>([]),[spacesReady,setSpacesReady]=useState(false),[mode,setMode]=useState('');
+  const [spaces,setSpaces]=useState<Space[]>([]),[spacesReady,setSpacesReady]=useState(false),[mode,setMode]=useState(''),[dataFor,setDataFor]=useState('');
   // 9.0 Pribadi or a Ruang Bersama: the records on screen. Everything below that reads or writes records uses `root`.
   const space=useMemo(()=>spaces.find(s=>s.id===mode)||null,[spaces,mode]);
   // A device last used in a space waits for the list of spaces (from the device copy, at once) instead of loading Pribadi first.
@@ -52,7 +52,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(root&&shown)noteDeleteMarks(root,shown.syncMarks);},[root,shown?.syncMarks]);
   useEffect(()=>{if(!user||access!=='granted')return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(look(p));cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user,access]);
   useEffect(()=>{if(!profile)return;applyAppearance(look(profile));document.documentElement.dataset.space=space?'on':'';const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(look(profile));media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize,space?.id,space?.color]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{if(!root||!shown)return;const uid=root;setData(emptyData);return subscribeData(uid,cycle.start,cycle.end,(key,value)=>setData(previous=>({...previous,[key]:value} as Data)),e=>{setError(dataError(e));setSync('error');},setSync,dateInTimeZone(new Date(),shown.timeZone),shown.salaryCycleStartDay);},[root,Boolean(shown),shown?.uid,shown?.timeZone,shown?.salaryCycleStartDay,cycle.start,cycle.end]);
+  useEffect(()=>{if(!root||!shown)return;const uid=root;setData(emptyData);setDataFor(uid);return subscribeData(uid,cycle.start,cycle.end,(key,value)=>setData(previous=>({...previous,[key]:value} as Data)),e=>{setError(dataError(e));setSync('error');},setSync,dateInTimeZone(new Date(),shown.timeZone),shown.salaryCycleStartDay);},[root,Boolean(shown),shown?.uid,shown?.timeZone,shown?.salaryCycleStartDay,cycle.start,cycle.end]);
   // v62: text size S is the new default. Accounts still on the old default (M, or never chosen) move to S once; any choice after that stays.
   useEffect(()=>{if(!user||!profile||(profile.appearanceDefaults||0)>=2)return;void saveProfile(user.uid,{appearanceDefaults:2,...(!profile.fontSize||profile.fontSize==='m'?{fontSize:'s' as const}:{})}).catch(()=>{});},[user,profile?.uid,profile?.appearanceDefaults]);
   useEffect(()=>{if(root&&shown&&data.budgets.some(b=>b.rolloverEnabled))void settleBudgets(root,data.budgets,shown.salaryCycleStartDay,dateInTimeZone(new Date(),shown.timeZone)).catch(e=>setError(e.message));},[root,shown?.uid,shown?.salaryCycleStartDay,shown?.timeZone,data.budgets]);
@@ -69,7 +69,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{if(spacesReady&&mode&&!spaces.some(s=>s.id===mode))switchTo(null);},[spacesReady,spaces,mode]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{setActor(user?{uid:user.uid,name:profile?.displayName||user.displayName||(user.email||'').split('@')[0]}:null);},[user?.uid,profile?.displayName]);
   function switchTo(spaceId:string|null){const next=spaceId||'';if(user)try{localStorage.setItem(`dompet-ajaib:mode:${user.uid}`,next)}catch{/* this device opens in Pribadi */}setMode(next);}
-  const view=useMemo(()=>({...data,funds:resolveFunds(data.funds,data.wallets)}),[data]);
+  const view=useMemo(()=>dataFor===root?{...data,funds:resolveFunds(data.funds,data.wallets)}:emptyData,[data,dataFor,root]);
   const refreshAccess=()=>{const u=auth?.currentUser;if(!u)return;setLoading(true);void checkAccess(u).then(r=>{setAdmin(r.admin);setRevoked(r.revoked);setAccess(r.state);if(r.state==='granted')initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});else setLoading(false);});};
   // Last active, for the owner's list (at most every 6 hours).
   // 6.6: the owner sees who is active right now: a beat on open, on coming back to the app, and every 5 minutes while it is on screen.

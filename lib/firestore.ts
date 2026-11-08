@@ -4,6 +4,7 @@ import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
 import { walletGroup } from './wallet-groups';
 import { isSpaceKey, rootSegments, stamp } from './space-key';
+import { logActivity } from './space-activity';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle, newestFirst } from './accounting';
@@ -251,17 +252,17 @@ export type CommitExpect={kind:'receivables'|'debts'|'claims';id:string;remainin
 export class StaleStateError extends Error{constructor(message:string){super(message);this.name='StaleStateError';}}
 export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string,options:{opId?:string;expect?:CommitExpect}={}) {
   validateTx(input);const r=editId?ref(uid,'transactions',editId):options.opId?ref(uid,'transactions',options.opId):doc(coll(uid,'transactions'));
-  let previousDate=input.date,already=false;
+  let previousDate=input.date,already=false,before:LedgerTx|null=null;
   // Standalone additions use an offline-capable atomic batch. Edits and linked repayments use transactions for consistency checks.
   const linked=Boolean(relation(input,1)||input.draftId||input.plannedId||options.opId||options.expect);
-  if(!editId&&!linked) {const actions=walletActions(input);const source=await readDoc(uid,'wallets',ref(uid,'wallets',input.walletId));if(!source.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(source),actions.source);if(actions.destination&&input.destinationWalletId){const destination=await readDoc(uid,'wallets',ref(uid,'wallets',input.destinationWalletId));if(!destination.exists())throw Error('Dompet tujuan tidak ditemukan.');validateWalletUse(hydrate<Wallet>(destination),actions.destination);}const batch=writeBatch(database());const {id:_batchId,...payload}=input;batch.set(r,{...payload,...stamp(uid,true),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});for(const [wallet,delta] of Object.entries(effects(input))) batch.update(ref(uid,'wallets',wallet),{cachedBalance:increment(delta),updatedAt:serverTimestamp()});const pending=batch.commit();if(typeof navigator!=='undefined'&&!navigator.onLine){void pending.catch(console.error);return r.id;}await pending;await syncSnapshot(uid,input.date);return r.id;}
+  if(!editId&&!linked) {const actions=walletActions(input);const source=await readDoc(uid,'wallets',ref(uid,'wallets',input.walletId));if(!source.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(source),actions.source);if(actions.destination&&input.destinationWalletId){const destination=await readDoc(uid,'wallets',ref(uid,'wallets',input.destinationWalletId));if(!destination.exists())throw Error('Dompet tujuan tidak ditemukan.');validateWalletUse(hydrate<Wallet>(destination),actions.destination);}const batch=writeBatch(database());const {id:_batchId,...payload}=input;batch.set(r,{...payload,...stamp(uid,true),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});for(const [wallet,delta] of Object.entries(effects(input))) batch.update(ref(uid,'wallets',wallet),{cachedBalance:increment(delta),updatedAt:serverTimestamp()});const pending=batch.commit();logActivity(uid,'add',{...input,id:r.id});if(typeof navigator!=='undefined'&&!navigator.onLine){void pending.catch(console.error);return r.id;}await pending;await syncSnapshot(uid,input.date);return r.id;}
   await runTx(database(),async trx=>{
     if(!editId&&options.opId){const prior=await trx.get(r);if(prior.exists()){already=true;return;}}
     if(options.expect){const e=options.expect;const snap=await trx.get(ref(uid,e.kind,e.id));if(!snap.exists())throw new StaleStateError('Catatan yang dirujuk sudah tidak ada. Cek lagi sebelum menyimpan.');const d=snap.data();
       if(e.kind==='transactions'){if(Number(d.amount)!==e.amount)throw new StaleStateError(`Transaksi ini sudah berubah (sekarang Rp${Number(d.amount).toLocaleString('id-ID')}). Cek lagi sebelum menyimpan.`);}
       else{const now=Number(e.kind==='debts'?d.outstandingAmount:d.remainingAmount);if(now!==e.remaining)throw new StaleStateError(`Sisanya sudah berubah (sekarang Rp${now.toLocaleString('id-ID')}). Cek lagi sebelum menyimpan.`);}}
     const oldSnap=editId?await trx.get(r):null; if(editId&&!oldSnap?.exists())throw Error('Transaksi tidak ditemukan.');
-    const old=oldSnap?.exists()?hydrate<LedgerTx>(oldSnap):null;previousDate=old?.date||input.date;
+    const old=oldSnap?.exists()?hydrate<LedgerTx>(oldSnap):null;previousDate=old?.date||input.date;before=old;
     const actions=walletActions(input);const walletSnap=await trx.get(ref(uid,'wallets',input.walletId));if(!walletSnap.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(walletSnap),actions.source,old,input);
     if(actions.destination&&input.destinationWalletId){const target=await trx.get(ref(uid,'wallets',input.destinationWalletId));if(!target.exists())throw Error('Dompet tujuan tidak ditemukan.');if(!(old?.destinationWalletId===input.destinationWalletId&&walletActions(old).destination===actions.destination))validateWalletUse(hydrate<Wallet>(target),actions.destination);}
     if(old?.type==='claim_writeoff')throw Error('Hapus transaksi penolakan lalu catat ulang bila perlu mengoreksi nominal.');
@@ -289,10 +290,10 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
     if(old?.plannedId&&old.plannedId!==input.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});if(plannedRef)trx.update(plannedRef,{status:'posted',postedTransactionId:r.id,updatedAt:serverTimestamp()});
     // Isi dompet: a tag dropped in the form (back to Uangku) is removed, not left behind by a partial update.
     if(old)trx.update(r,{...fields,...stamp(uid,false),...(fields.portionFrom?{}:{portionFrom:deleteField()}),...(fields.portionTo?{}:{portionTo:deleteField()}),updatedAt:serverTimestamp()});else trx.set(r,{...fields,...stamp(uid,true),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-  });if(already)return r.id;await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
+  });if(already)return r.id;logActivity(uid,before?'edit':'add',{...input,id:r.id},before||undefined);await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
 }
 export async function deleteTransaction(uid:string,id:string,expect?:{amount:number}) {
-  const r=ref(uid,'transactions',id);let removedDate='',droppedDraft='';
+  const r=ref(uid,'transactions',id);let removedDate='',droppedDraft='',removed:LedgerTx|null=null;
   // A plain transaction (not linked to a debt, claim, receivable, fund, schedule or plan) is deleted with a batch: it is
   // applied to the device copy at once, kept in the device's send queue and delivered even if the app is closed or
   // offline. Balances move with atomic increments, so nothing needs reading from the server first.
@@ -307,9 +308,10 @@ export async function deleteTransaction(uid:string,id:string,expect?:{amount:num
     for(const [wallet,delta] of Object.entries(effects(plain))){if(!delta)continue;const w=await readDoc(uid,'wallets',ref(uid,'wallets',wallet)).catch(()=>null);if(w?.exists())batch.update(w.ref,{cachedBalance:increment(-delta),updatedAt:serverTimestamp()});}
     batch.delete(r);markTxDeleted([id]);
     try{await settle(batch.commit());}catch(error){forgetTxDeleted([id]);throw error;}
+    logActivity(uid,'delete',plain,plain);
     await noteDeleted(uid,{transactions:[id]});await syncSnapshot(uid,plain.date);return;
   }
-  await runTx(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())return;const old=hydrate<LedgerTx>(snap);removedDate=old.date;
+  await runTx(database(),async trx=>{const snap=await trx.get(r);if(!snap.exists())return;const old=hydrate<LedgerTx>(snap);removedDate=old.date;removed=old;
     if(['claim_advance','receivable_issue','borrowing'].includes(old.type))throw Error('Transaksi ini dibuat otomatis dari catatan utang, klaim, atau piutang. Ubah atau hapus lewat catatan tersebut.');
     if(old.splitBillId&&old.type==='expense')throw Error('Transaksi ini bagian dari Split Bill. Batalkan atau ubah lewat menu Split Bill.');
     const side=relation(old,-1);const rr=side?ref(uid,side.kind,side.id):null;const sideSnap=rr?await trx.get(rr):null;
@@ -318,7 +320,7 @@ export async function deleteTransaction(uid:string,id:string,expect?:{amount:num
     if(side&&rr&&sideSnap?.exists()){const obj=sideSnap.data();const key=side.kind==='claims'||side.kind==='receivables'?'remainingAmount':side.kind==='debts'?'outstandingAmount':'currentAmount';const next=Number(obj[key])+side.delta;trx.update(rr,{[key]:next,...(side.kind==='claims'?{status:next===0?'paid':['paid','rejected'].includes(obj.status)?'waiting':obj.status}:{}),...(side.kind==='debts'?{status:next===0?'paid':'open'}:{}),...(side.kind==='receivables'?{status:next===0?'paid':next<Number(obj.originalAmount)?'partial':'open'}:{}),updatedAt:serverTimestamp()});}
     // A deleted automatic entry is gone for good (its draft too: back to "pending" it would be recorded again at once); one to confirm goes back to Perlu dikonfirmasi.
     if(draftRef&&draftSnap?.exists()){if(draftSnap.data().mode==='auto'){trx.delete(draftRef);droppedDraft=draftRef.id;}else trx.update(draftRef,{status:'pending',updatedAt:serverTimestamp()});}if(old.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});trx.delete(r);
-  });if(removedDate){await noteDeleted(uid,{transactions:[id],...(droppedDraft?{drafts:[droppedDraft]}:{})});await syncSnapshot(uid,removedDate);}
+  });if(removed)logActivity(uid,'delete',removed,removed);if(removedDate){await noteDeleted(uid,{transactions:[id],...(droppedDraft?{drafts:[droppedDraft]}:{})});await syncSnapshot(uid,removedDate);}
 }
 export async function createClaim(uid:string,claim:Omit<Claim,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(claim.amount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'claims'));const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...claim,remainingAmount:claim.amount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_c,...claimTx}=newTx({type:'claim_advance',amount:claim.amount,walletId:claim.sourceWalletId,claimId:r.id,date:claim.submissionDate,description:claim.name});batch.set(t,{...claimTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',claim.sourceWalletId),{cachedBalance:increment(-claim.amount),updatedAt:serverTimestamp()});await settle(batch.commit());await syncSnapshot(uid,claim.submissionDate);return r.id;}
 export async function createReceivable(uid:string,item:Omit<Receivable,'id'|'remainingAmount'|'createdAt'|'updatedAt'>) {if(!validAmount(item.originalAmount))throw Error('Nominal tidak valid.');const r=doc(coll(uid,'receivables'));if(!item.sourceWalletId){await settle(setDoc(r,{...item,sourceWalletId:'',remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));return r.id;}const t=doc(coll(uid,'transactions'));const batch=writeBatch(database());batch.set(r,{...item,remainingAmount:item.originalAmount,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});const {id:_r,...receivableTx}=newTx({type:'receivable_issue',amount:item.originalAmount,walletId:item.sourceWalletId,receivableId:r.id,date:item.date,description:item.person});batch.set(t,{...receivableTx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});batch.update(ref(uid,'wallets',item.sourceWalletId),{cachedBalance:increment(-item.originalAmount),updatedAt:serverTimestamp()});await settle(batch.commit());await syncSnapshot(uid,item.date);return r.id;}

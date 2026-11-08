@@ -10,6 +10,7 @@ import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Emoji } from './emoji';
 import type { Space } from '@/lib/spaces';
+import type { LedgerTx } from '@/lib/types';
 
 const lastKey = (uid: string) => `dompet-ajaib:last-space:${uid}`;
 function lastSpace(uid: string) { try { return localStorage.getItem(lastKey(uid)) || ''; } catch { return ''; } }
@@ -48,8 +49,9 @@ export function SpaceSwitch({ onManage }: { onManage?: () => void }) {
 }
 
 /** In the transaction form: where what is being recorded goes. */
-export function RecordedTo() {
+export function RecordedTo({ tx }: { tx?: LedgerTx }) {
   const { space } = useApp();
   if (!space) return null;
-  return <p className="sp-recorded"><Emoji e={space.emoji || '🏠'}/> Dicatat ke <b>{space.name}</b> · terlihat oleh semua anggota</p>;
+  if (tx) return <p className="sp-recorded"><Emoji e={space.emoji || '🏠'}/> <span>Di <b>{space.name}</b>{tx.createdByName ? ` · dicatat ${tx.createdByName}` : ''}{tx.updatedByName && tx.updatedBy !== tx.createdBy ? ` · terakhir diubah ${tx.updatedByName}` : ''}</span></p>;
+  return <p className="sp-recorded"><Emoji e={space.emoji || '🏠'}/> <span>Dicatat ke <b>{space.name}</b> · terlihat oleh semua anggota</span></p>;
 }
