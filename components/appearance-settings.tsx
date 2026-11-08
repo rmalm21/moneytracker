@@ -17,7 +17,7 @@ const sizes:[string,string][]=[['SS','Super kecil'],['XS','Sangat kecil'],['S','
 const densities:Density[]=['xxs','xs','compact','comfortable','large'];const fonts:FontSize[]=['xxs','xs','s','m','l'];
 const fromProfile=(profile:Profile|null):Draft=>({preset:profile?.themePreset||'default',mode:profile?.colorMode||profile?.theme||'light',accent:profile?.accentColor||'',density:profile?.density||DEFAULT_DENSITY,fontSize:profile?.fontSize||DEFAULT_FONT_SIZE,fontFamily:profile?.fontFamily||'default'});
 export function AppearanceSettings({notify:_notify}:{notify:(message:string)=>void}){
- const {user,profile}=useApp();const [draft,setDraft]=useState<Draft>(()=>fromProfile(profile)),[status,setStatus]=useState(''),[retry,setRetry]=useState(0);const dirty=useRef(false),queue=useRef(Promise.resolve()),revision=useRef(0);
+ const {account:user,personalProfile:profile}=useApp();const [draft,setDraft]=useState<Draft>(()=>fromProfile(profile)),[status,setStatus]=useState(''),[retry,setRetry]=useState(0);const dirty=useRef(false),queue=useRef(Promise.resolve()),revision=useRef(0);
  const mode=effectiveMode(draft.mode,profile?.theme),valid=!draft.accent||validAccent(draft.accent,mode);
  useEffect(()=>{dirty.current=false;setDraft(fromProfile(profile));setStatus('')},[profile?.uid]);
  useEffect(()=>{if(profile&&!dirty.current)setDraft(fromProfile(profile))},[profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize,profile?.fontFamily]);
@@ -44,7 +44,7 @@ function HideLevelChoice(){
 
 /** Pengaturan → Tampilan: the opening screen, saved at once (and kept on this device, so it shows before login data). */
 function SplashChoice(){
- const {user,profile}=useApp();const [value,setValue]=useState<SplashStyle>(profile?.splashStyle||'greeting'),[note,setNote]=useState('');
+ const {account:user,personalProfile:profile}=useApp();const [value,setValue]=useState<SplashStyle>(profile?.splashStyle||'greeting'),[note,setNote]=useState('');
  useEffect(()=>{if(profile?.splashStyle)setValue(profile.splashStyle)},[profile?.splashStyle]);
  const first=(profile?.displayName||profile?.username||'kamu').trim().split(/\s+/)[0];
  function choose(next:SplashStyle){if(!user||next===value)return;setValue(next);rememberSplashStyle(next);setNote('Menyimpan…');saveProfile(user.uid,{splashStyle:next}).then(()=>setNote('Tersimpan. Terlihat saat aplikasi dibuka lagi.'),()=>setNote('Belum tersimpan di akun, tapi sudah dipakai di HP ini.'));}

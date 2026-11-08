@@ -124,7 +124,7 @@ export function useReminderEngine(navigate: (view: string) => void, openRecord?:
 
 /** Settings panel: how many balance reminders a day and at what times, plus bill reminders. */
 export function ReminderSettings() {
-  const { user, profile } = useApp();
+  const { account: user, personalProfile: profile } = useApp();
   const { notify, push } = useNotify();
   const saved = reminderConfig(profile);
   const [draft, setDraft] = useState<ReminderConfig>(saved);

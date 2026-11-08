@@ -1,5 +1,6 @@
 import { collection, doc, getCountFromServer, getDocFromCache, getDocFromServer, getDocsFromCache, onSnapshot, query, Timestamp, where, type Unsubscribe } from 'firebase/firestore';
 import { db } from './firebase';
+import { rootSegments } from './space-key';
 
 /**
  * Keeps a full copy of the user's data on the device and only downloads what changed.
@@ -44,7 +45,7 @@ function follow(e: Engine, name: SyncedName, full: boolean) {
   e.current.delete(name);
   const entry = (e.state[name] ||= {});
   const since = !full && entry.complete ? (entry.mark || { s: 0, n: 0 }) : null;
-  const all = collection(db, 'users', e.uid, name);
+  const all = collection(db, ...rootSegments(e.uid), name);
   const source = since ? query(all, where('updatedAt', '>', new Timestamp(since.s, since.n))) : all;
   const stop = onSnapshot(source, { includeMetadataChanges: true }, snap => {
     if (engine !== e) return;
@@ -79,7 +80,7 @@ async function dropDeleted(e: Engine, items: unknown) {
     if (!(syncedCollections as readonly string[]).includes(name) || !Array.isArray(ids)) continue;
     for (const id of ids.slice(0, 200)) {
       if (typeof id !== 'string' || engine !== e) continue;
-      const target = doc(db, 'users', e.uid, name, id);
+      const target = doc(db, ...rootSegments(e.uid), name, id);
       try { if (!(await getDocFromCache(target)).exists()) continue; } catch { continue; }
       try { await getDocFromServer(target); } catch { /* the daily count check catches it */ }
     }
@@ -91,7 +92,7 @@ async function compareCounts(e: Engine, name: SyncedName) {
   if (!db || e.checking.has(name)) return;
   e.checking.add(name);
   try {
-    const all = collection(db, 'users', e.uid, name);
+    const all = collection(db, ...rootSegments(e.uid), name);
     const local = await getDocsFromCache(all);
     // Unsent changes make the counts differ on purpose; compare once they are through.
     if (local.metadata.hasPendingWrites) { e.recheck.add(name); return; }

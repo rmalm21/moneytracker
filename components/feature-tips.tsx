@@ -29,19 +29,20 @@ function chatUsedHere(uid: string) {
 }
 
 function useTipUsage() {
-  const { user, profile, data } = useApp();
-  const uid = user?.uid || '';
+  // 9.0 The tips are the person's own (kept on their profile) and about their own records: not shown in a Ruang Bersama.
+  const { account: user, personalProfile: profile, data, space } = useApp();
+  const uid = user?.uid || '', shared = Boolean(space);
   const local = useMemo(() => uid ? { chatUsed: chatUsedHere(uid), alwaysHide: readAlwaysHide() } : {}, [uid]);
   const derived = useMemo(() => derivedUsed({ profile, data: { ...data, splitBills: (data as { splitBills?: [] }).splitBills }, layout: profile?.dashboardWidgets || [], local }), [profile, data, local]);
   const state = profile?.featureTips;
   const used = useMemo(() => usedSet(state, derived), [state, derived]);
-  return { uid, state, used, derived, today: todayInTimeZone(profile?.timeZone) };
+  return { uid, state, used, derived, today: todayInTimeZone(profile?.timeZone), shared };
 }
 
 /** Mounted once: keeps "this feature was used" with the account, once per feature. */
 export function FeatureTipsBridge() {
-  const { loading, profile } = useApp();
-  const { uid, state, used, derived } = useTipUsage();
+  const { loading, personalProfile: profile } = useApp();
+  const { uid, state, used, derived, shared } = useTipUsage();
   const usedRef = useRef(used), sent = useRef(new Set<string>()); usedRef.current = used;
   useEffect(() => { sent.current = new Set(); }, [uid]);
   useEffect(() => {
@@ -57,24 +58,24 @@ export function FeatureTipsBridge() {
   // What the person's own records show is kept as well, so a feature stays known after those records leave the months
   // the app keeps loaded (a transfer from last year, a chat history that expired).
   useEffect(() => {
-    if (!uid || !profile) return;
+    if (!uid || !profile || shared) return;
     const kept = new Set(state?.used || []);
     const fresh = [...derived].filter(id => tipById.has(id) && !kept.has(id) && !sent.current.has(id));
     if (!fresh.length) return;
     fresh.forEach(id => sent.current.add(id));
     void saveTipState(uid, { used: fresh }).catch(() => fresh.forEach(id => sent.current.delete(id)));
-  }, [uid, Boolean(profile), derived, state?.used]);
+  }, [uid, Boolean(profile), derived, state?.used, shared]);
   // Once per account, a few seconds after opening: features used long ago (one small query each, online only, since
   // a cache-only answer could miss them).
   useEffect(() => {
-    if (!uid || !profile || loading || state?.scanned) return;
+    if (!uid || !profile || loading || state?.scanned || shared) return;
     const timer = window.setTimeout(() => {
       if (!navigator.onLine) return;
       const want = HISTORY_TIPS.filter(id => !usedRef.current.has(id));
       void (want.length ? usedInHistory(uid, want) : Promise.resolve([])).then(found => saveTipState(uid, { used: found, scanned: 1 })).catch(() => { /* tried again next time */ });
     }, 6000);
     return () => window.clearTimeout(timer);
-  }, [uid, Boolean(profile), loading, state?.scanned]);
+  }, [uid, Boolean(profile), loading, state?.scanned, shared]);
   return null;
 }
 
@@ -83,7 +84,7 @@ const NO_RANGE = { start: '', end: '' };
 /** The card of a menu, or (once its features are known or it is hidden) one suggestion that fits the moment. */
 export function FeatureTips({ menu, navigate, className = '' }: { menu: TipMenu; navigate?: (view: string, focus?: string) => void; className?: string }) {
   const { profile, data, cycle } = useApp();
-  const { uid, state, used, today } = useTipUsage();
+  const { uid, state, used, today, shared } = useTipUsage();
   const card = cardTips(menu, used, state, today);
   // "Muncul tiap bulan" looks three months back, more than the app keeps loaded: read them only when it can show.
   const closedUntil = state?.closed?.trans_make_recurring;
@@ -114,7 +115,7 @@ export function FeatureTips({ menu, navigate, className = '' }: { menu: TipMenu;
     else if ('pulse' in how) { if (!pulse(how.pulse)) askToTry(id, payload); }
     else askToTry(id, payload);
   };
-  if (!uid) return null;
+  if (!uid || shared) return null;
   if (card.length) return <section className={`ft-card ${className}`} aria-label="Bisa dicoba di sini">
     <header><span className="ft-mark" aria-hidden="true"><Sparkles size={15}/></span><strong>Bisa dicoba di sini</strong>
       <button type="button" className="ft-x" aria-label="Sembunyikan selama 7 hari" title="Sembunyikan selama 7 hari" onClick={() => void saveTipState(uid, { hideMenu: menu, until: addDays(today, HIDE_DAYS) }).catch(() => {})}><X size={15}/></button></header>

@@ -1,6 +1,7 @@
 import { doc, getDoc, getDocFromCache, increment, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { db } from './firebase';
+import { rootSegments } from './space-key';
 import { coll, loadAllTransactions, newTx, noteDeleted, readLocalFirst, ref, upsertTransaction } from './firestore';
 import { effects, walletBalance } from './accounting';
 import { calculateCycleSnapshot, cycleId, type HealthIssue } from './finance-control';
@@ -47,7 +48,7 @@ async function fullSnapshotData(uid:string):Promise<{data:Data;ledger:LedgerTx[]
 }
 function verifyBalances(data:Data,ledger:LedgerTx[]){for(const wallet of data.wallets){if(walletBalance(wallet,ledger)!==wallet.cachedBalance)throw Error(`Saldo tersimpan ${wallet.name} berbeda dari transaksi. Buka Dompet → Hitung ulang saldo sebelum memperbarui laporan siklus.`)}}
 /** Snapshots follow the user's setting for counting receivables in Aset bersih. */
-async function countsReceivables(uid:string){const profile=doc(database(),'users',uid);try{return Boolean((await getDocFromCache(profile).catch(()=>getDoc(profile))).data()?.netWorthIncludesReceivables)}catch{return false}}
+async function countsReceivables(uid:string){const profile=doc(database(),...rootSegments(uid));try{return Boolean((await getDocFromCache(profile).catch(()=>getDoc(profile))).data()?.netWorthIncludesReceivables)}catch{return false}}
 /** Same values, key order ignored: an unchanged cycle report is not written again. */
 function same(a:unknown,b:unknown):boolean{if(a===b)return true;if(!a||!b||typeof a!=='object'||typeof b!=='object'||Array.isArray(a)!==Array.isArray(b))return false;const x=a as Record<string,unknown>,y=b as Record<string,unknown>,keys=Object.keys(x);return keys.length===Object.keys(y).length&&keys.every(key=>same(x[key],y[key]));}
 export async function closeCycle(uid:string,range:DateRange,today:string){

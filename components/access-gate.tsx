@@ -12,7 +12,7 @@ import { RESEND_WAIT, askForAccess, cleanCode, madeBeforeAccess, redeemCode, sen
  * the owner gave them (9 letters and numbers, three groups); the rules check it and let the account in.
  */
 export function AccessGate() {
-  const { user, access, refreshAccess, revoked } = useApp();
+  const { account: user, access, refreshAccess, revoked } = useApp();
   // Three ways to arrive here: access taken back by the owner, someone who used the app before Kode akses (a one-time
   // security step), or a new account.
   const kind: 'revoked' | 'update' | 'new' = revoked ? 'revoked' : madeBeforeAccess(user) ? 'update' : 'new';

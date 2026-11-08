@@ -182,7 +182,7 @@ const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈'
 /** 7.8: the box is focused on opening only with a mouse or trackpad; on a phone the keyboard waits for a tap. */
 const finePointer = () => typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
 export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false, fixedText, onSaved, onAsk }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean; fixedText?: string; onSaved?: (summary: string) => void; onAsk?: (question: string) => void }) {
-  const { data, profile, user } = useApp();
+  const { data, profile, user, account } = useApp();
   const { track } = useNotify();
   const fixed = fixedText !== undefined;
   const [text, setText] = useState(fixedText ?? ''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
@@ -243,7 +243,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const pAsks: PersonalAsk[] = plan?.personal?.asks || [];
   function pickPersonal(a: PersonalAsk, id: string) {
     setChoose(c => ({ ...c, [aliasKey(a.raw)]: id })); setError('');
-    if (user && lexicon && a.kind === 'alias' && id !== 'none') { const changes = learnFromChoice(lexicon, a, id); if (Object.keys(changes).length) void saveLexicon(user.uid, changes).catch(() => {}); }
+    if (user && lexicon && a.kind === 'alias' && id !== 'none') { const changes = learnFromChoice(lexicon, a, id); if (Object.keys(changes).length) void saveLexicon((account || user).uid, changes).catch(() => {}); }
   }
   // "ingat besto itu D'Besto": a sentence that teaches a word, saved to the Kamus Pribadi (never a transaction).
   const teachRead = useMemo(() => typed.trim() && lexicon?.on !== false ? readTeach(typed, ctx, contacts) : null, [typed, ctx, contacts, lexicon?.on]);
@@ -261,7 +261,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     if ((type === 'wallet' || type === 'category') && !targetId) { setError(`${TYPE_LABEL[type]} “${label}” tidak ditemukan. Tulis namanya persis seperti di aplikasi.`); return; }
     const r = teach(lexicon || {}, teachRead.raw, label, type, targetId, ctx);
     if (r.problem) { setError(r.problem); return; }
-    track(saveLexicon(user.uid, r.changes, lexicon?.on === undefined ? { on: true } : {}), { pending: 'Menyimpan ke Kamus Pribadi…', success: `“${teachRead.raw}” = ${label}`, detail: 'Tersimpan di Kamus Pribadi. Ubah atau hapus di Pengaturan › Bahasa Saya.', failure: 'Kamus Pribadi belum tersimpan' });
+    track(saveLexicon((account || user).uid, r.changes, lexicon?.on === undefined ? { on: true } : {}), { pending: 'Menyimpan ke Kamus Pribadi…', success: `“${teachRead.raw}” = ${label}`, detail: 'Tersimpan di Kamus Pribadi. Ubah atau hapus di Pengaturan › Bahasa Saya.', failure: 'Kamus Pribadi belum tersimpan' });
     reset();
   }
   const [skipped, setSkipped] = useState<string[]>([]), [open, setOpen] = useState<string[]>([]);
@@ -309,7 +309,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       return p;
     };
     const facts = [...learnOf.values()].filter(Boolean).map(l => l!.facts), overrides = plan?.personal?.overrides || [], lex = lexicon || {};
-    const learnLexicon = () => { if (lex.on === false) return; const changes: Record<string, PersonalAlias | null> = { ...learnFromSave(lex, facts, ctx, contacts), ...learnOverrides(lex, overrides, ctx) }; if (Object.keys(changes).length) void saveLexicon(uid, changes).catch(() => {}); };
+    const learnLexicon = () => { if (lex.on === false) return; const changes: Record<string, PersonalAlias | null> = { ...learnFromSave(lex, facts, ctx, contacts), ...learnOverrides(lex, overrides, ctx) }; if (Object.keys(changes).length) void saveLexicon(account?.uid || uid, changes).catch(() => {}); };
     // 6.4: a saved transaction's card opens Transaksi when tapped.
     const openList = onNavigate && entries.every(([, e]) => txKinds.has(e!.kind)) ? () => onNavigate('transactions') : undefined;
     if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry, open: openList, link: openList && { view: 'transactions' } }); }

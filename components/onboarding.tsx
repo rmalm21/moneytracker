@@ -26,7 +26,7 @@ function Step({ emoji, title, lead, children }: { emoji: string; title: string; 
 }
 
 export function Onboarding({ notify }: { notify: (s: string) => void }) {
-  const { user, profile, data } = useApp();
+  const { account: user, personalProfile: profile, data } = useApp();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(profile?.displayName || ''), [day, setDay] = useState(profile?.salaryCycleStartDay || 24), [salary, setSalary] = useState(profile?.monthlySalary || 0);
   const [wallets, setWallets] = useState(true), [cash, setCash] = useState(0), [bank, setBank] = useState(0);

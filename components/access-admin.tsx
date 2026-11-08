@@ -13,7 +13,7 @@ const statusOf = (c: AccessCode) => c.usedBy ? 'used' : c.expiresAt && c.expires
 
 /** 6.1 Pengaturan › Kode akses (owner only): make a random code, share it, and see or take back who has access. */
 export function AccessAdmin({ notify }: { notify: (message: string) => void }) {
-  const { user } = useApp();
+  const { account: user } = useApp();
   const [codes, setCodes] = useState<AccessCode[] | null>(null), [grants, setGrants] = useState<AccessGrant[] | null>(null);
   const [days, setDays] = useState(7), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [fresh, setFresh] = useState(''), [copied, setCopied] = useState(false), [error, setError] = useState('');
   const [requests, setRequests] = useState<AccessRequest[] | null>(null), [working, setWorking] = useState(''), [editing, setEditing] = useState(''), [noteDraft, setNoteDraft] = useState('');

@@ -40,7 +40,7 @@ function Working({ tone, title, step, total, note }: { tone: 'amber' | 'rose'; t
 }
 
 function ResetBody({ onClose, onBusy, notify }: { onClose: () => void; onBusy: (busy: boolean) => void; notify: (message: string) => void }) {
-  const { user } = useApp(), records = useRecordList();
+  const { account: user } = useApp(), records = useRecordList();
   const [preferences, setPreferences] = useState(false), [typed, setTyped] = useState(''), [progress, setProgress] = useState<WipeProgress | null>(null), [error, setError] = useState('');
   const ready = typed.trim().toUpperCase() === 'RESET';
   async function run(event: FormEvent) {
@@ -62,7 +62,7 @@ function ResetBody({ onClose, onBusy, notify }: { onClose: () => void; onBusy: (
 }
 
 function DeleteBody({ onClose, onBusy }: { onClose: () => void; onBusy: (busy: boolean) => void }) {
-  const { user } = useApp(), records = useRecordList();
+  const { account: user } = useApp(), records = useRecordList();
   const [password, setPassword] = useState(''), [sure, setSure] = useState(false), [progress, setProgress] = useState<DeleteProgress | null>(null), [error, setError] = useState('');
   // 6.1: an account that signs in with Google only has no password: it types HAPUS and must have signed in recently.
   const googleOnly = Boolean(user) && !hasPassword(user), [typed, setTyped] = useState(''), [stale, setStale] = useState(false);

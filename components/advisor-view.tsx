@@ -147,7 +147,7 @@ function SectionHead({ icon: Icon, title, hint }: { icon: LucideIcon; title: str
 }
 
 export function AdvisorView({ navigate }: { navigate: (view: string, focus?: string) => void }) {
-  const { data, profile, cycle, user } = useApp();
+  const { data, profile, cycle, user, account } = useApp();
   const { track } = useNotify();
   const salaryDay = profile?.salaryCycleStartDay || 24;
   const today = todayInTimeZone(profile?.timeZone), day = dateInTimeZone(new Date(), profile?.timeZone);
@@ -166,12 +166,12 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const order = mergeOrder(layout.order);
   const hiddenSections = layout.hidden || [];
   const pinned = layout.pinned || [];
-  function saveLayout(next: { order?: string[]; hidden?: string[]; pinned?: string[] }, message = 'Tampilan Insight disimpan.') { if (!user) return; track(saveProfile(user.uid, { insightLayout: { order, hidden: hiddenSections, pinned, ...next } }), { pending: 'Menyimpan…', success: message, failure: 'Belum tersimpan', quiet: true }); }
+  function saveLayout(next: { order?: string[]; hidden?: string[]; pinned?: string[] }, message = 'Tampilan Insight disimpan.') { if (!user) return; track(saveProfile((account || user).uid, { insightLayout: { order, hidden: hiddenSections, pinned, ...next } }), { pending: 'Menyimpan…', success: message, failure: 'Belum tersimpan', quiet: true }); }
   function togglePin(id: string) { saveLayout({ pinned: pinned.includes(id) ? pinned.filter(x => x !== id) : [id, ...pinned] }); }
   function saveInsightProfile(next: InsightProfile) {
     if (!user) return;
     setProfileOpen(false);
-    track(saveProfile(user.uid, { insightProfile: { ...next, updatedAt: today } }), { pending: 'Menyimpan profil…', success: 'Profil Insight disimpan. Saran sudah disesuaikan.', failure: 'Profil belum tersimpan' });
+    track(saveProfile((account || user).uid, { insightProfile: { ...next, updatedAt: today } }), { pending: 'Menyimpan profil…', success: 'Profil Insight disimpan. Saran sudah disesuaikan.', failure: 'Profil belum tersimpan' });
   }
 
   const memoryIn = useMemo(() => readMemory(profile?.insightMemory), [profile?.insightMemory]);
@@ -188,7 +188,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   // Insight memory (lifecycle, dismiss/snooze, score snapshots) lives in the user's own profile; written only when
   // it really changed (at most a few small writes a day), never as a copy of the ledger.
   const written = useRef('');
-  function saveMemory(next: InsightMemory) { if (!user) return; const json = JSON.stringify(next); if (json === written.current) return; written.current = json; saveProfile(user.uid, { insightMemory: next }).catch(() => { written.current = ''; }); }
+  function saveMemory(next: InsightMemory) { if (!user) return; const json = JSON.stringify(next); if (json === written.current) return; written.current = json; saveProfile((account || user).uid, { insightMemory: next }).catch(() => { written.current = ''; }); }
   useEffect(() => {
     if (!report || !user) return;
     // The old per-device "abaikan" list moves into the synced memory once.

@@ -17,7 +17,7 @@ const FILTERS: [string, string, AliasType[]][] = [['all', 'Semua', []], ['mercha
 const ORDER: AliasType[] = ['merchant', 'person', 'place', 'wallet', 'category', 'purpose', 'abbr'];
 
 export function PersonalLexiconSettings({ perform }: { perform: Perform }) {
-  const { user, profile, data } = useApp();
+  const { account: user, personalProfile: profile, data } = useApp();
   const lex = useMemo(() => profile?.personalLexicon || {}, [profile?.personalLexicon]);
   // The switch moves at once; the saved value takes over when it comes back.
   const [onLocal, setOnLocal] = useState<boolean | null>(null);

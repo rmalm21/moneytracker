@@ -3,6 +3,7 @@ import { isCurrent, syncedCollections, watchSync, whenCurrent, type SyncedName }
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
 import { walletGroup } from './wallet-groups';
+import { isSpaceKey, rootSegments, stamp } from './space-key';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { effects, validAmount, walletBalance, budgetWindow, budgetSpent, calendarCycle, newestFirst } from './accounting';
@@ -15,9 +16,10 @@ export const names = ['wallets','categories','budgets','transactions','claims','
 export const onDemand = new Set<string>(['splitBills','splitPeople','splitGroups']);
 type Name = typeof names[number];
 function database() { if (!db) throw Error('Konfigurasi Firebase belum tersedia.'); return db; }
-export function userRef(uid:string) { return doc(database(),'users',uid); }
-export function coll(uid:string,name:Name) { return collection(database(),'users',uid,name); }
-export function ref(uid:string,name:Name,id:string) { return doc(database(),'users',uid,name,id); }
+// 9.0 `uid` is the records' key: someone's own (their uid) or a Ruang Bersama ("space:{id}"), lib/space-key.ts.
+export function userRef(uid:string) { return doc(database(),...rootSegments(uid)); }
+export function coll(uid:string,name:Name) { return collection(database(),...rootSegments(uid),name); }
+export function ref(uid:string,name:Name,id:string) { return doc(database(),...rootSegments(uid),name,id); }
 const hydrate = <T>(d:{id:string;data:()=>DocumentData}) => ({ id:d.id, ...d.data() }) as T;
 /** Reads from the device copy once it matches the server (lib/sync.ts); asks the server only if that takes too long. */
 export async function readLocalFirst(uid:string,collections:SyncedName[],target:Query){if(await whenCurrent(uid,collections)){try{return await getDocsFromCache(target)}catch{/* ask the server */}}return getDocs(target);}
@@ -26,7 +28,7 @@ export async function transactionsAround(uid:string,date:string,days=2){const sh
 /** One document from the device copy when it is current, otherwise from the server. */
 async function readDoc(uid:string,name:SyncedName,target:DocumentReference){if(isCurrent(uid,name)){try{const snap=await getDocFromCache(target);if(snap.exists())return snap}catch{/* ask the server */}}return getDoc(target);}
 /** A note that these documents were deleted, so the user's other devices drop exactly them from their copy (lib/sync.ts). */
-export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){markTxDeleted(items.transactions||[]);await dropFromDevice(uid,items);try{await settle(setDoc(doc(collection(database(),'users',uid,'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
+export async function noteDeleted(uid:string,items:Partial<Record<Name,string[]>>){markTxDeleted(items.transactions||[]);await dropFromDevice(uid,items);try{await settle(setDoc(doc(collection(database(),...rootSegments(uid),'deletions')),{items,at:serverTimestamp(),updatedAt:serverTimestamp()}))}catch{/* the daily count check still catches it */}}
 /**
  * The device copy only follows documents that change, so a document deleted inside a server transaction would stay in
  * it (and come back on screen). Asking the server for it once (one read each) removes it from the copy, and every
@@ -55,7 +57,7 @@ export async function tidyCloud(uid:string){
   const key=`dompet-ajaib:tidy:${uid}`;try{const last=Number(localStorage.getItem(key)||0);if(Date.now()-last<12*36e5)return 0;}catch{/* runs anyway */}
   let removed=0;const {deleteDoc,Timestamp}=await import('firebase/firestore');
   try{
-    const old=await getDocs(query(collection(database(),'users',uid,'deletions'),where('updatedAt','<',Timestamp.fromMillis(Date.now()-7*864e5)),limit(300)));
+    const old=await getDocs(query(collection(database(),...rootSegments(uid),'deletions'),where('updatedAt','<',Timestamp.fromMillis(Date.now()-7*864e5)),limit(300)));
     for(let i=0;i<old.docs.length;i+=300){const b=writeBatch(database());old.docs.slice(i,i+300).forEach(row=>b.delete(row.ref));await b.commit();}removed+=old.size;
   }catch{/* next time */}
   try{
@@ -252,7 +254,7 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
   let previousDate=input.date,already=false;
   // Standalone additions use an offline-capable atomic batch. Edits and linked repayments use transactions for consistency checks.
   const linked=Boolean(relation(input,1)||input.draftId||input.plannedId||options.opId||options.expect);
-  if(!editId&&!linked) {const actions=walletActions(input);const source=await readDoc(uid,'wallets',ref(uid,'wallets',input.walletId));if(!source.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(source),actions.source);if(actions.destination&&input.destinationWalletId){const destination=await readDoc(uid,'wallets',ref(uid,'wallets',input.destinationWalletId));if(!destination.exists())throw Error('Dompet tujuan tidak ditemukan.');validateWalletUse(hydrate<Wallet>(destination),actions.destination);}const batch=writeBatch(database());const {id:_batchId,...payload}=input;batch.set(r,{...payload,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});for(const [wallet,delta] of Object.entries(effects(input))) batch.update(ref(uid,'wallets',wallet),{cachedBalance:increment(delta),updatedAt:serverTimestamp()});const pending=batch.commit();if(typeof navigator!=='undefined'&&!navigator.onLine){void pending.catch(console.error);return r.id;}await pending;await syncSnapshot(uid,input.date);return r.id;}
+  if(!editId&&!linked) {const actions=walletActions(input);const source=await readDoc(uid,'wallets',ref(uid,'wallets',input.walletId));if(!source.exists())throw Error('Dompet asal tidak ditemukan.');validateWalletUse(hydrate<Wallet>(source),actions.source);if(actions.destination&&input.destinationWalletId){const destination=await readDoc(uid,'wallets',ref(uid,'wallets',input.destinationWalletId));if(!destination.exists())throw Error('Dompet tujuan tidak ditemukan.');validateWalletUse(hydrate<Wallet>(destination),actions.destination);}const batch=writeBatch(database());const {id:_batchId,...payload}=input;batch.set(r,{...payload,...stamp(uid,true),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});for(const [wallet,delta] of Object.entries(effects(input))) batch.update(ref(uid,'wallets',wallet),{cachedBalance:increment(delta),updatedAt:serverTimestamp()});const pending=batch.commit();if(typeof navigator!=='undefined'&&!navigator.onLine){void pending.catch(console.error);return r.id;}await pending;await syncSnapshot(uid,input.date);return r.id;}
   await runTx(database(),async trx=>{
     if(!editId&&options.opId){const prior=await trx.get(r);if(prior.exists()){already=true;return;}}
     if(options.expect){const e=options.expect;const snap=await trx.get(ref(uid,e.kind,e.id));if(!snap.exists())throw new StaleStateError('Catatan yang dirujuk sudah tidak ada. Cek lagi sebelum menyimpan.');const d=snap.data();
@@ -286,7 +288,7 @@ export async function upsertTransaction(uid:string,input:LedgerTx,editId?:string
     if(old?.draftId&&old.draftId!==input.draftId)trx.update(ref(uid,'drafts',old.draftId),{status:'pending',updatedAt:serverTimestamp()});if(draftRef&&(!old||old.draftId!==input.draftId))trx.update(draftRef,{status:'posted',updatedAt:serverTimestamp()});
     if(old?.plannedId&&old.plannedId!==input.plannedId)trx.update(ref(uid,'plannedTransactions',old.plannedId),{status:'planned',postedTransactionId:null,updatedAt:serverTimestamp()});if(plannedRef)trx.update(plannedRef,{status:'posted',postedTransactionId:r.id,updatedAt:serverTimestamp()});
     // Isi dompet: a tag dropped in the form (back to Uangku) is removed, not left behind by a partial update.
-    if(old)trx.update(r,{...fields,...(fields.portionFrom?{}:{portionFrom:deleteField()}),...(fields.portionTo?{}:{portionTo:deleteField()}),updatedAt:serverTimestamp()});else trx.set(r,{...fields,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+    if(old)trx.update(r,{...fields,...stamp(uid,false),...(fields.portionFrom?{}:{portionFrom:deleteField()}),...(fields.portionTo?{}:{portionTo:deleteField()}),updatedAt:serverTimestamp()});else trx.set(r,{...fields,...stamp(uid,true),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });if(already)return r.id;await syncSnapshot(uid,previousDate<input.date?previousDate:input.date);return r.id;
 }
 export async function deleteTransaction(uid:string,id:string,expect?:{amount:number}) {

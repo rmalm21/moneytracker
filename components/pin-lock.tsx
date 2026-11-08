@@ -12,7 +12,7 @@ import { passwordVerified, attempts, checkPin, clearHidden, consumeFreshLogin, h
 
 /** Decides when the app is locked: on open, and after being in the background longer than the chosen time. */
 export function useAppLock() {
-  const { user, profile } = useApp();
+  const { account: user, personalProfile: profile } = useApp();
   const uid = user?.uid || '', enabled = Boolean(profile?.pinHash && profile?.pinSalt), after = (profile?.pinLockAfter ?? 1) * 60000;
   const [locked, setLocked] = useState(false);
   useEffect(() => {
@@ -72,7 +72,7 @@ function BiometricButton({ state, onClick }: { state: 'idle' | 'scanning' | 'ok'
 }
 
 export function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
-  const { user, profile } = useApp();
+  const { account: user, personalProfile: profile } = useApp();
   const uid = user?.uid || '';
   const [until, setUntil] = useState(() => attempts(uid).until);
   const bio = biometricEnabled(uid);
@@ -123,7 +123,7 @@ export function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
 
 /** Settings block: turn fingerprint / face unlock on or off for this device. */
 function BiometricSettings({ notify }: { notify: (message: string) => void }) {
-  const { user, profile } = useApp();
+  const { account: user, personalProfile: profile } = useApp();
   const uid = user?.uid || '';
   const [supported, setSupported] = useState<boolean | null>(null);
   const [record, setRecord] = useState(() => biometricRecord(uid));
@@ -151,7 +151,7 @@ function BiometricSettings({ notify }: { notify: (message: string) => void }) {
 
 /** Settings panel: turn the PIN on, change it, choose the auto-lock time, or turn it off. */
 export function PinSettings({ notify, onLockNow }: { notify: (message: string) => void; onLockNow?: () => void }) {
-  const { user, profile } = useApp();
+  const { account: user, personalProfile: profile } = useApp();
   const enabled = Boolean(profile?.pinHash);
   const [mode, setMode] = useState<null | 'set' | 'change' | 'off'>(null);
   const [step, setStep] = useState<'current' | 'new' | 'confirm'>('new');
