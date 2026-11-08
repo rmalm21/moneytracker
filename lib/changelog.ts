@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.9', date: '8 Nov 2026', title: 'Tebakan kategori impor lebih tepat, diuji ribuan baris', items: [
+    ['🏪', 'Mutasi bank yang tertulis transfer ke toko atau tempat (misalnya "TRSF E-BANKING DB … Bakso Pak Kumis" atau "BI-FAST CR … Bonus Kinerja") sekarang dibaca sebagai bayar ke tempat itu atau pemasukan biasa, bukan transfer ke orang. Transfer ke nama orang tetap ditanya dulu untuk apa.'],
+    ['🎯', 'Tebakan kategori yang dulu meleset dibetulkan: ongkos becak dan bajaj jadi Transportasi, tukang sayur jadi Bahan Makanan, cek gula darah dan tes lab jadi Kesehatan, sprei dan bantal jadi Rumah & Kebutuhan, materai jadi Biaya Keuangan, pasta gigi bukan ke dokter gigi, tiket konser bukan langganan musik, pempek bukan kapal, dan banyak kata sehari-hari lain.'],
+    ['🧪', 'Diuji skala besar: ratusan baris contoh, masing-masing dalam berbagai format mutasi (QRIS, TRSF, kartu debit, nomor referensi, huruf besar dan kecil), jadi ribuan baris. Kategorinya tetap sama apa pun formatnya.'],
+  ] },
   { version: '8.8', date: '8 Nov 2026', title: 'Konfirmasi lebih canggih, impor bisa fokus ke merchant saja', items: [
     ['✅', 'Perlu dikonfirmasi ditata ulang: dikelompokkan per tanggal, ada filter Siap dicatat dan Perlu dicek, centang di tiap baris, dan Pilih semua. Yang dicentang bisa dicatat atau dihapus sekaligus.'],
     ['⚡', 'Tombol Catat semua yang siap dan Hapus semua. Yang belum lengkap, mungkin dobel, atau transfer ke orang yang belum ditentukan tetap menunggu untuk kamu cek.'],

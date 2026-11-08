@@ -1,0 +1,12 @@
+heldout5: 157 lines | right 146 (93.0%) | right main category, other sub 0 (0.0%) | wrong 4 (2.5%) | no guess 7 (4.5%)
+  WRONG Pempek kapal selam  → Transportasi/Kapal  (want Makan & Minum)
+  NONE  Spion motor patah  → want Kendaraan
+  WRONG Sabun mandi dan pasta gigi  → Kesehatan/Gigi  (want Rumah & Kebutuhan | Personal | Belanja)
+  WRONG Tiket konser musik  → Langganan/Musik  (want Nongkrong & Hiburan)
+  NONE  Main golf  → want Nongkrong & Hiburan | Personal | Kesehatan
+  NONE  Sewa kostum pesta  → want Nongkrong & Hiburan | Belanja
+  WRONG Ongkir paket  → Transportasi  (want Belanja)
+  NONE  Tes PCR  → want Kesehatan
+  NONE  Beli termometer  → want Kesehatan
+  NONE  Bantu biaya berobat teman  → want Sosial & Sedekah
+  NONE  Sewa coworking space  → want Kerja

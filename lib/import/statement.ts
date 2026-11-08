@@ -476,11 +476,20 @@ const GENERIC = new Set('transfer dari bayar beli pembelian belanja tabungan rek
 const wordsIn = (...texts: (string | undefined)[]) => new Set(texts.join(' ').toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(w => w.length >= 4 && !BANK_WORDS.has(w) && !GENERIC.has(w)));
 /** 8.7 A transfer to or from someone: the bank says transfer, and the name reads as a person's (no shop or company words). */
 const TRANSFERISH = /\b(?:di)?transfer\b|\btransfer (?:masuk|keluar)\b|\btrsf\b|\btrf\b|\bkirim\b|\bbi-?fast\b|\bswitching\b|\bkliring\b|\brtgs\b|\bskn\b|\bditerima dari\b|\bincoming transfer\b|\boutgoing transfer\b/i;
-const BUSINESS = /\b(?:pt|cv|tbk|ud|toko|warung|shop|store|mart|market|resto|restoran|restaurant|cafe|kafe|kopi|coffee|bakery|indonesia|bank|laundry|apotek|apotik|klinik|rs|rumah sakit|koperasi|kopkar|digital|payment|pay|merchant|bengkel|salon|studio|official|group|express|ekspres|travel|tour|hotel|garage|sekolah|universitas|yayasan|masjid|gereja|pln|pdam|bpjs|telkom|indihome|tagihan|cashback|bunga|pajak|biaya|admin|top up|gaji|payroll|refund|transaksi|mutasi|rekening)\b/i;
-function personIn(row: StatementRow, name: string, wallets: ImportCtx['wallets']) {
+const BUSINESS = /\b(?:pt|cv|tbk|ud|toko|warung|shop|store|mart|market|resto|restoran|restaurant|cafe|kafe|kopi|coffee|bakery|indonesia|bank|laundry|apotek|apotik|klinik|rs|rumah sakit|koperasi|kopkar|digital|payment|pay|merchant|bengkel|salon|studio|official|group|express|ekspres|travel|tour|hotel|villa|penginapan|homestay|resort|garage|sekolah|universitas|yayasan|masjid|gereja|pln|pdam|bpjs|telkom|indihome|tagihan|cashback|bunga|pajak|biaya|admin|top up|gaji|payroll|refund|transaksi|mutasi|rekening)\b/i;
+const NOTE_START = /^(?:kirim|bayar|beli|tiket|sewa|uang|biaya|hasil|jual|jualan|cicilan|tagihan|iuran|parkir|ongkos|ongkir|servis|service|paket|pulsa|token|voucher|donasi|sedekah|zakat|infaq|infak|kado|hadiah|oleh|makan|minum|belanja|pembayaran|pembelian|top|isi|langganan|les|kursus|arisan|kas|patungan)\b/i;
+function personIn(row: StatementRow, name: string, wallets: ImportCtx['wallets'], guessed = false) {
   if (!TRANSFERISH.test(`${row.kind || ''} ${row.description}`)) return undefined;
   const who = name.replace(/^Transfer (?:ke|dari)\s+/i, '').trim(), words = who.split(/\s+/);
   if (!who || words.length > 5 || !/^[\p{L}][\p{L}\s.'-]*$/u.test(who) || who.length < 3 || BUSINESS.test(who) || E_WALLET_CO.test(who)) return undefined;
+  // 8.9 A note the reader found a category for, written like a note and not like a name ("Celana jeans", "Lipstik"): a payment.
+  // All capitals say nothing about this, so such a line still counts as a person when it reads like one.
+  // A note that starts like a note ("Kirim parsel", "Bayar kos Bu Siti", "Tiket Ancol") is a payment, not a name.
+  if (NOTE_START.test(who)) return undefined;
+  // The name is tidied into Title Case (and small words dropped), so look at the bank's own words.
+  const own = row.description.split(/[^\p{L}.'-]+/u), rawWords = words.map(w => own.filter(o => o.toLowerCase() === w.toLowerCase()).pop() || w);
+  const nameLike = rawWords.length > 1 && rawWords.every(w => /^\p{Lu}/u.test(w)) && !/\s(?:di|ke|dan|untuk|buat|sama)\s/i.test(row.description.slice(-who.length - 12));
+  if (guessed && !nameLike && rawWords.join(' ') !== rawWords.join(' ').toUpperCase()) return undefined;
   // The part of the bank's line the name came from ("Dari PT MAJU JAYA"): a company there is not a person.
   const first = who.toLowerCase().split(/\s+/)[0], from = row.description.split(/\s+·\s+|\s*\|\s*/).find(part => part.toLowerCase().includes(first));
   if (from && (BUSINESS.test(from) || E_WALLET_CO.test(from))) return undefined;
@@ -577,7 +586,9 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
         maybe = { name: t.description || t.merchant || 'Transaksi', date: t.date, amount: t.amount, walletId: t.walletId, why: !here ? 'wallet' : t.amount !== row.amount ? 'amount' : 'date' };
       }
     }
-    const person = flow !== 'transfer' ? personIn(row, name, ctx.wallets) : undefined;
+    // 8.9 A line the reader knows as a place or a kind of spending ("TRSF E-BANKING DB … Bakso Pak Kumis") is a payment to that
+    // place, not a transfer to a person, even when the bank calls it a transfer.
+    const person = flow !== 'transfer' && !own && !place && !kind ? personIn(row, name, ctx.wallets, Boolean(guess)) : undefined;
     return { ...row, id, name: moveName || name, walletId, destinationWalletId, flow, categoryId: pick?.categoryId || null, subcategoryId: pick?.subcategoryId || null, ...(from && pick ? { from } : {}), ...(already ? { already } : {}), ...(maybe ? { maybe } : {}), ...(person ? { person } : {}) };
   });
 }

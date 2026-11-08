@@ -1,0 +1,17 @@
+heldout5: 157 lines × formats = 1518 lines | right 1408 (92.8%) | wrong 40 (2.6%) | no guess 67 (4.4%) | read as transfer 3 (0.2%) | same as the plain line 99.8%
+  QRIS             right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  TRSF DB          right  92.4% | wrong   2.8% | none   2.8% | transfer   2.1% | same  97.9%
+  DEBIT CARD       right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  PEMBAYARAN QRIS  right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  lower            right  93.0% | wrong   2.5% | none   4.5% | transfer   0.0% | same 100.0%
+  ref after        right  93.0% | wrong   2.5% | none   4.5% | transfer   0.0% | same 100.0%
+  Pembelian        right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  UPPER            right  93.0% | wrong   2.5% | none   4.5% | transfer   0.0% | same 100.0%
+  KARTU DEBIT      right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  via GoPay        right  92.4% | wrong   2.8% | none   4.9% | transfer   0.0% | same 100.0%
+  TRSF CR          right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  BI-FAST CR       right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  Penerimaan       right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  [TRSF DB] TRSF E-BANKING DB 0510/FTSCY/WS95032 60000.00 Spion motor patah  → TRANSFER (clean: null, none; want Kendaraan)
+  [TRSF DB] TRSF E-BANKING DB 0510/FTSCY/WS95038 900000.00 Main golf  → TRANSFER (clean: null, none; want Nongkrong & Hiburan | Personal | Kesehatan)
+  [TRSF DB] TRSF E-BANKING DB 0510/FTSCY/WS95034 275000.00 Tes PCR  → TRANSFER (clean: null, none; want Kesehatan)

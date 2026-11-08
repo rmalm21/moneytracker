@@ -1,0 +1,14 @@
+heldout5: 157 lines × formats = 1518 lines | right 1518 (100.0%) | wrong 0 (0.0%) | no guess 0 (0.0%) | read as transfer 0 (0.0%) | same as the plain line 100.0%
+  QRIS             right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  TRSF DB          right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  DEBIT CARD       right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  PEMBAYARAN QRIS  right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  lower            right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  ref after        right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  Pembelian        right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  UPPER            right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  KARTU DEBIT      right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  via GoPay        right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  TRSF CR          right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  BI-FAST CR       right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%
+  Penerimaan       right 100.0% | wrong   0.0% | none   0.0% | transfer   0.0% | same 100.0%

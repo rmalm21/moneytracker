@@ -90,3 +90,40 @@ What this says, honestly:
   still confirms, for a ~120 MB download.
 
 Decision: not shipped.
+
+## Round 3: 8.9 rule fixes, a large held-out set and a large format test
+
+Written and committed before the 8.9 fixes (99d37dc): `import-cat-heldout5.json` (157 everyday lines across every
+category) and `import-format.mjs`, which wraps every labeled line the way banks and e-wallets print it (QRIS,
+`TRSF E-BANKING DB/CR …`, `BI-FAST CR …`, debit card, reference numbers, upper and lower case, …): 4,248 lines from the
+older sets ("pool", all already seen) and 1,518 from heldout5. A shop line must keep its category, and must not turn
+into a transfer to a person.
+
+Fixes: (1) a line the reader knows as a place or a kind of spending is a payment even when the bank calls it a transfer;
+a note written like a note ("Celana jeans", "Bayar kos Bu Siti", "Tiket Ancol") is not a person's name; names written
+like names, and lines in capitals, still count as a person. (2) Places/words that a broader word took the wrong way
+(becak, bajaj, tukang sayur, gula darah, sprei/sarung bantal, mainan, masker wajah, materai, kartu nama, …), from the
+misses of heldout3/heldout4 (post-hoc for them).
+
+**Measurement (heldout5 and its format test, each run once after the fixes):**
+
+| Run | Right | Wrong | No guess | Read as a transfer |
+|---|---|---|---|---|
+| heldout5, 8.8 | 144 (91.7%) | 5 | 8 | — |
+| **heldout5, 8.9** | **146 (93.0%)** | 4 | 7 | — |
+| heldout5 × formats (1,518), 8.8 | 1,262 (83.1%) | 45 | 73 | 138 (9.1%) |
+| **heldout5 × formats, 8.9** | **1,408 (92.8%)** | 40 | 67 | **3 (0.2%)** |
+
+After that run, the 11 heldout5 misses were fixed too (pempek, pasta gigi, tiket konser, ongkir, spion, golf, kostum,
+PCR, termometer, bantu biaya berobat, coworking): heldout5 157/157 and its format test 1,518/1,518 — **post-hoc, not a
+measurement**.
+
+Everything else after the fixes: dev 99/99, dev2 55/55, heldout 80/80, heldout2 51/52 (lipstick: right main category,
+another sub), heldout3 75/75 and heldout4 83/83 (post-hoc), pool format test 99.8% right, 0 read as a transfer, 100% the
+same as the plain line. The owner's real files (counts only, starter categories, no history): rows with a category GoPay
+32/57 and Krom 33/38 (unchanged: the rest are local places named only by their name); transfers with a person unchanged
+(5 and 1 with the test owner name).
+
+What this says, honestly: on new everyday lines the rules gained a little (91.7% → 93.0%); the big gain is on real bank
+formats, where shop lines written as a transfer were asked "untuk apa" as if paid to a person (9.1% of wrapped lines →
+0.2%). Lines named only by a local name stay without a guess until the person picks one once.
