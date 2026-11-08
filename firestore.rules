@@ -103,6 +103,99 @@ service cloud.firestore {
         && request.resource.data.at == request.time
         && (resource == null || request.time > resource.data.at + duration.value(1, 'm'));
     }
+    // 9.0 Ruang Bersama: records shared by 2–5 members (spaces/{spaceId}), apart from everyone's own (users/{uid}),
+    // which stay readable by their owner only. Members are equal; joining takes an invite and a member's approval.
+    function space(spaceId) { return get(/databases/$(database)/documents/spaces/$(spaceId)); }
+    function memberOf(spaceId) {
+      return request.auth != null && allowed() && request.auth.uid in space(spaceId).data.memberIds;
+    }
+    function inviteDoc(code) { return /databases/$(database)/documents/spaceInvites/$(code); }
+    // The member list and the names shown with it always match; at most five members.
+    function membersOk(data) {
+      return data.memberIds is list && data.memberIds.size() >= 1 && data.memberIds.size() <= 5
+        && data.members is map && data.members.keys().toSet() == data.memberIds.toSet();
+    }
+    function spaceUpdateOk(spaceId) {
+      let before = resource.data.memberIds;
+      let after = request.resource.data.memberIds;
+      return validName(request.resource.data, 40)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && membersOk(request.resource.data)
+        && (
+          // Settings (name, colour, period…): nobody added or removed.
+          after.toSet() == before.toSet()
+          // A member approves one person who asked to join.
+          || (after.size() == before.size() + 1 && after.hasAll(before)
+              && exists(/databases/$(database)/documents/spaces/$(spaceId)/requests/$(after.removeAll(before)[0])))
+          // A member leaves (only themselves; the last member deletes the space instead).
+          || (before.size() == after.size() + 1 && before.hasAll(after)
+              && request.auth.uid in before && !(request.auth.uid in after))
+        );
+    }
+    match /spaces/{spaceId} {
+      allow get, list: if request.auth != null && allowed() && request.auth.uid in resource.data.memberIds;
+      allow create: if request.auth != null && allowed()
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.createdBy == request.auth.uid
+        && validName(request.resource.data, 40)
+        && membersOk(request.resource.data);
+      allow update: if request.auth != null && allowed() && request.auth.uid in resource.data.memberIds && spaceUpdateOk(spaceId);
+      // Only the last member removes the space (its records are deleted first, while it still exists).
+      allow delete: if request.auth != null && allowed() && resource.data.memberIds == [request.auth.uid];
+      // Asking to join: someone holding an unused, unexpired invite of this space, while it has room, uses the invite
+      // in the same write (each side checks the other).
+      match /requests/{uid} {
+        allow get: if request.auth != null && (request.auth.uid == uid || memberOf(spaceId));
+        allow list: if memberOf(spaceId);
+        allow delete: if (request.auth != null && request.auth.uid == uid) || memberOf(spaceId);
+        allow create: if request.auth != null && allowed() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'email', 'code', 'at'])
+          && validName(request.resource.data, 60)
+          && request.resource.data.email is string && request.resource.data.email.size() <= 120
+          && request.resource.data.code is string
+          && request.resource.data.at == request.time
+          && get(inviteDoc(request.resource.data.code)).data.spaceId == spaceId
+          && get(inviteDoc(request.resource.data.code)).data.get('usedBy', null) == null
+          && get(inviteDoc(request.resource.data.code)).data.expiresAt > request.time
+          && getAfter(inviteDoc(request.resource.data.code)).data.usedBy == uid
+          && !(uid in space(spaceId).data.memberIds)
+          && space(spaceId).data.memberIds.size() < 5;
+      }
+      // Riwayat ruang: who added, changed or deleted what. Written by the member who did it; only a restore is
+      // noted on it afterwards.
+      match /activity/{entryId} {
+        allow read, delete: if memberOf(spaceId);
+        allow create: if memberOf(spaceId) && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time;
+        allow update: if memberOf(spaceId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['restoredBy', 'restoredAt'])
+          && request.resource.data.restoredBy == request.auth.uid;
+      }
+      match /{collectionName}/{documentId} {
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity']);
+      }
+    }
+    // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which
+    // space it is for) and use it once, together with their request to join.
+    match /spaceInvites/{code} {
+      allow get: if request.auth != null && allowed();
+      allow list: if false;
+      allow create: if memberOf(request.resource.data.spaceId)
+        && code.size() >= 8
+        && request.resource.data.keys().hasOnly(['spaceId', 'spaceName', 'inviterName', 'createdBy', 'expiresAt', 'at'])
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.spaceName is string && request.resource.data.spaceName.size() <= 40
+        && request.resource.data.inviterName is string && request.resource.data.inviterName.size() <= 60
+        && request.resource.data.at == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt <= request.time + duration.value(25, 'h');
+      allow update: if request.auth != null && allowed()
+        && resource.data.get('usedBy', null) == null
+        && resource.data.expiresAt > request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt'])
+        && request.resource.data.usedBy == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/spaces/$(resource.data.spaceId)/requests/$(request.auth.uid));
+      allow delete: if memberOf(resource.data.spaceId);
+    }
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {
