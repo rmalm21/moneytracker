@@ -1,6 +1,6 @@
 // 8.8 Import categorization benchmark: each made-up statement line goes through the import planner with the default
 // category templates and no history, and the guessed category is compared with the expected one.
-// Usage: node bench/v88/import-cat.mjs dev|heldout [root]  (root: a checkout of another version, for the baseline)
+// Usage: node bench/v88/import-cat.mjs dev|heldout|dev2|heldout2 [root]  (root: a checkout of another version, for the baseline)
 import fs from 'node:fs';
 import path from 'node:path';
 const set = process.argv[2] || 'dev', root = path.resolve(process.argv[3] || path.join(path.dirname(new URL(import.meta.url).pathname), '../..'));
@@ -15,11 +15,12 @@ for (const [d, type, amount, expect] of items) {
   const read = { rows: [{ line: 1, date: '2026-10-05', description: d, amount, type }], columns: { date: 'Tanggal', description: ['Keterangan'] }, skipped: 0, unsure: 0 };
   const [x] = planImport(read, { walletId: 'bank', wallets: [{ id: 'bank', name: 'Bank', type: 'bank' }, { id: 'cash', name: 'Tunai', type: 'cash' }], categories, transactions: [], drafts: [] });
   if (expect === null) { skipped++; continue; }
-  const got = label(x.subcategoryId || x.categoryId), [ep, es] = expect.split('/');
+  // Several accepted answers are separated by " | " (a name both "Rumah & Kebutuhan" and "Tagihan" have, for example).
+  const got = label(x.subcategoryId || x.categoryId), wants = expect.split(' | ').map(e => { const at = e.indexOf('/'); return at < 0 ? [e.trim()] : [e.slice(0, at).trim(), e.slice(at + 1).trim()]; });
   const gp = got?.split('/')[0];
   if (!got) { none++; misses.push(`  NONE  ${d}  → want ${expect}`); }
-  else if (got === expect || (!es && gp === ep)) exact++;
-  else if (gp === ep) { parent++; misses.push(`  PART  ${d}  → ${got}  (want ${expect})`); }
+  else if (wants.some(([ep, ...es]) => got === [ep, ...es].join('/') || (!es.length && gp === ep))) exact++;
+  else if (wants.some(([ep]) => gp === ep)) { parent++; misses.push(`  PART  ${d}  → ${got}  (want ${expect})`); }
   else { wrong++; misses.push(`  WRONG ${d}  → ${got}  (want ${expect})`); }
 }
 const n = items.length - skipped, pct = v => `${(100 * v / n).toFixed(1)}%`;

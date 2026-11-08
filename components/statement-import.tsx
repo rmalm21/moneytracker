@@ -8,8 +8,8 @@ import { Confirm } from './ui/alert-dialog';
 import { Field, Input, Money, Select, categoryOptions } from './fields';
 import { categoryEmoji, emojiOrFallback } from './visual-identity';
 import { loadAllTransactions, saveRecord } from '@/lib/firestore';
-import { planImport, readStatement, readStatementSource, reconcile, recurringHints, type ImportItem, type StatementRead } from '@/lib/import/statement';
-import { PURPOSES, finalize, missing, suggestFor, type FinalRow, type Purpose, type RowEdit } from '@/lib/import/edit';
+import { placeKey, planImport, readStatement, readStatementSource, reconcile, recurringHints, type ImportItem, type StatementRead } from '@/lib/import/statement';
+import { PURPOSES, finalize, isMerchantRow, isTransferRow, keepFor, missing, suggestFor, type FinalRow, type Focus, type Purpose, type RowEdit } from '@/lib/import/edit';
 import { draftRows, recordRow, undoSaved, type Saved } from '@/lib/import/record';
 import type { LedgerTx, Recurring } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
@@ -24,6 +24,8 @@ export function rememberSkippedImports(uid: string, ids: string[]) {
   try { const all = [...readSkippedImports(uid), ...ids.filter(id => id.startsWith('imp_'))]; localStorage.setItem(SKIPPED_KEY(uid), JSON.stringify(all.slice(-3000))); } catch { /* only a convenience */ }
 }
 const MAX_ROWS = 1000, PAGE = 40;
+const FOCUS_KEY = 'dompet-ajaib:import-focus';
+const readFocus = (): Focus => { try { const v = localStorage.getItem(FOCUS_KEY); return v === 'notransfer' || v === 'merchant' ? v : 'all'; } catch { return 'all'; } };
 
 /**
  * 8.5 Import a bank or e-wallet statement (CSV or Excel; 8.7 also PDF). The file is read on this device and never
@@ -47,6 +49,11 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   // 8.8 Rows ticked to take out together, and the row whose menu is open (long press or right click).
   const [picked, setPicked] = useState<string[]>([]), [menuId, setMenuId] = useState('');
   const hold = useLongPress(id => setMenuId(id));
+  const [focus, setFocusState] = useState<Focus>('all');
+  useEffect(() => { setFocusState(readFocus()); }, []);
+  const setFocus = (f: Focus) => { setFocusState(f); setPicked([]); try { localStorage.setItem(FOCUS_KEY, f); } catch { /* only a convenience */ } };
+  // 8.8 A category chosen for one row also goes to the other rows of the same place in this file that were not set by hand.
+  const [applied, setApplied] = useState<{ id: string; n: number } | null>(null);
   const owners = useMemo(() => [profile?.displayName, user?.displayName].filter((n): n is string => Boolean(n && n.trim())), [profile?.displayName, user?.displayName]);
   const today = new Date().toLocaleDateString('en-CA');
   // The whole history on this device: 8.6 the bank's closing balance against the wallet on that day, and 8.7 rows that
@@ -54,8 +61,11 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   const [history, setHistory] = useState<LedgerTx[] | null>(null);
   useEffect(() => { if (!user || !read) return; let live = true; void loadAllTransactions(user.uid).then(items => { if (live) setHistory(items); }).catch(() => { if (live) setHistory(null); }); return () => { live = false; }; }, [user?.uid, read]);
   const plan: ImportItem[] = useMemo(() => !read || !walletId || !user ? [] : planImport({ ...read, rows: [...read.rows].sort((a, b) => a.date.localeCompare(b.date)).slice(-MAX_ROWS) }, { walletId, wallets: data.wallets, categories: data.categories, transactions: history || data.transactions, drafts: data.drafts, skipped: readSkippedImports(user.uid), owners }), [read, walletId, user, data.wallets, data.categories, data.transactions, history, data.drafts, owners]);
-  const maybes = plan.filter(x => x.maybe && !x.already && !removed.includes(x.id));
-  const items = useMemo(() => plan.filter(x => (!x.already || (withRecorded && x.already === 'recorded')) && !(skipMaybe && x.maybe) && !removed.includes(x.id)), [plan, withRecorded, skipMaybe, removed]);
+  const keepFocus = (x: ImportItem) => keepFor(focus, x);
+  const fresh = plan.filter(x => !x.already && !removed.includes(x.id));
+  const focusCounts = { all: fresh.length, notransfer: fresh.filter(x => !isTransferRow(x)).length, merchant: fresh.filter(isMerchantRow).length };
+  const maybes = plan.filter(x => x.maybe && !x.already && !removed.includes(x.id) && keepFocus(x));
+  const items = useMemo(() => plan.filter(x => (!x.already || (withRecorded && x.already === 'recorded')) && !(skipMaybe && x.maybe) && !removed.includes(x.id) && keepFor(focus, x)), [plan, withRecorded, skipMaybe, removed, focus]);
   const rows: FinalRow[] = useMemo(() => items.map(x => finalize(x, edits[x.id], walletId)), [items, edits, walletId]);
   const ready = rows.filter(r => !missing(r)), waiting = rows.filter(r => missing(r)), undecided = rows.filter(r => r.person && !r.purpose);
   const wallet = data.wallets.find(w => w.id === walletId);
@@ -174,7 +184,12 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
           <span><small>Masuk</small><strong className="amount-positive">{rupiah(sum(inn))}</strong><small>{inn.length} baris</small></span>
           {moved.length > 0 && <span><small>Pindah dompet</small><strong>{rupiah(sum(moved))}</strong><small>{moved.length} baris</small></span>}
         </div>}
-        {match && <div className={`si-match ${Math.abs(match.diff) < 1 ? 'is-ok' : 'is-off'}`}>
+        <div className="si-focus" role="radiogroup" aria-label="Yang dimasukkan">
+          {([['all', 'Semua'], ['notransfer', 'Tanpa transfer'], ['merchant', 'Merchant saja']] as const).map(([key, label]) => <button key={key} type="button" role="radio" aria-checked={focus === key} className={`ix-filter ${focus === key ? 'is-on' : ''}`} onClick={() => setFocus(key)}>{label}<b>{focusCounts[key]}</b></button>)}
+        </div>
+        {focus !== 'all' && <p className="muted si-focus-note">{focus === 'merchant' ? 'Hanya belanja di toko dan layanan.' : 'Transfer antar dompet, top up, dan transfer ke/dari orang'} {focus === 'merchant' ? `Transfer, top up, pemasukan, dan biaya bank (${focusCounts.all - focusCounts.merchant} baris) dilewati.` : `(${focusCounts.all - focusCounts.notransfer} baris) dilewati.`} Pilihan ini diingat di HP ini.</p>}
+        {match && focus !== 'all' && <p className="muted">Cocokkan saldo dengan bank ada di tampilan <b>Semua</b>, karena sebagian baris sedang dilewati.</p>}
+        {match && focus === 'all' && <div className={`si-match ${Math.abs(match.diff) < 1 ? 'is-ok' : 'is-off'}`}>
           <strong>{Math.abs(match.diff) < 1 ? <><CheckCircle2 size={16}/> Saldo cocok dengan bank</> : <><Scale size={16}/> Saldo belum cocok, beda {rupiah(Math.abs(match.diff))}</>}</strong>
           <ul>
             <li><span>Saldo bank per {formatDate(match.date)}</span><b>{rupiah(match.bank)}</b></li>
@@ -232,7 +247,14 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
             {editing === r.id && <div className="si-editor">
               <div className="si-chips" role="group" aria-label="Untuk apa">{PURPOSES[dir].map(p => <button type="button" key={p.key} className={`si-chip ${r.purpose === p.key ? 'is-on' : ''}`} aria-pressed={r.purpose === p.key} onClick={() => choose(r, p.key)}>{p.label}</button>)}</div>
               <Field label="Nama"><Input value={edit.name ?? item.name} onChange={e => change(r.id, { name: e.target.value })} /></Field>
-              {(r.purpose === 'expense' || r.purpose === 'income') && <Field label="Kategori"><Select value={r.subcategoryId || r.categoryId || ''} onChange={e => { const c = data.categories.find(k => k.id === e.target.value); change(r.id, c ? { categoryId: c.parentId || c.id, subcategoryId: c.parentId ? c.id : null } : { categoryId: null, subcategoryId: null }); }}><option value="">Pilih kategori</option>{categoryOptions(data.categories, [r.purpose])}</Select></Field>}
+              {(r.purpose === 'expense' || r.purpose === 'income') && <Field label="Kategori"><Select value={r.subcategoryId || r.categoryId || ''} onChange={e => {
+                const c = data.categories.find(k => k.id === e.target.value), patch: RowEdit = c ? { categoryId: c.parentId || c.id, subcategoryId: c.parentId ? c.id : null } : { categoryId: null, subcategoryId: null };
+                // The same place elsewhere in this file follows, unless its category was set by hand.
+                const brand = placeKey(r.name), same = c && brand ? rows.filter(o => o.id !== r.id && o.direction === r.direction && (o.purpose === 'expense' || o.purpose === 'income') && (edits[o.id]?.categoryId === undefined || Boolean(edits[o.id]?.sameAs)) && placeKey(o.name) === brand) : [];
+                setEdits(all => { const next = { ...all, [r.id]: { ...all[r.id], ...patch } }; for (const o of same) next[o.id] = { ...all[o.id], ...patch, sameAs: r.id }; return next; });
+                setApplied(same.length ? { id: r.id, n: same.length } : null);
+              }}><option value="">Pilih kategori</option>{categoryOptions(data.categories, [r.purpose])}</Select></Field>}
+              {applied?.id === r.id && <small className="si-applied">Juga dipakai untuk {applied.n} baris lain dari tempat yang sama di file ini.</small>}
               {r.purpose === 'transfer' && <Field label={dir === 'out' ? 'Ke dompet' : 'Dari dompet'}><Select value={(dir === 'out' ? r.destinationWalletId : r.walletId) || ''} onChange={e => change(r.id, { otherWalletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{emojiOrFallback(w.icon, '👛')} {w.name}</option>)}</Select></Field>}
               {r.purpose === 'debt_payment' && (openDebts.length ? <Field label="Utang yang dibayar"><Select value={r.debtId || ''} onChange={e => change(r.id, { debtId: e.target.value })}><option value="">Pilih utang</option>{openDebts.map(d => <option key={d.id} value={d.id}>{d.name} · sisa {rupiah(d.outstandingAmount)}</option>)}</Select></Field> : <small className="si-problem">Belum ada catatan utang yang belum lunas. Simpan sebagai draft dulu, atau pilih jenis lain.</small>)}
               {r.purpose === 'receivable_payment' && (openReceivables.length ? <Field label="Piutang yang dilunasi"><Select value={r.receivableId || ''} onChange={e => change(r.id, { receivableId: e.target.value })}><option value="">Pilih piutang</option>{openReceivables.map(x => <option key={x.id} value={x.id}>{x.person} · sisa {rupiah(x.remainingAmount)}</option>)}</Select></Field> : <small className="si-problem">Belum ada catatan piutang yang belum lunas. Simpan sebagai draft dulu, atau pilih jenis lain.</small>)}

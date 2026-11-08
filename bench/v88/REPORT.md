@@ -34,3 +34,42 @@ guess are local places named only by their name.
 
 Catat otomatis is untouched (the list lives in `lib/import/places.ts`, used only by the import), so its benchmarks were
 not re-run.
+
+## Round 2 (still 8.8): everyday words
+
+The first round was mostly brands. Round 2 is the plain, everyday lines a bank or e-wallet shows: "Isi ulang galon",
+"Bayar kos", "Iuran RT", "SPP", "Fotokopi", "Servis AC", "Kondangan", "Arisan", "Ganti oli", "Klinik gigi", and so on.
+
+- `import-cat-dev2.json` (55 lines): used to tune.
+- `import-cat-heldout2.json` (52 lines, other words for the same kinds of spending): written **before** the round-2
+  changes; run for the baseline and once after tuning. Its misses were looked at only after that run.
+- Runner: `node bench/v88/import-cat.mjs dev2|heldout2 [root]`.
+
+| Run | Set | Right | Right main category, other sub | Wrong | No guess |
+|---|---|---|---|---|---|
+| 8.8 round 1 (frozen baseline) | dev2 | 39 (70.9%) | 10 | 5 | 1 |
+| 8.8 round 1 (frozen baseline) | held-out 2 | 36 (69.2%) | 10 | 3 | 3 |
+| round 2, tuned on dev2 | dev2 | 55 (100%) | 0 | 0 | 0 |
+| **round 2, held-out 2 run once** | **held-out 2** | **48 (92.3%)** | 3 | 1 | 0 |
+| round 2 after moving groceries below coffee (post-hoc, not a measurement) | held-out 2 | 49 (94.2%) | 2 | 1 | 0 |
+
+The round-1 sets stay at 100% (dev 99/99, held-out 80/80, both post-hoc for round 1) after round 2.
+
+What this says, honestly:
+
+- Everyday words generalise better than brands: **69.2% → 92.3%** on lines the rules never saw, because the same words
+  ("galon", "kos", "servis", "iuran") come back in other phrasings.
+- The one post-hoc change: "Kopi susu gula aren" went to groceries because "gula" was matched before "kopi"; groceries now
+  come after the coffee rule. That moves held-out 2 to 94.2%, which is not a measurement.
+- Still wrong after that: "Masker wajah" → Obat (a face mask is skincare here, a medical mask is health; the line does not
+  say which). Two lines get the right main category with another sub (lipstick, eyeglasses).
+
+### Also in round 2 (no benchmark: behaviour, covered by tests)
+
+- **Import focus** (Semua / Tanpa transfer / Merchant saja), remembered on the device. On the owner's real files (counts
+  only): GoPay 84 rows → 57 without transfers → 55 merchant rows; Krom 43 → 38 → 12 (Krom's interest tax lines, named
+  just "Pajak", are bank lines and are left out of Merchant saja).
+- **Same place, same category**: changing one row's category changes the other rows of the same place in the file
+  ("Mie Gacoan Bintaro" and "Mie Gacoan Ciputat"), not rows whose category the person set by hand. On the owner's real
+  GoPay file, 34 of its 55 merchant rows belong to 11 places that appear 2+ times.
+- **Reading**: "50.000,-", "50.000 (D)" / "(K)", and statements running from December into January (the year changes).

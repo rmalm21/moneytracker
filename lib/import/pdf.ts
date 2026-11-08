@@ -192,7 +192,8 @@ function rowDate(s: string, amountOnLine: boolean) {
   return /^\d{1,2}[\s-]+\p{L}{3,9}\.?(?:[\s-]+\d{2,4})?\b/u.test(t) && MONTH.test(t) || /^\p{L}{3,9}\.?\s+\d{1,2},?\s+\d{4}/u.test(t) && MONTH.test(t);
 }
 const AMOUNT = /^[-+−(]?\s*(?:rp\.?|idr)?\s*[-+−]?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\s*\)?\s*(?:db|cr|d|k|dr|kr)?$|^[-+−]?\s*(?:rp\.?|idr)?\s*\d+(?:[.,]\d{1,2})?$/i;
-const isAmount = (s: string) => AMOUNT.test(s.trim()) && /\d/.test(s);
+// 8.8 "50.000,-" (a round amount) and a mark in brackets ("50.000,00 (D)") are amounts too.
+const isAmount = (s: string) => { const t = s.trim().replace(/(\d)[.,]-$/, '$1').replace(/\s*\((?:db|dr|d|debit|debet|cr|k|kr|kredit|credit|c)\)$/i, ' d'); return AMOUNT.test(t) && /\d/.test(t); };
 /** Page furniture that is not part of any row. */
 const FOOTER = /\b(?:halaman|page)\s*\d+|\be-?statement\b|\bberizin\b|\blicensed\b|\bsupport@|\bwww\.|\.co\.id\b|\.id\b|\bojk\b|\blps\b|\bdicetak\b|\bprinted\b|\bcall center\b|^\d+\s*(?:dari|of)\s*\d+$/i;
 

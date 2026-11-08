@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { placeCategory, categoryByNames } from '../lib/import/places.ts';
-import { planImport } from '../lib/import/statement.ts';
-import { finalize, missing } from '../lib/import/edit.ts';
+import { planImport, placeKey } from '../lib/import/statement.ts';
+import { finalize, missing, keepFor, isTransferRow, isMerchantRow } from '../lib/import/edit.ts';
 
 // 8.8 — what kind of place an imported line names, matched to the person's own category names. Made-up lines.
 const cat = (id, name, type = 'expense', parentId = null) => ({ id, name, type, parentId, icon: '', sortOrder: 0, isArchived: false });
@@ -38,4 +38,51 @@ test('8.8 a move says which side is still missing', () => {
   assert.equal(missing(inn), 'Pilih dompet asal');
   const out = finalize({ ...base, type: 'expense', flow: 'transfer', walletId: 'gopay', destinationWalletId: null }, {}, 'gopay');
   assert.equal(missing(out), 'Pilih dompet tujuan');
+});
+
+// 8.8 — more ways banks write amounts and dates.
+import { parseAmount, readStatement, readStatementSource } from '../lib/import/statement.ts';
+
+test('8.8 "50.000,-" is a round amount, and a mark in brackets gives the direction', () => {
+  for (const [raw, value, sign] of [['50.000,-', 50000, 0], ['Rp 1.250.000,-', 1250000, 0], ['-50.000,-', 50000, -1], ['50.000,00 (D)', 50000, -1], ['1.000.000,00 (K)', 1000000, 1], ['75,000.00 (CR)', 75000, 1], ['20.000 (DB)', 20000, -1], ['(10.000)', 10000, -1]]) {
+    const a = parseAmount(raw); assert.ok(a, raw); assert.deepEqual([a.value, a.sign], [value, sign], raw);
+  }
+});
+
+test('8.8 a statement over a year change: dates without a year land in the right year', async () => {
+  const csv = 'Periode : 20/12/2025 - 10/01/2026\nTanggal;Keterangan;Mutasi\n28/12;Kopi Kenangan;25.000 DB\n31/12;Tiket Kereta;150.000 DB\n02/01;Gaji Desember;5.000.000 CR\n';
+  const read = readStatement((await readStatementSource(new TextEncoder().encode(csv))).table, '2026-01-15');
+  assert.deepEqual(read.rows.map(r => r.date), ['2025-12-28', '2025-12-31', '2026-01-02']);
+  const named = 'Periode: Desember 2025 - Januari 2026\nTanggal,Keterangan,Jumlah\n30 Des,Parkir,-5000\n03 Jan,Bunga,1200\n';
+  const read2 = readStatement((await readStatementSource(new TextEncoder().encode(named))).table, '2026-01-15');
+  assert.deepEqual(read2.rows.map(r => r.date), ['2025-12-30', '2026-01-03']);
+});
+
+test('8.8 import focus: everything, everything but transfers, or shops and services only', () => {
+  const rows = [
+    { name: 'Mie Gacoan Bintaro', type: 'expense', flow: 'expense', person: null },
+    { name: 'Top up GoPay', type: 'income', flow: 'transfer', person: null },
+    { name: 'Transfer ke Dewi Lestari', type: 'expense', flow: 'transfer', person: 'Dewi Lestari' },
+    { name: 'Transfer dari Andi Pratama', type: 'income', flow: 'income', person: 'Andi Pratama' },
+    { name: 'Biaya transfer', type: 'expense', flow: 'expense', person: null },
+    { name: 'Gaji Oktober', type: 'income', flow: 'income', person: null },
+    { name: 'Steam', type: 'expense', flow: 'expense', person: null },
+  ];
+  const names = (focus) => rows.filter(r => keepFor(focus, r)).map(r => r.name);
+  assert.equal(names('all').length, 7);
+  assert.deepEqual(names('notransfer'), ['Mie Gacoan Bintaro', 'Biaya transfer', 'Gaji Oktober', 'Steam']);
+  assert.deepEqual(names('merchant'), ['Mie Gacoan Bintaro', 'Steam']);
+  assert.equal(isTransferRow(rows[3]), true, 'a transfer from a person counts as a transfer even before its purpose is picked');
+  assert.equal(isMerchantRow(rows[4]), false, 'the bank\'s own fee is not a shop');
+  for (const name of ['Pajak', 'Pajak bunga', 'Biaya admin', 'Biaya materai', 'Tarik tunai']) assert.equal(isMerchantRow({ name, type: 'expense', flow: 'expense', person: null }), false, name);
+});
+
+test('8.8 the same place in one file, without the branch (a category chosen once follows the others)', () => {
+  assert.equal(placeKey('Mie Gacoan Bintaro'), placeKey('Mie Gacoan Ciputat'));
+  assert.equal(placeKey('Mie Gacoan Bintaro'), 'mie gacoan');
+  assert.notEqual(placeKey('Kopi Kenangan Senopati'), placeKey('Kopi Janji Jiwa'));
+  assert.equal(placeKey('Indomaret Ciputat'), placeKey('Indomaret Pamulang'));
+  assert.equal(placeKey('KFC Bintaro'), placeKey('KFC Ciputat'));
+  assert.equal(placeKey('PT Sumber Rejeki Abadi'), 'sumber');
+  for (const n of ['Biaya transfer', 'Top up GoPay', 'Transfer ke Dewi', 'Pajak bunga', 'Tarik tunai']) assert.equal(placeKey(n), '', n);
 });

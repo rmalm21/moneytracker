@@ -8924,6 +8924,9 @@ body.ix-picking .chat-fab { opacity: 0; pointer-events: none; transform: scale(.
 .si-row { -webkit-touch-callout: none; }
 .si-row.is-picked { background: color-mix(in srgb, var(--accent) 9%, var(--paper)); }
 .si-row-top .row-check { width: 32px; height: 40px; margin-left: -6px; }
+.si-focus { display: flex; flex-wrap: wrap; gap: 6px; }
+.si-focus-note { margin: -2px 0 0; font-size: .8rem; line-height: 1.45; }
+.si-applied { color: var(--good-ink, #1f7a4d); font-size: .78rem; }
 /* 8.6 The form's code is fetched on first open (normally already warmed while idle). */
 .form-loading { padding: 28px 8px; text-align: center; color: var(--muted); font-size: .9rem; }
 /* 8.6 The chat loads on the first touch of its button. */

@@ -1,0 +1,5 @@
+heldout2: 52 lines | right 48 (92.3%) | right main category, other sub 3 (5.8%) | wrong 1 (1.9%) | no guess 0 (0.0%)
+  PART  Kopi susu gula aren  → Makan & Minum/Bahan Makanan  (want Makan & Minum/Kopi & Minuman)
+  WRONG Masker wajah  → Kesehatan/Obat  (want Personal/Skincare | Belanja/Personal Care)
+  PART  Lipstik  → Personal/Skincare  (want Belanja/Personal Care | Personal/Perawatan Diri)
+  PART  Earphone bluetooth  → Belanja  (want Belanja/Elektronik | Belanja/Gadget)

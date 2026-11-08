@@ -1,0 +1,17 @@
+heldout2: 52 lines | right 36 (69.2%) | right main category, other sub 10 (19.2%) | wrong 3 (5.8%) | no guess 3 (5.8%)
+  WRONG Air galon isi ulang  → Makan & Minum/Kopi & Minuman  (want Rumah & Kebutuhan)
+  PART  Klinik gigi  → Kesehatan/Dokter  (want Kesehatan/Gigi)
+  PART  Kacamata minus  → Kesehatan  (want Kesehatan/Mata)
+  PART  Oli mesin  → Kendaraan/Ban  (want Kendaraan/Oli)
+  WRONG Undangan nikah teman kantor  → Kerja  (want Sosial & Sedekah/Pernikahan)
+  PART  Sabun cuci piring  → Rumah & Kebutuhan  (want Rumah & Kebutuhan/Perlengkapan Harian | Rumah & Kebutuhan/Kebersihan)
+  PART  Pembersih lantai  → Rumah & Kebutuhan  (want Rumah & Kebutuhan/Kebersihan | Rumah & Kebutuhan/Perlengkapan Harian)
+  NONE  Tiket KA ke Bandung  → want Transportasi/Kereta | Travel & Liburan/Tiket Kereta
+  PART  Langganan koran Kompas  → Langganan  (want Langganan/Berita / Konten)
+  WRONG Masker wajah  → Kesehatan/Obat  (want Personal/Skincare | Belanja/Personal Care)
+  PART  Lipstik  → Personal/Skincare  (want Belanja/Personal Care | Personal/Perawatan Diri)
+  PART  Earphone bluetooth  → Belanja  (want Belanja/Elektronik | Belanja/Gadget)
+  PART  Bikin paspor  → Travel & Liburan  (want Travel & Liburan/Dokumen)
+  NONE  Biaya tarik tunai  → want Biaya Keuangan/Biaya Tarik Tunai
+  PART  Annual fee kartu kredit  → Biaya Keuangan  (want Biaya Keuangan/Biaya Kartu)
+  NONE  Perbaikan atap bocor  → want Rumah & Kebutuhan/Perbaikan Rumah

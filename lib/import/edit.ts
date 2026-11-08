@@ -25,6 +25,8 @@ export type RowEdit = {
   debtId?: string; receivableId?: string; person?: string;
   /** Not a double after all (the person checked). */
   notDouble?: boolean;
+  /** 8.8 The category came from another row of the same place (changed there), not set on this row by hand. */
+  sameAs?: string;
 };
 
 export type FinalRow = {
@@ -56,6 +58,15 @@ export function finalize(item: ImportItem, edit: RowEdit = {}, walletId: string)
     ...(item.maybe ? { maybe: item.maybe } : {}), ...(edit.notDouble ? { notDouble: true } : {}),
   };
 }
+
+/** 8.8 What the import list shows: everything, everything but transfers, or only spending at shops and services. */
+export type Focus = 'all' | 'notransfer' | 'merchant';
+/** Moves between own wallets, top-ups, and transfers with a person. */
+export const isTransferRow = (x: Pick<ImportItem, 'flow' | 'person'>) => x.flow === 'transfer' || Boolean(x.person);
+/** The bank's own lines (fees, tax, interest, cash withdrawals): not a shop or a service. */
+const BANK_LINE = /^(?:tarik tunai|biaya (?:admin(?: bank)?|transfer|tarik tunai|materai|meterai)|pajak(?: bunga)?|bunga(?: tabungan)?)$/i;
+export const isMerchantRow = (x: Pick<ImportItem, 'flow' | 'person' | 'type' | 'name'>) => !isTransferRow(x) && x.type === 'expense' && !BANK_LINE.test(x.name);
+export const keepFor = (focus: Focus, x: Pick<ImportItem, 'flow' | 'person' | 'type' | 'name'>) => focus === 'all' || (focus === 'notransfer' ? !isTransferRow(x) : isMerchantRow(x));
 
 /** What is still needed before the row can be recorded now (it can always wait as a draft). */
 export function missing(r: FinalRow): string | null {

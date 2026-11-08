@@ -1,0 +1,4 @@
+heldout2: 52 lines | right 49 (94.2%) | right main category, other sub 2 (3.8%) | wrong 1 (1.9%) | no guess 0 (0.0%)
+  WRONG Masker wajah  → Kesehatan/Obat  (want Personal/Skincare | Belanja/Personal Care)
+  PART  Lipstik  → Personal/Skincare  (want Belanja/Personal Care | Personal/Perawatan Diri)
+  PART  Earphone bluetooth  → Belanja  (want Belanja/Elektronik | Belanja/Gadget)

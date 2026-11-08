@@ -98,9 +98,13 @@ export async function readStatementSource(bytes: Uint8Array, opts: { password?: 
 
 /** An amount as banks write it, with its sign when the cell says (-, DB/CR, parentheses). Cents are dropped. */
 export function parseAmount(raw: string): { value: number; sign: -1 | 0 | 1; /** 8.7 With the cents (for adding up to the bank's totals). */ exact: number } | null {
-  let s = String(raw ?? '').replace(/[ \s]+/g, ' ').trim();
+  // 8.8 "50.000,-" is how many write a round amount (no cents), not a minus.
+  let s = String(raw ?? '').replace(/[ \s]+/g, ' ').trim().replace(/(\d)[.,]-$/, '$1');
   if (!s) return null;
   let sign: -1 | 0 | 1 = 0;
+  // 8.8 A mark in brackets after the amount: "50.000,00 (D)", "1.000 (CR)".
+  const bracket = s.match(/\s*\((db|dr|d|debit|debet|cr|k|kr|kredit|credit|c)\)$/i);
+  if (bracket) { sign = /^(?:cr|k|kr|kredit|credit|c)$/i.test(bracket[1]) ? 1 : -1; s = s.slice(0, bracket.index).trim(); }
   const mark = s.match(/\s*\b(db|dr|d|debit|debet|cr|k|kr|kredit|credit)\.?$/i);
   if (mark) { sign = /^(?:cr|k|kr|kredit|credit)$/i.test(mark[1]) ? 1 : -1; s = s.slice(0, mark.index).trim(); }
   if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1).trim(); }
@@ -186,6 +190,9 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const above = rows.slice(0, header < 0 ? 15 : header).map(r => r.join(' ')).join(' ');
   const periodYear = knownYear ?? (Number(above.match(/(?:periode|period|tanggal|statement)[^\d]{0,20}\d{1,2}[/.-]\d{1,2}[/.-](\d{4})/i)?.[1] || above.match(/\b(20\d{2})\b/)?.[1] || 0) || undefined);
   if (header < 0) return inferWithoutHeader(rows, today, periodYear);
+  // 8.8 A period over a year change ("20/12/2025 - 10/01/2026", "Desember 2025 - Januari 2026"): a date written without
+  // its year belongs to the first year from the starting month on, else to the second.
+  const span = periodSpan(above);
   const INTERNAL = /\b(?:pemindahan saldo|balance movement|pindah antar kantong|pindah kantong|antar kantong)\b/i;
   const pick = (role: Role) => roles.indexOf(role);
   const dateCol = pick('date'), debit = pick('debit'), credit = pick('credit'), amountCol = pick('amount'), balanceCol = pick('balance');
@@ -226,7 +233,7 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   body.forEach((r, k) => {
     if (!r.some(Boolean)) return;
     const description = descCols.map(i => r[i]).filter(Boolean).join(' · ').replace(/\s+/g, ' ').trim();
-    const date = parseDate(r[dateCol] || '', { order, year: periodYear, today });
+    const date = parseDate(r[dateCol] || '', { order, year: yearIn(span, r[dateCol] || '', order) ?? periodYear, today });
     if (!date || NOT_A_ROW.test(description) || NOT_A_ROW.test(r[dateCol] || '')) { skipped++; return; }
     const rowBalance = balanceCol >= 0 ? signed(parseAmount(r[balanceCol] || '')) : undefined;
     let amount = 0, type: 'expense' | 'income' | null = null, unsureRow = false;
@@ -294,6 +301,26 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   };
 }
 
+/** 8.8 The first and last month and year a period line names, when it names two of them. */
+function periodSpan(text: string): { startY: number; startM: number; endY: number; endM: number } | null {
+  const found: { y: number; m: number }[] = [];
+  const re = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\b|\b(?:\d{1,2}\s+)?([a-z]{3,9})\.?\s+(\d{4})\b/gi;
+  for (const m of text.matchAll(re)) {
+    if (m[1]) { const mo = Number(m[2]), y = fullYear(Number(m[3])); if (mo >= 1 && mo <= 12) found.push({ y, m: mo }); }
+    else if (MONTHS[m[4].toLowerCase()]) found.push({ y: Number(m[5]), m: MONTHS[m[4].toLowerCase()] });
+    if (found.length === 2) break;
+  }
+  return found.length === 2 && found[1].y > found[0].y ? { startY: found[0].y, startM: found[0].m, endY: found[1].y, endM: found[1].m } : null;
+}
+/** The year for a date written without one, inside a period over a year change. */
+function yearIn(span: ReturnType<typeof periodSpan>, raw: string, order: 'dmy' | 'mdy') {
+  if (!span) return undefined;
+  const p = dateParts(raw);
+  if (!p || p.y !== undefined) return undefined;
+  const month = order === 'mdy' ? p.a : p.b;
+  return month >= span.startM ? span.startY : span.endY;
+}
+
 /** No header row: the date column is the one that reads as dates most, the amount the one that reads as signed amounts. */
 function inferWithoutHeader(rows: string[][], today: string, year?: number): StatementRead {
   const width = Math.max(0, ...rows.map(r => r.length)), sample = rows.filter(r => r.filter(Boolean).length >= 3).slice(0, 60);
@@ -320,6 +347,8 @@ const CODE = /^(?:[\p{L}]*\d[\w/.:-]*|\d+[\w/.:-]*|(?!(?:bu|om|pa|ko|ci|ka)$)\p{
 const ACRONYM = new Set('pln bpjs kai krl mrt lrt pdam atm kfc mcd ovo bca bri bni bsi btn xl im3 ptpn jne jnt sicepat ikea ace spbu'.split(' '));
 const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-banking ib db cr kr debit debet kredit credit switching bi-fast bifast bif biz fast ftscy ftfva sknbi rtgs prmt online otomatis auto via ke dari to from ref no rek rekening norek trx tx transaksi pembayaran payment byr bayar idr rp kartu card pos edc qr qris mcm va virtual account berita pt cv tbk persero esb intrabank interbank antarbank overbooking ob incoming outgoing purchase masuk keluar'.split(' '));
 const KNOWN: [RegExp, string][] = [
+  // 8.8 The fee for a withdrawal is a fee, not the withdrawal.
+  [/\bbiaya\s+(?:tarik\s*tunai|atm|penarikan)\b/i, 'Biaya tarik tunai'],
   [/\b(?:tarik(?:an)?\s*(?:tunai\s*)?atm|tarik\s*tunai|penarikan\s*tunai|atm\s*withdrawal|cash\s*withdrawal|tarikan)\b/i, 'Tarik tunai'],
   [/\b(?:biaya\s*adm(?:in(?:istrasi)?)?|adm(?:in)?\s*fee|monthly\s*fee|biaya\s*bulanan|biaya\s*kartu|card\s*fee)\b/i, 'Biaya admin bank'],
   [/\b(?:pajak\s*(?:atas\s*)?bunga|tax\s*on\s*interest|interest\s*tax|pph\s*bunga)\b/i, 'Pajak bunga'],
@@ -382,7 +411,17 @@ export type ImportCtx = {
 function code(s: string) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
 const dayAfter = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 
-/** 8.6 The first word of a place's name, its "brand" ("indomaret" for "Indomaret Ciputat"), to learn from other branches. */
+/** 8.8 Words that start many different places' names ("Mie Gacoan", "Mie Ayam Pak Kumis"): the place is the first two words. */
+const GENERIC_FIRST = new Set('mie mi kopi warung warteg toko bakso ayam nasi rm rumah cafe kafe kedai depot sate soto martabak roti apotek apotik bengkel salon laundry klinik pom spbu ud the bebek seblak es jus'.split(' '));
+/** 8.8 The place a row is about, without the branch ("mie gacoan" for "Mie Gacoan Bintaro", "indomaret" for "Indomaret Ciputat"), so a
+ * category chosen for one row can follow the other rows of the same place in the file. Empty for bank lines and transfers. */
+export function placeKey(name: string) {
+  const w = name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  while (w.length > 1 && /^(?:pt|cv|ud)$/.test(w[0])) w.shift();
+  if (!w.length || BANK_WORDS.has(w[0]) || /^(?:top|biaya|tarik|pajak|bunga|setor|setoran|cashback|refund)$/.test(w[0])) return '';
+  if (w.length >= 2 && (GENERIC_FIRST.has(w[0]) || w[0].length < 3)) return BANK_WORDS.has(w[1]) ? '' : `${w[0]} ${w[1]}`;
+  return w[0].length >= 3 ? w[0] : '';
+}
 const brandOf = (name: string) => { const w = name.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').trim().split(/\s+/)[0] || ''; return w.length >= 4 && !BANK_WORDS.has(w) ? w : ''; };
 /** Categories the person gave to places of the same brand: used when they all agree (the person's own choice wins). */
 function brandCategories(history: ImportCtx['transactions']) {
