@@ -144,6 +144,10 @@ export async function forgetRequest(uid: string, spaceId: string, pending: Profi
   await saveProfile(uid, { spaceRequests: next });
 }
 
+/** Whether this person is now a member (only members can read the space). */
+export async function isMember(spaceId: string) {
+  try { return (await getDoc(spaceDoc(spaceId))).exists(); } catch { return false; }
+}
 export function subscribeRequests(spaceId: string, onValue: (list: SpaceRequest[]) => void): Unsubscribe {
   return onSnapshot(collection(database(), 'spaces', spaceId, 'requests'), snap => onValue(snap.docs.map(d => ({ uid: d.id, ...d.data() }) as SpaceRequest)), () => onValue([]));
 }

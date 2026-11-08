@@ -2,7 +2,7 @@
 import { forgetGreetingName } from './loading-screen';
 import { installFormMessages } from '@/lib/form-messages';
 import { checkAccess, markSeen, SEEN_EVERY, watchOwnGrant, watchRequests, type AccessState, knownAccess } from '@/lib/access';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveFunds } from '@/lib/pockets';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, configured } from '@/lib/firebase';
@@ -10,7 +10,8 @@ import { emptyData, type Data, type Profile } from '@/lib/types';
 import { checkDeletedTransactions, tidyCloud, initProfile, subscribeData, subscribeProfile, settleBudgets, createDueDrafts, postAutoDrafts, saveProfile } from '@/lib/firestore';
 import { noteDeleteMarks, startSync } from '@/lib/sync';
 import { salaryCycle, calendarCycle } from '@/lib/accounting';
-import { applyAppearance, cacheAppearance, readCachedAppearance } from '@/lib/appearance';
+import { applyAppearance, cacheAppearance, effectiveMode, readCachedAppearance } from '@/lib/appearance';
+import { spaceColor } from '@/lib/space-look';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { subscribeMySpaces, spaceProfile, type Space } from '@/lib/spaces';
 import { setActor, spaceKey } from '@/lib/space-key';
@@ -34,6 +35,9 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   // A device last used in a space waits for the list of spaces (from the device copy, at once) instead of loading Pribadi first.
   const root=user?(mode&&!spacesReady?'':space?spaceKey(space.id):user.uid):'';
   const shown=useMemo(()=>profile&&space?spaceProfile(profile,space):profile,[profile,space]);
+  // In a space the accent takes the space's colour, so the mode is visible on every screen.
+  const spaceRef=useRef<Space|null>(null);spaceRef.current=space;
+  const look=(p:Profile|null)=>{const s=spaceRef.current;return p&&s?{...p,accentColor:spaceColor(s.color,effectiveMode(p.colorMode,p.theme))}:p;};
   const dataUser=useMemo(()=>user&&space?Object.create(user,{uid:{value:spaceKey(space.id),enumerable:true}}) as User:user,[user,space]);
   const cycle=useMemo(()=>salaryCycle(dateInTimeZone(new Date(),shown?.timeZone),shown?.salaryCycleStartDay||24),[shown?.salaryCycleStartDay,shown?.timeZone]);
   useEffect(()=>{if(!auth){setLoading(false);return;}return onAuthStateChanged(auth,u=>{void import('@/lib/catat/session').then(m=>m.clearSession());if(!u){try{localStorage.removeItem('dompet-ajaib:appearance:last')}catch{}forgetGreetingName();applyAppearance(null)}else applyAppearance(readCachedAppearance(u.uid));setUser(u);setProfile(null);setData(emptyData);setError('');setSync('syncing');setLoading(Boolean(u));if(u){/* 8.6 A device that was let in before opens at once; the check runs alongside and closes the app if access was taken back. */const known=knownAccess(u.uid);const openProfile=()=>initProfile(u).catch(e=>{setError(dataError(e));setSync('error');setLoading(false);});if(known.granted){setAdmin(known.admin);setAccess('granted');void openProfile();}else setAccess('checking');void checkAccess(u).then(r=>{if(auth?.currentUser?.uid!==u.uid)return;setAdmin(r.admin);setRevoked(r.revoked);if(known.granted){if(r.state!=='granted'){setAccess(r.state);setLoading(false);}return;}setAccess(r.state);if(r.state==='granted')void openProfile();else setLoading(false);});}else{setAccess('checking');setAdmin(false);}},()=>{applyAppearance(null);setError('Sesi gagal dibaca.');setLoading(false);});},[]);
@@ -46,8 +50,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   // Transactions this device deleted: confirmed with the server once per opening (lib/tombstones.ts).
   useEffect(()=>{if(!root||access!=='granted')return;const uid=root,run=()=>{void checkDeletedTransactions(uid).then(()=>tidyCloud(uid)).catch(()=>undefined)},timer=setTimeout(run,4000);window.addEventListener('online',run);return()=>{clearTimeout(timer);window.removeEventListener('online',run)};},[root,access]);
   useEffect(()=>{if(root&&shown)noteDeleteMarks(root,shown.syncMarks);},[root,shown?.syncMarks]);
-  useEffect(()=>{if(!user||access!=='granted')return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(p);cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user,access]);
-  useEffect(()=>{if(!profile)return;applyAppearance(profile);const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(profile);media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize]);
+  useEffect(()=>{if(!user||access!=='granted')return;return subscribeProfile(user.uid,p=>{if(p){applyAppearance(look(p));cacheAppearance(p)}setProfile(p);if(p){setError('');setLoading(false);}},e=>{setError(dataError(e));setSync('error');setLoading(false);});},[user,access]);
+  useEffect(()=>{if(!profile)return;applyAppearance(look(profile));document.documentElement.dataset.space=space?'on':'';const media=window.matchMedia('(prefers-color-scheme: dark)');const refresh=()=>applyAppearance(look(profile));media.addEventListener('change',refresh);return()=>media.removeEventListener('change',refresh);},[profile?.uid,profile?.theme,profile?.themePreset,profile?.colorMode,profile?.accentColor,profile?.density,profile?.fontSize,space?.id,space?.color]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{if(!root||!shown)return;const uid=root;setData(emptyData);return subscribeData(uid,cycle.start,cycle.end,(key,value)=>setData(previous=>({...previous,[key]:value} as Data)),e=>{setError(dataError(e));setSync('error');},setSync,dateInTimeZone(new Date(),shown.timeZone),shown.salaryCycleStartDay);},[root,Boolean(shown),shown?.uid,shown?.timeZone,shown?.salaryCycleStartDay,cycle.start,cycle.end]);
   // v62: text size S is the new default. Accounts still on the old default (M, or never chosen) move to S once; any choice after that stays.
   useEffect(()=>{if(!user||!profile||(profile.appearanceDefaults||0)>=2)return;void saveProfile(user.uid,{appearanceDefaults:2,...(!profile.fontSize||profile.fontSize==='m'?{fontSize:'s' as const}:{})}).catch(()=>{});},[user,profile?.uid,profile?.appearanceDefaults]);
