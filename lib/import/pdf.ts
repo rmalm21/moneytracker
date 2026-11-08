@@ -180,8 +180,8 @@ const FOOTER = /\b(?:halaman|page)\s*\d+|\be-?statement\b|\bberizin\b|\blicensed
 const META: [keyof StatementMeta, RegExp][] = [
   ['opening', /\b(?:saldo\s+(?:awal|sebelumnya)|opening balance|previous balance|beginning balance)\b/i],
   ['closing', /\b(?:saldo\s+akhir|ending balance|closing balance)\b/i],
-  ['totalIn', /\b(?:total\s+(?:pemasukan|uang masuk|dana masuk|kredit|credit|incoming|mutasi kredit|mutasi credit)|mutasi\s+(?:cr|kredit|credit)|jumlah\s+kredit)\b/i],
-  ['totalOut', /\b(?:total\s+(?:pengeluaran|uang keluar|dana keluar|debet|debit|outgoing|mutasi debet|mutasi debit)|mutasi\s+(?:db|debet|debit)|jumlah\s+debet)\b/i],
+  ['totalIn', /\b(?:total\s+(?:transaksi\s+|mutasi\s+)?(?:pemasukan|uang masuk|dana masuk|kredit|credit|incoming|masuk)|mutasi\s+(?:cr|kredit|credit)|jumlah\s+(?:kredit|credit|masuk))\b|^(?:dana|uang)\s+masuk$|^(?:money in|incoming)$/i],
+  ['totalOut', /\b(?:total\s+(?:transaksi\s+|mutasi\s+)?(?:pengeluaran|uang keluar|dana keluar|debet|debit|outgoing|keluar)|mutasi\s+(?:db|debet|debit)|jumlah\s+(?:debet|debit|keluar))\b|^(?:dana|uang)\s+keluar$|^(?:money out|outgoing)$/i],
   ['pointsUsed', /\b(?:total\s+(?:gopay\s+)?(?:coins?|koin|poin|points?)\s+(?:dipakai|digunakan|terpakai|used))\b/i],
 ];
 const OWNER = /\b(?:pemilik rekening|account owner|nama nasabah|nama pemilik|account name|nama rekening|customer name|nama pelanggan)\b/i;
@@ -273,15 +273,18 @@ export function tableFromPieces(pages: Piece[][]): PdfStatement {
     }
     tableLines.add(line);
     // Each column's text: the description gathers every line (" · " between lines); the others keep their first value.
-    const byCol = new Map<ColRole, string[]>();
-    for (const { p, col } of placed) { if (col.role === 'other') continue; const list = byCol.get(col.role) || []; list.push(p.s); byCol.set(col.role, list); }
-    for (const [role, parts] of byCol) {
+    // Grouped by column, left to right: two description columns ("Sumber/Tujuan", "Rincian") stay apart with " · ".
+    const byCol = new Map<number, { role: ColRole; parts: string[] }>();
+    for (const { p, col } of placed) { if (col.role === 'other') continue; const i = cols.indexOf(col), entry = byCol.get(i) || { role: col.role, parts: [] }; entry.parts.push(p.s); byCol.set(i, entry); }
+    const descParts: string[] = [];
+    for (const [, { role, parts }] of [...byCol].sort((a, b) => a[0] - b[0])) {
       const joined = parts.join(' ').replace(/\s+/g, ' ').trim();
       if (!joined) continue;
-      if (role === 'desc') { const list = row.cells.get('desc') || []; list.push(joined); row.cells.set('desc', list); }
+      if (role === 'desc') descParts.push(joined);
       else if (row.first.has(role)) continue;
       else if (!MONEY.includes(role) || isAmount(joined)) row.first.set(role, joined);
     }
+    if (descParts.length) { const list = row.cells.get('desc') || []; list.push(descParts.join(' · ')); row.cells.set('desc', list); }
   }
   const order: ColRole[] = ['date', 'desc', 'kind', 'debit', 'credit', 'amount', 'balance'];
   const used = order.filter(r => r === 'desc' || rows.some(x => x.first.has(r)) || (r === 'date' && rows.length));

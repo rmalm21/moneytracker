@@ -84,3 +84,61 @@ export function classicBankPages() {
   ]];
 }
 
+
+/* 8.7 More bank layouts, made up from the shapes banks commonly use (column names, two money columns with 0.00 in the
+   unused one, a D/K column, dates with the time beside or under them, totals named differently). No real data. */
+
+/** A new-style e-statement: Nominal with + and −, time under the date, a three-line description, summary boxes on top. */
+export function nominalSignedPdf() {
+  const row = (y, date, time, lines, amount, saldo) => [T(30, y, date), T(30, y + 11, time), ...lines.map((l, i) => T(110, y + i * 11, l)), right(430, y, amount), right(560, y, saldo)];
+  return makePdf([[
+    T(30, 40, 'e-Statement', 12), T(30, 60, 'BUDI SANTOSO'), T(330, 60, 'Periode: 01 Okt 2026 - 31 Okt 2026'),
+    T(30, 90, 'Saldo Awal'), T(170, 90, 'Dana Masuk'), T(310, 90, 'Dana Keluar'), T(450, 90, 'Saldo Akhir'),
+    T(30, 102, 'Rp 2.000.000,00'), T(170, 102, 'Rp 1.000.000,00'), T(310, 102, 'Rp 85.500,00'), T(450, 102, 'Rp 2.914.500,00'),
+    T(30, 140, 'Tanggal'), T(110, 140, 'Keterangan'), T(380, 140, 'Nominal (IDR)'), T(520, 140, 'Saldo (IDR)'),
+    ...row(165, '01 Okt 2026', '08:15:22 WIB', ['Transfer BI Fast', 'Ke SARI WULANDARI', 'BCA - 1234567890'], '-50.000,00', '1.950.000,00'),
+    ...row(205, '05 Okt 2026', '12:01:09 WIB', ['Pembayaran QR', 'KOPI KENANGAN SENOPATI'], '-35.500,00', '1.914.500,00'),
+    ...row(245, '25 Okt 2026', '09:00:00 WIB', ['Transfer Masuk', 'Dari PT MAJU JAYA', 'Gaji Oktober'], '+1.000.000,00', '2.914.500,00'),
+    T(230, 800, 'Halaman 1 dari 1'),
+  ]]);
+}
+
+/** A classic two-column statement: Debet and Kredit both filled (0.00 in the unused one), date and time in one cell,
+ * totals named "Total Transaksi Debet/Kredit" at the bottom. */
+export function debitCreditPdf() {
+  const row = (y, date, desc, teller, db, cr, saldo) => [T(25, y, date), T(130, y, desc), T(300, y, teller), right(390, y, db), right(470, y, cr), right(565, y, saldo)];
+  return makePdf([[
+    T(200, 40, 'LAPORAN TRANSAKSI', 11), T(25, 70, 'Nama : BUDI SANTOSO'), T(330, 70, 'Periode Transaksi : 01/10/26 - 31/10/26'),
+    T(25, 120, 'Tanggal Transaksi'), T(130, 120, 'Uraian Transaksi'), T(300, 120, 'Teller'), T(355, 120, 'Debet'), T(435, 120, 'Kredit'), T(530, 120, 'Saldo'),
+    ...row(140, '02/10/26 08:15:22', 'TRANSFER KE SARI WULANDARI', '8888', '50,000.00', '0.00', '950,000.00'),
+    ...row(155, '03/10/26 19:02:11', 'INDOMARET CIPUTAT', '8888', '27,300.00', '0.00', '922,700.00'),
+    ...row(170, '25/10/26 07:00:00', 'GAJI OKTOBER PT MAJU', '0000', '0.00', '4,000,000.00', '4,922,700.00'),
+    T(25, 230, 'Saldo Awal'), T(150, 230, 'Total Transaksi Debet'), T(300, 230, 'Total Transaksi Kredit'), T(450, 230, 'Saldo Akhir'),
+    T(25, 242, '1,000,000.00'), T(150, 242, '77,300.00'), T(300, 242, '4,000,000.00'), T(450, 242, '4,922,700.00'),
+  ]]);
+}
+
+/** English headers with two date columns, Amount and a D/K column, and a running balance. */
+export function postingDatePdf() {
+  const row = (y, d1, d2, desc, amount, dk, bal) => [T(20, y, d1), T(80, y, d2), T(150, y, desc), right(420, y, amount), T(440, y, dk), right(565, y, bal)];
+  return makePdf([[
+    T(20, 40, 'ACCOUNT STATEMENT', 11), T(20, 60, 'Period : 01-Oct-2026 - 31-Oct-2026'),
+    T(20, 100, 'Posting Date'), T(80, 100, 'Effective Date'), T(150, 100, 'Transaction Description'), T(380, 100, 'Amount'), T(440, 100, 'DB/CR'), T(520, 100, 'Balance'),
+    ...row(120, '01/10/26', '01/10/26', 'TRF KE SARI WULANDARI', '50,000.00', 'D', '450,000.00'),
+    ...row(135, '10/10/26', '10/10/26', 'PEMBELIAN PULSA TELKOMSEL', '25,000.00', 'D', '425,000.00'),
+    ...row(150, '28/10/26', '28/10/26', 'TRF DARI ANDI PRATAMA', '100,000.00', 'K', '525,000.00'),
+    T(20, 200, 'Beginning Balance'), right(200, 200, '500,000.00'), T(20, 212, 'Total Debit'), right(200, 212, '75,000.00'), T(20, 224, 'Total Credit'), right(200, 224, '100,000.00'), T(20, 236, 'Ending Balance'), right(200, 236, '525,000.00'),
+  ]]);
+}
+
+/** A digital bank with Sumber/Tujuan and Rincian columns, amounts with Rp and a sign, the time under the date. */
+export function sourceDestPdf() {
+  const row = (y, date, time, who, what, amount, saldo) => [T(25, y, date), T(25, y + 11, time), T(120, y, who), T(270, y, what), right(470, y, amount), right(565, y, saldo)];
+  return makePdf([[
+    T(25, 40, 'Riwayat Transaksi', 12), T(25, 60, 'Periode 1 Oktober 2026 - 31 Oktober 2026'),
+    T(25, 110, 'Tanggal & Waktu'), T(120, 110, 'Sumber/Tujuan'), T(270, 110, 'Rincian Transaksi'), T(430, 110, 'Jumlah'), T(530, 110, 'Saldo'),
+    ...row(135, '02 Okt 2026', '10:11', 'Sari Wulandari', 'Transfer keluar', '-Rp50.000', 'Rp450.000'),
+    ...row(170, '09 Okt 2026', '13:45', 'Grab', 'Pembayaran', '-Rp32.000', 'Rp418.000'),
+    ...row(205, '20 Okt 2026', '20:30', 'Andi Pratama', 'Transfer masuk', '+Rp75.000', 'Rp493.000'),
+  ]]);
+}

@@ -197,3 +197,28 @@ test('8.7 a possible double is never recorded now unless the person says it is n
   assert.equal(missing(fromDraft({ id: 'c', type: 'expense', amount: 5000, plannedDate: '2026-10-05', walletId: 'bca', destinationWalletId: null, categoryId: 'park', name: 'Parkir', status: 'pending', recurringId: '' })), null);
   assert.equal(missing(fromDraft({ id: 'd', type: 'expense', amount: 5000, plannedDate: '2026-10-05', walletId: 'bca', destinationWalletId: null, categoryId: 'park', name: 'Parkir', maybeDuplicate: 'Parkir · Rp5.000', status: 'pending', recurringId: '' })), 'Mungkin dobel');
 });
+
+// 8.7 — more bank layouts (made up from common shapes; real samples of these banks were not available).
+import { nominalSignedPdf, debitCreditPdf, postingDatePdf, sourceDestPdf } from './helpers/statement-pdfs.mjs';
+
+test('8.7 other bank layouts: signed Nominal, Debet/Kredit with 0.00, two date columns with D/K, Sumber/Tujuan', async () => {
+  const cases = [
+    [nominalSignedPdf(), [['2026-10-01', 50000, 'expense'], ['2026-10-05', 35500, 'expense'], ['2026-10-25', 1000000, 'income']], [2000000, 2914500, 1000000, 85500]],
+    [debitCreditPdf(), [['2026-10-02', 50000, 'expense'], ['2026-10-03', 27300, 'expense'], ['2026-10-25', 4000000, 'income']], [1000000, 4922700, 4000000, 77300]],
+    [postingDatePdf(), [['2026-10-01', 50000, 'expense'], ['2026-10-10', 25000, 'expense'], ['2026-10-28', 100000, 'income']], [500000, 525000, 100000, 75000]],
+    [sourceDestPdf(), [['2026-10-02', 50000, 'expense'], ['2026-10-09', 32000, 'expense'], ['2026-10-20', 75000, 'income']], null],
+  ];
+  for (const [bytes, rows, totals] of cases) {
+    const { src, read } = await readPdf(bytes);
+    assert.deepEqual(read.rows.map(r => [r.date, r.amount, r.type]), rows, JSON.stringify(src.table[0]));
+    if (totals) assert.deepEqual([src.meta.opening, src.meta.closing, src.meta.totalIn, src.meta.totalOut], totals, JSON.stringify(src.meta));
+    assert.notEqual(read.balance?.complete, false, 'the figures add up');
+    assert.ok(read.rows.every(r => r.description && !/\d{2}:\d{2}/.test(r.description)), 'no time or empty description');
+  }
+  // A transfer to someone is read as a person to ask about, in every layout.
+  for (const bytes of [nominalSignedPdf(), debitCreditPdf(), postingDatePdf(), sourceDestPdf()]) {
+    const { read } = await readPdf(bytes);
+    const plan = planImport(read, { walletId: 'bank', wallets: [{ id: 'bank', name: 'Bank', type: 'bank' }], categories: [], transactions: [], drafts: [] });
+    assert.ok(plan.some(x => x.person === 'Sari Wulandari'), JSON.stringify(plan.map(x => [x.name, x.person])));
+  }
+});

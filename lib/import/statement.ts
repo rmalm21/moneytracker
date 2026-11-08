@@ -170,7 +170,7 @@ export const headerRole = roleOf;
 
 const NOT_A_ROW = /^(?:saldo awal|saldo akhir|opening balance|closing balance|beginning balance|ending balance|saldo sebelumnya|previous balance|total|sub ?total|mutasi debet|mutasi kredit|mutasi debit|jumlah|grand total|total debet|total kredit|total debit|total credit)\b/i;
 const OUT_WORD = /^(?:db|d|dr|debit|debet|keluar|uang keluar|out|outgoing|withdrawal|pembayaran|payment|pengeluaran|transfer keluar|purchase|pembelian)$/i;
-const IN_WORD = /^(?:cr|k|kr|kredit|credit|masuk|uang masuk|in|incoming|deposit|top ?up|pemasukan|transfer masuk|refund|cashback|setoran)$/i;
+const IN_WORD = /^(?:cr|c|k|kr|kredit|credit|masuk|uang masuk|in|incoming|deposit|top ?up|pemasukan|transfer masuk|refund|cashback|setoran)$/i;
 
 /** The table read: header found by its words, rows read into date, description, amount and direction. */
 export function readStatement(table: string[][], today: string, knownYear?: number, meta: StatementMeta = {}): StatementRead {
@@ -304,7 +304,7 @@ function inferWithoutHeader(rows: string[][], today: string, year?: number): Sta
 const CODE = /^(?:[\p{L}]*\d[\w/.:-]*|\d+[\w/.:-]*|(?!(?:bu|om|pa|ko|ci|ka)$)\p{L}{1,2})$/iu;
 /** Short names written in capitals that stay so ("PLN", "BPJS", "KFC"). */
 const ACRONYM = new Set('pln bpjs kai krl mrt lrt pdam atm kfc mcd ovo bca bri bni bsi btn xl im3 ptpn jne jnt sicepat ikea ace spbu'.split(' '));
-const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-banking ib db cr kr debit debet kredit credit switching bi-fast bifast bif biz fast ftscy ftfva sknbi rtgs prmt online otomatis auto via ke dari to from ref no rek rekening norek trx tx transaksi pembayaran payment byr bayar idr rp kartu card pos edc qr qris mcm va virtual account berita pt cv tbk persero esb intrabank interbank antarbank overbooking ob incoming outgoing purchase'.split(' '));
+const BANK_WORDS = new Set('trsf trf transfer e-banking ebanking mbanking m-banking ib db cr kr debit debet kredit credit switching bi-fast bifast bif biz fast ftscy ftfva sknbi rtgs prmt online otomatis auto via ke dari to from ref no rek rekening norek trx tx transaksi pembayaran payment byr bayar idr rp kartu card pos edc qr qris mcm va virtual account berita pt cv tbk persero esb intrabank interbank antarbank overbooking ob incoming outgoing purchase masuk keluar'.split(' '));
 const KNOWN: [RegExp, string][] = [
   [/\b(?:tarik(?:an)?\s*(?:tunai\s*)?atm|tarik\s*tunai|penarikan\s*tunai|atm\s*withdrawal|cash\s*withdrawal|tarikan)\b/i, 'Tarik tunai'],
   [/\b(?:biaya\s*adm(?:in(?:istrasi)?)?|adm(?:in)?\s*fee|monthly\s*fee|biaya\s*bulanan|biaya\s*kartu|card\s*fee)\b/i, 'Biaya admin bank'],
@@ -428,6 +428,9 @@ function personIn(row: StatementRow, name: string, wallets: ImportCtx['wallets']
   if (!TRANSFERISH.test(`${row.kind || ''} ${row.description}`)) return undefined;
   const who = name.replace(/^Transfer (?:ke|dari)\s+/i, '').trim(), words = who.split(/\s+/);
   if (!who || words.length > 5 || !/^[\p{L}][\p{L}\s.'-]*$/u.test(who) || who.length < 3 || BUSINESS.test(who) || E_WALLET_CO.test(who)) return undefined;
+  // The part of the bank's line the name came from ("Dari PT MAJU JAYA"): a company there is not a person.
+  const first = who.toLowerCase().split(/\s+/)[0], from = row.description.split(/\s+·\s+|\s*\|\s*/).find(part => part.toLowerCase().includes(first));
+  if (from && (BUSINESS.test(from) || E_WALLET_CO.test(from))) return undefined;
   if (wallets.some(w => w.name.toLowerCase() === who.toLowerCase()) || WALLET_ALIAS.some(([re]) => re.test(who))) return undefined;
   return who;
 }
