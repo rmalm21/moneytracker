@@ -108,6 +108,23 @@ await expect('mengubah isi Riwayat', false, () => updateDoc(doc(A.db, 'spaces', 
 await expect('menandai Riwayat dikembalikan', true, () => updateDoc(doc(A.db, 'spaces', S, 'activity', 'a1'), { restoredBy: A.uid, restoredAt: serverTimestamp() }));
 await expect('bukan anggota membaca Riwayat', false, () => getDocs(collection(C.db, 'spaces', S, 'activity')));
 
+console.log('\nChat grup');
+const msg = (who, id) => doc(who.db, 'spaces', S, 'messages', id);
+await expect('Budi kirim pesan', true, () => setDoc(msg(B, 'm1'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'Belanja dapur udah ya' }));
+await expect('Ana membaca chat grup', true, () => getDocs(collection(A.db, 'spaces', S, 'messages')));
+await expect('bukan anggota membaca chat grup', false, () => getDocs(collection(C.db, 'spaces', S, 'messages')));
+await expect('bukan anggota kirim pesan', false, () => setDoc(msg(C, 'x1'), { by: C.uid, byName: 'cici', at: serverTimestamp(), kind: 'text', text: 'halo' }));
+await expect('kirim pesan atas nama orang lain', false, () => setDoc(msg(B, 'm2'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'text', text: 'palsu' }));
+await expect('pesan jenis tak dikenal', false, () => setDoc(msg(B, 'm3'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'image', text: '' }));
+await expect('pesan terlalu panjang', false, () => setDoc(msg(B, 'm4'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'x'.repeat(2001) }));
+await expect('mengubah pesan', false, () => updateDoc(msg(B, 'm1'), { text: 'diubah' }));
+await expect('Ana menghapus pesan Budi', false, () => deleteDoc(msg(A, 'm1')));
+await expect('Budi menghapus pesannya sendiri', true, () => deleteDoc(msg(B, 'm1')));
+await fetch(`${FS}/v1/projects/${PROJECT}/databases/(default)/documents/spaces/${S}/messages/old1`, { method: 'PATCH', headers: { 'content-type': 'application/json', Authorization: 'Bearer owner' }, body: JSON.stringify({ fields: { by: { stringValue: A.uid }, byName: { stringValue: 'ana' }, at: { timestampValue: '2026-01-01T00:00:00Z' }, kind: { stringValue: 'text' }, text: { stringValue: 'lama' } } }) });
+await expect('Budi menghapus pesan Ana yang sudah lewat 90 hari', true, () => deleteDoc(msg(B, 'old1')));
+await expect('Ana kirim kartu transaksi', true, () => setDoc(msg(A, 'm5'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'tx', text: '', tx: { id: 't1', title: 'Belanja', amount: 160000, type: 'expense', date: '2026-11-08' } }));
+await expect('Budi kirim pesan lagi', true, () => setDoc(msg(B, 'm6'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'oke' }));
+
 console.log('\nMaksimal 5 anggota');
 for (const p of [C, D, E]) { const c = await invite(A, S); await ask(p, S, c); await approve(B, S, p); }
 await expect('ruang berisi 5 anggota', true, async () => { const snap = await getDoc(sref(A)); if (snap.data().memberIds.length !== 5) throw Error(`${snap.data().memberIds.length} anggota`); });
@@ -128,7 +145,8 @@ await expect('Dodi keluar', true, () => leave(D, S, [A.uid, B.uid, C.uid]));
 await expect('Cici keluar', true, () => leave(C, S, [A.uid, B.uid]));
 await expect('Budi keluar', true, () => leave(B, S, [A.uid]));
 await expect('Ana (anggota terakhir) keluar tanpa menghapus', false, () => updateDoc(sref(A), { memberIds: [], members: {} }));
-await expect('Ana menghapus isi ruang', true, async () => { for (const id of ['t1', 't2']) await deleteDoc(tx(A, id)); await deleteDoc(doc(A.db, 'spaces', S, 'activity', 'a1')); });
+await expect('Ana (anggota terakhir) menghapus pesan Budi', true, () => deleteDoc(msg(A, 'm6')));
+await expect('Ana menghapus isi ruang', true, async () => { for (const id of ['t1', 't2']) await deleteDoc(tx(A, id)); await deleteDoc(doc(A.db, 'spaces', S, 'activity', 'a1')); await deleteDoc(doc(A.db, 'spaces', S, 'messages', 'm5')); });
 await expect('Ana (anggota terakhir) menghapus ruang', true, () => deleteDoc(sref(A)));
 
 console.log(`\n${passed} sesuai, ${failed} tidak sesuai`);

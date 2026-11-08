@@ -20,6 +20,9 @@ import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhra
 import { dateInTimeZone, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
+import { GroupChat, useGroup, type GroupAnswer } from './space-chat';
+import { OPEN_GROUP } from '@/lib/space-chat';
+import { rupiah as rupiahText } from '@/lib/accounting';
 
 const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const clock = (at: number) => new Date(at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -48,9 +51,9 @@ const plainText = (m: ChatMessage) => m.role === 'user' ? m.text : [m.text, m.re
 
 /** The assistant's mark: a speech bubble with a spark, drawn for the round button. */
 
-export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean }) {
+export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = 'bot' }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean; /** 9.2 Opened for the group (unread messages, or from the bell). */ startTab?: 'bot' | 'group' }) {
   // 9.1 In a Ruang Bersama the chat has its own history (keyed by the space); the chosen look stays the person's own.
-  const { user, account, data, profile, cycle } = useApp();
+  const { user, account, data, profile, cycle, space } = useApp();
   const [open, setOpen] = useState(startOpen);
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [messages, setMessages] = useState<ChatMessage[]>([]), [memory, setMemory] = useState<ChatMemory>({});
@@ -185,14 +188,37 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
   }
 
   const { visible, more, hidden } = page(messages, shown);
+  // 9.2 In a Ruang Bersama: the Asisten tab (this chat) and the Grup tab (the members' group chat).
+  const [tab, setTab] = useState<'bot' | 'group'>(startTab);
+  useEffect(() => { if (!space) setTab('bot'); }, [space?.id]);
+  const group = useGroup(space?.id, account?.uid);
+  // In the group the money is everyone's: "Pengeluaranmu" reads "Pengeluaran bersama".
+  const ours = (text: string) => text.replace(/\b(pengeluaran|pemasukan|saldo|anggaran|uang bebas|uang)mu\b/gi, '$1 bersama');
+  const askGroup = useCallback(async (question: string): Promise<GroupAnswer | null> => {
+    const now = dateInTimeZone(new Date(), profile?.timeZone);
+    const result = await chatReply(question, {}, { ...chatCtx, hour: now.getHours(), minute: now.getMinutes() }).catch(() => null);
+    if (!result) return null;
+    const r = result.reply;
+    if (r.kind !== 'say') {
+      // A question the chat hands to Catat otomatis ("pengeluaran bulan ini berapa?"): answered from the space's ledger.
+      const [{ normalizeQuick }, { readCommand }] = await Promise.all([import('@/lib/quick-plan'), import('@/lib/catat/history')]);
+      const q = readCommand(normalizeQuick(r.text), quick);
+      if (q?.type === 'QUERY' && q.query) return { text: ours(q.query.answer), lines: q.query.lines.slice(0, 6).map(l => ({ label: l.label, value: rupiahText(l.amount) })) };
+      return { text: 'Di grup aku menjawab pertanyaan saja. Untuk mencatat, pakai tab Asisten atau tombol Tambah.' };
+    }
+    return { text: ours(r.text), ...(r.title ? { title: r.title } : {}), ...(r.hero ? { hero: { label: r.hero.label, value: r.hero.value } } : {}), lines: [...(r.stats || []), ...(r.lines || [])].slice(0, 6).map(l => ({ label: l.label, value: l.value })) };
+  }, [chatCtx, quick, profile?.timeZone]);
+  const groupOn = Boolean(space) && tab === 'group';
+  useEffect(() => { const on = () => { setTab('group'); setOpen(true); }; window.addEventListener(OPEN_GROUP, on); return () => window.removeEventListener(OPEN_GROUP, on); }, []);
   const style = settings.style;
   const keepLabel = KEEP_OPTIONS.find(k => k.days === settings.keepDays)?.label || '7 hari';
   const learnedCount = Object.keys(settings.learned).length;
   if (!user) return null;
 
   return <>
-    <button type="button" className={`chat-fab ${open ? 'is-open' : ''} ${settings.seen ? '' : 'is-new'}`} aria-label={open ? 'Tutup asisten chat' : 'Buka asisten chat'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
+    <button type="button" className={`chat-fab ${open ? 'is-open' : ''} ${settings.seen ? '' : 'is-new'}`} aria-label={open ? 'Tutup asisten chat' : group.unread ? `Buka chat, ${group.unread} pesan grup belum dibaca` : 'Buka asisten chat'} aria-expanded={open} onClick={() => { if (!open && space && group.unread) setTab('group'); setOpen(v => !v); }}>
       {open ? <X size={20}/> : <ChatMark/>}
+      {!open && space && group.unread > 0 && <span className="chat-fab-badge" aria-hidden="true">{group.unread > 9 ? '9+' : group.unread}</span>}
     </button>
     {open && <>
       {(style === 'lembar' || style === 'samping') && <div className="chat-scrim" onClick={() => setOpen(false)} aria-hidden="true"/>}
@@ -206,12 +232,18 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
           {style === 'lembar' && <span className="chat-grab" aria-hidden="true"/>}
           {style === 'penuh' && <button type="button" className="chat-icon-btn" aria-label="Kembali" onClick={() => setOpen(false)}><ChevronLeft size={20}/></button>}
           <span className="chat-avatar" aria-hidden="true"><ChatMark size={19}/></span>
-          <span className="chat-title"><strong>Asisten Dompet</strong><small title={`Riwayat disimpan ${keepLabel} di HP ini`}><i className="chat-dot" aria-hidden="true"/>Di HP-mu · {VOICES.find(x => x.key === settings.voice)?.name} · {keepLabel}</small></span>
-          <button type="button" className="chat-icon-btn" aria-label="Contoh dan template" onClick={() => setSheet(s => s === 'templates' ? null : 'templates')}><LayoutGrid size={18}/></button>
-          <button type="button" className="chat-icon-btn" aria-label="Pengaturan chat" onClick={() => setSheet(s => s === 'settings' ? null : 'settings')}><SlidersHorizontal size={18}/></button>
+          {groupOn ? <span className="chat-title"><strong>Grup {space!.name}</strong><small><i className="chat-dot" aria-hidden="true"/>{space!.memberIds.length} anggota · tersimpan 90 hari</small></span>
+            : <span className="chat-title"><strong>Asisten Dompet</strong><small title={`Riwayat disimpan ${keepLabel} di HP ini`}><i className="chat-dot" aria-hidden="true"/>Di HP-mu · {VOICES.find(x => x.key === settings.voice)?.name} · {keepLabel}</small></span>}
+          {!groupOn && <button type="button" className="chat-icon-btn" aria-label="Contoh dan template" onClick={() => setSheet(s => s === 'templates' ? null : 'templates')}><LayoutGrid size={18}/></button>}
+          {!groupOn && <button type="button" className="chat-icon-btn" aria-label="Pengaturan chat" onClick={() => setSheet(s => s === 'settings' ? null : 'settings')}><SlidersHorizontal size={18}/></button>}
           {style !== 'penuh' && <button type="button" className="chat-icon-btn" aria-label="Tutup" onClick={() => setOpen(false)}><X size={19}/></button>}
         </header>}
 
+        {space && !picked && <div className="chat-tabs" role="tablist" aria-label="Jenis chat">
+          <button type="button" role="tab" aria-selected={!groupOn} className={!groupOn ? 'on' : ''} onClick={() => setTab('bot')}><ChatMark size={14}/> Asisten</button>
+          <button type="button" role="tab" aria-selected={groupOn} className={groupOn ? 'on' : ''} onClick={() => { setSheet(null); setTab('group'); }}>Grup {space.name}{group.unread > 0 && !groupOn && <span className="chat-tab-badge">{group.unread > 9 ? '9+' : group.unread}</span>}</button>
+        </div>}
+        {groupOn ? <GroupChat list={group.list} read={group.read} ask={askGroup} onOpenTx={t => { setOpen(false); const next = new Date(`${t.date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${t.id}@${t.date}..${next.toLocaleDateString('en-CA')}`); }}/> : <>
         {!picked && <FeatureTips menu="chat" className="ft-in-chat"/>}
         <div className={`chat-list ${picked ? 'is-picking' : ''}`} ref={listRef} aria-live="polite" onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
           {more && <button type="button" className="chat-more" onClick={() => setShown(n => n + PAGE)}><ChevronUp size={14}/> Muat lebih banyak <small>({hidden} pesan lagi)</small></button>}
@@ -248,6 +280,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); } }}/>
           <button type="submit" className="chat-send" aria-label="Kirim" disabled={!draft.trim() || typing}><SendHorizontal size={17}/></button>
         </form>
+        </>}
         </>}
 
         {sheet && <div className="chat-sheet-wrap" onClick={e => { if (e.target === e.currentTarget && settings.picked) setSheet(null); }}>

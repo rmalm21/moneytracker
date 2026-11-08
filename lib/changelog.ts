@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.2', date: '8 Nov 2026', title: 'Chat grup di Ruang Bersama', items: [
+    ['🤝', 'Tombol chat di mode Bersama sekarang punya dua tab: Asisten dan Grup. Di tab Grup kamu bisa ngobrol dengan semua anggota ruang. Anggota yang baru gabung juga bisa membaca obrolan sebelumnya.'],
+    ['🧾', 'Bagikan transaksi ke grup untuk didiskusikan, lewat tombol struk di kolom pesan atau tombol Bagikan ke grup di detail transaksi. Kartunya bisa diketuk untuk membuka transaksi itu.'],
+    ['🤖', 'Tanya asisten langsung di grup pakai @asisten, misalnya "@asisten pengeluaran bulan ini berapa?". Jawabannya dihitung di HP yang bertanya dari catatan ruang, lalu terlihat oleh semua anggota.'],
+    ['📱', 'Jumlah pesan grup yang belum dibaca muncul di tombol chat, dan pesan baru muncul di lonceng selama aplikasi dibuka. Ketuk notifikasinya untuk langsung membuka grup.'],
+    ['🔒', 'Pesan grup hanya bisa dibaca anggota ruang dan disimpan 90 hari. Ketuk pesanmu sendiri untuk menghapusnya dari semua anggota. Isinya teks saja, tanpa foto atau file.'],
+    ['🏠', 'Hapus ruang sekarang lebih cepat, dan ikut membersihkan catatan pelunasan serta pesan grup di ruang itu.'],
+  ] },
   { version: '9.1', date: '8 Nov 2026', title: 'Dompet Bersama makin lengkap', items: [
     ['🎯', 'Tujuan dana dan Wish list sekarang ada juga di Ruang Bersama, misalnya nabung DP rumah atau liburan berdua.'],
     ['🤖', 'Asisten chat bisa dipakai di mode Bersama dan menjawab dari catatan ruang itu. Riwayat chat tiap ruang terpisah dari chat Pribadi, gaya dan kata yang sudah kamu ajarkan tetap ikut.'],

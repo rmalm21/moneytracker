@@ -145,16 +145,19 @@ export async function leaveSpace(account: Account, space: Space) {
 /** The last member removes the space and every record in it (the records first, while the space still lets them). */
 export async function deleteSpace(account: Account, space: Space, onProgress?: (done: number) => void) {
   if (space.memberIds.length !== 1 || space.memberIds[0] !== account.uid) throw Error('Ruang hanya bisa dihapus oleh anggota terakhir. Anggota lain perlu keluar dulu.');
+  // All kinds of records are looked up at once and deleted in parallel batches (one by one took many seconds).
   let done = 0;
-  for (const name of [...names, 'deletions', 'activity', 'requests']) {
+  const kinds = [...names, 'deletions', 'activity', 'requests', 'settlements', 'messages'];
+  const clear = async (name: string) => {
     for (;;) {
-      const snap = await getDocs(query(collection(database(), 'spaces', space.id, name), limit(400)));
-      if (snap.empty) break;
+      const snap = await getDocs(query(collection(database(), 'spaces', space.id, name), limit(450)));
+      if (snap.empty) return;
       const b = writeBatch(database()); snap.docs.forEach(d => b.delete(d.ref)); await b.commit();
       done += snap.size; onProgress?.(done);
-      if (snap.size < 400) break;
+      if (snap.size < 450) return;
     }
-  }
+  };
+  await Promise.all(kinds.map(clear));
   if (space.invite?.code) await deleteDoc(inviteDoc(space.invite.code)).catch(() => {});
   await deleteDoc(spaceDoc(space.id));
   return done;

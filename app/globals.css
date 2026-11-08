@@ -9083,3 +9083,40 @@ html[data-theme="dark"] .sp-colors button { background: var(--sw-dark); color: #
 .sp-pin-option small { color: var(--muted); }
 .sp-balance.is-wait { border-style: dashed; }
 .sp-own-only { margin: 0 0 10px; font-size: .84rem; }
+
+/* 9.2 Chat grup (Ruang Bersama): tabs in the chat panel, the group's messages, sharing a transaction. */
+.chat-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 12px 6px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+.chat-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 700 .8rem/1 inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-tabs button.on { background: var(--paper); color: var(--accent); box-shadow: var(--elev-1); }
+.chat-tab-badge, .chat-fab-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger, #d64545); color: #fff; font: 800 .66rem/1 inherit; }
+.chat-fab-badge { position: absolute; top: -2px; right: -2px; box-shadow: 0 0 0 2px var(--paper); }
+.gc-row { display: flex; align-items: flex-end; gap: 6px; margin: 6px 0; }
+.gc-row.is-mine { justify-content: flex-end; }
+.gc-avatar { display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 800 .74rem/1 inherit; }
+.gc-msg { display: grid; gap: 3px; max-width: 82%; min-width: 0; }
+.gc-row.is-mine .gc-msg { justify-items: end; }
+.gc-name { font-size: .7rem; font-weight: 700; color: var(--accent); }
+.gc-bubble { padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); color: var(--ink); font-size: .9rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-row.is-mine .gc-bubble { border-radius: 16px 16px 4px 16px; background: var(--accent); color: var(--accent-on, #fff); }
+.gc-row.is-bot .gc-bubble { background: var(--accent-soft); }
+.gc-asked { color: var(--muted); font-size: .74rem; font-style: italic; }
+.gc-figures { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.gc-hero { display: grid; } .gc-hero small { color: var(--muted); font-size: .72rem; } .gc-hero b { font-size: 1.05rem; }
+.gc-line { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; } .gc-line span { color: var(--muted); }
+.gc-tx { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 220px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 14px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.gc-tx > svg { color: var(--accent); flex: none; }
+.gc-tx > span { flex: 1; min-width: 0; display: grid; } .gc-tx small { color: var(--muted); font-size: .74rem; }
+.gc-tx b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gc-delete { display: inline-flex; align-items: center; gap: 4px; justify-self: end; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--danger, #c53030); font: 700 .74rem/1 inherit; cursor: pointer; }
+.gc-empty { margin: 18px 8px; padding: 14px; border-radius: 16px; background: var(--accent-soft); font-size: .86rem; line-height: 1.45; }
+.gc-empty p { margin: 6px 0 0; }
+.gc-error { margin: 4px 12px; }
+.gc-share { margin: 0 12px 6px; max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: var(--elev-2, var(--elev-1)); }
+.gc-share header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 6px 8px 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.gc-share ul { list-style: none; margin: 0; padding: 4px; }
+.gc-share li button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.gc-share li button:hover { background: var(--accent-soft); }
+.gc-share li span { flex: 1; min-width: 0; display: grid; } .gc-share li small { color: var(--muted); font-size: .74rem; }
+.gc-share p { margin: 12px; }
+.gc-row.is-run { margin-top: 2px; }
+.gc-avatar.is-blank { visibility: hidden; }

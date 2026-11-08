@@ -170,8 +170,22 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['restoredBy', 'restoredAt'])
           && request.resource.data.restoredBy == request.auth.uid;
       }
+      // 9.2 Chat grup: text, a shared transaction card, or an answer of the assistant asked with "@asisten" (written by
+      // the member who asked). Always in the writer's own name, never edited; deleted by its writer, by any member
+      // once it is older than 90 days, or by the last member (when the space is being deleted).
+      match /messages/{messageId} {
+        allow read: if memberOf(spaceId);
+        allow create: if memberOf(spaceId)
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.at == request.time
+          && request.resource.data.kind in ['text', 'tx', 'bot']
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+        allow delete: if memberOf(spaceId)
+          && (resource.data.by == request.auth.uid || resource.data.at < request.time - duration.value(90, 'd')
+            || space(spaceId).data.memberIds == [request.auth.uid]);
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity']);
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages']);
       }
     }
     // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which

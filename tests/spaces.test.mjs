@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rootSegments, isSpaceKey, spaceKey, spaceIdOf, setActor, stamp } from '../lib/space-key.ts';
 import { spaceProfile, formatCode, cleanCode, SPACE_FIELDS, targetShares } from '../lib/space-profile.ts';
-import { balances, equalShares, restorable } from '../lib/space-math.ts';
+import { askedAssistant, balances, equalShares, restorable, unreadCount } from '../lib/space-math.ts';
 import { contributions } from '../lib/space-report.ts';
 import { SPACE_COLORS, spaceColor } from '../lib/space-look.ts';
 import { validAccent } from '../lib/appearance.ts';
@@ -91,4 +91,19 @@ test('9.1 target shares: the space’s own split when it covers everyone and add
   assert.deepEqual(targetShares({ memberIds: ['a', 'b'], shareTarget: { a: 60, b: 30 } }), { a: 50, b: 50 }, 'not 100: equal');
   assert.deepEqual(targetShares({ memberIds: ['a', 'b', 'c'], shareTarget: { a: 60, b: 40 } }), { a: 34, b: 33, c: 33 }, 'a new member: equal until set again');
   assert.deepEqual(targetShares({ memberIds: ['a', 'b'], shareTarget: {} }), { a: 50, b: 50 });
+});
+
+test('9.2 chat grup: @asisten and unread', () => {
+  assert.equal(askedAssistant('@asisten uang bersama berapa?'), 'uang bersama berapa?');
+  assert.equal(askedAssistant('  @Asisten, sisa anggaran makan?'), 'sisa anggaran makan?');
+  assert.equal(askedAssistant('@bot: pengeluaran bulan ini'), 'pengeluaran bulan ini');
+  assert.equal(askedAssistant('@asisten'), '');
+  assert.equal(askedAssistant('halo @asisten'), null);
+  assert.equal(askedAssistant('@asistenku'), null);
+  assert.equal(askedAssistant('udah bayar listrik'), null);
+  const at = ms => ({ toMillis: () => ms });
+  const list = [{ by: 'a', at: at(100) }, { by: 'b', at: at(200) }, { by: 'b', at: at(300) }, { by: 'b' }];
+  assert.equal(unreadCount(list, 'a', 0), 2);
+  assert.equal(unreadCount(list, 'a', 200), 1);
+  assert.equal(unreadCount(list, 'b', 0), 1);
 });

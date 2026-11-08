@@ -12,6 +12,7 @@ import { useNotify } from './notifications';
 import { rupiah } from '@/lib/accounting';
 import { subscribeLatestActivity } from '@/lib/space-activity';
 import { subscribeRequests } from '@/lib/spaces';
+import { openGroup, subscribeLatestGroup, viewingGroup } from '@/lib/space-chat';
 
 const verbs: Record<string, string> = { add: 'mencatat', edit: 'mengubah', delete: 'menghapus', restore: 'mengembalikan' };
 const seenKey = (uid: string) => `dompet-ajaib:space-seen:${uid}`;
@@ -37,6 +38,15 @@ export function SpaceWatch({ navigate }: { navigate: (view: string, focus?: stri
           if (!at || a.by === uid || !fresh(`a:${space.id}`, at)) continue;
           const what = a.title || cats.current.find(c => c.id === a.categoryId)?.name || 'transaksi';
           push({ title: `${a.byName} ${verbs[a.kind] || a.kind} ${what} · ${rupiah(a.amount)}`, body: `di ${space.name}`, kind: 'info', history: true, open: open('transactions') });
+        }
+      }));
+      // 9.2 New messages in the group, unless that group is on screen.
+      stops.push(subscribeLatestGroup(space.id, list => {
+        for (const m of [...list].reverse()) {
+          const at = millis(m.at);
+          if (!at || m.by === uid || !fresh(`g:${space.id}`, at) || viewingGroup() === space.id) continue;
+          const title = m.kind === 'tx' && m.tx ? `${m.byName} membagikan ${m.tx.title} · ${rupiah(m.tx.amount)}` : m.kind === 'bot' ? `Asisten menjawab ${m.bot?.askedBy || 'anggota'}` : `${m.byName}: ${m.text.slice(0, 80)}${m.text.length > 80 ? '…' : ''}`;
+          push({ title, body: `Grup ${space.name}`, kind: 'info', history: true, open: () => { switchTo(space.id); window.setTimeout(openGroup, 300); } });
         }
       }));
       stops.push(subscribeRequests(space.id, list => {

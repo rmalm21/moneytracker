@@ -25,3 +25,12 @@ export function restorable(before: Partial<LedgerTx>): LedgerTx {
   const { id: _id, draftId: _d, plannedId: _p, createdBy: _cb, createdByName: _cn, updatedBy: _ub, updatedByName: _un, ...rest } = before;
   return { ...rest, id: '', draftId: null, plannedId: null } as LedgerTx;
 }
+
+/** 9.2 "@asisten uang bersama berapa?" → the question for the assistant (any case, also "@bot", "@dompet" and "@asisten,"). */
+export function askedAssistant(text: string): string | null {
+  const m = text.trim().match(/^@(asisten|bot|dompet)\b[\s,:]*(.*)$/is);
+  return m ? m[2].trim() : null;
+}
+/** 9.2 Group messages from others that came after the last read. */
+export const unreadCount = (list: { by: string; at?: { toMillis?: () => number } }[], uid: string, since: number) =>
+  list.filter(m => m.by !== uid && (m.at?.toMillis?.() || 0) > since).length;

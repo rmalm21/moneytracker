@@ -29,7 +29,7 @@ const openedFromHome = (el: Element) => !!el.closest('[role="dialog"]') && !el.c
 /** Whether this level hides the amounts in a place: "Super ketat" hides every amount. */
 const hides = (el: Element) => level === 'ketat' || !!el.closest(HOME) || openedFromHome(el);
 /** Amounts written without "Rp": chart axes, chat messages, and what Catat otomatis read from a sentence. */
-const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .chat-chip, .quick-preview');
+const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .gc-bubble, .gc-asked, .chat-chip, .quick-preview');
 function maskFor(value: string, parent: Element) {
   if (!hides(parent)) return value;
   return bareZone(parent) ? maskBareAmounts(maskAmounts(value)) : maskAmounts(value);
