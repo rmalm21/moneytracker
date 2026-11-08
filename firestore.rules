@@ -201,8 +201,9 @@ service cloud.firestore {
       match /streak/{uid} {
         allow read: if memberOf(spaceId);
         allow create, update: if memberOf(spaceId) && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['days', 'name', 'at'])
+          && request.resource.data.keys().hasOnly(['days', 'name', 'at', 'v'])
           && request.resource.data.days is list && request.resource.data.days.size() <= 62
+          && request.resource.data.get('v', 2) is int
           && request.resource.data.at == request.time;
         allow delete: if memberOf(spaceId) && (request.auth.uid == uid || space(spaceId).data.memberIds == [request.auth.uid]);
       }

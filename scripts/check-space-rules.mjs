@@ -135,6 +135,8 @@ await expect('waktu baca dari HP sendiri (bukan waktu server)', false, () => set
 await expect('bukan anggota melihat siapa yang membaca', false, () => getDocs(collection(C.db, 'spaces', S, 'reads')));
 const fire = (who, uid) => doc(who.db, 'spaces', S, 'streak', uid);
 await expect('Budi membagikan hari api-nya', true, () => setDoc(fire(B, B.uid), { days: ['2026-11-07', '2026-11-08'], name: 'budi', at: serverTimestamp() }));
+await expect('Budi membagikan hari api bareng versi 2', true, () => setDoc(fire(B, B.uid), { days: ['2026-11-08'], name: 'budi', at: serverTimestamp(), v: 2 }));
+await expect('versi api bareng bukan angka', false, () => setDoc(fire(B, B.uid), { days: [], name: 'budi', at: serverTimestamp(), v: 'dua' }));
 await expect('Ana melihat api bareng', true, () => getDocs(collection(A.db, 'spaces', S, 'streak')));
 await expect('Ana mengisi hari api Budi', false, () => setDoc(fire(A, B.uid), { days: ['2026-11-08'], name: 'budi', at: serverTimestamp() }));
 await expect('hari api terlalu banyak', false, () => setDoc(fire(A, A.uid), { days: Array.from({ length: 63 }, (_, i) => `d${i}`), name: 'ana', at: serverTimestamp() }));

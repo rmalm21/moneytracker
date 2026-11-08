@@ -1,10 +1,9 @@
 'use client';
+import { openRekap } from '@/lib/rekap-open';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Pin, PinOff, Calculator, LayoutList, UserRound, Layers, HandCoins, Sprout, SlidersHorizontal, Coins, CreditCard, ShieldCheck, Target, TrendingUp, Sparkles, ArrowRight, BrainCircuit, CalendarClock, Check, CircleCheck, EyeOff, Gauge, Info, Lightbulb, Scissors, TrendingDown, type LucideIcon } from 'lucide-react';
 import { useApp } from './app-provider';
-import dynamic from 'next/dynamic';
 // 8.5 Rekap loads only when opened.
-const WrappedView = dynamic(() => import('./wrapped').then(m => m.WrappedView), { ssr: false });
 import { useNotify } from './notifications';
 import { usePeriodTransactions } from './period-selector';
 import { Button } from './ui/button';
@@ -159,7 +158,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const [showHidden, setShowHidden] = useState(false);
   const [busy, setBusy] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [layoutOpen, setLayoutOpen] = useState(false); const [rekap, setRekap] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   // 8.10 Tips on Insight open its two sheets.
   useTipTry({ insight_profile: () => setProfileOpen(true), insight_layout: () => setLayoutOpen(true) });
   const layout = profile?.insightLayout || {};
@@ -249,7 +248,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
     if (!ready) return;
     try { const saved = JSON.parse(sessionStorage.getItem(navKey) || 'null'); if (saved) { sessionStorage.removeItem(navKey); setTab(saved.tab || ''); setSub(saved.sub || 'summary'); requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, saved.y || 0))); } } catch { /* per-tab */ }
   }, [ready]);
-  const heading = <div className="ix-heading"><div><h1>Insight</h1><small>Dihitung di perangkat ini dari catatanmu sendiri</small></div><span className="ix-head-actions"><button type="button" className="ix-rekap-btn" onClick={() => setRekap(true)}><Sparkles size={16}/> Rekap</button><button type="button" className="ix-icon-btn" onClick={() => setLayoutOpen(true)} aria-label="Atur tampilan Insight" title="Atur tampilan"><LayoutList size={18}/></button></span>{rekap && <WrappedView onClose={() => setRekap(false)}/>}</div>;
+  const heading = <div className="ix-heading"><div><h1>Insight</h1><small>Dihitung di perangkat ini dari catatanmu sendiri</small></div><span className="ix-head-actions"><button type="button" className="ix-rekap-btn" onClick={() => openRekap()}><Sparkles size={16}/> Rekap</button><button type="button" className="ix-icon-btn" onClick={() => setLayoutOpen(true)} aria-label="Atur tampilan Insight" title="Atur tampilan"><LayoutList size={18}/></button></span></div>;
   if (!advice || !v3 || !report) return <div className="insight-page ix-page">{heading}<div className="ix-skeleton" aria-busy="true" aria-label="Menyiapkan Insight"><span className="sk-hero"/><span className="sk-line"/><span className="sk-line short"/><span className="sk-card"/></div></div>;
 
   const hero = heroView(v3), brief = briefView(v3), changes = changesView(v3, changesAll ? 99 : 3), questions = questionsView(v3), highlights = highlightsView(v3);

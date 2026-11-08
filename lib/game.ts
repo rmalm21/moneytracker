@@ -58,6 +58,58 @@ export const BADGES: { days: number; name: string; xp: number }[] = [
   { days: 200, name: 'Dua Ratus Hari', xp: 2000 }, { days: 365, name: 'Setahun Legenda', xp: 3650 },
 ];
 
+// ——— 9.5 More badges (achievements), in four tiers ———
+export type Tier = 'perunggu' | 'perak' | 'emas' | 'legenda';
+export const TIERS: Record<Tier, { name: string; xp: number }> = { perunggu: { name: 'Perunggu', xp: 50 }, perak: { name: 'Perak', xp: 100 }, emas: { name: 'Emas', xp: 250 }, legenda: { name: 'Legenda', xp: 500 } };
+export type GameStats = { missions: number; fullDays: number; challenges: number; checkins: number; scans: number; scanDay: string; quickDays: number; quickDay: string; early: number; late: number; shields: number; comebacks: number; sharedBest: number; weekends: number };
+export const emptyStats = (): GameStats => ({ missions: 0, fullDays: 0, challenges: 0, checkins: 0, scans: 0, scanDay: '', quickDays: 0, quickDay: '', early: 0, late: 0, shields: 0, comebacks: 0, sharedBest: 0, weekends: 0 });
+export type Achievement = { id: string; group: string; name: string; desc: string; emoji: string; tier: Tier; target: number; value: (s: Pick<GameState, 'days' | 'stats'>) => number };
+const ach = (id: string, group: string, name: string, desc: string, emoji: string, tier: Tier, target: number, value: Achievement['value']): Achievement => ({ id, group, name, desc, emoji, tier, target, value });
+const st = (k: keyof GameStats) => (s: Pick<GameState, 'stats'>) => Number(s.stats?.[k] || 0);
+export const ACHIEVEMENTS: Achievement[] = [
+  ach('hari10', 'Rajin', '10 Hari Nyala', 'Total 10 hari apimu nyala, tidak harus berturut-turut', '✏️', 'perunggu', 10, s => s.days.length),
+  ach('hari50', 'Rajin', '50 Hari Nyala', 'Total 50 hari apimu nyala', '📝', 'perak', 50, s => s.days.length),
+  ach('hari100', 'Rajin', '100 Hari Nyala', 'Total 100 hari apimu nyala', '📚', 'emas', 100, s => s.days.length),
+  ach('hari365', 'Rajin', '365 Hari Nyala', 'Total 365 hari apimu nyala', '🎓', 'legenda', 365, s => s.days.length),
+  ach('misi1', 'Misi', 'Misi Pertama', 'Selesaikan 1 misi harian', '🎯', 'perunggu', 1, st('missions')),
+  ach('misi30', 'Misi', 'Pemburu Misi', 'Selesaikan 30 misi harian', '🎯', 'perak', 30, st('missions')),
+  ach('misi100', 'Misi', 'Raja Misi', 'Selesaikan 100 misi harian', '💎', 'emas', 100, st('missions')),
+  ach('tuntas7', 'Misi', 'Tuntas Seminggu', 'Tuntaskan ketiga misi harian di 7 hari', '🎉', 'perak', 7, st('fullDays')),
+  ach('tantang1', 'Tantangan', 'Penantang', 'Menangkan 1 tantangan mingguan', '🏆', 'perunggu', 1, st('challenges')),
+  ach('tantang5', 'Tantangan', 'Jagoan Mingguan', 'Menangkan 5 tantangan mingguan', '🚀', 'perak', 5, st('challenges')),
+  ach('tantang12', 'Tantangan', 'Juara Musim', 'Menangkan 12 tantangan mingguan', '💎', 'emas', 12, st('challenges')),
+  ach('pagi', 'Kebiasaan', 'Burung Pagi', 'Catat transaksi sebelum jam 7 pagi', '☕', 'perunggu', 1, st('early')),
+  ach('malam', 'Kebiasaan', 'Kalong Malam', 'Catat transaksi jam 10 malam ke atas', '🌙', 'perunggu', 1, st('late')),
+  ach('aman7', 'Kebiasaan', 'Hari Hemat', 'Ketuk "Hari ini aman" di 7 hari tanpa transaksi', '✅', 'perak', 7, st('checkins')),
+  ach('scan5', 'Kebiasaan', 'Juru Scan', 'Catat dari scan struk di 5 hari berbeda', '📸', 'perak', 5, st('scans')),
+  ach('otomatis10', 'Kebiasaan', 'Teman Asisten', 'Pakai Catat otomatis atau chat di 10 hari berbeda', '🤖', 'perak', 10, st('quickDays')),
+  ach('weekend4', 'Kebiasaan', 'Akhir Pekan Rajin', 'Nyalakan api Sabtu dan Minggu di 4 minggu', '🎈', 'emas', 4, st('weekends')),
+  ach('perisai', 'Bertahan', 'Diselamatkan Perisai', 'Perisai Api menyelamatkan apimu', '🛡️', 'perunggu', 1, st('shields')),
+  ach('bangkit', 'Bertahan', 'Bangkit Lagi', 'Nyalakan api lagi setelah sempat padam', '🔁', 'perunggu', 1, st('comebacks')),
+  ach('bareng3', 'Bareng', 'Kompak 3 Hari', 'Api bareng di Ruang Bersama nyala 3 hari berturut-turut', '🤝', 'perunggu', 3, st('sharedBest')),
+  ach('bareng7', 'Bareng', 'Seminggu Kompak', 'Api bareng nyala 7 hari berturut-turut', '🤝', 'perak', 7, st('sharedBest')),
+  ach('bareng30', 'Bareng', 'Sebulan Kompak', 'Api bareng nyala 30 hari berturut-turut', '🏠', 'emas', 30, st('sharedBest')),
+];
+/** The streak badges' tiers (for the look). */
+export const streakTier = (days: number): Tier => days >= 200 ? 'legenda' : days >= 50 ? 'emas' : days >= 14 ? 'perak' : 'perunggu';
+export const BADGE_TOTAL = BADGES.length + ACHIEVEMENTS.length;
+/** The groups in the order the Arena shows them. */
+export const BADGE_GROUPS: { id: string; emoji: string; hint: string }[] = [
+  { id: 'Api', emoji: '🔥', hint: 'Api nyala berturut-turut' }, { id: 'Rajin', emoji: '✏️', hint: 'Total hari apimu nyala' },
+  { id: 'Misi', emoji: '🎯', hint: 'Misi harian' }, { id: 'Tantangan', emoji: '🏆', hint: 'Tantangan mingguan' },
+  { id: 'Kebiasaan', emoji: '🌟', hint: 'Cara kamu mencatat' }, { id: 'Bertahan', emoji: '🛡️', hint: 'Jatuh bangun' }, { id: 'Bareng', emoji: '🤝', hint: 'Api bareng di Ruang Bersama' },
+];
+export type BadgeView = { id: string; group: string; name: string; desc: string; emoji: string; tier: Tier; target: number; value: number; got: string | null; xp: number };
+/** Every badge (the streak ones and the rest) with how far the person is, for the Arena. */
+export function badgeList(s: Pick<GameState, 'days' | 'frozen' | 'stats' | 'achievements' | 'badges' | 'best'>, today: string): BadgeView[] {
+  const run = Math.max(s.best, streakOf(s.days, s.frozen, today).current);
+  const api: BadgeView[] = BADGES.map(b => ({ id: `api${b.days}`, group: 'Api', name: b.name, desc: `Api nyala ${b.days} hari berturut-turut`, emoji: '🔥', tier: streakTier(b.days), target: b.days, value: Math.min(run, b.days), got: s.badges.includes(b.days) ? 'ya' : null, xp: b.xp }));
+  const rest: BadgeView[] = ACHIEVEMENTS.map(a => ({ id: a.id, group: a.group, name: a.name, desc: a.desc, emoji: a.emoji, tier: a.tier, target: a.target, value: Math.min(a.target, a.value(s)), got: s.achievements?.[a.id] || null, xp: TIERS[a.tier].xp }));
+  return [...api, ...rest];
+}
+/** The locked badge closest to being reached (for "Hampir dapat"). */
+export const nearestBadge = (list: BadgeView[]) => list.filter(b => !b.got && b.value > 0).sort((a, b) => b.value / b.target - a.value / a.target || a.target - b.target)[0] || null;
+
 // ——— Levels ———
 const TITLES: { name: string; emoji: string }[] = [
   { name: 'Pencatat Pemula', emoji: '🌱' }, { name: 'Pencatat Harian', emoji: '✏️' }, { name: 'Pencatat Rajin', emoji: '📝' },
@@ -85,6 +137,7 @@ export type MissionCtx = {
   /** Recorded from a scanned receipt. */ scan: boolean;
   /** Recorded before 12.00. */ morning: boolean;
   /** A balance matched (Cocokkan saldo / penyesuaian). */ adjust: boolean;
+  /** 9.5 Recorded before 07.00 / at 22.00 or later (for the badges). */ early?: boolean; late?: boolean;
   /** Menus opened today. */ visited: string[];
 };
 export type Mission = { id: string; title: string; hint: string; xp: number; kind: 'record' | 'explore'; target?: number; count?: (c: MissionCtx) => number; done: (c: MissionCtx) => boolean };
@@ -191,6 +244,7 @@ export type GameState = {
   missionDay: string; missionIds: string[]; missionsDone: string[]; missionBonus: boolean;
   week: string; challenge: Challenge | null; challengeDone: boolean; challengeLost: boolean;
   seenLevel: number; lostRun: number; lostDay: string;
+  /** 9.5 Counters for the badges, and the badges unlocked (id → day). */ stats: GameStats; achievements: Record<string, string>;
 };
 export const MAX_SHIELDS = 2, TX_XP = 10, TX_CAP = 5, LIT_XP = 20;
 export type GameEvent =
@@ -205,7 +259,8 @@ export type GameEvent =
   | { kind: 'mission'; id: string; title: string; xp: number }
   | { kind: 'missions-all'; xp: number }
   | { kind: 'challenge'; title: string; xp: number }
-  | { kind: 'xp'; amount: number; reason: string };
+  | { kind: 'xp'; amount: number; reason: string }
+  | { kind: 'achievements'; items: { id: string; name: string; emoji: string; tier: Tier; desc: string; xp: number }[] };
 export type Observation = {
   today: string; hour: number; seed: string;
   /** Where the transactions were seen (the person's uid, or space:{id}) and how many they recorded there today. */
@@ -214,14 +269,15 @@ export type Observation = {
   /** Only the first time: the days they recorded anything before (from their own records). */ history?: string[];
   mission: Omit<MissionCtx, 'created'>;
   /** Only in Pribadi: this week and last week from the records, and the habits to pick a challenge from. */ week?: WeekRaw; lastWeek?: WeekRaw; habits?: Habits;
+  /** 9.5 The longest api bareng streak running now in any of their spaces. */ shared?: number;
 };
-export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '' });
+export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '', stats: emptyStats(), achievements: {} });
 const keep = (list: string[], n: number) => [...new Set(list)].sort().slice(-n);
 
 /** Applies one moment to the state: new lit day, perisai used or earned, XP, badges, level, missions, the challenge. */
 export function advance(previous: GameState | null, o: Observation): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
-  const s: GameState = previous ? { ...emptyState(), ...previous, txCounted: { ...(previous.txCounted || {}) } } : emptyState();
+  const s: GameState = previous ? { ...emptyState(), ...previous, txCounted: { ...(previous.txCounted || {}) }, stats: { ...emptyStats(), ...(previous.stats || {}) }, achievements: { ...(previous.achievements || {}) } } : emptyState();
   const give = (amount: number, reason: string, quiet = false) => { if (amount <= 0) return; s.xp += amount; s.xpToday += amount; if (!quiet) events.push({ kind: 'xp', amount, reason }); };
   if (s.xpDay !== o.today) { s.xpDay = o.today; s.xpToday = 0; }
   // First time: the streak comes from what they recorded before, with an opening bonus and a perisai to start with.
@@ -243,7 +299,7 @@ export function advance(previous: GameState | null, o: Observation): { state: Ga
     const before = streakOf(s.days, s.frozen, addDays(d, 1)).current; // the run that ended on day d
     if (missed.length && before > 0) {
       if (missed.length <= s.shields) {
-        s.shields -= missed.length; s.frozen = keep([...s.frozen, ...missed], 60);
+        s.shields -= missed.length; s.frozen = keep([...s.frozen, ...missed], 60); if (!first) s.stats.shields += missed.length;
         if (!first) events.push({ kind: 'shield-used', days: missed.reverse(), streak: before });
       } else if (s.lostDay !== d) {
         s.lostRun = before; s.lostDay = d;
@@ -263,6 +319,9 @@ export function advance(previous: GameState | null, o: Observation): { state: Ga
     s.days = keep([...s.days, o.today], 400);
     if (checkin) s.checkins = keep([...s.checkins, o.today], 60);
     const st = streakOf(s.days, s.frozen, o.today), bonus = LIT_XP + 2 * Math.min(30, st.current);
+    if (checkin) s.stats.checkins++;
+    if (st.current === 1 && s.lostRun > 0) { s.stats.comebacks++; s.lostRun = 0; }
+    if (new Date(D(o.today)).getUTCDay() === 0 && s.days.includes(prevDay(o.today))) s.stats.weekends++;
     give(bonus, 'Api nyala', true);
     events.push({ kind: 'lit', streak: st.current, xp: bonus + txXp, checkin });
     // A perisai every 7 days in a row (at most 2; a full hand turns into XP).
@@ -274,14 +333,20 @@ export function advance(previous: GameState | null, o: Observation): { state: Ga
     if (st.current > s.best) s.best = st.current;
     for (const b of BADGES) if (s.best >= b.days && !s.badges.includes(b.days)) { s.badges = [...s.badges, b.days]; give(b.xp, `Lencana ${b.name}`, true); events.push({ kind: 'badge', days: b.days, name: b.name, xp: b.xp }); }
   }
+  // Habits for the badges: days with Catat otomatis / scan, an early or late entry, the api bareng streak.
+  if (o.mission.quick && s.stats.quickDay !== o.today) { s.stats.quickDay = o.today; s.stats.quickDays++; }
+  if (o.mission.scan && s.stats.scanDay !== o.today) { s.stats.scanDay = o.today; s.stats.scans++; }
+  if (o.mission.early) s.stats.early = Math.max(1, s.stats.early);
+  if (o.mission.late) s.stats.late = Math.max(1, s.stats.late);
+  if (o.shared && o.shared > s.stats.sharedBest) s.stats.sharedBest = o.shared;
   // Missions of the day.
   if (s.missionDay !== o.today) { s.missionDay = o.today; s.missionIds = missionsFor(o.seed, o.today, o.hour); s.missionsDone = []; s.missionBonus = false; }
   const ctx: MissionCtx = { ...o.mission, created: Object.values(s.txCounted).reduce((n, v) => n + v, 0) };
   for (const id of s.missionIds) {
     const m = missionById(id); if (!m || s.missionsDone.includes(id) || !m.done(ctx)) continue;
-    s.missionsDone = [...s.missionsDone, id]; give(m.xp, m.title, true); events.push({ kind: 'mission', id, title: m.title, xp: m.xp });
+    s.missionsDone = [...s.missionsDone, id]; s.stats.missions++; give(m.xp, m.title, true); events.push({ kind: 'mission', id, title: m.title, xp: m.xp });
   }
-  if (!s.missionBonus && s.missionIds.length && s.missionIds.every(id => s.missionsDone.includes(id))) { s.missionBonus = true; give(MISSION_BONUS, 'Semua misi', true); events.push({ kind: 'missions-all', xp: MISSION_BONUS }); }
+  if (!s.missionBonus && s.missionIds.length && s.missionIds.every(id => s.missionsDone.includes(id))) { s.missionBonus = true; s.stats.fullDays++; give(MISSION_BONUS, 'Semua misi', true); events.push({ kind: 'missions-all', xp: MISSION_BONUS }); }
   // The weekly challenge (only where the person's own records are seen).
   if (o.week && o.habits) {
     const week = mondayOf(o.today);
@@ -289,16 +354,22 @@ export function advance(previous: GameState | null, o: Observation): { state: Ga
       // Last week's challenge that is decided at the end of the week.
       if (s.challenge && s.challenge.endOfWeek && !s.challengeDone && !s.challengeLost && o.lastWeek && s.week === addDays(week, -7)) {
         const p = challengeProgress(s.challenge, weekCtx(s.days, s.week, addDays(s.week, 7), o.lastWeek), true);
-        if (p.won) { give(s.challenge.xp, 'Tantangan minggu lalu', true); events.push({ kind: 'challenge', title: s.challenge.title, xp: s.challenge.xp }); }
+        if (p.won) { s.stats.challenges++; give(s.challenge.xp, 'Tantangan minggu lalu', true); events.push({ kind: 'challenge', title: s.challenge.title, xp: s.challenge.xp }); }
       }
       const dayIndex = daysBetween(week, o.today), litBefore = s.days.filter(d => d >= week && d < o.today).length;
       s.week = week; s.challenge = challengeFor(o.seed, week, o.habits, { dayIndex, litBefore }); s.challengeDone = false; s.challengeLost = false;
     }
     if (s.challenge && !s.challengeDone && !s.challengeLost) {
       const p = challengeProgress(s.challenge, weekCtx(s.days, week, o.today, o.week), false);
-      if (p.won) { s.challengeDone = true; give(s.challenge.xp, 'Tantangan mingguan', true); events.push({ kind: 'challenge', title: s.challenge.title, xp: s.challenge.xp }); }
+      if (p.won) { s.challengeDone = true; s.stats.challenges++; give(s.challenge.xp, 'Tantangan mingguan', true); events.push({ kind: 'challenge', title: s.challenge.title, xp: s.challenge.xp }); }
       else if (p.lost) s.challengeLost = true;
     }
+  }
+  // 9.5 Badges reached now (quietly on the very first look; several at once are told together).
+  const unlocked = ACHIEVEMENTS.filter(a => !s.achievements[a.id] && a.value(s) >= a.target);
+  if (unlocked.length) {
+    for (const a of unlocked) { s.achievements = { ...s.achievements, [a.id]: o.today }; if (!first) give(TIERS[a.tier].xp, `Lencana ${a.name}`, true); }
+    if (!first) events.push({ kind: 'achievements', items: unlocked.map(a => ({ id: a.id, name: a.name, emoji: a.emoji, tier: a.tier, desc: a.desc, xp: TIERS[a.tier].xp })) });
   }
   // Level up (said once per level).
   const lv = levelOf(s.xp);
@@ -307,7 +378,8 @@ export function advance(previous: GameState | null, o: Observation): { state: Ga
 }
 
 // ——— Api bareng (a Ruang Bersama) ———
-/** The space's flame: a day counts when every member's own flame was lit (or saved by a perisai) that day. */
+/** The space's flame: a day counts when every member was lit in that space that day (9.5: recorded there, or tapped
+ * "Hari ini aman" there; their Pribadi flame does not count). */
 export function sharedStreak(memberDays: Record<string, string[]>, memberIds: string[], today: string) {
   const sets = memberIds.map(id => new Set(memberDays[id] || []));
   const all = (d: string) => sets.length > 1 && sets.every(x => x.has(d));
@@ -316,5 +388,8 @@ export function sharedStreak(memberDays: Record<string, string[]>, memberIds: st
   for (let i = 0; i < 4000 && all(d); i++) { current++; d = prevDay(d); }
   return { current, litToday, atRisk: !litToday && current > 0, members: memberIds.map((id, i) => ({ id, litToday: sets[i].has(today) })) };
 }
-/** The days a member shares with their spaces: lit or saved, the last 60. */
+/** The days a member shares with their spaces: lit or saved, the last 60. (Up to 9.4; see spaceDays.) */
 export const sharedDays = (s: Pick<GameState, 'days' | 'frozen'>) => keep([...s.days, ...s.frozen], 60);
+/** 9.5 A member's days in one space: what they had there, plus the days they recorded there and check-ins tapped
+ * there (sorted, no repeats, the last 60). Their Pribadi days never come in here. */
+export const spaceDays = (had: string[], recorded: string[], checkins: string[] = []) => keep([...had, ...recorded, ...checkins].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)), 60);

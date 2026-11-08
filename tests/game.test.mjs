@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advance, addDays, BADGES, challengeFor, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
+import { ACHIEVEMENTS, advance, addDays, BADGE_GROUPS, BADGE_TOTAL, BADGES, badgeList, challengeFor, nearestBadge, spaceDays, TIERS, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
 
 // 9.4 Arena Catat — the recording streak, perisai, badges, XP, missions, weekly challenge, api bareng.
 const T = '2026-11-08'; // a Sunday
@@ -135,4 +135,57 @@ test('9.4 api bareng: a day counts only when every member was lit', () => {
   assert.equal(sharedStreak({ tes, dina: [...dina, T] }, ['tes', 'dina'], T).current, 8);
   assert.equal(sharedStreak({ tes }, ['tes'], T).current, 0); // alone is not "bareng"
   assert.deepEqual(sharedDays({ days: ['2026-11-01'], frozen: ['2026-11-02'] }), ['2026-11-01', '2026-11-02']);
+});
+
+test('9.5 api bareng counts only what is done in that space', () => {
+  // Days recorded in the space and check-ins tapped there; sorted, no repeats, the last 60, only real dates.
+  assert.deepEqual(spaceDays(['2026-11-07'], ['2026-11-08', '2026-11-07'], ['2026-11-06']), ['2026-11-06', '2026-11-07', '2026-11-08']);
+  assert.deepEqual(spaceDays([], [], ['x', '']), []);
+  assert.equal(spaceDays(run('2026-08-01', 70), []).length, 60);
+  // A space check-in does not light the Pribadi flame: only o.checkin (Pribadi) does.
+  const s = { ...emptyState(), days: run('2026-11-01', 7), missionDay: T, missionIds: [] };
+  assert.equal(advance(s, obs()).state.days.includes(T), false);
+  // Recording in a space still lights the Pribadi flame (root of the space, same streak).
+  assert.equal(advance(s, obs({ root: 'space:s1', recordedToday: 1 })).state.days.includes(T), true);
+});
+
+test('9.5 more badges: 30 in four tiers, by group, unlocked once with XP, quiet on the first look', () => {
+  assert.equal(BADGE_TOTAL, 30); assert.equal(ACHIEVEMENTS.length, 22);
+  assert.equal(new Set(ACHIEVEMENTS.map(a => a.id)).size, 22);
+  assert.ok(ACHIEVEMENTS.every(a => BADGE_GROUPS.some(g => g.id === a.group) && TIERS[a.tier]));
+  // The first look gives the badges already earned without a party.
+  const first = advance(null, obs({ history: run('2026-10-20', 20) }));
+  assert.ok(first.state.achievements.hari10); assert.equal(first.events.some(e => e.kind === 'achievements'), false);
+  // First mission done → "Misi Pertama" (+50 XP), told together with others reached at the same moment.
+  const s = { ...emptyState(), days: run('2026-11-01', 7), missionDay: T, missionIds: ['catat2'], missionsDone: [], stats: { ...emptyState().stats } };
+  const r = advance(s, obs({ recordedToday: 2, mission: { ...mission, early: true } }));
+  const ev = r.events.find(e => e.kind === 'achievements');
+  assert.ok(ev, 'badges event'); assert.deepEqual(ev.items.map(x => x.id).sort(), ['misi1', 'pagi']);
+  assert.equal(ev.items.find(x => x.id === 'misi1').xp, 50);
+  assert.ok(r.state.achievements.misi1 === T && r.state.achievements.pagi === T);
+  // Not again.
+  assert.equal(advance(r.state, obs({ recordedToday: 3, mission: { ...mission, early: true } })).events.some(e => e.kind === 'achievements'), false);
+  // Shields used, a comeback, a checkin-day count.
+  const saved = advance({ ...emptyState(), days: run('2026-11-01', 6), shields: 1, missionDay: T, missionIds: [] }, obs({ recordedToday: 1 }));
+  assert.equal(saved.state.stats.shields, 1); assert.ok(saved.state.achievements.perisai);
+  const back = advance({ ...emptyState(), days: ['2026-11-01'], lostRun: 4, lostDay: '2026-11-01', missionDay: T, missionIds: [] }, obs({ checkin: true }));
+  assert.equal(back.state.stats.comebacks, 1); assert.equal(back.state.stats.checkins, 1); assert.ok(back.state.achievements.bangkit);
+  // Api bareng streak counted from the spaces.
+  assert.equal(advance(s, obs({ shared: 7 })).state.stats.sharedBest, 7);
+  // An old 9.4 state (no stats) keeps working.
+  const old = { ...emptyState() }; delete old.stats; delete old.achievements;
+  assert.equal(advance(old, obs({ recordedToday: 1 })).state.stats.missions, 0);
+});
+
+test('9.5 badge list: progress for every badge and the nearest one', () => {
+  const s = { ...emptyState(), days: run('2026-11-01', 8), best: 8, badges: [3, 7], stats: { ...emptyState().stats, missions: 25 }, achievements: { misi1: '2026-11-02' } };
+  const list = badgeList(s, T);
+  assert.equal(list.length, 30);
+  const api14 = list.find(b => b.id === 'api14');
+  assert.deepEqual([api14.value, api14.target, api14.got, api14.tier], [8, 14, null, 'perak']);
+  assert.equal(list.find(b => b.id === 'api7').got, 'ya');
+  assert.equal(list.find(b => b.id === 'misi1').got, '2026-11-02');
+  assert.equal(list.find(b => b.id === 'misi30').value, 25);
+  assert.equal(nearestBadge(list).id, 'misi30'); // 25/30 is the closest
+  assert.equal(list.filter(b => b.group === 'Api').length, BADGES.length);
 });

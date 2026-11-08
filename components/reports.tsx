@@ -4,6 +4,7 @@ import { ChartTooltip } from './chart-tooltip';
 import { ArrowLeftRight, BarChart3, CalendarDays, CalendarRange, Clock3, Layers3, Lightbulb, Banknote, Printer, Receipt, ReceiptText, Scale, ScrollText, Sparkles, Store, Target, TrendingDown, TrendingUp, Wallet as WalletIcon, Wallet2, type LucideIcon } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from './app-provider';
+import { openRekap } from '@/lib/rekap-open';
 import { Empty, Field, Select, categoryOptions } from './fields';
 import { PeriodSelector, usePeriodTransactions } from './period-selector';
 import { CategoryDonut } from './category-donut';
@@ -133,7 +134,7 @@ function PeriodReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
   const notes = data.financialNotes.filter(note => note.date >= pair.range.start && note.date < pair.range.end);
   const filtered = Boolean(pair.wallet || pair.category);
   return <div className="report-page">
-    <div className="page-heading"><div><h1>Laporan keuangan</h1><p>Rangkuman lengkap satu periode: arus kas, kategori, dompet, anggaran, dan posisi keuanganmu.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button><button type="button" className="btn btn-ghost" onClick={() => go('cycles')}><ScrollText size={16}/> Riwayat siklus</button></div></div>
+    <div className="page-heading"><div><h1>Laporan keuangan</h1><p>Rangkuman lengkap satu periode: arus kas, kategori, dompet, anggaran, dan posisi keuanganmu.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary rp-rekap" onClick={() => openRekap()}><Sparkles size={16}/> Rekap</button><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button><button type="button" className="btn btn-ghost" onClick={() => go('cycles')}><ScrollText size={16}/> Riwayat siklus</button></div></div>
     {toggle}
     <PeriodBar pair={pair}/>
     <div className="report-title"><span className="eyebrow ink">LAPORAN PERIODE</span><h2>{periodLabel(pair.range)}</h2><small className="muted">{length} hari · {pair.items.length} transaksi{filtered ? ' · dengan filter' : ''}</small></div>
@@ -353,7 +354,7 @@ function AnnualReport({ navigate, toggle }: { navigate?: (key: string, focus?: s
   const [focusCategory, setFocusCategory] = useState('');
   const trend = focusCategory ? categoryMonths(focusCategory) : null;
   return <div className="report-page">
-    <div className="page-heading"><div><h1>Laporan tahunan</h1><p>Gambaran satu tahun penuh: bulan demi bulan, kategori, dan perbandingan dengan tahun sebelumnya.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button></div></div>
+    <div className="page-heading"><div><h1>Laporan tahunan</h1><p>Gambaran satu tahun penuh: bulan demi bulan, kategori, dan perbandingan dengan tahun sebelumnya.</p></div><div className="heading-actions"><button type="button" className="btn btn-secondary rp-rekap" onClick={() => openRekap(String(year >= thisYear - 1 ? year : thisYear))}><Sparkles size={16}/> Rekap tahunan</button><button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16}/> Cetak / PDF</button></div></div>
     {toggle}
     <div className="panel report-toolbar year-bar"><div className="segmented" role="group" aria-label="Pilih tahun">{[thisYear - 3, thisYear - 2, thisYear - 1, thisYear].map(y => <button type="button" key={y} className={y === year ? 'active' : ''} onClick={() => setYear(y)}>{y}</button>)}</div><small className="muted report-compare">{!previous.loading && !previous.items.length ? `Belum ada data tahun ${year - 1} untuk dibandingkan.` : `Dibanding tahun ${year - 1}${year === thisYear ? ' (tahun berjalan dibanding tahun penuh sebelumnya)' : ''}`}</small>{current.error && <p className="form-error" role="alert">{current.error}</p>}</div>
     {current.loading ? <div className="panel" role="status">Memuat transaksi tahun {year}…</div> : !current.items.length ? <div className="panel"><Empty message={`Belum ada transaksi di tahun ${year}.`}/></div> : <>

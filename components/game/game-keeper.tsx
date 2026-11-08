@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../app-provider';
 import { useNotify } from '../notifications';
 import { transactionExpense } from '@/lib/accounting';
-import { addDays, advance, BADGES, challengeProgress, localDay, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
+import { addDays, advance, BADGES, challengeProgress, localDay, mondayOf, sharedStreak, spaceDays, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 import { celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, useGame, visitedToday } from './game-store';
@@ -28,12 +28,15 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   const since = useRef(0);
   const nav = useRef(navigate); nav.current = navigate;
   const dataRef = useRef(data); dataRef.current = data;
+  const spacesRef = useRef(spaces); spacesRef.current = spaces;
 
   // The game of this person (from the server the first time).
   useEffect(() => {
     remote.current = { state: null, loaded: false }; latest.current = null; setGame({ state: null, ready: false });
     if (!uid) return;
-    return subscribeGameState(uid, state => { remote.current = { state, loaded: true }; latest.current = state; setGame({ state, ready: true }); step(); });
+    // 9.5 The step of now (not the one from when this started): an old one still thought Pribadi was open, so in a
+    // Ruang Bersama every save counted that space's records a second time for Pribadi (XP, missions).
+    return subscribeGameState(uid, state => { remote.current = { state, loaded: true }; latest.current = state; setGame({ state, ready: true }); stepRef.current(); });
   }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** One look at the records now, turned into an observation for the rules. */
@@ -47,10 +50,12 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     const hourOf = (ms: number) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(new Date(ms)));
     const o: Observation = {
       today, hour, seed: uid, root, recordedToday: todays.length, checkin: checkinWanted.current,
+      shared: Math.max(0, ...spacesRef.current.map(sp => { const m = gameNow().shared[sp.id]; return m ? sharedStreak(m, sp.memberIds, today).current : 0; })),
       mission: {
         categorized: flows.every(t => Boolean(t.categoryId || t.splits?.some(l => l.categoryId))),
         withNotes: todays.some(t => Boolean(t.notes?.trim())), quick: todays.some(t => t.origin === 'quick'), scan: todays.some(t => t.origin === 'scan'),
         morning: todays.some(t => { const ms = createdMs(t); return ms ? hourOf(ms) < 12 : false; }), adjust: todays.some(t => t.type === 'adjustment'),
+        early: todays.some(t => { const ms = createdMs(t); return ms ? hourOf(ms) < 7 : false; }), late: todays.some(t => { const ms = createdMs(t); return ms ? hourOf(ms) >= 22 : false; }),
         visited: visitedToday(uid, today),
       },
     };
@@ -94,18 +99,35 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     if (shown.length) celebrate(shown);
   }, [uid, loading, space, tz, observe]);
 
+  // 9.5 This person's api bareng days in the space that is open: the days they recorded there (from the space's own
+  // records) plus "Hari ini aman" tapped there. Their Pribadi records and check-ins do not count for a space.
+  const sharedNow = useGame().shared;
+  const publishSpace = useCallback((spaceId: string, extra: string[] = []) => {
+    if (!uid) return;
+    const current = gameNow().shared[spaceId]; if (current === undefined) return;
+    const mine = current[uid] || [];
+    const fromRecords = space?.id === spaceId ? dataRef.current.transactions.filter(t => t.createdBy === uid).map(t => { const ms = createdMs(t); return ms ? localDay(ms, tz) : ''; }).filter(Boolean) : [];
+    const days = spaceDays(mine, fromRecords, extra);
+    if (days.join(',') !== mine.join(',')) void shareFire(spaceId, uid, name, days).catch(() => {});
+  }, [uid, space?.id, tz, name]);
+  useEffect(() => { if (space) publishSpace(space.id); }, [space?.id, data.transactions, sharedNow[space?.id || ''] === undefined, publishSpace]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stepRef = useRef(step); stepRef.current = step;
   // Look again when the records change, every minute (a new day, the evening), and when asked.
   useEffect(() => { if (!loading && !since.current) since.current = Date.now(); }, [loading]);
   useEffect(() => { step(); }, [step, data.transactions]);
   useEffect(() => { const t = window.setInterval(step, 60_000), late = window.setTimeout(step, 4500); return () => { window.clearInterval(t); window.clearTimeout(late); }; }, [step]);
   useEffect(() => {
-    setGameActions({ checkin: () => { checkinWanted.current = true; step(); } });
+    setGameActions({
+      checkin: () => { checkinWanted.current = true; step(); },
+      checkinSpace: spaceId => { const today = todayInTimeZone(tz); publishSpace(spaceId, [today]); play('mission'); celebrate([{ kind: 'note', title: 'Hari aman tercatat', text: 'Kamu sudah nyala untuk api bareng hari ini' }]); },
+    });
     const onView = (e: Event) => { const view = (e as CustomEvent<string>).detail; if (uid && markVisited(uid, todayInTimeZone(tz), view)) step(); };
     // The menu already open when the keeper starts (it loads a moment after the first screen).
     const current = document.querySelector('main[data-view]')?.getAttribute('data-view');
     if (uid && current && markVisited(uid, todayInTimeZone(tz), current)) step();
     window.addEventListener(VIEW_EVENT, onView); return () => window.removeEventListener(VIEW_EVENT, onView);
-  }, [step, uid, tz]);
+  }, [step, uid, tz, publishSpace]);
 
   // Api bareng: each space's members' days, live; this person's own days shared with every space they are in.
   const spaceIds = spaces.map(s => s.id).join('|');
@@ -114,13 +136,6 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     const stops = spaces.map(s => subscribeSharedFire(s.id, members => setGame(g => ({ shared: { ...g.shared, [s.id]: members } }))));
     return () => stops.forEach(stop => stop());
   }, [uid, spaceIds]); // eslint-disable-line react-hooks/exhaustive-deps
-  const state = useGameStateRef();
-  useEffect(() => {
-    if (!uid || !state || !spaces.length) return;
-    const days = sharedDays(state), sig = days.join(','), shared = gameNow().shared;
-    for (const s of spaces) if ((shared[s.id]?.[uid] || []).join(',') !== sig && shared[s.id] !== undefined) void shareFire(s.id, uid, name, days).catch(() => {});
-  });
-
   // Evening: a flame about to go out (yours, or a space's), said once a day in the bell. Milestones of api bareng.
   useEffect(() => {
     if (!uid) return;
@@ -145,6 +160,3 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   }, [uid, spaceIds, push]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
-
-/** Re-renders the keeper when the saved game changes (to share the days). */
-function useGameStateRef() { return useGame().state; }

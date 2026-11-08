@@ -19,7 +19,6 @@ const chartLoading = () => <div className="chart-skeleton" aria-hidden="true"/>;
 const TrendMiniChart = dynamic(() => import('./trend-mini-chart'), { ssr: false, loading: chartLoading });
 const ForecastWidget = dynamic(() => import('./forecast').then(m => m.ForecastWidget), { ssr: false, loading: () => <div className="panel"><div className="chart-skeleton" aria-hidden="true"/></div> });
 const CategoryDonut = dynamic(() => import('./category-donut').then(m => m.CategoryDonut), { ssr: false, loading: chartLoading });
-const WrappedView = dynamic(() => import('./wrapped').then(m => m.WrappedView), { ssr: false });
 import { budgetCurrent, budgetIconCategoryId, countedBudgets, metrics, rupiah } from '@/lib/accounting';
 import { availableMoney, budgetCommitted, committedAmount, safeDaily, upcomingEvents } from '@/lib/finance-control';
 import { categoryBreakdown, incomeCategoryBreakdown, transactionsForCategory } from '@/lib/category-analytics';
@@ -31,6 +30,7 @@ import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
 import { SpaceHome } from './space-money';
 import { ArenaCard } from './game/arena';
 import { SpaceFire } from './game/space-fire';
+import { openRekap } from '@/lib/rekap-open';
 
 export const dashboardOptions=[
  ['free','Uang Bebas'],['budget','Sisa Anggaran'],['income','Pemasukan'],['expenses','Pengeluaran'],['cashFlow','Selisih Masuk & Keluar'],
@@ -105,10 +105,10 @@ const MONTH_NAMES=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agu
 function RekapBanner({today}:{today:string}){
  const day=Number(today.slice(8,10)),y=Number(today.slice(0,4)),m=Number(today.slice(5,7)),lastKey=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`,label=MONTH_NAMES[Number(lastKey.slice(5,7))-1];
  const storeKey=`dompet-ajaib:rekap-seen:${lastKey}`;
- const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem(storeKey)==='1'}catch{return false}}),[open,setOpen]=useState(false);
- if(day>7||(hidden&&!open))return null;
+ const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem(storeKey)==='1'}catch{return false}});
+ if(day>7||hidden)return null;
  const close=()=>{setHidden(true);try{localStorage.setItem(storeKey,'1')}catch{/* only a convenience */}};
- return <>{!hidden&&<div className="wr-banner"><span><strong>Rekap {label} sudah siap 🎉</strong><small>Ke mana uangmu pergi bulan lalu, dalam beberapa geser.</small></span><button type="button" className="wr-open" onClick={()=>{setOpen(true);close()}}>Lihat</button><button type="button" className="wr-x" aria-label="Tutup" onClick={close}><X size={15}/></button></div>}{open&&<WrappedView initial={lastKey} onClose={()=>setOpen(false)}/>}</>;
+ return <div className="wr-banner"><span><strong>Rekap {label} sudah siap 🎉</strong><small>Ke mana uangmu pergi bulan lalu, dalam beberapa geser.</small></span><button type="button" className="wr-open" onClick={()=>{openRekap(lastKey);close()}}>Lihat</button><button type="button" className="wr-x" aria-label="Tutup" onClick={close}><X size={15}/></button></div>;
 }
 export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;navigate:(view:string,focus?:string)=>void;notify:(message:string)=>void}){
  const {data,profile,cycle,user,space}=useApp();// Every card starts open; a card the user folds stays folded until the page is opened again.
@@ -171,7 +171,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
   return <AnalyticsWidget id={id as 'topCategories'|'categoryDonut'|'expenseTrend'} navigate={navigate} defaultPeriod={period} open/>;
  }
  return <div className="home-dash"><section className="home-hero hh" aria-label="Ringkasan uang"><span className="home-hero-glow" aria-hidden="true"/>
-  <div className="hh-top"><span className="hh-avatar" aria-hidden="true">{(profile?.displayName||profile?.username||'T').trim().charAt(0).toUpperCase()}</span><span className="hh-hello"><strong>Halo, {profile?.displayName||profile?.username||'teman'} <Emoji e="👋"/></strong><small>{day.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'})}</small></span><button type="button" className={`home-hero-edit ${customize?'active':''}`} aria-pressed={customize} aria-label={customize?'Selesai mengatur Beranda':'Atur Beranda'} title={customize?'Selesai':'Atur Beranda'} onClick={()=>{setCustomize(x=>!x);setPicker(false)}}>{customize?<><X size={16}/> Selesai</>:<Settings2 size={17}/>}</button></div>
+  <div className="hh-top"><span className="hh-avatar" aria-hidden="true">{(profile?.displayName||profile?.username||'T').trim().charAt(0).toUpperCase()}</span><span className="hh-hello"><strong>Halo, {profile?.displayName||profile?.username||'teman'} <Emoji e="👋"/></strong><small>{day.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'})}</small></span>{!customize&&<button type="button" className="home-hero-rekap" onClick={()=>openRekap()} aria-label="Buka Rekap" title="Rekap"><Sparkles size={15}/><span>Rekap</span></button>}<button type="button" className={`home-hero-edit ${customize?'active':''}`} aria-pressed={customize} aria-label={customize?'Selesai mengatur Beranda':'Atur Beranda'} title={customize?'Selesai':'Atur Beranda'} onClick={()=>{setCustomize(x=>!x);setPicker(false)}}>{customize?<><X size={16}/> Selesai</>:<Settings2 size={17}/>}</button></div>
   <div className="hh-main"><div className="hh-figure"><small>{label(heroId)}</small><button type="button" className="home-hero-amount" onClick={()=>{const target=cardTarget[heroId];if(target)navigate(target[0],target[1])}}>{rupiah(amount[heroId]||0)}</button>{compare[heroId]&&<div className="home-hero-delta"><Delta current={amount[heroId]||0} previous={compare[heroId]![0]} good={compare[heroId]![1]} basis={compare[heroId]![2]}/></div>}</div>
    <div className="hh-payday" role="progressbar" aria-label={`Siklus gaji berjalan, gajian ${formatDate(cycle.end)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={cyclePct} style={{'--pct':`${cyclePct}%`} as React.CSSProperties}><span className="hh-ring" aria-hidden="true"/><span className="hh-days"><strong>{cycle.daysRemaining}</strong><small>hari</small></span><small className="hh-payday-label"><CalendarDays size={12}/> {formatDate(cycle.end)}</small></div></div>
   <div className="home-hero-chips">{heroId!=='netWorth'&&<button type="button" onClick={()=>navigate('wallets')}><span>Aset bersih</span><b>{rupiah(stat.netWorth)}</b></button>}{heroId!=='reserved'&&<button type="button" onClick={()=>navigate('wallets')}><span>Disimpan</span><b>{rupiah(stat.reserved)}</b></button>}</div>

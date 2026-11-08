@@ -7,6 +7,8 @@ import { Select } from './fields';
 import { buildWrapped, defaultPeriod, periodChoices, periodOf, previousOf, type Wrapped } from '@/lib/wrapped';
 import { formatDate } from '@/lib/period';
 import { featureUsed } from './feature-tips-events';
+import { play, playRekap } from '@/lib/game-sound';
+import { confetti } from './game/confetti';
 
 /**
  * 8.5 Rekap: a month or a year told in a few slides (swipe or tap the sides), with "Sembunyikan nominal" (shares and
@@ -96,7 +98,12 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   const today = new Date().toLocaleDateString('en-CA');
   const choices = useMemo(() => periodChoices(today), [today]);
   // The fonts start loading when the recap opens, so "Bagikan" does not have to wait for them.
-  useEffect(() => { featureUsed('home_rekap'); void appFonts().ready; }, []);
+  // 9.5 A sound as it opens (Drumroll, Kilau ajaib or Whoosh boom: Pengaturan → Tampilan) and a burst of confetti.
+  useEffect(() => {
+    featureUsed('home_rekap'); void appFonts().ready; playRekap();
+    const t = window.setTimeout(() => confetti({ count: 90, spread: .9, origin: { x: .5, y: .35 } }), 650);
+    return () => window.clearTimeout(t);
+  }, []);
   const [key, setKey] = useState(() => initial || (() => { const p = defaultPeriod(today); return p.kind === 'year' ? p.start.slice(0, 4) : p.start.slice(0, 7); })());
   const period = periodOf(key), prev = previousOf(period);
   const now = usePeriodTransactions({ start: period.start, end: period.end }), before = usePeriodTransactions({ start: prev.start, end: prev.end });
@@ -107,6 +114,12 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   const track = useRef<HTMLDivElement>(null);
   useEffect(() => { setIndex(0); track.current?.scrollTo({ left: 0 }); }, [key]);
   const go = (i: number) => { const n = Math.max(0, Math.min(slides.length - 1, i)); setIndex(n); const el = track.current; if (el) el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' }); };
+  // Each slide arrives with a little sound; the last one with confetti.
+  const shown = useRef(0);
+  useEffect(() => {
+    if (index === shown.current) return; shown.current = index;
+    if (index === slides.length - 1 && slides.length > 2) { play('level'); confetti({ count: 140, origin: { x: .5, y: .4 } }); } else play('step');
+  }, [index, slides.length]);
   async function share() {
     setStatus('');
     try {
@@ -121,6 +134,7 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   }
   const loading = now.loading || before.loading;
   return <div className="wr-overlay" role="dialog" aria-modal="true" aria-label={`Rekap ${period.label}`}>
+    <div className="wr-intro" aria-hidden="true"><span className="wr-intro-burst"/><span className="wr-intro-word">Rekap</span></div>
     <div className="wr-shell">
       <div className="wr-top">
         <div className="wr-dots" aria-hidden="true">{slides.map((s, i) => <i key={s.key} className={i <= index ? 'on' : ''}/>)}</div>
@@ -131,7 +145,7 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
         </div>
       </div>
       <div className="wr-track" ref={track} onScroll={e => { const el = e.currentTarget; const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth)); if (i !== index) setIndex(i); }} aria-busy={loading}>
-        {slides.map((s, i) => <section key={s.key} className={`wr-slide is-${s.key} ${s.tone ? `tone-${s.tone}` : ''}`} aria-hidden={i !== index}>
+        {slides.map((s, i) => <section key={s.key} className={`wr-slide is-${s.key} ${s.tone ? `tone-${s.tone}` : ''} ${i === index ? 'is-on' : ''}`} aria-hidden={i !== index}>
           <small className="wr-kicker">{s.kicker}</small>
           <strong className="wr-big">{loading && i > 0 ? '…' : s.big}</strong>
           {s.line && <p className="wr-line">{s.line}</p>}

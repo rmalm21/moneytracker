@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.5', date: '9 Nov 2026', title: 'Arena Catat makin keren', items: [
+    ['🏅', 'Lencana diperkaya jadi 30, dalam 4 tingkat (Perunggu, Perak, Emas, Legenda) dan 7 kelompok: Api, Rajin, Misi, Tantangan, Kebiasaan, Bertahan, dan Bareng. Ketuk lencana buat lihat syarat dan kemajuannya, ada juga "Hampir dapat" untuk lencana yang paling dekat.'],
+    ['💡', 'Cara main jadi 7 langkah yang bisa digeser, masing-masing dengan animasi kecil, lalu ditutup tombol "Siap main!".'],
+    ['🤝', 'Api bareng sekarang terpisah dari api Pribadi: dihitung dari catatan dan cek-in di ruang itu saja. "Hari ini aman" di Ruang Bersama cuma menyalakan api bareng, bukan api Pribadi. Mencatat di ruang tetap ikut menyalakan api Pribadimu.'],
+    ['✨', 'Rekap bisa dibuka dari mana saja: tombol bintang di atas, tombol Rekap di Beranda, Laporan keuangan, Laporan tahunan, dan Insight. Rekap dibuka dengan suara: Drumroll, Kilau ajaib, atau Whoosh boom, pilih di Pengaturan → Tampilan (atau biarkan gantian).'],
+    ['🎉', 'Lebih banyak suara dan animasi: ketuk apinya biar meletup, perayaan lencana dengan medali berputar, suara saat buka Arena, kecilkan kartu, colek teman, dan ganti slide Rekap.'],
+    ['🔥', 'Kartu Arena dan Api bareng bisa dikecilkan jadi satu baris (tampilan mini) lewat tombol panah di pojok. Pilihannya diingat di HP ini.'],
+    ['🎨', 'Tampilan baru: latar aurora yang bergerak, rantai api yang menyambung hari-hari nyala, angka streak dan cincin level berwarna emas, misi dengan bar kemajuan, dan jalur level di panel Arena.'],
+    ['🔧', 'Perbaikan: tombol "Hari ini aman" di Api bareng tidak lagi menimpa nama, dan catatan di Ruang Bersama tidak lagi terhitung dua kali untuk XP dan misi.'],
+  ] },
   { version: '9.4', date: '8 Nov 2026', title: 'Arena Catat: mencatat jadi game', items: [
     ['🔥', 'Streak api di Beranda. Api nyala kalau hari itu kamu mencatat minimal 1 transaksi, atau ketuk "Hari ini aman" kalau memang nggak ada transaksi. Makin lama makin besar dan berubah warna, dari Percikan sampai Api Legenda. Streak awal dihitung dari catatanmu selama ini.'],
     ['🛡️', 'Perisai Api: dapat 1 tiap 7 hari berturut-turut (maksimal 2). Kalau lupa mencatat, perisai otomatis dipakai dan apimu selamat. Malam hari lonceng mengingatkan kalau api belum nyala.'],
