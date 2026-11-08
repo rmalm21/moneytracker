@@ -29,6 +29,8 @@ import { dateInTimeZone, formatDate, previousComparableRange, groupTransactions,
 import type { LedgerTx } from '@/lib/types';
 import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
 import { SpaceHome } from './space-money';
+import { ArenaCard } from './game/arena';
+import { SpaceFire } from './game/space-fire';
 
 export const dashboardOptions=[
  ['free','Uang Bebas'],['budget','Sisa Anggaran'],['income','Pemasukan'],['expenses','Pengeluaran'],['cashFlow','Selisih Masuk & Keluar'],
@@ -174,7 +176,7 @@ export function Dashboard({openTx,navigate,notify}:{openTx:(preset?:Partial<Ledg
    <div className="hh-payday" role="progressbar" aria-label={`Siklus gaji berjalan, gajian ${formatDate(cycle.end)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={cyclePct} style={{'--pct':`${cyclePct}%`} as React.CSSProperties}><span className="hh-ring" aria-hidden="true"/><span className="hh-days"><strong>{cycle.daysRemaining}</strong><small>hari</small></span><small className="hh-payday-label"><CalendarDays size={12}/> {formatDate(cycle.end)}</small></div></div>
   <div className="home-hero-chips">{heroId!=='netWorth'&&<button type="button" onClick={()=>navigate('wallets')}><span>Aset bersih</span><b>{rupiah(stat.netWorth)}</b></button>}{heroId!=='reserved'&&<button type="button" onClick={()=>navigate('wallets')}><span>Disimpan</span><b>{rupiah(stat.reserved)}</b></button>}</div>
  </section>
- {!customize&&space&&<SpaceHome/>}{!customize&&!space&&<RekapBanner today={today}/>}{!customize&&<FeatureTips menu="home" navigate={navigate}/>}
+ {!customize&&space&&<SpaceHome/>}{!customize&&space&&<SpaceFire/>}{!customize&&!space&&<ArenaCard/>}{!customize&&!space&&<RekapBanner today={today}/>}{!customize&&<FeatureTips menu="home" navigate={navigate}/>}
  {customize&&<div className="dashboard-toolbar"><Button className="small" variant="secondary" onClick={()=>setPicker(x=>!x)}>+ Tambah kartu</Button><button type="button" className="link-button" onClick={()=>layout([...defaultLayout])}>Atur ulang</button></div>}
  {customize&&picker&&<WidgetPicker selected={selected} label={label} onAdd={id=>layout([...selected,id])} onClose={()=>setPicker(false)}/>}
  {error&&<p className="form-error" role="alert">{error}</p>}<details className="panel dashboard-period"><summary><span>Periode: <strong>{periodLabel(range)}</strong></span></summary><PeriodSelector value={period} onChange={setPeriod} custom={profile?.dashboardCustom} onCustomChange={setCustom}/>{history.error&&<p role="alert" className="form-error">{history.error}</p>}</details>

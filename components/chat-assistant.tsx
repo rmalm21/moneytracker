@@ -52,7 +52,7 @@ const plainText = (m: ChatMessage) => m.role === 'user' ? m.text : [m.text, m.re
 
 /** The assistant's mark: a speech bubble with a spark, drawn for the round button. */
 
-export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = 'bot' }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean; /** 9.2 Opened for the group (unread messages, or from the bell). */ startTab?: 'bot' | 'group' }) {
+export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = 'bot', startDraft = '' }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean; /** 9.2 Opened for the group (unread messages, or from the bell). */ startTab?: 'bot' | 'group'; /** 9.4 A message ready to send in the group ("Colek"). */ startDraft?: string }) {
   // 9.1 In a Ruang Bersama the chat has its own history (keyed by the space); the chosen look stays the person's own.
   const { user, account, data, profile, cycle, space } = useApp();
   const [open, setOpen] = useState(startOpen);
@@ -216,7 +216,8 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     return { text: ours(r.text), ...(r.title ? { title: r.title } : {}), ...(r.hero ? { hero: { label: r.hero.label, value: r.hero.value } } : {}), lines: [...(r.stats || []), ...(r.lines || [])].slice(0, 6).map(l => ({ label: l.label, value: l.value })) };
   }, [chatCtx, quick, profile?.timeZone]);
   const groupOn = Boolean(space) && tab === 'group';
-  useEffect(() => { const on = () => { setTab('group'); setOpen(true); }; window.addEventListener(OPEN_GROUP, on); return () => window.removeEventListener(OPEN_GROUP, on); }, []);
+  const [groupDraft, setGroupDraft] = useState({ text: startDraft, n: startDraft ? 1 : 0 });
+  useEffect(() => { const on = (e: Event) => { const draft = (e as CustomEvent<{ draft?: string }>).detail?.draft || ''; setTab('group'); setOpen(true); if (draft) setGroupDraft(d => ({ text: draft, n: d.n + 1 })); }; window.addEventListener(OPEN_GROUP, on); return () => window.removeEventListener(OPEN_GROUP, on); }, []);
   const style = settings.style;
   const keepLabel = KEEP_OPTIONS.find(k => k.days === settings.keepDays)?.label || '7 hari';
   const learnedCount = Object.keys(settings.learned).length;
@@ -250,7 +251,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
           <button type="button" role="tab" aria-selected={!groupOn} className={!groupOn ? 'on' : ''} onClick={() => setTab('bot')}><ChatMark size={12}/> Asisten</button>
           <button type="button" role="tab" aria-selected={groupOn} className={groupOn ? 'on' : ''} onClick={() => { setSheet(null); setTab('group'); }}>Grup {space.name}{group.unread > 0 && !groupOn && <span className="chat-tab-badge">{group.unread > 9 ? '9+' : group.unread}</span>}</button>
         </div>}
-        {groupOn ? <GroupChat list={group.list} reads={group.reads} read={group.read} ask={askGroup} onOpenTx={t => { setOpen(false); const next = new Date(`${t.date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${t.id}@${t.date}..${next.toLocaleDateString('en-CA')}`); }}/> : <>
+        {groupOn ? <GroupChat key={`gc-${groupDraft.n}`} seed={groupDraft.text} list={group.list} reads={group.reads} read={group.read} ask={askGroup} onOpenTx={t => { setOpen(false); const next = new Date(`${t.date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${t.id}@${t.date}..${next.toLocaleDateString('en-CA')}`); }}/> : <>
         {!picked && <FeatureTips menu="chat" className="ft-in-chat"/>}
         <div className={`chat-list ${picked ? 'is-picking' : ''}`} ref={listRef} aria-live="polite" onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
           {more && <button type="button" className="chat-more" onClick={() => setShown(n => n + PAGE)}><ChevronUp size={14}/> Muat lebih banyak <small>({hidden} pesan lagi)</small></button>}

@@ -118,10 +118,10 @@ function GroupRow({ m, me, run, armed, seen, readers, others, names, onArm, onRe
   </div>;
 }
 
-export function GroupChat({ list, reads, read, ask, onOpenTx }: { list: GroupMessage[]; reads: Record<string, number>; read: () => void; ask: (question: string) => Promise<GroupAnswer | null>; onOpenTx: (tx: { id: string; date: string }) => void }) {
+export function GroupChat({ list, reads, read, ask, onOpenTx, seed = '' }: { list: GroupMessage[]; reads: Record<string, number>; read: () => void; ask: (question: string) => Promise<GroupAnswer | null>; onOpenTx: (tx: { id: string; date: string }) => void; /** 9.4 A message ready to send ("Colek"). */ seed?: string }) {
   const { space, data } = useApp();
   const me = useMe();
-  const [draft, setDraft] = useState(''), [caret, setCaret] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState(''), [note, setNote] = useState('');
+  const [draft, setDraft] = useState(seed), [caret, setCaret] = useState(seed.length), [busy, setBusy] = useState(false), [error, setError] = useState(''), [note, setNote] = useState('');
   const [sharing, setSharing] = useState(false), [armed, setArmed] = useState(''), [reply, setReply] = useState<GroupMessage | null>(null), [pick, setPick] = useState(0), [hideSugg, setHideSugg] = useState(false);
   const listRef = useRef<HTMLDivElement>(null), inputRef = useRef<HTMLTextAreaElement>(null), stick = useRef(true);
   useEffect(() => { if (!space) return; setViewingGroup(space.id); void tidyGroup(space.id); return () => setViewingGroup(''); }, [space?.id]);

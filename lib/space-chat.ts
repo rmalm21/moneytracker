@@ -88,4 +88,5 @@ export async function markReadForAll(spaceId: string, me: Me) {
 
 /** Opens the chat on a space's group (from the bell). */
 export const OPEN_GROUP = 'dompet-ajaib:open-group';
-export function openGroup() { try { window.dispatchEvent(new Event(OPEN_GROUP)); } catch { /* not in a browser */ } }
+/** Opens the group (from the bell), optionally with a message ready to send (9.4: "Colek"); the person sends it. */
+export function openGroup(draft = '') { try { window.dispatchEvent(new CustomEvent(OPEN_GROUP, { detail: { draft } })); } catch { /* not in a browser */ } }

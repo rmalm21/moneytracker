@@ -197,8 +197,17 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['at', 'name']) && request.resource.data.at == request.time;
         allow delete: if memberOf(spaceId) && (request.auth.uid == uid || space(spaceId).data.memberIds == [request.auth.uid]);
       }
+      // 9.4 Api bareng: each member's own lit days (for the space's flame), written only by that member.
+      match /streak/{uid} {
+        allow read: if memberOf(spaceId);
+        allow create, update: if memberOf(spaceId) && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['days', 'name', 'at'])
+          && request.resource.data.days is list && request.resource.data.days.size() <= 62
+          && request.resource.data.at == request.time;
+        allow delete: if memberOf(spaceId) && (request.auth.uid == uid || space(spaceId).data.memberIds == [request.auth.uid]);
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads']);
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads', 'streak']);
       }
     }
     // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which

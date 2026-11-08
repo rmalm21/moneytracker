@@ -133,6 +133,13 @@ await expect('Ana melihat siapa yang sudah membaca', true, () => getDocs(collect
 await expect('Ana menandai Budi sudah membaca', false, () => setDoc(readDoc(A, B.uid), { at: serverTimestamp(), name: 'budi' }));
 await expect('waktu baca dari HP sendiri (bukan waktu server)', false, () => setDoc(readDoc(A, A.uid), { at: new Date(2030, 0, 1), name: 'ana' }));
 await expect('bukan anggota melihat siapa yang membaca', false, () => getDocs(collection(C.db, 'spaces', S, 'reads')));
+const fire = (who, uid) => doc(who.db, 'spaces', S, 'streak', uid);
+await expect('Budi membagikan hari api-nya', true, () => setDoc(fire(B, B.uid), { days: ['2026-11-07', '2026-11-08'], name: 'budi', at: serverTimestamp() }));
+await expect('Ana melihat api bareng', true, () => getDocs(collection(A.db, 'spaces', S, 'streak')));
+await expect('Ana mengisi hari api Budi', false, () => setDoc(fire(A, B.uid), { days: ['2026-11-08'], name: 'budi', at: serverTimestamp() }));
+await expect('hari api terlalu banyak', false, () => setDoc(fire(A, A.uid), { days: Array.from({ length: 63 }, (_, i) => `d${i}`), name: 'ana', at: serverTimestamp() }));
+await expect('isian api tak dikenal', false, () => setDoc(fire(A, A.uid), { days: [], name: 'ana', at: serverTimestamp(), xp: 999 }));
+await expect('bukan anggota melihat api bareng', false, () => getDocs(collection(C.db, 'spaces', S, 'streak')));
 await expect('Budi kirim pesan lagi', true, () => setDoc(msg(B, 'm6'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'oke' }));
 
 console.log('\nMaksimal 5 anggota');
@@ -157,6 +164,7 @@ await expect('Budi keluar', true, () => leave(B, S, [A.uid]));
 await expect('Ana (anggota terakhir) keluar tanpa menghapus', false, () => updateDoc(sref(A), { memberIds: [], members: {} }));
 await expect('Ana (anggota terakhir) menghapus pesan Budi', true, () => deleteDoc(msg(A, 'm6')));
 await expect('Ana (anggota terakhir) menghapus tanda baca Budi', true, () => deleteDoc(readDoc(A, B.uid)));
+await expect('Ana (anggota terakhir) menghapus api Budi', true, () => deleteDoc(fire(A, B.uid)));
 await expect('Ana menghapus balasannya', true, () => deleteDoc(msg(A, 'm7')));
 await expect('Ana menghapus isi ruang', true, async () => { for (const id of ['t1', 't2']) await deleteDoc(tx(A, id)); await deleteDoc(doc(A.db, 'spaces', S, 'activity', 'a1')); await deleteDoc(doc(A.db, 'spaces', S, 'messages', 'm5')); });
 await expect('Ana (anggota terakhir) menghapus ruang', true, () => deleteDoc(sref(A)));

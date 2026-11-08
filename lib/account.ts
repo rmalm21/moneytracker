@@ -1,4 +1,4 @@
-import { collection, deleteDoc, deleteField, getDocs, limit, query, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDocs, limit, query, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, signOut, type User } from 'firebase/auth';
 import { signedInRecently } from './auth';
 import { auth, db } from './firebase';
@@ -30,6 +30,8 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
       if (snap.size < 400) break;
     }
   }
+  // 9.4 Arena Catat (streak, XP, missions) starts over too.
+  await deleteDoc(doc(db, 'users', uid, 'game', 'state')).catch(() => {});
   // Delete notes live in their own collection; a subcollection stays in Firestore unless its documents are deleted.
   for (let page = 0; page < 2000; page++) {
     const snap = await getDocs(query(collection(db, 'users', uid, 'deletions'), limit(400)));

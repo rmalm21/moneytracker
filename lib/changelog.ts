@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.4', date: '8 Nov 2026', title: 'Arena Catat: mencatat jadi game', items: [
+    ['🔥', 'Streak api di Beranda. Api nyala kalau hari itu kamu mencatat minimal 1 transaksi, atau ketuk "Hari ini aman" kalau memang nggak ada transaksi. Makin lama makin besar dan berubah warna, dari Percikan sampai Api Legenda. Streak awal dihitung dari catatanmu selama ini.'],
+    ['🛡️', 'Perisai Api: dapat 1 tiap 7 hari berturut-turut (maksimal 2). Kalau lupa mencatat, perisai otomatis dipakai dan apimu selamat. Malam hari lonceng mengingatkan kalau api belum nyala.'],
+    ['🎯', '3 misi harian dan 1 tantangan mingguan yang dipilih dari kebiasaanmu sendiri, misalnya catat 2 transaksi, coba Catat otomatis, 2 hari tanpa pengeluaran, atau maksimal 4× ngopi seminggu.'],
+    ['🏆', 'XP dan level bergelar, dari Pencatat Pemula sampai Legenda Keuangan, plus lencana di 3, 7, 14, 30, 50, 100, 200, dan 365 hari. Tiap momen dirayakan dengan konfeti, suara, dan getar (bisa dimatikan di Pengaturan → Tampilan).'],
+    ['🤝', 'Api bareng di Ruang Bersama: nyala kalau semua anggota menyalakan apinya hari itu. Kelihatan siapa yang belum, dan ada tombol Colek untuk mengingatkan lewat chat grup.'],
+  ] },
   { version: '9.3.1', date: '8 Nov 2026', title: 'Gambar rekap pakai font aplikasi', items: [
     ['🎨', 'Gambar Rekap yang dibagikan sekarang memakai font yang sama dengan aplikasi (termasuk font pilihanmu di Pengaturan → Tampilan), tidak lagi berubah jadi font biasa seperti Arial.'],
   ] },
