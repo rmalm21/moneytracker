@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>bench</title><pre id="log">…</pre>
+<script type="importmap">{"imports":{"onnxruntime-web/webgpu":"/ort/ort.webgpu.bundle.min.mjs","onnxruntime-common":"/ortc/index.js"}}</script>
+<script type="module">
+import { AutoModel, AutoTokenizer, env } from './transformers.web.js';
+const log = s => { document.getElementById('log').textContent += '\n' + s; };
+env.allowRemoteModels = false; env.allowLocalModels = true; env.localModelPath = '/models/'; env.useBrowserCache = false;
+env.backends.onnx.wasm.wasmPaths = '/ort/';
+env.backends.onnx.wasm.numThreads = Number(new URLSearchParams(location.search).get('threads') || 4);
+const P = 'task: sentence similarity | query: ';
+const lines = ['Nasi uduk Mpok Ijah', 'TRSF E-BANKING DB QRIS KOPI', 'Beli bensin full tank', 'Tagihan listrik pascabayar', 'Ongkir paket dari marketplace', 'Pijat refleksi', 'Royalti buku', 'Ayam geprek level 5', 'Sewa lapangan futsal', 'Biaya admin bulanan'];
+try {
+  log('isolated ' + crossOriginIsolated + ' threads ' + env.backends.onnx.wasm.numThreads);
+  let t = performance.now();
+  const tok = await AutoTokenizer.from_pretrained('gemma-trim');
+  const model = await AutoModel.from_pretrained('gemma-trim', { dtype: 'q4', device: 'wasm', use_external_data_format: true });
+  log('load ms ' + Math.round(performance.now() - t));
+  const one = async s => { const x = await tok([P + s], { padding: true }); const o = await model(x); return o.sentence_embedding; };
+  t = performance.now(); await one(lines[0]); log('first line ms ' + Math.round(performance.now() - t));
+  t = performance.now(); for (const s of lines) await one(s); log('per line ms ' + Math.round((performance.now() - t) / lines.length));
+  const many = Array.from({ length: 50 }, (_, i) => P + lines[i % lines.length] + ' ' + i);
+  t = performance.now(); const xb = await tok(many, { padding: true }); const ob = await model(xb); log('batch of 50 ms ' + Math.round(performance.now() - t) + ' dims ' + ob.sentence_embedding.dims);
+  log('DONE');
+} catch (e) { log('ERR ' + e.message); log('DONE'); }
+</script>

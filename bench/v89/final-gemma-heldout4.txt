@@ -1,0 +1,19 @@
+gemma gemma-trim onnx/model_q4.onnx: 976 examples in 8.8s
+  heldout4 (83, 13.9 ms/line) rules: right 69 wrong 3 none 11
+    th 0.020 | alone used 63 right 55 wrong 8 | fallback right 73 wrong 6 none 4 | flag rules-wrong 1/3 rules-right 6/69 | override right 69 wrong 10
+    th 0.080 | alone used 39 right 37 wrong 2 | fallback right 71 wrong 4 none 8 | flag rules-wrong 0/3 rules-right 2/69 | override right 70 wrong 5
+    partner fallback>=0.02 override>=0.08: right 72 wrong 7 none 4
+      [none] Brunch with friends rules=None model=Makan & Minum/Sarapan 0.009 near=[('breakfast', 0.739), ('nongkrong', 0.73), ('hangout', 0.729)]
+      [none] Beli tahu tempe di warung rules=None model=Makan & Minum/Restoran 0.069 near=[('warung tegal', 0.782), ('warung makan', 0.76), ('Beli Sayur Pasar', 0.743)]
+      [none] Warung Sunda Ceu Ena rules=None model=Makan & Minum/Restoran 0.115 near=[('warung makan', 0.808), ('warung nasi', 0.79), ('warung tegal', 0.775)]
+      [none] Ongkos angkutan desa rules=None model=Transportasi 0.029 near=[('transportasi', 0.834), ('transportasi umum', 0.815), ('angkutan umum', 0.807)]
+      [wrong] Sprei dan sarung bantal rules=Belanja/Pakaian model=Rumah & Kebutuhan/Kebersihan 0.068 near=[('kain pel', 0.848), ('pembalut', 0.824), ('perlengkapan kamar', 0.811)]
+      [none] Cloud backup foto rules=None model=Langganan/Cloud Storage 0.055 near=[('cloud storage', 0.859), ('icloud', 0.811), ('cloud', 0.806)]
+      [none] Password manager yearly plan rules=None model=Biaya Keuangan/Biaya Kartu 0.067 near=[('annual fee', 0.698), ('bulanan', 0.631), ('iuran tahunan kartu', 0.629)]
+      [none] Sewa PS per jam rules=None model=Langganan/Berita / Konten 0.009 near=[('tempo', 0.764), ('pulsa', 0.754), ('sewa', 0.728)]
+      [none] Kolam pemancingan rules=None model=Nongkrong & Hiburan/Tiket Hiburan -0.017 near=[('ikan segar', 0.763), ('taman bermain', 0.746), ('pelita air', 0.733)]
+      [wrong] Cek gula darah rules=Makan & Minum/Bahan Makanan model=Kesehatan/Dokter -0.001 near=[('gula', 0.721), ('periksa', 0.72), ('medical check up', 0.715)]
+      [none] Manicure pedicure rules=None model=Personal/Skincare 0.015 near=[('skin care', 0.778), ('cukur', 0.777), ('grooming', 0.773)]
+      [none] Kartu nama rules=None model=Biaya Keuangan/Biaya Kartu 0.083 near=[('iuran kartu', 0.849), ('biaya kartu', 0.774), ('jasa marga', 0.766)]
+      [wrong] Biaya materai elektronik rules=Belanja/Gadget model=Biaya Keuangan/Biaya Kartu -0.080 near=[('elektronik', 0.882), ('biaya', 0.803), ('biaya keuangan', 0.78)]
+      [none] Hasil panen dijual rules=None model=Penghasilan Tambahan/Penjualan 0.102 near=[('hasil jual', 0.854), ('jualan', 0.833), ('Jualan di marketplace', 0.806)]

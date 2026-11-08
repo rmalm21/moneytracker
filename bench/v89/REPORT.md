@@ -31,3 +31,62 @@ What this says, honestly:
   after this run would be post-hoc for this set.
 
 Decision: not shipped.
+
+## Round 2: a better model, a vocabulary cut to Indonesian + English, and the model next to the rules
+
+heldout3 (above) was used from here on **to choose** (models, thresholds, how to combine); it is no longer a measurement.
+`import-cat-heldout4.json` (83 lines, a mix of lines the rules may not know and ordinary ones) was written and committed
+(e0064cc) before any second-round model was run, and run once at the end with the frozen setup.
+Tools: `tools/export.mjs` (rule words + bench lines with the rules' guesses), `tools/pyeval.py` (scoring),
+`tools/trim_gemma.py`, `tools/degbq.py`, `tools/verify_trim.py`, `tools/distill.py`, `tools/webbench.mjs` + `web-bench.html`.
+Models are not in the repository.
+
+How the model sits next to the rules: nearest labeled examples (the words the rules know + the made-up lines of
+dev/dev2/heldout/heldout2), confidence = how far the winning main category's best example is ahead of any other main
+category's best example. **Fill** a line the rules leave empty when confidence ≥ the fill threshold; **override** a rule
+guess when confidence ≥ the override threshold and the model names another main category.
+
+Choosing (heldout3, 75 lines; not a measurement):
+
+| Model | Download | Best result on heldout3 (right / wrong / no guess) |
+|---|---|---|
+| 8.8 rules | — | 61 / 6 / 8 |
+| multilingual-e5-small, fill 0.88 | ≈129 MB | 63 / 6 / 6 |
+| LazarusNLP all-indo-e5-small-v4 (Indonesian), fill + override, margin 0.10 | ≈129 MB (no licence stated) | 64 / 5 / 6 |
+| potion-multilingual-128M (static), fill 0.08 | ≈506 MB (could be cut) | 64 / 6 / 5 |
+| static vectors distilled from EmbeddingGemma, fill 0.02 | ≈13 MB est. | 66 / 6 / 3 (alone only ~65–70% right: confidence unreliable) |
+| **EmbeddingGemma-300M q4, fill ≥ 0.02 + override ≥ 0.08** | 207 MB → **117 MB trimmed** | **69 / 4 / 2**, and no change on dev, dev2, heldout, heldout2 |
+
+Vocabulary cut (EmbeddingGemma): 96,360 of 262,144 tokens kept (Indonesian/English word lists used only to choose, plus
+Title/UPPER case and every merge path of a kept token). The same tokens for 1,429 of 1,432 test texts; embeddings
+identical (cos 1.000000) on a sample; benchmark results identical to the full model. The q4 embedding lookup
+(GatherBlockQuantized) is not in onnxruntime-web's WASM build; `degbq.py` rewrites it with standard operators (output
+identical, max difference 0.0).
+
+Speed in Chromium (Transformers.js 4.3.2, WASM, the trimmed model served locally, cross-origin isolated):
+
+| Machine | Load | One line | 50 lines in one batch |
+|---|---|---|---|
+| this server, 4 threads | 2.6 s | 240 ms | 2.8 s |
+| this server, 1 thread | 2.1 s | 391 ms | 8.4 s |
+| CPU slowed ×4 (rough mid-range phone), 4 threads | 8.5 s | 606 ms | 10.3 s |
+
+**Measurement (heldout4, 83 lines, run once with the frozen setup):**
+
+| Run | Right | Wrong | No guess |
+|---|---|---|---|
+| 8.8 rules | 69 (83.1%) | 3 | 11 |
+| **rules + EmbeddingGemma (fill ≥ 0.02, override ≥ 0.08)** | **72 (86.7%)** | **7** | 4 |
+| rules + fill only, 0.02 (info) | 73 | 6 | 4 |
+| rules + fill only, 0.08 (info) | 71 | 4 | 8 |
+
+What this says, honestly:
+
+- On fresh lines the model fills 7 of the 11 lines the rules leave empty, but only about half of them right, so wrong
+  answers go from 3 to 7. heldout3 (69 / 4 / 2) was optimistic because the setup was chosen on it.
+- Its mistakes follow surface words: "Kartu nama" and "Password manager yearly plan" → Biaya Kartu (near "biaya kartu",
+  "annual fee"), "Biaya materai elektronik" → Biaya Kartu.
+- Not good enough to set categories on its own. At most it could **suggest** a category for empty rows that the person
+  still confirms, for a ~120 MB download.
+
+Decision: not shipped.
