@@ -142,3 +142,45 @@ export function sourceDestPdf() {
     ...row(205, '20 Okt 2026', '20:30', 'Andi Pratama', 'Transfer masuk', '+Rp75.000', 'Rp493.000'),
   ]]);
 }
+
+/* 8.8 Layouts the reader learned in 8.8 (made up, no real data). */
+
+/** An e-wallet history grouped by day: no table header, a line with only the day, then rows that show only the time. */
+export function dayGroupedPdf() {
+  const row = (y, time, title, sub, amount) => [T(30, y, time), T(90, y, title), T(90, y + 11, sub), right(560, y, amount)];
+  return makePdf([[
+    T(30, 40, 'Riwayat Transaksi', 13), T(30, 58, 'Periode 1 - 31 Oktober 2026', 9),
+    T(30, 90, 'Senin, 05 Oktober 2026', 9),
+    ...row(110, '08:15', 'Kopi Kenangan Senopati', 'Pembayaran', '-Rp25.000'),
+    ...row(140, '12:40', 'Top Up dari BCA', 'Isi saldo', '+Rp100.000'),
+    T(30, 175, 'Rabu, 07 Oktober 2026', 9),
+    ...row(195, '19:02', 'Indomaret Ciputat', 'Pembayaran', '-Rp15.500'),
+    ...row(225, '21:10', 'Kirim ke Sari Wulandari', 'Transfer', '-Rp50.000'),
+    T(250, 800, 'Halaman 1 dari 1', 8),
+  ]]);
+}
+
+/** Amounts without any sign and a running balance: the balance says which way each row went. */
+export function unsignedBalancePdf() {
+  const row = (y, date, desc, amount, saldo) => [T(30, y, date), T(110, y, desc), right(430, y, amount), right(560, y, saldo)];
+  return makePdf([[
+    T(30, 40, 'MUTASI REKENING', 11), T(30, 60, 'PERIODE 01/10/2026 - 31/10/2026'),
+    T(30, 100, 'TANGGAL'), T(110, 100, 'URAIAN'), T(380, 100, 'MUTASI'), T(520, 100, 'SALDO'),
+    ...row(120, '01/10/2026', 'SALDO AWAL', '', '1,000,000.00'),
+    ...row(136, '02/10/2026', 'PEMBAYARAN QRIS KOPI KENANGAN', '25,000.00', '975,000.00'),
+    ...row(152, '05/10/2026', 'TRANSFER DARI ANDI PRATAMA', '200,000.00', '1,175,000.00'),
+    ...row(168, '09/10/2026', 'INDOMARET CIPUTAT', '15,500.00', '1,159,500.00'),
+  ]]);
+}
+
+/** A header whose words wrap onto a second line ("Uang" / "Masuk"). */
+export function wrappedHeaderPdf() {
+  const row = (y, date, desc, inn, out, saldo) => [T(30, y, date), T(110, y, desc), ...(inn ? [right(380, y, inn)] : []), ...(out ? [right(470, y, out)] : []), right(560, y, saldo)];
+  return makePdf([[
+    T(30, 40, 'Rekening Koran', 11), T(30, 60, 'Periode: Oktober 2026'),
+    T(30, 100, 'Tanggal'), T(110, 100, 'Keterangan'), T(340, 100, 'Uang'), T(430, 100, 'Uang'), T(520, 100, 'Saldo'),
+    T(340, 111, 'Masuk'), T(430, 111, 'Keluar'),
+    ...row(132, '03/10/2026', 'Gaji Oktober', '5.000.000,00', '', '5.500.000,00'),
+    ...row(148, '04/10/2026', 'Bayar Listrik PLN', '', '250.000,00', '5.250.000,00'),
+  ]]);
+}

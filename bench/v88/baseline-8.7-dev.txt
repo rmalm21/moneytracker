@@ -1,0 +1,21 @@
+dev: 99 lines | right 79 (79.8%) | right main category, other sub 9 (9.1%) | wrong 7 (7.1%) | no guess 4 (4.0%)
+  WRONG Indomaret Ciputat  → Belanja  (want Rumah & Kebutuhan)
+  WRONG KARTU DEBIT ALFAMART PAMULANG  → Belanja  (want Rumah & Kebutuhan)
+  WRONG Pembayaran ke Lawson Kuningan  → Belanja  (want Rumah & Kebutuhan)
+  PART  Google One 100GB  → Langganan  (want Langganan/Cloud Storage)
+  PART  iCloud+ Apple.com/bill  → Langganan  (want Langganan/Cloud Storage)
+  PART  OpenAI ChatGPT Plus  → Langganan  (want Langganan/AI / Software)
+  PART  Tokopedia  → Belanja  (want Belanja/Marketplace)
+  PART  Shopee  → Belanja  (want Belanja/Marketplace)
+  PART  Lazada Indonesia  → Belanja  (want Belanja/Marketplace)
+  NONE  Uniqlo Grand Indonesia  → want Belanja/Pakaian
+  NONE  Erafone Margo City  → want Belanja
+  WRONG Guardian Pacific Place  → Kesehatan/Obat  (want Belanja/Personal Care)
+  WRONG Watsons Senayan City  → Kesehatan/Obat  (want Belanja/Personal Care)
+  PART  Fitness First Membership  → Kesehatan  (want Kesehatan/Gym)
+  WRONG Tiket.com Pesawat  → Transportasi/Pesawat  (want Travel & Liburan/Tiket Pesawat)
+  PART  Gaji Oktober  → Gaji  (want Gaji/Gaji Bulanan)
+  WRONG Alfamidi Serpong  → Belanja  (want Rumah & Kebutuhan)
+  PART  Indosat Ooredoo Paket Internet  → Tagihan/Internet  (want Tagihan/Paket Data)
+  NONE  IKEA Alam Sutera  → want Rumah & Kebutuhan
+  NONE  ACE Hardware  → want Rumah & Kebutuhan

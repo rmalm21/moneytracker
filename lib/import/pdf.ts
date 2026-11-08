@@ -143,6 +143,27 @@ function headerOf(line: Line): Col[] | null {
   return cols.some(c => c.role === 'date') && cols.some(c => MONEY.includes(c.role) && c.role !== 'balance') ? cols : null;
 }
 
+/** 8.8 A header whose words wrap onto a second line ("Uang" / "Masuk"): the two lines read as one, word under word. */
+function wrappedHeaderOf(top: Line, under: Line | undefined): Col[] | null {
+  if (!under || under.page !== top.page || under.y - top.y > Math.max(top.h, under.h) * 1.9) return null;
+  const a = cellsOf(top), b = cellsOf(under);
+  if (!a.length || !b.length || ![...a, ...b].some(c => /\p{L}{3,}/u.test(c.s)) || [...a, ...b].some(c => isAmount(c.s) || rowDate(c.s, true))) return null;
+  const used = new Set<Cell>();
+  const merged = a.map(c => { const below = b.find(d => !used.has(d) && Math.min(c.end, d.end) - Math.max(c.x, d.x) > -4); if (below) used.add(below); return below ? { s: `${c.s} ${below.s}`, x: Math.min(c.x, below.x), end: Math.max(c.end, below.end) } : c; });
+  const cells = [...merged, ...b.filter(d => !used.has(d))].sort((x, y) => x.x - y.x);
+  const line: Line = { page: top.page, y: top.y, h: top.h, pieces: cells.map(c => ({ s: c.s, x: c.x, y: top.y, w: c.end - c.x, h: top.h, page: top.page })) };
+  return headerOf(line);
+}
+const WEEKDAY = /^(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu|ahad|monday|tuesday|wednesday|thursday|friday|saturday|sunday|sen|sel|rab|kam|jum|sab|min|mon|tue|wed|thu|fri|sat|sun)\b[,.]?\s*/i;
+/** 8.8 A line that is only a day ("Senin, 05 Oktober 2026"), heading the rows under it that show just a time. */
+function dayOf(line: Line): string | null {
+  const text = line.pieces.map(p => p.s).join(' ').replace(/\s+/g, ' ').trim().replace(WEEKDAY, '');
+  if (!text || text.length > 40 || line.pieces.some(p => isAmount(p.s) && /rp|idr|[.,]\d{3}/i.test(p.s))) return null;
+  // Only a date and nothing else on the line (a date with words after it is a row, not a heading).
+  const only = /^\d{1,2}[\s-]+\p{L}{3,9}\.?[\s-]+\d{2,4}$|^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$|^\p{L}{3,9}\.?\s+\d{1,2},?\s+\d{4}$|^\d{4}-\d{2}-\d{2}$/u.test(text);
+  return only && (/\d{4}/.test(text) || MONTH.test(text)) && rowDate(text, false) ? text : null;
+}
+
 /** The column a piece of text sits under: the header it overlaps most, else the nearest one. */
 function columnOf(p: Piece, cols: Col[]): number {
   let best = -1, score = -Infinity;
@@ -252,19 +273,30 @@ export function tableFromPieces(pages: Piece[][]): PdfStatement {
   const names = new Map<ColRole, string>();
   let cols: Col[] | null = null, row: Row | null = null;
   const pitch = median(lines.map(l => l.h)) || 8;
-  for (const line of lines) {
-    const header = headerOf(line);
+  let day: string | null = null;
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    let header = headerOf(line);
+    // 8.8 Header words wrapped onto two lines.
+    if (!header) { const wrapped = wrappedHeaderOf(line, lines[li + 1]); if (wrapped) { header = wrapped; tableLines.add(lines[li + 1]); li++; } }
+    // 8.8 A day heading the rows under it (they show only a time).
+    const dayHere = !header ? dayOf(line) : null;
+    if (dayHere) { day = dayHere; row = null; tableLines.add(line); continue; }
     // A header under a header (the English line some banks print below): it keeps the roles read from the first.
     if (header && cols && !row) for (const c of header) if (c.role === 'other') c.role = cols.find(o => o.role !== 'other' && Math.min(o.end, c.end) - Math.max(o.x, c.x) > 0)?.role || 'other';
     if (header) { cols = header; row = null; tableLines.add(line); for (const c of header) if (c.role !== 'other' && !names.has(c.role)) names.set(c.role, c.name); continue; }
     if (!cols) continue;
     const text = line.pieces.map(p => p.s).join(' ');
     const placed = line.pieces.map(p => ({ p, col: cols![columnOf(p, cols!)] }));
-    const dateText = placed.filter(o => o.col.role === 'date').map(o => o.p.s).join(' ');
+    let dateText = placed.filter(o => o.col.role === 'date').map(o => o.p.s).join(' ');
     const amountOnLine = placed.some(o => MONEY.includes(o.col.role) && o.col.role !== 'balance' && isAmount(o.p.s));
-    if (rowDate(dateText, amountOnLine)) {
+    // Only a time under a day heading: the row is on that day.
+    const timeOnly = day && amountOnLine && (!dateText.trim() || TIME.test(dateText.trim()));
+    if (timeOnly) dateText = `${day} ${dateText}`.trim();
+    if (timeOnly || rowDate(dateText, amountOnLine)) {
       row = { cells: new Map(), first: new Map(), last: line };
       rows.push(row);
+      if (timeOnly) row.first.set('date', dateText);
     } else {
       // A line under the row: close enough, on the same page, and not page furniture or a summary label.
       const close = row && row.last.page === line.page && line.y - row.last.y <= Math.max(pitch * 2.6, line.h * 2.6);
@@ -300,11 +332,42 @@ export function tableFromPieces(pages: Piece[][]): PdfStatement {
   return { table, meta, pages: pages.length };
 }
 
+/**
+ * 8.8 No header at all (some e-wallet histories): a row is a line with an amount (with Rp, a sign or thousands dots) on the
+ * right and a date or a time (under a day heading) on the left; the words between are the description, and the lines
+ * just under it add to it.
+ */
+export function headerlessTable(pages: Piece[][]): string[][] {
+  const lines = pages.flatMap(p => linesOf(p));
+  const right = Math.max(...lines.flatMap(l => l.pieces.map(p => p.x + p.w)), 1);
+  const rows: { date: string; desc: string[]; amount: string; last: Line }[] = [];
+  let day: string | null = null, row: (typeof rows)[number] | null = null;
+  for (const line of lines) {
+    const dayHere = dayOf(line);
+    if (dayHere) { day = dayHere; row = null; continue; }
+    const text = line.pieces.map(p => p.s).join(' ');
+    const money = [...line.pieces].reverse().find(p => p.x > right * .45 && isAmount(p.s) && /rp|idr|^[+−-]|[.,]\d{3}/i.test(p.s.trim()));
+    const first = line.pieces[0];
+    const when = first && (TIME.test(first.s.trim()) ? (day ? `${day} ${first.s.trim()}` : null) : rowDate(first.s, Boolean(money)) ? first.s.trim() : null);
+    if (money && when) {
+      const desc = line.pieces.filter(p => p !== money && p !== first && !TIME.test(p.s.trim()) && !isAmount(p.s)).map(p => p.s).join(' ').trim();
+      row = { date: when, desc: desc ? [desc] : [], amount: money.s.trim(), last: line };
+      rows.push(row);
+      continue;
+    }
+    const close = row && row.last.page === line.page && line.y - row.last.y <= line.h * 2.6;
+    if (row && close && !money && !FOOTER.test(text) && !META.some(([, re]) => re.test(text))) { row.desc.push(text.trim()); row.last = line; } else row = null;
+  }
+  return rows.length >= 2 ? [['Tanggal', 'Keterangan', 'Jumlah'], ...rows.map(r => [r.date, r.desc.join(' · '), r.amount])] : [];
+}
+
 /** A PDF statement read into a table for readStatement, with its summary figures. */
 export async function readPdfStatement(bytes: Uint8Array, opts: { password?: string } = {}): Promise<PdfStatement> {
   const { pieces, pages } = await pdfPieces(bytes, opts.password);
   if (!pieces.some(p => p.length)) throw Error('PDF ini berupa gambar (hasil scan), jadi tulisannya belum bisa dibaca. Unduh e-statement asli dari aplikasi bank/e-wallet, atau pakai file CSV/Excel.');
   const read = tableFromPieces(pieces);
+  // 8.8 No table header found: the rows read by their shape instead.
+  if (read.table.filter(r => r.length > 1).length < 2) { const loose = headerlessTable(pieces); if (loose.length) { const period = read.table.find(r => r.length === 1); read.table = [...(period ? [period] : []), ...loose]; } }
   if (read.table.filter(r => r.length > 1).length < 2) throw Error('Tabel mutasi tidak ditemukan di PDF ini. Pastikan ini e-statement/mutasi rekening dengan kolom Tanggal dan Jumlah (atau Debet/Kredit).');
   return { ...read, pages };
 }

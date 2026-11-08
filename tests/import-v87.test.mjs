@@ -222,3 +222,25 @@ test('8.7 other bank layouts: signed Nominal, Debet/Kredit with 0.00, two date c
     assert.ok(plan.some(x => x.person === 'Sari Wulandari'), JSON.stringify(plan.map(x => [x.name, x.person])));
   }
 });
+
+// 8.8 — layouts the PDF reader learned in 8.8 (made up).
+import { dayGroupedPdf, unsignedBalancePdf, wrappedHeaderPdf } from './helpers/statement-pdfs.mjs';
+
+test('8.8 an e-wallet history grouped by day, with no table header: each time row gets its day', async () => {
+  const { read } = await readPdf(dayGroupedPdf());
+  assert.deepEqual(read.rows.map(r => [r.date, r.amount, r.type]), [['2026-10-05', 25000, 'expense'], ['2026-10-05', 100000, 'income'], ['2026-10-07', 15500, 'expense'], ['2026-10-07', 50000, 'expense']]);
+  assert.equal(read.rows[0].description, 'Kopi Kenangan Senopati · Pembayaran');
+});
+
+test('8.8 amounts without a sign: the running balance says money in or out', async () => {
+  const { read } = await readPdf(unsignedBalancePdf());
+  assert.deepEqual(read.rows.map(r => [r.date, r.amount, r.type]), [['2026-10-02', 25000, 'expense'], ['2026-10-05', 200000, 'income'], ['2026-10-09', 15500, 'expense']]);
+  assert.equal(read.unsure, 0);
+  assert.equal(read.balance.complete, true);
+});
+
+test('8.8 a header wrapped onto two lines ("Uang" / "Masuk") is read as one', async () => {
+  const { src, read } = await readPdf(wrappedHeaderPdf());
+  assert.deepEqual(src.table.find(r => r.length > 1), ['Tanggal', 'Keterangan', 'Uang Keluar', 'Uang Masuk', 'Saldo']);
+  assert.deepEqual(read.rows.map(r => [r.date, r.amount, r.type]), [['2026-10-03', 5000000, 'income'], ['2026-10-04', 250000, 'expense']]);
+});

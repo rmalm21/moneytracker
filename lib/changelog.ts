@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.8', date: '8 Nov 2026', title: 'Konfirmasi lebih canggih: centang, catat semua, hapus semua, dan tekan lama', items: [
+    ['✅', 'Perlu dikonfirmasi ditata ulang: dikelompokkan per tanggal, ada filter Siap dicatat dan Perlu dicek, centang di tiap baris, dan Pilih semua. Yang dicentang bisa dicatat atau dihapus sekaligus.'],
+    ['⚡', 'Tombol Catat semua yang siap dan Hapus semua. Yang belum lengkap, mungkin dobel, atau transfer ke orang yang belum ditentukan tetap menunggu untuk kamu cek.'],
+    ['📝', 'Tekan lama (atau ketuk ⋯) di tiap baris untuk pilihan: periksa & ubah, catat sekarang, pilih, atau hapus. Di daftar impor juga bisa centang, pilih semua, dan tekan lama.'],
+    ['🎯', 'Tebakan kategori hasil impor lebih pintar: ratusan merek dan jenis tempat (kopi, minimarket, ojol, tagihan, langganan, marketplace, apotek, bioskop, dan lainnya) dicocokkan dengan nama kategorimu sendiri. Cashback bonus tidak lagi tertebak sebagai gaji.'],
+    ['📥', 'Pembaca PDF lebih kuat: riwayat e-wallet yang dikelompokkan per hari (tanggal di atas, lalu jam), nominal tanpa tanda yang arahnya dibaca dari saldo berjalan, dan judul kolom yang terpotong dua baris.'],
+  ] },
   { version: '8.7', date: '7 Nov 2026', title: 'Impor mutasi dari PDF, termasuk e-statement yang dikunci password', items: [
     ['📥', 'Impor mutasi sekarang bisa dari file PDF: riwayat transaksi e-wallet (seperti GoPay) dan e-statement bank, termasuk bank digital yang punya kantong. PDF dibaca di HP-mu dan tidak diunggah, sama seperti CSV dan Excel.'],
     ['🛡️', 'E-statement yang dikunci password (Mandiri, BCA, dan bank lain) bisa dibuka: ketik password-nya sekali. Password hanya dipakai untuk membuka file di HP-mu, tidak disimpan dan tidak dikirim ke mana pun.'],

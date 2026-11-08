@@ -1,0 +1,17 @@
+heldout: 80 lines | right 64 (80.0%) | right main category, other sub 4 (5.0%) | wrong 5 (6.3%) | no guess 7 (8.8%)
+  PART  A&W Restoran  → Makan & Minum/Restoran  (want Makan & Minum/Fast Food)
+  NONE  Warung Tegal Mamoka  → want Makan & Minum
+  WRONG Circle K Kemang  → Belanja  (want Rumah & Kebutuhan)
+  WRONG FamilyMart Tebet  → Belanja  (want Rumah & Kebutuhan)
+  WRONG GoSend Instant  → Belanja  (want Transportasi)
+  PART  Dropbox Plus  → Langganan  (want Langganan/Cloud Storage)
+  PART  Blibli.com  → Belanja  (want Belanja/Marketplace)
+  PART  TikTok Shop  → Belanja  (want Belanja/Marketplace)
+  NONE  H&M Pondok Indah  → want Belanja/Pakaian
+  NONE  iBox Apple Premium Reseller  → want Belanja
+  NONE  Sociolla  → want Belanja/Personal Care
+  WRONG Garuda Indonesia Tiket  → Transportasi/Pesawat  (want Travel & Liburan)
+  NONE  Periplus Bookstore  → want Pendidikan/Buku
+  WRONG Ruangguru Langganan  → Langganan  (want Pendidikan)
+  NONE  Gong Cha Senayan  → want Makan & Minum/Kopi & Minuman
+  NONE  Informa Furnishing  → want Rumah & Kebutuhan

@@ -61,7 +61,9 @@ export function finalize(item: ImportItem, edit: RowEdit = {}, walletId: string)
 export function missing(r: FinalRow): string | null {
   if (!r.purpose) return 'Pilih untuk apa';
   if ((r.purpose === 'expense' || r.purpose === 'income') && !r.categoryId) return 'Pilih kategori';
-  if (r.purpose === 'transfer' && (!r.walletId || !r.destinationWalletId || r.walletId === r.destinationWalletId)) return r.direction === 'out' ? 'Pilih dompet tujuan' : 'Pilih dompet asal';
+  // A move names the side still missing: where it came from, or where it went.
+  if (r.purpose === 'transfer' && !r.walletId) return 'Pilih dompet asal';
+  if (r.purpose === 'transfer' && (!r.destinationWalletId || r.walletId === r.destinationWalletId)) return 'Pilih dompet tujuan';
   if (r.purpose === 'debt_payment' && !r.debtId) return 'Pilih utangnya';
   if (r.purpose === 'receivable_payment' && !r.receivableId) return 'Pilih piutangnya';
   if ((r.purpose === 'receivable_issue' || r.purpose === 'borrowing') && !r.person) return 'Isi nama orangnya';

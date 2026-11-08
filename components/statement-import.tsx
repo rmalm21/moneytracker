@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { CheckCircle2, CopyCheck, FileSpreadsheet, Inbox, KeyRound, Pencil, Scale, Trash2, Zap } from 'lucide-react';
+import { CheckCircle2, CopyCheck, FileSpreadsheet, Inbox, KeyRound, Pencil, Scale, SquareCheck, Trash2, X, Zap } from 'lucide-react';
 import { useApp } from './app-provider';
 import { Button } from './ui/button';
+import { RowCheck, RowMenu, useLongPress, type RowAction } from './row-actions';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input, Money, Select, categoryOptions } from './fields';
 import { categoryEmoji, emojiOrFallback } from './visual-identity';
@@ -43,6 +44,9 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   // 8.7 The person's changes per row, rows taken out, the row being edited, how many rows are shown, and what was saved.
   const [edits, setEdits] = useState<Record<string, RowEdit>>({}), [removed, setRemoved] = useState<string[]>([]), [editing, setEditing] = useState(''), [shown, setShown] = useState(PAGE);
   const [saved, setSaved] = useState<(Saved & { gone?: boolean })[] | null>(null);
+  // 8.8 Rows ticked to take out together, and the row whose menu is open (long press or right click).
+  const [picked, setPicked] = useState<string[]>([]), [menuId, setMenuId] = useState('');
+  const hold = useLongPress(id => setMenuId(id));
   const owners = useMemo(() => [profile?.displayName, user?.displayName].filter((n): n is string => Boolean(n && n.trim())), [profile?.displayName, user?.displayName]);
   const today = new Date().toLocaleDateString('en-CA');
   // The whole history on this device: 8.6 the bank's closing balance against the wallet on that day, and 8.7 rows that
@@ -98,7 +102,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   async function pick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    setError(''); setRead(null); setLocked(null); setPassword(''); setFileName(file.name); setEdits({}); setRemoved([]); setEditing(''); setShown(PAGE); setSaved(null);
+    setError(''); setRead(null); setLocked(null); setPassword(''); setFileName(file.name); setEdits({}); setRemoved([]); setEditing(''); setShown(PAGE); setSaved(null); setPicked([]);
     const pdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
     if (file.size > (pdf ? 20 : 8) * 1024 * 1024) { setError(`File terlalu besar (lebih dari ${pdf ? 20 : 8} MB). Unduh mutasi per bulan saja.`); return; }
     await open(new Uint8Array(await file.arrayBuffer()), file.name);
@@ -200,11 +204,17 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
           {hints.map(h => <div key={h.key} className="si-bill"><span><b>{h.name}</b><small>{rupiah(h.amount)} tiap tanggal {h.day} · muncul {h.months} bulan</small></span><Button variant="secondary" className="small" onClick={() => void makeRecurring(h)}>Jadikan rutin</Button></div>)}
           {madeRecurring.length > 0 && <small>{madeRecurring.length} jadwal rutin dibuat. Tiap bulan muncul di Perlu dikonfirmasi, dan baris mutasinya nanti tidak dimasukkan dua kali.</small>}
         </div>}
+        {rows.length > 1 && <div className="si-pickbar">
+          <label className="ix-all"><input type="checkbox" checked={rows.length > 0 && rows.every(r => picked.includes(r.id))} onChange={e => setPicked(e.target.checked ? rows.map(r => r.id) : [])} /><span>Pilih semua ({rows.length})</span></label>
+          {picked.length > 0 ? <span className="ix-bulk-actions"><b>{picked.length} dipilih</b><Button variant="danger" className="small" onClick={() => { setRemoved(list => [...new Set([...list, ...picked])]); if (picked.includes(editing)) setEditing(''); setPicked([]); }}><Trash2 size={15} /> Hapus dari impor</Button><button type="button" className="icon-button" aria-label="Batal pilih" onClick={() => setPicked([])}><X size={16} /></button></span>
+            : <small className="muted">Tekan lama sebuah baris untuk pilihan lain.</small>}
+        </div>}
         <ul className="si-rows">{rows.slice(0, shown).map(r => {
           const item = items.find(x => x.id === r.id)!, edit = edits[r.id] || {}, problem = missing(r), dir = r.direction;
           const hint = r.person ? suggestFor(r.person, dir, data.debts, data.receivables) : {};
-          return <li key={r.id} className={`si-row ${problem ? 'needs' : 'ready'} ${editing === r.id ? 'is-open' : ''}`}>
+          return <li key={r.id} className={`si-row ${problem ? 'needs' : 'ready'} ${editing === r.id ? 'is-open' : ''} ${picked.includes(r.id) ? 'is-picked' : ''}`} {...hold(r.id)}>
             <div className="si-row-top">
+              <RowCheck checked={picked.includes(r.id)} onChange={on => setPicked(list => on ? [...new Set([...list, r.id])] : list.filter(id => id !== r.id))} label={`Pilih ${r.name}`} />
               <button type="button" className="si-row-main" onClick={() => setEditing(editing === r.id ? '' : r.id)} aria-expanded={editing === r.id}>
                 <span><strong>{r.name}</strong><small>{formatDate(r.date)} · {describe(r)}{item.from === 'history' && (r.purpose === 'expense' || r.purpose === 'income') && edit.categoryId === undefined ? ' (dari catatanmu)' : ''}</small></span>
                 <b className={dir === 'in' ? 'amount-positive' : ''}>{dir === 'in' ? '+' : ''}{rupiah(r.amount)}</b>
@@ -234,6 +244,16 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
             </div>}
           </li>;
         })}</ul>
+        {(() => { const r = rows.find(x => x.id === menuId); if (!r) return null; const dir = r.direction, item = items.find(x => x.id === r.id);
+          const actions: RowAction[] = [
+            { label: 'Ubah', icon: <Pencil size={18} />, hint: 'Nama, untuk apa, kategori, dompet, tanggal, nominal', onSelect: () => setEditing(r.id) },
+            ...(r.maybe ? [{ label: edits[r.id]?.notDouble ? 'Tandai mungkin dobel lagi' : 'Bukan dobel', icon: <CopyCheck size={18} />, hint: `Mirip: ${likeOf(r.maybe)}`, onSelect: () => change(r.id, { notDouble: !edits[r.id]?.notDouble }) }] : []),
+            { label: picked.includes(r.id) ? 'Batal pilih' : 'Pilih', icon: <SquareCheck size={18} />, hint: 'Centang untuk dihapus bersama yang lain', onSelect: () => setPicked(list => list.includes(r.id) ? list.filter(id => id !== r.id) : [...list, r.id]) },
+            { label: 'Hapus dari impor', icon: <Trash2 size={18} />, danger: true, hint: 'Baris ini tidak ikut disimpan', onSelect: () => { setRemoved(list => [...list, r.id]); if (editing === r.id) setEditing(''); } },
+          ];
+          return <RowMenu open onOpenChange={o => { if (!o) setMenuId(''); }} title={r.name} subtitle={<>{formatDate(r.date)} · <b className={dir === 'in' ? 'amount-positive' : ''}>{dir === 'in' ? '+' : ''}{rupiah(r.amount)}</b> · {describe(r)}</>} actions={actions}>
+            {item && <div className="si-ask"><small>Untuk apa?</small><div className="si-chips">{PURPOSES[dir].map(p => <button type="button" key={p.key} className={`si-chip ${r.purpose === p.key ? 'is-on' : ''}`} onClick={() => { choose(r, p.key); setMenuId(''); }}>{p.label}</button>)}</div></div>}
+          </RowMenu>; })()}
         {rows.length > shown && <Button variant="secondary" className="small" onClick={() => setShown(n => n + PAGE)}>Tampilkan {Math.min(PAGE, rows.length - shown)} baris lagi ({rows.length - shown} tersisa)</Button>}
         {removed.length > 0 && <p className="muted">{removed.length} baris kamu hapus dari impor ini. <button type="button" className="link-button" onClick={() => setRemoved([])}>Kembalikan</button></p>}
         <p className="muted">Kalau saldo dompet ini di aplikasi sudah kamu samakan dengan bank, simpan hanya transaksi yang memang belum tercatat supaya saldo tidak dobel.</p>

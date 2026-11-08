@@ -13,6 +13,7 @@ import { suggestCategory } from '../categorize.ts';
 import { walletsIn } from '../quick-entry.ts';
 import type { Category, Draft, LedgerTx, Recurring, TxType, Wallet } from '../types';
 import { isOldExcel, isZip, readXlsx } from './xlsx.ts';
+import { placeCategory } from './places.ts';
 
 export type StatementRow = { line: number; date: string; description: string; amount: number; type: 'expense' | 'income'; unsure?: boolean; /** 8.6 The balance after this row, when the file shows it. */ balance?: number; /** 8.7 The bank's own kind of row ("Transfer Keluar"), when it has a column for it. */ kind?: string };
 export type StatementRead = {
@@ -214,6 +215,7 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
   const amountTexts = amountCol >= 0 ? body.map(r => r[amountCol] || '').filter(c => /\d/.test(c)) : [];
   const withCurrency = amountTexts.filter(c => /\b(?:rp|idr)\b|rp\s?\d/i.test(c)).length, currencyAlways = amountTexts.length >= 4 && withCurrency >= amountTexts.length * .7;
   let points = 0;
+  const exactOf = new Map<number, number>();
   // "Saldo Awal" / "Saldo Akhir" lines (above or below the table): the first amount on the line.
   const lineAmount = (r: string[]) => { for (const c of r) { if (/\p{L}{3,}/u.test(c.replace(/\b(?:rp|idr|db|cr)\b/gi, ''))) continue; const a = parseAmount(c); if (a && (a.value > 0 || /\d/.test(c))) return signed(a); } return undefined; };
   for (const r of rows) {
@@ -245,8 +247,20 @@ export function readStatement(table: string[][], today: string, knownYear?: numb
     if (type === 'income') sumIn += amount; else sumOut += amount;
     if (INTERNAL.test(`${kindCol >= 0 ? r[kindCol] || '' : ''} ${description}`)) { internal++; return; }
     if (Math.round(amount) < 1) { skipped++; return; }
-    if (unsureRow) unsure++;
+    if (unsureRow) { unsure++; exactOf.set(out.length, amount); }
     out.push({ line: header + 2 + k, date, description, amount: Math.round(amount), type, ...(unsureRow ? { unsure: true } : {}), ...(rowBalance !== undefined ? { balance: rowBalance } : {}), ...(kindCol >= 0 && /\p{L}{3,}/u.test(r[kindCol] || '') ? { kind: r[kindCol] } : {}) });
+  });
+  // 8.8 No sign anywhere, but a running balance: the balance going up or down beside the row says which way the money went
+  // (oldest first or newest first: the row before or after it).
+  out.forEach((r, i) => {
+    if (!r.unsure || r.balance === undefined) return;
+    // The opening balance stands before the first (or, newest first, the last) row.
+    const start = meta.opening ?? opening, edge = i === 0 || i === out.length - 1 ? [start] : [];
+    const near = [out[i - 1]?.balance, out[i + 1]?.balance, ...edge].filter((b): b is number => b !== undefined), exact = exactOf.get(i) ?? r.amount;
+    const up = near.some(b => Math.abs(b + exact - r.balance!) < 1), down = near.some(b => Math.abs(b - exact - r.balance!) < 1);
+    if (up === down) return;
+    if (up) { r.type = 'income'; sumOut -= exact; sumIn += exact; }
+    delete r.unsure; unsure--;
   });
   // The summary of a PDF statement beats what the lines say.
   if (meta.opening !== undefined) opening = meta.opening;
@@ -481,11 +495,13 @@ export function planImport(read: StatementRead, ctx: ImportCtx): ImportItem[] {
     }
     // The person's own choice for this brand first, then the reader (it also learns exact names), then the kind of place.
     const own = flow === 'transfer' ? undefined : brands.get(`${row.type}:${brandOf(name)}`);
-    let guess = own || flow === 'transfer' ? null : suggestCategory({ text: `${name} ${low}`.toLowerCase(), item: name.toLowerCase(), amount: row.amount, type: row.type }, { categories: ctx.categories, history: ctx.transactions as LedgerTx[] });
-    let from: ImportItem['from'] = own ? 'history' : undefined;
-    const kind = !own && !guess && flow !== 'transfer' ? PLACE_KIND.find(([re]) => re.test(low)) : undefined;
+    // 8.8 Then what kind of place the line names (brands and plain words, matched to the person's own category names).
+    const place = own || flow === 'transfer' ? null : placeCategory(`${name} ${low}`, row.type, ctx.categories);
+    let guess = own || place || flow === 'transfer' ? null : suggestCategory({ text: `${name} ${low}`.toLowerCase(), item: name.toLowerCase(), amount: row.amount, type: row.type }, { categories: ctx.categories, history: ctx.transactions as LedgerTx[] });
+    let from: ImportItem['from'] = own ? 'history' : place ? 'place' : undefined;
+    const kind = !own && !place && !guess && flow !== 'transfer' ? PLACE_KIND.find(([re]) => re.test(low)) : undefined;
     if (kind) { guess = suggestCategory({ text: kind[1], item: kind[1], amount: row.amount, type: row.type }, { categories: ctx.categories, history: [] }); if (guess) from = 'place'; }
-    const pick = own || guess;
+    const pick = own || place || guess;
     // Already recorded: a transaction of this amount from or to this wallet, that day or a day next to it (each used once).
     // Money into or out of a wallet: a transfer by its direction, a loan taken or a debt paid back to you is money in.
     const sameSide = (t: ImportCtx['transactions'][number]) => {
