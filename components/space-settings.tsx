@@ -10,6 +10,7 @@ import { Button } from './ui/button';
 import { Confirm } from './ui/alert-dialog';
 import { Field, Input } from './fields';
 import { Emoji } from './emoji';
+import { useGuardedSwitch } from './space-switch';
 import { SPACE_COLORS, SPACE_EMOJIS } from '@/lib/space-look';
 import { ACTIVITY_DAYS, markRestored, restorable, subscribeActivity, tidyActivity, type Activity } from '@/lib/space-activity';
 import { upsertTransaction } from '@/lib/firestore';
@@ -18,7 +19,7 @@ import { rupiah } from '@/lib/accounting';
 import { balances } from '@/lib/space-math';
 import {
   MAX_MEMBERS, MAX_SPACES, acceptRequest, cancelInvite, cancelRequest, createInvite, createSpace, declineRequest, deleteSpace,
-  forgetRequest, formatCode, isMember, leaveSpace, readInvite, requestJoin, requestWaiting, subscribeRequests, updateSpace,
+  forgetRequest, formatCode, isMember, leaveSpace, readInvite, requestJoin, requestWaiting, subscribeRequests, targetShares, updateSpace,
   type Account, type Space, type SpaceInvite, type SpaceRequest,
 } from '@/lib/spaces';
 
@@ -62,6 +63,30 @@ function SpaceHistory({ space, notify }: { space: Space; notify: (m: string) => 
       {a.kind === 'delete' && a.before?.walletId && !a.before.memberFlow && !a.restoredBy && <Button className="small" variant="secondary" disabled={Boolean(busy)} onClick={() => void restore(a)}><RotateCcw size={14}/> {busy === a.id ? 'Mengembalikan…' : 'Kembalikan'}</Button>}
     </li>)}</ul>}
     {list.length > 8 && <button type="button" className="link-button" onClick={() => setAll(v => !v)}>{all ? 'Tampilkan lebih sedikit' : `Lihat semua (${list.length})`}</button>}
+  </div>;
+}
+
+/** 9.1 Target pembagian: how much of the contributions each member aims to put in (equal, or set per member). */
+function ShareTarget({ space, notify }: { space: Space; notify: (m: string) => void }) {
+  const me = useAccount();
+  const ids = space.memberIds, saved = targetShares(space), equal = targetShares({ memberIds: ids });
+  const custom = ids.some(id => saved[id] !== equal[id]);
+  const [mode, setMode] = useState<'equal' | 'custom'>(custom ? 'custom' : 'equal'), [vals, setVals] = useState(saved), [busy, setBusy] = useState(false);
+  useEffect(() => { setVals(targetShares(space)); setMode(ids.some(id => targetShares(space)[id] !== equal[id]) ? 'custom' : 'equal'); }, [space.id, JSON.stringify(space.shareTarget), ids.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!me || ids.length < 2) return null;
+  const sum = ids.reduce((n, id) => n + (Number(vals[id]) || 0), 0);
+  async function save() { setBusy(true); try { await updateSpace(space.id, { shareTarget: mode === 'equal' ? {} : Object.fromEntries(ids.map(id => [id, Math.round(Number(vals[id]) || 0)])) }); notify('Target pembagian disimpan.'); } catch (e) { notify((e as Error).message); } finally { setBusy(false); } }
+  return <div className="set-card sp-target">
+    <h3>Target pembagian</h3>
+    <p className="muted">Berapa bagian kontribusi tiap orang, misalnya 50:50 atau sesuai gaji. Laporan menunjukkan selisihnya.</p>
+    <div className="sp-seg" role="radiogroup" aria-label="Target pembagian">
+      <button type="button" role="radio" aria-checked={mode === 'equal'} className={mode === 'equal' ? 'on' : ''} onClick={() => { setMode('equal'); setVals(equal); }}>Sama rata</button>
+      <button type="button" role="radio" aria-checked={mode === 'custom'} className={mode === 'custom' ? 'on' : ''} onClick={() => setMode('custom')}>Atur sendiri</button>
+    </div>
+    <ul className="sp-target-list">{ids.map(id => <li key={id}><span>{id === me.uid ? `${space.members[id]?.name} (kamu)` : space.members[id]?.name}</span>
+      {mode === 'custom' ? <span className="sp-pct"><Input type="number" min={0} max={100} value={vals[id] ?? 0} onChange={e => setVals(v => ({ ...v, [id]: Number(e.target.value) }))} aria-label={`Persen ${space.members[id]?.name}`}/> %</span> : <b>{equal[id]}%</b>}</li>)}</ul>
+    {mode === 'custom' && sum !== 100 && <p className="form-error">Jumlahnya {sum}%, harus 100%.</p>}
+    {(mode === 'custom' ? ids.some(id => (Number(vals[id]) || 0) !== saved[id]) : custom) && <Button className="small" disabled={busy || (mode === 'custom' && sum !== 100)} onClick={() => void save()}>{busy ? 'Menyimpan…' : 'Simpan target'}</Button>}
   </div>;
 }
 
@@ -133,6 +158,7 @@ function CurrentSpace({ space, notify }: { space: Space; notify: (m: string) => 
       </div>
     </div>
 
+    <ShareTarget space={space} notify={notify}/>
     <SpaceHistory space={space} notify={notify}/>
     <div className="set-card sp-danger">
       {!last ? <Confirm title={`Keluar dari ${space.name}?`} description={`${open.length ? `Masih ada yang belum lunas: ${open.join('; ')}. Sebaiknya lunasi dulu. ` : ''}Catatan yang pernah kamu buat tetap ada di ruang ini dengan namamu. Catatan Pribadi-mu tidak tersentuh. Untuk kembali, kamu perlu kode undangan baru.`} confirmLabel="Ya, keluar" onConfirm={() => run('leave', async () => { await leaveSpace(me, space); switchTo(null); }, `Kamu sudah keluar dari ${space.name}.`)}>
@@ -196,6 +222,7 @@ function NewSpace({ notify, onDone }: { notify: (m: string) => void; onDone: () 
 export function SpaceSettings({ notify }: { notify: (m: string) => void }) {
   const me = useAccount();
   const { space, spaces, spacesReady, switchTo, personalProfile } = useApp();
+  const { guarded, gate } = useGuardedSwitch();
   const [creating, setCreating] = useState(false);
   const pending = personalProfile?.spaceRequests || {};
   const checked = useRef('');
@@ -217,11 +244,12 @@ export function SpaceSettings({ notify }: { notify: (m: string) => void }) {
       <h3>Ruangmu</h3>
       {!spaces.length ? <p className="muted">Belum ada. Buat ruang baru, atau gabung pakai kode dari pasanganmu.</p>
         : <ul className="sp-list">{spaces.map(s => <li key={s.id}><span className="sp-pick-icon"><Emoji e={s.emoji || '🏠'}/></span><span className="sp-pick-text"><strong>{s.name}</strong><small>{s.memberIds.length} anggota</small></span>{space?.id === s.id ? <span className="sp-open">Sedang dibuka</span> : <Button className="small" variant="secondary" onClick={() => switchTo(s.id)}>Buka</Button>}</li>)}
-          {space && <li><span className="sp-pick-icon">🔒</span><span className="sp-pick-text"><strong>Pribadi</strong><small>Hanya kamu</small></span><Button className="small" variant="secondary" onClick={() => switchTo(null)}>Buka</Button></li>}</ul>}
+          {space && <li><span className="sp-pick-icon">🔒</span><span className="sp-pick-text"><strong>Pribadi</strong><small>Hanya kamu</small></span><Button className="small" variant="secondary" onClick={() => guarded(null)}>Buka</Button></li>}</ul>}
       {Object.entries(pending).map(([id, p]) => <div className="sp-pending" key={id}><Clock size={15}/><span>Menunggu diterima di <b>{p.name}</b> (diundang {p.by})</span><button type="button" className="link-button" onClick={() => void cancelRequest(me.uid, id, pending).then(() => notify('Permintaan dibatalkan.'))}>Batalkan</button></div>)}
       {!creating && (spaces.length < MAX_SPACES ? <Button className="small" onClick={() => setCreating(true)}><Plus size={15}/> Buat ruang baru</Button> : <p className="muted">Paling banyak {MAX_SPACES} ruang per akun.</p>)}
     </div>
     {creating && <NewSpace notify={notify} onDone={() => setCreating(false)}/>}
     <JoinWithCode notify={notify}/>
+    {gate}
   </div>;
 }

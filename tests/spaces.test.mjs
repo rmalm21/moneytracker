@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rootSegments, isSpaceKey, spaceKey, spaceIdOf, setActor, stamp } from '../lib/space-key.ts';
-import { spaceProfile, formatCode, cleanCode, SPACE_FIELDS } from '../lib/space-profile.ts';
+import { spaceProfile, formatCode, cleanCode, SPACE_FIELDS, targetShares } from '../lib/space-profile.ts';
 import { balances, equalShares, restorable } from '../lib/space-math.ts';
 import { contributions } from '../lib/space-report.ts';
 import { SPACE_COLORS, spaceColor } from '../lib/space-look.ts';
@@ -82,4 +82,13 @@ test('9.0 a deleted shared transaction comes back as a new one, without its old 
 test('9.0 every space colour stays readable on light and dark screens', () => {
   for (const c of SPACE_COLORS) { assert.ok(validAccent(c.light, 'light'), c.key); assert.ok(validAccent(c.dark, 'dark'), c.key); }
   assert.equal(spaceColor('nope', 'light'), SPACE_COLORS[0].light);
+});
+
+test('9.1 target shares: the space’s own split when it covers everyone and adds up to 100, else equal', () => {
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b'] }), { a: 50, b: 50 });
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b', 'c'] }), { a: 34, b: 33, c: 33 });
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b'], shareTarget: { a: 60, b: 40 } }), { a: 60, b: 40 });
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b'], shareTarget: { a: 60, b: 30 } }), { a: 50, b: 50 }, 'not 100: equal');
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b', 'c'], shareTarget: { a: 60, b: 40 } }), { a: 34, b: 33, c: 33 }, 'a new member: equal until set again');
+  assert.deepEqual(targetShares({ memberIds: ['a', 'b'], shareTarget: {} }), { a: 50, b: 50 });
 });

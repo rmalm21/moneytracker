@@ -8962,9 +8962,10 @@ body.ix-picking .chat-fab { opacity: 0; pointer-events: none; transform: scale(.
 /* 9.0 Dompet Bersama: the Pribadi | Bersama switch, the mode cue, and Pengaturan → Dompet Bersama. */
 .topbar-title { display: flex; align-items: center; gap: 10px; }
 .topbar-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.sp-switch { display: inline-flex; align-items: center; flex: none; max-width: 100%; padding: 3px; gap: 2px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); box-shadow: var(--elev-1); font-family: var(--font-body, inherit); letter-spacing: 0; }
-.sp-switch button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; max-width: 150px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 700 .8rem/1 inherit; cursor: pointer; white-space: nowrap; transition: background .18s, color .18s; }
-.sp-switch button .emoji { width: 16px; height: 16px; }
+.sp-switch { display: inline-flex; align-items: center; flex: none; max-width: 100%; padding: 2px; gap: 1px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); box-shadow: var(--elev-1); font-family: var(--font-body, inherit); letter-spacing: 0; }
+.sp-switch button { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; max-width: 130px; padding: 0 9px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 700 .72rem/1 inherit; cursor: pointer; white-space: nowrap; transition: background .18s, color .18s; }
+.sp-switch button .emoji { width: 14px; height: 14px; }
+.sp-switch button svg { width: 12px; height: 12px; }
 .sp-switch .sp-name { overflow: hidden; text-overflow: ellipsis; }
 .sp-switch button.on { background: var(--accent); color: var(--accent-on, #fff); }
 .sp-switch button:not(.on):hover { background: var(--accent-soft); color: var(--ink); }
@@ -8973,9 +8974,9 @@ body.ix-picking .chat-fab { opacity: 0; pointer-events: none; transform: scale(.
 html[data-space="on"] .topbar { box-shadow: inset 0 -3px 0 var(--accent); }
 @media (max-width: 760px) {
   .topbar.has-spaces .topbar-title-text { display: none; }
-  .sp-switch button { padding: 0 9px; max-width: 120px; }
+  .sp-switch button { padding: 0 8px; max-width: 104px; }
 }
-@media (max-width: 380px) { .sp-switch button { max-width: 96px; padding: 0 8px; font-size: .76rem; } }
+@media (max-width: 380px) { .sp-switch button { max-width: 88px; padding: 0 7px; font-size: .7rem; } }
 .sp-pick { display: grid; gap: 6px; }
 .sp-pick-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .sp-pick-row.on { border-color: var(--accent); background: var(--accent-soft); }
@@ -9069,3 +9070,16 @@ html[data-theme="dark"] .sp-colors button { background: var(--sw-dark); color: #
 .sp-report-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .sp-report-bar { height: 8px; margin: 6px 0 4px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 8%, var(--paper)); overflow: hidden; }
 .sp-report-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.sp-target-list { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 8px; }
+.sp-target-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sp-pct { display: inline-flex; align-items: center; gap: 6px; }
+.sp-pct .input { width: 84px; min-height: 38px; text-align: right; }
+.sp-aim { display: block; font-size: .78rem; font-weight: 600; }
+.sp-aim.is-even { color: var(--success, #2f855a); }
+.sp-aim.is-over { color: var(--accent); }
+.sp-aim.is-under { color: var(--warning, #b7791f); }
+.sp-pin-option { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; }
+.sp-pin-option span { display: grid; gap: 2px; }
+.sp-pin-option small { color: var(--muted); }
+.sp-balance.is-wait { border-style: dashed; }
+.sp-own-only { margin: 0 0 10px; font-size: .84rem; }

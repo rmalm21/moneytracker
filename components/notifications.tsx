@@ -35,7 +35,8 @@ function kindOf(message: string): NoteKind { return failure.test(message) ? 'err
 const lifetime: Record<NoteKind, number> = { success: 2600, info: 5200, warning: 7000, error: 9000, progress: 0 };
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { user, sync } = useApp();
+  // 9.1 One bell per person, whichever records are on screen (Pribadi or a Ruang Bersama).
+  const { account: user, sync } = useApp();
   const uid = user?.uid || '';
   const [history, setHistory] = useState<Note[]>([]);
   const [floating, setFloating] = useState<Note[]>([]);

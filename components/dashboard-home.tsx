@@ -44,8 +44,8 @@ export const dashboardOptions=[
 type WidgetId=typeof dashboardOptions[number][0];
 type BookRow={id:string;name:string;icon?:string;color?:string;amount:number};
 const known=new Set<string>(dashboardOptions.map(([id])=>id)),extraSet=new Set<string>(extraWidgets);
-/** 9.0 Cards about the person's own money (Utang, Piutang, Klaim, Split Bill, Tujuan dana, Wish list): not in a Ruang Bersama. */
-const personalCards=new Set<string>(['debts','receivables','claims','splitBill','funds','wishlist','emergency']);
+/** 9.0 Cards about the person's own money (Utang, Piutang, Klaim, Split Bill): not in a Ruang Bersama. */
+const personalCards=new Set<string>(['debts','receivables','claims','splitBill']);
 /** "Tambah kartu": every card in exactly one category; each category opens like a dropdown. */
 const widgetGroups:{key:string;title:string;note:string;icon:LucideIcon;ids:WidgetId[]}[]=[
  {key:'free',title:'Uang bebas & gajian',note:'Uang siap pakai, jatah harian, hitung mundur gajian',icon:Sparkles,ids:['free','money','safeDaily','daysUntilSalary']},

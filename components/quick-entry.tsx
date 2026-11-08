@@ -182,7 +182,7 @@ const statusIcon: Record<FieldStatus, string> = { verified: '✓', likely: '≈'
 /** 7.8: the box is focused on opening only with a mouse or trackpad; on a phone the keyboard waits for a tap. */
 const finePointer = () => typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
 export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = false, fixedText, onSaved, onAsk }: { onOpenForm: (preset: Partial<LedgerTx>) => void; onDone?: () => void; onNavigate?: (key: string, target?: string) => void; autoFocus?: boolean; fixedText?: string; onSaved?: (summary: string) => void; onAsk?: (question: string) => void }) {
-  const { data, profile, user, account } = useApp();
+  const { data, profile, user, account, space } = useApp();
   const { track } = useNotify();
   const fixed = fixedText !== undefined;
   const [text, setText] = useState(fixedText ?? ''), [mode, setMode] = useState<QuickGroup | QuickKind>('auto'), [error, setError] = useState('');
@@ -365,7 +365,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       <textarea rows={1} value={text} onChange={e => { setText(e.target.value); setError(''); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = `${Math.min(160, e.currentTarget.scrollHeight)}px`; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} placeholder="Contoh: makan 25rb pakai GoPay" aria-label="Tulis transaksi atau perintah; beberapa sekaligus dipisah koma, “terus”, atau baris baru" autoFocus={autoFocus && finePointer()} enterKeyHint="go" autoComplete="off"/>
       <button type="submit" aria-label={actions.length > 1 ? 'Simpan semua' : 'Simpan'} disabled={!text.trim()}><ArrowRight size={17}/></button>
     </form></>}
-    {!fixed && <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>}
+    {!fixed && <div className={`quick-groups ${moreGroups ? 'is-all' : ''}`} role="radiogroup" aria-label="Jenis catatan">{QUICK_GROUPS.filter(([key]) => !(space && (key === 'debt' || key === 'receivable' || key === 'claim'))).filter(([key]) => moreGroups || FIRST_GROUPS.includes(key) || key === activeGroup || mode === 'auto' && key === detected).map(([key, label]) => <Fragment key={key}><button type="button" role="radio" aria-checked={activeGroup === key} className={`${activeGroup === key ? 'active' : ''} ${mode === 'auto' && detected === key ? 'is-detected' : ''}`} onClick={event => { setMode(key); event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }}>{label}</button></Fragment>)}<button type="button" className="qg-more" aria-expanded={moreGroups} onClick={() => setMoreGroups(v => !v)}>{moreGroups ? 'Ringkas' : 'Lainnya'}</button></div>}
     {!fixed && !text.trim() && <div className="quick-examples"><span className="qe-title">Contoh</span>{(examples[activeGroup] || examples.auto).filter((_, i) => allExamples || i < 3).map(example => { const ExampleIcon = icons[example.kind]; return <Fragment key={example.text}>{example.section && allExamples && <span className="qe-section">{example.section}</span>}<button type="button" className={`qe-item tone-${toneOf(example.kind, /gaji|bonus|terima/.test(example.text) ? 'income' : 'expense')}`} onClick={() => setText(example.text)}><span className="qe-icon" aria-hidden="true"><ExampleIcon size={16}/></span><span className="qe-text"><strong>“{example.text}”</strong><small><b>{example.kind === 'budget' ? 'Anggaran' : example.kind === 'recurring_new' ? QUICK_LABELS.recurring_new : example.kind === 'plan_new' ? 'Rencana' : example.kind === 'note_new' ? 'Pengingat' : example.kind === 'query' ? 'Tanya' : QUICK_LABELS[example.kind]}</b> · {example.result}</small></span><ArrowUpLeft size={15} className="qe-go" aria-hidden="true"/></button></Fragment>; })}{(examples[activeGroup] || examples.auto).length > 3 && <button type="button" className="link-button qe-more" onClick={() => setAllExamples(v => !v)}>{allExamples ? 'Lebih sedikit' : 'Contoh lain'}</button>}</div>}
     {teaching && teachRead && <div className="quick-preview qp-teach" aria-label="Simpan ke Kamus Pribadi">
       <div className="qp-head"><span className="qp-icon" aria-hidden="true"><BookOpenText size={18}/></span><span className="qp-title"><small>Kamus Pribadi</small><strong>“{teachRead.raw}” = {teachRead.label}</strong></span></div>
@@ -522,7 +522,7 @@ function OperationCardView({ action, register, onSave, error: outerError = '' }:
 }
 type CardProps = { action: ActionCandidate; layout: 'single' | 'row'; register: Register; onSave?: () => void; onOpenForm: (preset: Partial<LedgerTx>) => void; onSwitchMode?: (mode: QuickKind) => void; error?: string; skipped?: boolean; onSkip?: () => void; expanded?: boolean; onToggle?: () => void; /** V3.3: an amount confirmed for several cards at once ("Anggap 20 = Rp20.000…? Ya"). */ confirmAmount?: number; /** 6.0 Tanya: open Transaksi on what an answer counted; ask a follow-up question. */ onOpen?: (focus: string) => void; onAsk?: (question: string) => void };
 function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchMode, error: outerError = '', skipped = false, onSkip, expanded = false, onToggle, confirmAmount }: CardProps) {
-  const { data, profile, user } = useApp();
+  const { data, profile, user, space } = useApp();
   const [choice, setChoice] = useState(0), [why, setWhy] = useState(false), [kindOk, setKindOk] = useState(false);
   const result = choice ? action.alternatives[choice - 1].result : action.result;
   const [edit, setEdit] = useState<Edit>({}), [details, setDetails] = useState(false), [error, setError] = useState('');
@@ -625,7 +625,9 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const unchosen = choice ? '' : action.options.amount && !touched.amount ? 'Pilih nominal yang benar.' : action.options.date && !touched.date ? 'Pilih tanggal yang benar.' : action.options.wallet && !touched.wallet ? 'Pilih dompet yang benar.' : '';
 
   // What still stops a direct save (for transactions the form can always be opened instead).
-  const missing = unchosen || (() => {
+  // 9.0 Debts, receivables and office claims are the person's own: not recorded into a Ruang Bersama.
+  const ownOnly = Boolean(space) && ['debt_new', 'debt_payment', 'receivable_new', 'receivable_payment', 'claim_new', 'claim_payment'].includes(kind);
+  const missing = unchosen || (ownOnly ? `Utang, piutang, dan klaim kantor dicatat di Pribadi, bukan di ${space!.name}. Pindah ke Pribadi lewat tombol di atas.` : '') || (() => {
     switch (kind) {
       case 'open': return result.menu ? '' : 'Menu apa yang mau dibuka? Contoh: “buka laporan”.';
       case 'budget': return !amount ? 'Tulis nominal anggarannya, misalnya “anggaran makan 2jt”.' : !budgetScope ? 'Pilih kategori anggarannya.' : oldBudget && amount === oldBudget.amount ? `Anggaran ${oldBudget.name} sudah ${rupiah(amount)}.` : '';
@@ -967,6 +969,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   }
 
   return <div className={`quick-preview tone-${tone}`}>
+    {ownOnly && <p className="notice sp-own-only" role="status">{missing}</p>}
     <div className="qp-head"><span className="qp-icon" aria-hidden="true">{picture}</span><span className="qp-title"><small>{heading}</small><strong className={textual || !amount ? 'is-text' : ''}>{headline}</strong></span>{!action.alternatives.length && kind !== 'open' && onSwitchMode && sibling[kind] && <button type="button" className="qp-switch" onClick={() => onSwitchMode(sibling[kind]!)}><small>Bukan ini?</small>{QUICK_LABELS[sibling[kind]!]}</button>}</div>
     {body}
     {(error || outerError || missing && !flags.length && !ask) && <small className="qp-warn" role="status">{error || outerError || missing}</small>}

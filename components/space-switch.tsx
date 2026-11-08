@@ -9,15 +9,29 @@ import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Emoji } from './emoji';
+import { PinCheckDialog } from './pin-lock';
 import type { Space } from '@/lib/spaces';
 import type { LedgerTx } from '@/lib/types';
+
+/** 9.1 Switching from a space back to Pribadi asks for the PIN first when the person chose that (Pengaturan → Keamanan). */
+export function useGuardedSwitch() {
+  const { switchTo, space, personalProfile } = useApp();
+  const [pending, setPending] = useState<null | { run: () => void }>(null);
+  const guarded = (next: string | null, after?: () => void) => {
+    const run = () => { switchTo(next); after?.(); };
+    if (!next && space && personalProfile?.pinOnPersonal && personalProfile.pinHash) setPending({ run }); else run();
+  };
+  const gate = <PinCheckDialog open={Boolean(pending)} onOpenChange={open => { if (!open) setPending(null); }} onPass={() => pending?.run()} message="Masukkan PIN untuk membuka catatan Pribadi."/>;
+  return { guarded, gate };
+}
 
 const lastKey = (uid: string) => `dompet-ajaib:last-space:${uid}`;
 function lastSpace(uid: string) { try { return localStorage.getItem(lastKey(uid)) || ''; } catch { return ''; } }
 
 export function SpaceSwitch({ onManage }: { onManage?: () => void }) {
-  const { space, spaces, switchTo, account } = useApp();
+  const { space, spaces, account } = useApp();
   const { push } = useNotify();
+  const { guarded, gate } = useGuardedSwitch();
   const [picking, setPicking] = useState(false);
   if (!account || !spaces.length) return null;
   const remembered = spaces.find(s => s.id === lastSpace(account.uid)) || spaces[0];
@@ -25,11 +39,10 @@ export function SpaceSwitch({ onManage }: { onManage?: () => void }) {
   function go(next: Space | null) {
     setPicking(false);
     if ((next?.id || '') === (space?.id || '')) return;
-    switchTo(next?.id || null);
-    if (next) try { localStorage.setItem(lastKey(account!.uid), next.id); } catch { /* only a convenience */ }
-    push(next
+    guarded(next?.id || null, () => push(next
       ? { id: 'mode', title: `Sekarang di mode Bersama · ${next.name}`, body: `Yang kamu catat masuk ke ruang ini dan terlihat oleh ${next.memberIds.length > 1 ? `${next.memberIds.length - 1} anggota lain` : 'anggota yang nanti bergabung'}.`, kind: 'info', history: false }
-      : { id: 'mode', title: 'Sekarang di mode Pribadi', body: 'Catatan pribadimu. Hanya kamu yang bisa melihatnya.', kind: 'info', history: false });
+      : { id: 'mode', title: 'Sekarang di mode Pribadi', body: 'Catatan pribadimu. Hanya kamu yang bisa melihatnya.', kind: 'info', history: false }));
+    if (next) try { localStorage.setItem(lastKey(account!.uid), next.id); } catch { /* only a convenience */ }
   }
   return <>
     <div className={`sp-switch ${space ? 'is-shared' : ''}`} role="group" aria-label="Catatan yang ditampilkan">
@@ -45,6 +58,7 @@ export function SpaceSwitch({ onManage }: { onManage?: () => void }) {
         {onManage && <button type="button" className="sp-pick-manage" onClick={() => { setPicking(false); onManage(); }}><Settings2 size={16}/> Kelola Dompet Bersama</button>}
       </div>
     </DialogContent></Dialog>
+    {gate}
   </>;
 }
 

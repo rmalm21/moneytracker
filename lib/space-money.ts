@@ -13,7 +13,7 @@
  * Each step is one write (a batch), so both sides change together or not at all.
  */
 import {
-  collection, doc, getDocs, getDocsFromCache, increment, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch, limit,
+  collection, deleteField, doc, getDocs, getDocsFromCache, increment, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch, limit,
   type DocumentReference, type Unsubscribe, type WriteBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -26,7 +26,9 @@ import type { Space } from './space-profile';
 import { balances, equalShares } from './space-math';
 export { balances, equalShares };
 
-export type MemberFlow = { kind: 'deposit' | 'withdrawal' | 'paid' | 'split'; uid: string; name: string; shares?: Record<string, number> };
+export type MemberFlow = { kind: 'deposit' | 'withdrawal' | 'paid' | 'split' | 'reimburse'; uid: string; name: string; shares?: Record<string, number>; /** 9.1 reimburse: still waiting to be paid back from the shared cash. */ pending?: boolean; paidBackBy?: string };
+/** 9.1 The shared cash as the one paying back (in settlements, and on the payer's Piutang). */
+export const KAS = '__kas';
 export type SpaceFlow = { spaceId: string; spaceName: string; kind: MemberFlow['kind'] | 'settle' | 'received' };
 export type Settlement = { id: string; from: string; fromName: string; to: string; toName: string; amount: number; date: string; at?: unknown; received?: boolean; receivedAt?: unknown };
 export type Person = { uid: string; name: string };
@@ -197,6 +199,7 @@ export async function deletePaidPersonally(space: Space, t: LedgerTx & { memberF
   const b = writeBatch(database());
   b.delete(shared(space.id, 'transactions', t.id));
   const flow = t.memberFlow;
+  if (flow?.kind === 'reimburse' && flow.pending) b.update(doc(database(), 'spaces', space.id), { [`reimburse.${t.id}`]: deleteField(), updatedAt: serverTimestamp() });
   if (flow?.kind === 'split' && flow.shares) {
     const back: Record<string, unknown> = {};
     for (const [uid, share] of Object.entries(flow.shares)) if (uid !== flow.uid && share > 0) back[`owed.${uid}.${flow.uid}`] = increment(-share);
@@ -205,4 +208,38 @@ export async function deletePaidPersonally(space: Space, t: LedgerTx & { memberF
   await settle(b.commit());
   logActivity(spaceKey(space.id), 'delete', t, t);
   await syncSnapshot(spaceKey(space.id), t.date).catch(() => {});
+}
+
+/** 9.1 Paid with one's own money, to be paid back from the shared cash: in Pribadi a Piutang to "Kas <space>" (money out,
+ * not spending); in the space the spending, waiting for a member to pay it back from a shared wallet. */
+export async function payForReimbursement({ me, space, amount, date, personalWallet, description, categoryId, subcategoryId }: Base & { description: string; categoryId: string; subcategoryId?: string | null }) {
+  if (!valid(amount)) throw Error('Nominal harus lebih dari nol.');
+  if (!categoryId) throw Error('Pilih kategori pengeluaran.');
+  checkWallet(personalWallet, 'pay');
+  const what = description.trim() || 'Belanja bersama';
+  const b = writeBatch(database()), sk = spaceKey(space.id), sTx = shared(space.id, 'transactions'), r = own(me.uid, 'receivables');
+  b.set(r, { person: `Kas ${space.name}`, description: `Diganti dari kas · ${what}`, originalAmount: amount, remainingAmount: amount, sourceWalletId: personalWallet.id, date, dueDate: '', status: 'open', spaceId: space.id, spaceName: space.name, memberUid: KAS, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  b.set(own(me.uid, 'transactions'), tx({ type: 'receivable_issue', amount, walletId: personalWallet.id, receivableId: r.id, date, description: `Kas ${space.name}` }, { spaceFlow: { spaceId: space.id, spaceName: space.name, kind: 'reimburse' } satisfies SpaceFlow }));
+  b.update(own(me.uid, 'wallets', personalWallet.id), { cachedBalance: increment(-amount), updatedAt: serverTimestamp() });
+  const spaceTx = tx({ type: 'expense', amount, walletId: '', categoryId, subcategoryId: subcategoryId || null, date, description: what }, { ...stamp(sk, true), memberFlow: { kind: 'reimburse', uid: me.uid, name: me.name, pending: true } satisfies MemberFlow });
+  b.set(sTx, spaceTx);
+  b.update(doc(database(), 'spaces', space.id), { [`reimburse.${sTx.id}`]: { uid: me.uid, name: me.name, amount, title: what, date }, updatedAt: serverTimestamp() });
+  await settle(b.commit());
+  logActivity(sk, 'add', { ...spaceTx, id: sTx.id } as unknown as LedgerTx);
+  await after(me.uid, space, date);
+}
+
+/** 9.1 A member pays it back from a shared wallet: the spending now comes out of that wallet, and the payer is told
+ * (they confirm into which of their own wallets, like any Lunasi). */
+export async function reimburseFromCash({ me, space, txId, spaceWallet }: { me: Person; space: Space; txId: string; spaceWallet: Wallet }) {
+  const item = space.reimburse?.[txId];
+  if (!item) throw Error('Sudah diganti atau tidak ditemukan.');
+  checkWallet(spaceWallet, 'pay');
+  const b = writeBatch(database()), sk = spaceKey(space.id);
+  b.update(shared(space.id, 'transactions', txId), { walletId: spaceWallet.id, 'memberFlow.pending': false, 'memberFlow.paidBackBy': me.uid, ...stamp(sk, false), updatedAt: serverTimestamp() });
+  b.update(shared(space.id, 'wallets', spaceWallet.id), { cachedBalance: increment(-item.amount), updatedAt: serverTimestamp() });
+  b.update(doc(database(), 'spaces', space.id), { [`reimburse.${txId}`]: deleteField(), updatedAt: serverTimestamp() });
+  b.set(shared(space.id, 'settlements'), { from: KAS, fromName: `Kas ${space.name}`, to: item.uid, toName: item.name, amount: item.amount, date: item.date, kind: 'reimburse', note: item.title, by: me.uid, byName: me.name, at: serverTimestamp(), received: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await settle(b.commit());
+  await syncSnapshot(sk, item.date).catch(() => {});
 }

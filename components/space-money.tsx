@@ -14,7 +14,7 @@ import { todayInTimeZone } from '@/lib/period';
 import { deleteTransaction } from '@/lib/firestore';
 import { spaceKey } from '@/lib/space-key';
 import {
-  balances, deletePaidPersonally, deposit, equalShares, payPersonally, readPersonal, receiveSettlement, settleUp, subscribeSettlements, withdraw,
+  balances, deletePaidPersonally, deposit, equalShares, payForReimbursement, payPersonally, readPersonal, receiveSettlement, reimburseFromCash, settleUp, subscribeSettlements, withdraw,
   type Person, type Settlement,
 } from '@/lib/space-money';
 import type { Category, LedgerTx, Wallet } from '@/lib/types';
@@ -79,7 +79,7 @@ export function MoveDialog({ open, onOpenChange, start = 'deposit' }: { open: bo
 export function PayPersonallyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { space, data, profile } = useApp(), me = useMe(), { track } = useNotify();
   const { personal, error: loadError } = usePersonal(open);
-  const [amount, setAmount] = useState(0), [what, setWhat] = useState(''), [cat, setCat] = useState(''), [mine, setMine] = useState(''), [date, setDate] = useState(''), [mode, setMode] = useState<'together' | 'split' | ''>(''), [shares, setShares] = useState<Record<string, number>>({}), [picked, setPicked] = useState<string[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [amount, setAmount] = useState(0), [what, setWhat] = useState(''), [cat, setCat] = useState(''), [mine, setMine] = useState(''), [date, setDate] = useState(''), [mode, setMode] = useState<'together' | 'split' | 'reimburse' | ''>(''), [shares, setShares] = useState<Record<string, number>>({}), [picked, setPicked] = useState<string[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const members = useMemo(() => space ? space.memberIds.map(uid => ({ uid, name: space.members[uid]?.name || 'Anggota' })) : [], [space]);
   useEffect(() => { if (open) { setAmount(0); setWhat(''); setCat(''); setMode(''); setError(''); setDate(todayInTimeZone(profile?.timeZone)); setPicked(members.map(m => m.uid)); setShares({}); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (personal && !personal.wallets.some(w => w.id === mine)) setMine(personal.wallets[0]?.id || ''); }, [personal]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -94,8 +94,9 @@ export function PayPersonallyDialog({ open, onOpenChange }: { open: boolean; onO
     if (!mode) { setError('Pilih dulu: untuk bersama atau patungan.'); return; }
     setBusy(true); setError('');
     try {
-      const task = payPersonally({ me: me!, space: space!, amount, date, personalWallet, personalCats: personal!.categories, spaceCats: data.categories, description: what, categoryId: cat, mode, shares: Object.fromEntries(Object.entries(shares).filter(([uid]) => picked.includes(uid))), names: Object.fromEntries(members.map(m => [m.uid, m.name])) });
-      track(task, { pending: 'Menyimpan…', success: mode === 'split' ? `Patungan ${rupiah(amount)} dicatat` : `${rupiah(amount)} dicatat sebagai kontribusimu`, failure: 'Belum tersimpan' });
+      const base = { me: me!, space: space!, amount, date, personalWallet, personalCats: personal!.categories, spaceCats: data.categories, description: what, categoryId: cat };
+      const task = mode === 'reimburse' ? payForReimbursement(base) : payPersonally({ ...base, mode, shares: Object.fromEntries(Object.entries(shares).filter(([uid]) => picked.includes(uid))), names: Object.fromEntries(members.map(m => [m.uid, m.name])) });
+      track(task, { pending: 'Menyimpan…', success: mode === 'split' ? `Patungan ${rupiah(amount)} dicatat` : mode === 'reimburse' ? `${rupiah(amount)} menunggu diganti dari kas` : `${rupiah(amount)} dicatat sebagai kontribusimu`, failure: 'Belum tersimpan' });
       await task; onOpenChange(false);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
@@ -110,6 +111,7 @@ export function PayPersonallyDialog({ open, onOpenChange }: { open: boolean; onO
       <div className="field"><span>Ini untuk…</span><div className="sp-modes">
         <button type="button" className={mode === 'together' ? 'on' : ''} aria-pressed={mode === 'together'} onClick={() => setMode('together')}><strong>Untuk bersama</strong><small>Dianggap kontribusimu ke {space.name}. Tidak ada yang perlu diganti.</small></button>
         <button type="button" className={mode === 'split' ? 'on' : ''} aria-pressed={mode === 'split'} onClick={() => setMode('split')} disabled={members.length < 2}><strong>Patungan, dibagi</strong><small>{members.length < 2 ? 'Butuh anggota lain di ruang ini.' : 'Anggota lain mengganti bagiannya ke kamu.'}</small></button>
+        <button type="button" className={mode === 'reimburse' ? 'on' : ''} aria-pressed={mode === 'reimburse'} onClick={() => setMode('reimburse')}><strong>Minta ganti dari kas</strong><small>Nanti diganti dari dompet {space.name} oleh kamu atau anggota lain.</small></button>
       </div></div>
       {mode === 'split' && <div className="sp-shares">
         {members.map(m => <label key={m.uid} className="sp-share">
@@ -119,7 +121,11 @@ export function PayPersonallyDialog({ open, onOpenChange }: { open: boolean; onO
         </label>)}
         <div className="toolbar-row"><button type="button" className="link-button" onClick={() => setShares(equalShares(amount, picked))}>Bagi rata</button><small className={sum === amount ? 'muted' : 'form-error'}>{sum === amount ? 'Pas' : sum < amount ? `Kurang ${rupiah(amount - sum)}` : `Lebih ${rupiah(sum - amount)}`}</small></div>
       </div>}
-      {mode && <div className="notice sp-outcome">
+      {mode === 'reimburse' && <div className="notice sp-outcome">
+        <p>Di <b>Pribadi</b>: {personal?.wallets.find(w => w.id === mine)?.name || 'dompetmu'} keluar {rupiah(amount)} sebagai piutang ke Kas {space.name} (bukan pengeluaranmu).</p>
+        <p>Di <b>{space.name}</b>: pengeluaran {rupiah(amount)}{what ? ` untuk ${what}` : ''}, menunggu diganti dari kas. Setelah diganti, kamu tinggal menekan Terima.</p>
+      </div>}
+      {mode && mode !== 'reimburse' && <div className="notice sp-outcome">
         <p>Di <b>Pribadi</b>: {personal?.wallets.find(w => w.id === mine)?.name || 'dompetmu'} keluar {rupiah(amount)}{mode === 'split' ? <>, pengeluaranmu {rupiah(myShare)}{others.length ? <>, sisanya jadi piutang ke {others.map(o => `${o.name} ${rupiah(shares[o.uid] || 0)}`).join(', ')}</> : null}</> : <> (Kontribusi bersama)</>}.</p>
         <p>Di <b>{space.name}</b>: pengeluaran {rupiah(amount)}{what ? ` untuk ${what}` : ''}, dibayar {me.name}{mode === 'split' ? <>{others.length ? <>; {others.map(o => o.name).join(', ')} perlu mengganti bagiannya</> : null}</> : '. Kas bersama tidak berkurang'}.</p>
       </div>}
@@ -132,16 +138,20 @@ export function PayPersonallyDialog({ open, onOpenChange }: { open: boolean; onO
 /** Who owes whom in the space, with Lunasi for what this person owes and Terima for what was paid back to them. */
 export function MemberBalances() {
   const { space } = useApp(), me = useMe();
-  const [settlements, setSettlements] = useState<Settlement[]>([]), [paying, setPaying] = useState<{ to: Person; amount: number } | null>(null), [receiving, setReceiving] = useState<Settlement | null>(null);
+  const [settlements, setSettlements] = useState<Settlement[]>([]), [paying, setPaying] = useState<{ to: Person; amount: number } | null>(null), [receiving, setReceiving] = useState<Settlement | null>(null), [refund, setRefund] = useState<string | null>(null);
   useEffect(() => space ? subscribeSettlements(space.id, setSettlements) : undefined, [space?.id]);
   if (!space || !me) return null;
   const name = (uid: string) => uid === me.uid ? 'Kamu' : space.members[uid]?.name || space.formerMembers?.[uid]?.name || 'Anggota';
-  const list = balances(space), incoming = settlements.filter(s => s.to === me.uid && !s.received);
-  if (!list.length && !incoming.length) return <p className="muted sp-even"><Check size={15}/> Tidak ada yang perlu diganti antar anggota.</p>;
+  const list = balances(space), incoming = settlements.filter(s => s.to === me.uid && !s.received), waiting = Object.entries(space.reimburse || {});
+  if (!list.length && !incoming.length && !waiting.length) return <p className="muted sp-even"><Check size={15}/> Tidak ada yang perlu diganti antar anggota.</p>;
   return <div className="sp-balances">
     {list.map(b => <div className="sp-balance" key={`${b.from}-${b.to}`}>
       <span><b>{name(b.from)}</b> perlu mengganti <b>{b.to === me.uid ? 'kamu' : name(b.to)}</b><strong>{rupiah(b.amount)}</strong></span>
       {b.from === me.uid && <Button className="small" onClick={() => setPaying({ to: { uid: b.to, name: name(b.to) }, amount: b.amount })}><HandCoins size={15}/> Lunasi</Button>}
+    </div>)}
+    {waiting.map(([txId, r]) => <div className="sp-balance is-wait" key={txId}>
+      <span><b>{r.uid === me.uid ? 'Kamu' : r.name}</b> menunggu diganti dari kas · {r.title}<strong>{rupiah(r.amount)}</strong></span>
+      <Button className="small" variant="secondary" onClick={() => setRefund(txId)}><WalletIcon size={15}/> Ganti dari kas</Button>
     </div>)}
     {incoming.map(s => <div className="sp-balance is-in" key={s.id}>
       <span><b>{s.fromName}</b> sudah bayar ke kamu<strong>{rupiah(s.amount)}</strong></span>
@@ -149,7 +159,32 @@ export function MemberBalances() {
     </div>)}
     <SettleDialog target={paying} onClose={() => setPaying(null)}/>
     <ReceiveDialog settlement={receiving} onClose={() => setReceiving(null)}/>
+    <RefundDialog txId={refund} onClose={() => setRefund(null)}/>
   </div>;
+}
+
+/** 9.1 Paying back from a shared wallet what a member paid with their own money. */
+function RefundDialog({ txId, onClose }: { txId: string | null; onClose: () => void }) {
+  const { space, data } = useApp(), me = useMe(), { track } = useNotify();
+  const wallets = data.wallets.filter(w => !w.isArchived);
+  const [wallet, setWallet] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  useEffect(() => { if (txId && !wallets.some(w => w.id === wallet)) setWallet(wallets[0]?.id || ''); }, [txId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const item = txId ? space?.reimburse?.[txId] : undefined;
+  if (!space || !me || !txId || !item) return null;
+  async function save() {
+    const w = wallets.find(x => x.id === wallet); if (!w) { setError('Pilih dompet bersama.'); return; }
+    setBusy(true); setError('');
+    try { const task = reimburseFromCash({ me: me!, space: space!, txId: txId!, spaceWallet: w }); track(task, { pending: 'Menyimpan…', success: `${rupiah(item!.amount)} diganti ke ${item!.name}`, failure: 'Belum tersimpan' }); await task; onClose(); }
+    catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  return <Dialog open onOpenChange={v => { if (!v) onClose(); }}><DialogContent title={`Ganti ke ${item.uid === me.uid ? 'kamu' : item.name}`}>
+    <form className="form-stack" onSubmit={e => { e.preventDefault(); void save(); }}>
+      <p>{item.title} · <b>{rupiah(item.amount)}</b>, dibayar {item.uid === me.uid ? 'kamu' : item.name} pakai uang pribadi.</p>
+      <Field label={`Diganti dari dompet ${space.name}`} hint="Transfer atau berikan uangnya, lalu catat di sini. Pengeluarannya pindah ke dompet ini."><Select value={wallet} onChange={e => setWallet(e.target.value)}>{walletOptions(wallets)}</Select></Field>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="toolbar-row"><Button type="button" variant="secondary" onClick={onClose}>Batal</Button><Button type="submit" disabled={busy}>{busy ? 'Menyimpan…' : 'Sudah diganti'}</Button></div>
+    </form>
+  </DialogContent></Dialog>;
 }
 
 function SettleDialog({ target, onClose }: { target: { to: Person; amount: number } | null; onClose: () => void }) {
@@ -231,6 +266,7 @@ export function SpaceFlowNotice({ tx, onDone }: { tx: LedgerTx; onDone: () => vo
   const text = flow.kind === 'deposit' ? `Setoran ${flow.name} dari dompet pribadinya.`
     : flow.kind === 'withdrawal' ? `Diambil ${flow.name} ke dompet pribadinya.`
       : flow.kind === 'paid' ? `Dibayar ${flow.name} pakai uang pribadi, dihitung sebagai kontribusinya.`
+        : flow.kind === 'reimburse' ? (flow.pending ? `Dibayar ${flow.name} pakai uang pribadi, menunggu diganti dari kas.` : `Dibayar ${flow.name} pakai uang pribadi, sudah diganti dari kas.`)
         : `Patungan: dibayar ${flow.name} pakai uang pribadi.${others.length ? ` Bagian yang perlu diganti: ${others.join(', ')}.` : ''}`;
   function remove() {
     const task = !tx.walletId ? deletePaidPersonally(space!, tx) : deleteTransaction(spaceKey(space!.id), tx.id);

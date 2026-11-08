@@ -30,6 +30,10 @@ export function subscribeActivity(spaceId: string, onValue: (list: Activity[]) =
   const since = Timestamp.fromMillis(Date.now() - ACTIVITY_DAYS * 864e5);
   return onSnapshot(query(collection(database(), 'spaces', spaceId, 'activity'), where('at', '>=', since), orderBy('at', 'desc'), limit(150)), snap => onValue(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Activity)), () => onValue([]));
 }
+/** 9.1 The latest few entries, for the bell (what other members did). */
+export function subscribeLatestActivity(spaceId: string, onValue: (list: Activity[]) => void): Unsubscribe {
+  return onSnapshot(query(collection(database(), 'spaces', spaceId, 'activity'), orderBy('at', 'desc'), limit(15)), snap => onValue(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Activity)), () => {});
+}
 export async function markRestored(spaceId: string, id: string, uid: string) { await updateDoc(doc(database(), 'spaces', spaceId, 'activity', id), { restoredBy: uid, restoredAt: serverTimestamp() }); }
 /** Entries older than 30 days are removed (by whichever member opens the history). */
 export async function tidyActivity(spaceId: string) {

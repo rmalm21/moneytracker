@@ -15,7 +15,7 @@ import { names, saveProfile, saveWallet, seedCategoryTemplates } from './firesto
 import { spaceKey } from './space-key';
 import type { Category, Profile } from './types';
 
-export { MAX_MEMBERS, MAX_SPACES, INVITE_HOURS, SPACE_FIELDS, spaceProfile, formatCode, cleanCode } from './space-profile';
+export { MAX_MEMBERS, MAX_SPACES, INVITE_HOURS, SPACE_FIELDS, spaceProfile, formatCode, cleanCode, targetShares } from './space-profile';
 export type { Space, SpaceMember, SpaceRequest, SpaceInvite } from './space-profile';
 import { MAX_MEMBERS, INVITE_HOURS, cleanCode, type Space, type SpaceInvite, type SpaceRequest } from './space-profile';
 
@@ -58,7 +58,7 @@ export async function createSpace(account: Account, input: { name: string; emoji
   return ref.id;
 }
 
-export async function updateSpace(id: string, changes: Partial<Pick<Space, 'name' | 'emoji' | 'color' | 'salaryCycleStartDay'>>) {
+export async function updateSpace(id: string, changes: Partial<Pick<Space, 'name' | 'emoji' | 'color' | 'salaryCycleStartDay' | 'shareTarget'>>) {
   if (changes.name !== undefined && !changes.name.trim()) throw Error('Nama ruang tidak boleh kosong.');
   await settle(updateDoc(spaceDoc(id), { ...changes, ...(changes.name ? { name: changes.name.trim().slice(0, 40) } : {}), updatedAt: serverTimestamp() }));
 }

@@ -121,6 +121,30 @@ export function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
   </main>;
 }
 
+/** 9.1 Asking for the person's PIN (or fingerprint) before something private, e.g. going from a Ruang Bersama back to
+ * Pribadi on a phone someone else is holding. */
+export function PinCheckDialog({ open, onOpenChange, onPass, message }: { open: boolean; onOpenChange: (open: boolean) => void; onPass: () => void; message: string }) {
+  const { account: user, personalProfile: profile } = useApp();
+  const uid = user?.uid || '', bio = biometricEnabled(uid);
+  const [until, setUntil] = useState(() => attempts(uid).until), [note, setNote] = useState('');
+  const pass = useCallback(() => { onOpenChange(false); onPass(); }, [onOpenChange, onPass]);
+  const verify = useCallback(async (pin: string) => {
+    if (!profile?.pinHash || !profile.pinSalt) { pass(); return ''; }
+    const ok = await checkPin(pin, profile.pinSalt, profile.pinHash);
+    const state = recordAttempt(uid, ok);
+    if (ok) { pass(); return ''; }
+    setUntil(state.until);
+    return state.until ? '' : `PIN salah. Sisa ${5 - state.count} percobaan sebelum dijeda.`;
+  }, [profile?.pinHash, profile?.pinSalt, uid, pass]);
+  async function scan() { setNote(''); try { if (await verifyBiometric(uid)) { recordAttempt(uid, true); pass(); } else setNote('Tidak dikenali. Pakai PIN saja.'); } catch (error) { setNote(biometricError(error) || 'Belum terbaca. Pakai PIN saja.'); } }
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent title="Masukkan PIN" className="pin-dialog">
+    <p className="pin-prompt">{message}</p>
+    <PinPad onComplete={verify} disabledUntil={until}/>
+    {bio && <button type="button" className="link-button bio-switch" onClick={() => void scan()}><Fingerprint size={15}/> Pakai sidik jari atau wajah</button>}
+    {note && <p className="pin-message is-error" role="status">{note}</p>}
+  </DialogContent></Dialog>;
+}
+
 /** Settings block: turn fingerprint / face unlock on or off for this device. */
 function BiometricSettings({ notify }: { notify: (message: string) => void }) {
   const { account: user, personalProfile: profile } = useApp();
@@ -151,7 +175,7 @@ function BiometricSettings({ notify }: { notify: (message: string) => void }) {
 
 /** Settings panel: turn the PIN on, change it, choose the auto-lock time, or turn it off. */
 export function PinSettings({ notify, onLockNow }: { notify: (message: string) => void; onLockNow?: () => void }) {
-  const { account: user, personalProfile: profile } = useApp();
+  const { account: user, personalProfile: profile, spaces } = useApp();
   const enabled = Boolean(profile?.pinHash);
   const [mode, setMode] = useState<null | 'set' | 'change' | 'off'>(null);
   const [step, setStep] = useState<'current' | 'new' | 'confirm'>('new');
@@ -180,6 +204,7 @@ export function PinSettings({ notify, onLockNow }: { notify: (message: string) =
     {enabled ? <>
       <Field label="Kunci otomatis setelah"><Select value={String(profile?.pinLockAfter ?? 1)} onChange={event => { if (user) void saveProfile(user.uid, { pinLockAfter: Number(event.target.value) }).catch(() => notify('Waktu kunci otomatis belum tersimpan.')); }}><option value="0">Langsung saat aplikasi ditinggal</option><option value="1">1 menit</option><option value="5">5 menit</option><option value="15">15 menit</option></Select></Field>
       <BiometricSettings notify={notify}/>
+      {spaces.length > 0 && <label className="check-row sp-pin-option"><input type="checkbox" checked={Boolean(profile?.pinOnPersonal)} onChange={event => { if (user) void saveProfile(user.uid, { pinOnPersonal: event.target.checked }).then(() => notify(event.target.checked ? 'PIN diminta saat pindah ke Pribadi.' : 'Pindah ke Pribadi tanpa PIN.'), () => notify('Belum tersimpan.')); }}/><span><strong>Minta PIN saat pindah ke Pribadi</strong><small>Kalau HP-mu dipinjam pasangan dalam mode Bersama, catatan Pribadi-mu tetap terkunci.</small></span></label>}
       <div className="settings-actions start"><Button variant="secondary" onClick={() => begin('change')}><KeyRound size={15}/> Ganti PIN</Button>{onLockNow && <Button variant="secondary" onClick={onLockNow}><Lock size={15}/> Kunci sekarang</Button>}{passwordVerified() ? <Button variant="ghost" onClick={() => { if (user) { disableBiometric(user.uid); void saveProfile(user.uid, { pinHash: null, pinSalt: null }).then(() => notify('PIN aplikasi dinonaktifkan.')); } }}>Nonaktifkan PIN</Button> : <Button variant="ghost" onClick={() => begin('off')}>Nonaktifkan PIN</Button>}</div>
     </> : <><div className="settings-actions start"><Button onClick={() => begin('set')}><LockKeyhole size={16}/> Aktifkan PIN</Button></div><small className="muted bio-hint"><Fingerprint size={13}/> Setelah PIN aktif, kamu bisa membuka aplikasi dengan sidik jari atau wajah.</small></>}
     <Dialog open={mode !== null} onOpenChange={next => { if (!next) setMode(null); }}><DialogContent title={mode === 'off' ? 'Nonaktifkan PIN' : mode === 'change' ? 'Ganti PIN' : 'Aktifkan PIN'} className="pin-dialog">

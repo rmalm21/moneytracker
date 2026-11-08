@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.1', date: '8 Nov 2026', title: 'Dompet Bersama makin lengkap', items: [
+    ['🎯', 'Tujuan dana dan Wish list sekarang ada juga di Ruang Bersama, misalnya nabung DP rumah atau liburan berdua.'],
+    ['🤖', 'Asisten chat bisa dipakai di mode Bersama dan menjawab dari catatan ruang itu. Riwayat chat tiap ruang terpisah dari chat Pribadi, gaya dan kata yang sudah kamu ajarkan tetap ikut.'],
+    ['💰', 'Bayar pakai uang pribadi sekarang punya pilihan ketiga: minta ganti dari kas. Kamu atau anggota lain tinggal menekan Ganti dari kas, lalu kamu menekan Terima.'],
+    ['📊', 'Target pembagian di Pengaturan → Dompet Bersama (sama rata atau atur sendiri, misalnya 60:40). Laporan menunjukkan selisih tiap orang dari targetnya.'],
+    ['📱', 'Lonceng memberi tahu saat anggota lain mencatat, mengubah, atau menghapus, saat ada yang minta bergabung, dan saat ada yang membayar ke kamu (selama aplikasi dibuka).'],
+    ['🔒', 'Pilihan baru di Pengaturan → Keamanan: minta PIN saat pindah dari Bersama ke Pribadi. Tombol Pribadi | Bersama juga dibuat lebih kecil.'],
+  ] },
   { version: '9.0', date: '8 Nov 2026', title: 'Dompet Bersama: catatan bareng pasangan atau keluarga', items: [
     ['👨‍👩‍👧', 'Bikin Ruang Bersama di Pengaturan → Dompet Bersama, lalu undang pasangan atau keluarga (sampai 5 orang) pakai kode undangan. Kodenya sekali pakai dan hangus dalam 24 jam, dan anggota ruang tetap perlu menekan Terima. Satu akun boleh ikut beberapa ruang.'],
     ['🔒', 'Pindah lewat tombol Pribadi | Bersama di atas. Catatan Pribadi-mu tidak pernah terlihat oleh anggota ruang. Di mode Bersama warna aksennya ikut warna ruang, dan formulir menulis "Dicatat ke Rumah", jadi tidak salah catat.'],

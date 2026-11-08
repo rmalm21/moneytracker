@@ -11,6 +11,10 @@ export type Space = Partial<Pick<Profile, typeof SPACE_FIELDS[number]>> & {
   formerMembers?: Record<string, { name: string; leftAt?: unknown }>;
   /** The invite waiting to be used, so every member sees it and can cancel it. */
   invite?: { code: string; expiresAt: Timestamp; by: string } | null;
+  /** 9.1 How much of the contributions each member aims to put in (percent; missing = equal shares). */
+  shareTarget?: Record<string, number>;
+  /** 9.1 Spending paid with someone's own money, waiting to be paid back from the shared cash (transaction id →). */
+  reimburse?: Record<string, { uid: string; name: string; amount: number; title: string; date: string }>;
   createdAt?: unknown; updatedAt?: unknown;
 };
 export type SpaceRequest = { uid: string; name: string; email: string; code: string; at?: Timestamp };
@@ -34,3 +38,12 @@ export function spaceProfile(personal: Profile, space: Space): Profile {
 export const formatCode = (code: string) => `${code.slice(0, 5)}-${code.slice(5)}`;
 export const cleanCode = (typed: string) => typed.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+
+/** Each member's target share in percent: the space's own split when it covers the current members and adds up to
+ * 100, otherwise equal shares (whole numbers, the remainder to the first members). */
+export function targetShares(space: Pick<Space, 'memberIds' | 'shareTarget'>): Record<string, number> {
+  const ids = space.memberIds, set = space.shareTarget || {};
+  if (ids.length && ids.every(id => Number.isFinite(set[id])) && ids.reduce((n, id) => n + set[id], 0) === 100) return Object.fromEntries(ids.map(id => [id, set[id]]));
+  const base = Math.floor(100 / Math.max(1, ids.length)), extra = 100 - base * ids.length;
+  return Object.fromEntries(ids.map((id, i) => [id, base + (i < extra ? 1 : 0)]));
+}

@@ -49,7 +49,8 @@ const plainText = (m: ChatMessage) => m.role === 'user' ? m.text : [m.text, m.re
 /** The assistant's mark: a speech bubble with a spark, drawn for the round button. */
 
 export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (key: string, target?: string) => void; /** 8.6 Loaded on the first tap of the light button: opens at once. */ startOpen?: boolean }) {
-  const { user, data, profile, cycle } = useApp();
+  // 9.1 In a Ruang Bersama the chat has its own history (keyed by the space); the chosen look stays the person's own.
+  const { user, account, data, profile, cycle } = useApp();
   const [open, setOpen] = useState(startOpen);
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [messages, setMessages] = useState<ChatMessage[]>([]), [memory, setMemory] = useState<ChatMemory>({});
@@ -67,11 +68,11 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
   // History and settings of this account, on this device.
   useEffect(() => {
     if (!user) { setLoaded(false); return; }
-    const s = loadSettings(user.uid), h = loadChat(user.uid, s.keepDays);
+    const s = loadSettings((account || user).uid), h = loadChat(user.uid, s.keepDays);
     setSettings(s); setMessages(h.messages); setMemory(h.memory); setLoaded(true);
   }, [user]);
   useEffect(() => { if (user && loaded) saveChat(user.uid, messages, memory, settings.keepDays); }, [user, loaded, messages, memory, settings.keepDays]);
-  const changeSettings = useCallback((patch: Partial<ChatSettings>) => setSettings(s => { const next = { ...s, ...patch }; if (user) saveSettings(user.uid, next); return next; }), [user]);
+  const changeSettings = useCallback((patch: Partial<ChatSettings>) => setSettings(s => { const next = { ...s, ...patch }; if (user) saveSettings((account || user).uid, next); return next; }), [user, account]);
 
   const today = todayInTimeZone(profile?.timeZone);
   const quick = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), ask: { transactions: data.transactions, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone]);
