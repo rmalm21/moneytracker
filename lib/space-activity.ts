@@ -9,7 +9,7 @@ import type { LedgerTx } from './types';
 
 export const ACTIVITY_DAYS = 30;
 export type ActivityKind = 'add' | 'edit' | 'delete' | 'restore';
-export type Activity = { id: string; kind: ActivityKind; by: string; byName: string; at?: Timestamp; txId: string; title: string; amount: number; type: string; date: string; before?: Partial<LedgerTx>; restoredBy?: string; restoredAt?: Timestamp };
+export type Activity = { id: string; kind: ActivityKind; by: string; byName: string; at?: Timestamp; txId: string; title: string; categoryId?: string; amount: number; type: string; date: string; before?: Partial<LedgerTx>; restoredBy?: string; restoredAt?: Timestamp };
 
 function database() { if (!db) throw Error('Konfigurasi Firebase belum tersedia.'); return db; }
 const titleOf = (tx: Partial<LedgerTx>) => (tx.description || tx.merchant || '').slice(0, 80);
@@ -21,7 +21,7 @@ export function logActivity(key: string, kind: ActivityKind, tx: Partial<LedgerT
   const actor = currentActor();
   if (!isSpaceKey(key) || !actor || !db) return;
   void addDoc(collection(database(), 'spaces', spaceIdOf(key), 'activity'), {
-    kind, by: actor.uid, byName: actor.name, at: serverTimestamp(), txId: tx.id || '', title: titleOf(tx), amount: Number(tx.amount) || 0, type: tx.type || '', date: tx.date || '',
+    kind, by: actor.uid, byName: actor.name, at: serverTimestamp(), txId: tx.id || '', title: titleOf(tx), categoryId: tx.categoryId || '', amount: Number(tx.amount) || 0, type: tx.type || '', date: tx.date || '',
     ...(before ? { before: plain(before) } : {}),
   }).catch(() => { /* the history is a help, not the record */ });
 }

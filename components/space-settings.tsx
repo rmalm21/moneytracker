@@ -42,14 +42,15 @@ const verbs: Record<string, string> = { add: 'menambah', edit: 'mengubah', delet
 const whenText = (a: Activity) => a.at ? a.at.toDate().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'baru saja';
 /** Riwayat ruang: the last 30 days of added, changed and deleted transactions; a deleted one can be put back. */
 function SpaceHistory({ space, notify }: { space: Space; notify: (m: string) => void }) {
-  const me = useAccount();
+  const me = useAccount(), { data } = useApp();
   const [list, setList] = useState<Activity[]>([]), [all, setAll] = useState(false), [busy, setBusy] = useState('');
+  const label = (a: Activity) => a.title || data.categories.find(c => c.id === a.categoryId)?.name || 'transaksi';
   useEffect(() => subscribeActivity(space.id, setList), [space.id]);
   useEffect(() => { void tidyActivity(space.id); }, [space.id]);
   if (!me) return null;
   async function restore(a: Activity) {
     if (!a.before) return; setBusy(a.id);
-    try { await upsertTransaction(spaceKey(space.id), restorable(a.before)); await markRestored(space.id, a.id, me!.uid); notify(`“${a.title || 'Transaksi'}” dikembalikan.`); }
+    try { await upsertTransaction(spaceKey(space.id), restorable(a.before)); await markRestored(space.id, a.id, me!.uid); notify(`“${label(a)}” dikembalikan.`); }
     catch (e) { notify((e as Error).message || 'Belum bisa dikembalikan.'); } finally { setBusy(''); }
   }
   const shown = all ? list : list.slice(0, 8);
@@ -57,7 +58,7 @@ function SpaceHistory({ space, notify }: { space: Space; notify: (m: string) => 
     <h3><History size={18}/> Riwayat ruang</h3>
     <p className="muted">Siapa menambah, mengubah, atau menghapus transaksi selama {ACTIVITY_DAYS} hari terakhir. Transaksi yang dihapus bisa dikembalikan.</p>
     {!list.length ? <p className="muted">Belum ada perubahan.</p> : <ul>{shown.map(a => <li key={a.id} className={`sp-act is-${a.kind}`}>
-      <span className="sp-act-text"><b>{a.by === me.uid ? 'Kamu' : a.byName}</b> {verbs[a.kind] || a.kind} <span>{a.title || 'transaksi'}</span> · {rupiah(a.amount)}<small>{whenText(a)}{a.date ? ` · tanggal ${a.date.slice(8)}/${a.date.slice(5, 7)}` : ''}{a.restoredBy ? ` · sudah dikembalikan${a.restoredBy === me.uid ? ' olehmu' : ''}` : ''}</small></span>
+      <span className="sp-act-text"><b>{a.by === me.uid ? 'Kamu' : a.byName}</b> {verbs[a.kind] || a.kind} <span>{label(a)}</span> · {rupiah(a.amount)}<small>{whenText(a)}{a.date ? ` · tanggal ${a.date.slice(8)}/${a.date.slice(5, 7)}` : ''}{a.restoredBy ? ` · sudah dikembalikan${a.restoredBy === me.uid ? ' olehmu' : ''}` : ''}</small></span>
       {a.kind === 'delete' && a.before?.walletId && !a.before.memberFlow && !a.restoredBy && <Button className="small" variant="secondary" disabled={Boolean(busy)} onClick={() => void restore(a)}><RotateCcw size={14}/> {busy === a.id ? 'Mengembalikan…' : 'Kembalikan'}</Button>}
     </li>)}</ul>}
     {list.length > 8 && <button type="button" className="link-button" onClick={() => setAll(v => !v)}>{all ? 'Tampilkan lebih sedikit' : `Lihat semua (${list.length})`}</button>}

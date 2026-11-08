@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.0', date: '8 Nov 2026', title: 'Dompet Bersama: catatan bareng pasangan atau keluarga', items: [
+    ['👨‍👩‍👧', 'Bikin Ruang Bersama di Pengaturan → Dompet Bersama, lalu undang pasangan atau keluarga (sampai 5 orang) pakai kode undangan. Kodenya sekali pakai dan hangus dalam 24 jam, dan anggota ruang tetap perlu menekan Terima. Satu akun boleh ikut beberapa ruang.'],
+    ['🔒', 'Pindah lewat tombol Pribadi | Bersama di atas. Catatan Pribadi-mu tidak pernah terlihat oleh anggota ruang. Di mode Bersama warna aksennya ikut warna ruang, dan formulir menulis "Dicatat ke Rumah", jadi tidak salah catat.'],
+    ['💰', 'Setor dan Ambil antara dompet pribadimu dan dompet bersama. Belanja pakai uang pribadi bisa dicatat "untuk bersama" (dihitung kontribusimu) atau "patungan" (anggota lain mengganti bagiannya). Bagian mereka otomatis jadi piutang di Pribadi-mu.'],
+    ['🤝', 'Siapa perlu mengganti siapa terlihat di Beranda ruang. Yang berutang menekan Lunasi, yang dibayar menekan Terima dan memilih dompet tujuannya. Tiap orang mengonfirmasi sisinya sendiri.'],
+    ['📊', 'Laporan di ruang menunjukkan kontribusi tiap anggota. Tiap transaksi menulis siapa yang mencatat, dan Riwayat ruang menyimpan siapa menambah, mengubah, atau menghapus selama 30 hari. Transaksi yang terhapus bisa dikembalikan.'],
+  ] },
   { version: '8.10', date: '8 Nov 2026', title: 'Bisa dicoba di sini: fitur tiap menu dikenalkan pelan-pelan', items: [
     ['💡', 'Di atas tiap menu (Beranda, Tambah, Transaksi, Dompet, Konfirmasi, Anggaran, Split Bill, chat, Pengaturan, Insight) ada kartu kecil berisi sampai 3 fitur yang belum pernah kamu pakai. Ketuk Coba untuk langsung mencobanya.'],
     ['✅', 'Fitur hilang dari kartu hanya setelah benar-benar dipakai, lalu fitur berikutnya menyusul. Fitur yang sudah biasa kamu pakai tidak ditawarkan. Tombol ✕ menyembunyikan kartu selama 7 hari.'],
