@@ -1,0 +1,24 @@
+heldout3 [multilingual-e5-small knn k5 fallback min0.88 m0]: 75 | right 63 (84.0%) | main ok 0 | wrong 6 (8.0%) | none 6 | model used 2
+  WRONG Beli sayur di tukang sayur keliling → Rumah & Kebutuhan/Perbaikan Rumah (want Makan & Minum/Bahan Makanan) [rules]
+  WRONG Ongkos becak → Personal/Skincare (want Transportasi) [rules]
+  WRONG Naik bajaj ke pasar → Makan & Minum/Bahan Makanan (want Transportasi) [rules]
+    [Phone bill] near: phone=0.89, bill=0.88, telepon=0.88
+  WRONG Mainan anak → Sosial & Sedekah/Keluarga (want Belanja) [rules]
+    [Pijat refleksi] near: resepsi=0.85, cicilan rumah=0.85, langganan berita=0.85
+  NONE  Pijat refleksi → want Kesehatan | Personal
+    [Tes darah lengkap] near: medical check up=0.85, kabel data=0.84, pph bunga=0.84
+  NONE  Tes darah lengkap → want Kesehatan
+  WRONG Tinta printer kantor → Belanja (want Kerja | Pendidikan) [rules]
+    [Koper kabin] near: kapal=0.87, perlengkapan kamar=0.87, kopi kulo=0.87
+  NONE  Koper kabin → want Travel & Liburan | Belanja
+    [Biaya ganti kartu ATM] near: biaya atm=0.90, biaya kartu=0.89, biaya tarik tunai=0.88
+  WRONG Uang saku dinas dari kantor → Penghasilan Tambahan/Hadiah Uang (want Reimbursement | Gaji) [rules]
+    [Royalti buku] near: tunjangan hari raya=0.86, reksadana=0.85, pengembalian=0.85
+  NONE  Royalti buku → want Penghasilan Tambahan
+    [Bagi hasil reksadana] near: hasil jual=0.88, reksa dana=0.87, imbal hasil=0.87
+  NONE  Bagi hasil reksadana → want Penghasilan Keuangan
+    [Uang sewa kamar dari penyewa] near: uang kembali dari orang=0.88, pengembalian uang=0.88, uang saku=0.86
+  NONE  Uang sewa kamar dari penyewa → want Penghasilan Tambahan
+heldout3 [multilingual-e5-small knn k5 fallback min0.86 m0]: 75 | right 64 (85.3%) | main ok 0 | wrong 8 (10.7%) | none 3 | model used 5
+heldout3 [multilingual-e5-small knn k5 fallback min0.9 m0]: 75 | right 61 (81.3%) | main ok 0 | wrong 6 (8.0%) | none 8 | model used 0
+heldout3 [multilingual-e5-small knn k5 emb min0.88 m0]: 75 | right 20 (26.7%) | main ok 0 | wrong 3 (4.0%) | none 52 | model used 23

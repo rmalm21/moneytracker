@@ -1,0 +1,15 @@
+heldout3: 75 lines | right 61 (81.3%) | right main category, other sub 0 (0.0%) | wrong 6 (8.0%) | no guess 8 (10.7%)
+  WRONG Beli sayur di tukang sayur keliling  → Rumah & Kebutuhan/Perbaikan Rumah  (want Makan & Minum/Bahan Makanan)
+  WRONG Ongkos becak  → Personal/Skincare  (want Transportasi)
+  WRONG Naik bajaj ke pasar  → Makan & Minum/Bahan Makanan  (want Transportasi)
+  NONE  Phone bill  → want Tagihan
+  WRONG Mainan anak  → Sosial & Sedekah/Keluarga  (want Belanja)
+  NONE  Pijat refleksi  → want Kesehatan | Personal
+  NONE  Tes darah lengkap  → want Kesehatan
+  WRONG Tinta printer kantor  → Belanja  (want Kerja | Pendidikan)
+  NONE  Koper kabin  → want Travel & Liburan | Belanja
+  NONE  Biaya ganti kartu ATM  → want Biaya Keuangan
+  WRONG Uang saku dinas dari kantor  → Penghasilan Tambahan/Hadiah Uang  (want Reimbursement | Gaji)
+  NONE  Royalti buku  → want Penghasilan Tambahan
+  NONE  Bagi hasil reksadana  → want Penghasilan Keuangan
+  NONE  Uang sewa kamar dari penyewa  → want Penghasilan Tambahan
