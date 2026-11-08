@@ -4,6 +4,7 @@ import { Emoji } from './emoji';
 import type { BillStatus, PersonStatus } from '@/lib/split-bill';
 import type { SplitParticipant } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
+import { featureUsed } from './feature-tips-events';
 
 /** Pieces shared by the Split Bill page and its creation flow. */
 
@@ -22,7 +23,7 @@ export const personTone: Record<PersonStatus, string> = { payer: 'is-done', paid
 
 /* ------------------------------------------------------------------ Sharing (always started by the user) */
 
-export async function copyText(text: string) {
+export async function copyText(text: string) { featureUsed('split_share');
   try { await navigator.clipboard.writeText(text); return true; }
   catch {
     const area = document.createElement('textarea'); area.value = text; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0';
@@ -33,7 +34,7 @@ export async function copyText(text: string) {
 /** The phone's share sheet when there is one; otherwise the text is copied. Returns what happened. */
 export async function shareText(text: string, title = 'Split Bill'): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
   if (navigator.share) {
-    try { await navigator.share({ title, text }); return 'shared'; }
+    try { await navigator.share({ title, text }); featureUsed('split_share'); return 'shared'; }
     catch (error) { if ((error as Error).name === 'AbortError') return 'cancelled'; }
   }
   return (await copyText(text)) ? 'copied' : 'failed';
@@ -111,7 +112,7 @@ export async function renderNota(nota: import('@/lib/split-bill').Nota): Promise
 export async function shareImage(blob: Blob, name: string): Promise<'shared' | 'saved' | 'cancelled'> {
   const file = new File([blob], `${name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'split-bill'}.png`, { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Split Bill' }); return 'shared'; }
+    try { await navigator.share({ files: [file], title: 'Split Bill' }); featureUsed('split_share'); return 'shared'; }
     catch (error) { if ((error as Error).name === 'AbortError') return 'cancelled'; }
   }
   const link = document.createElement('a'); link.href = URL.createObjectURL(file); link.download = file.name; link.click();

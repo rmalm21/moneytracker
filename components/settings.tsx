@@ -30,6 +30,7 @@ import { FinanceControlSettings } from './finance-control-settings';
 import { PersonalLexiconSettings } from './personal-lexicon-settings';
 import { themes } from '@/lib/appearance';
 import { StatementImport } from './statement-import';
+import { FeatureTips } from './feature-tips';
 /** A tappable row that jumps to another page. */
 function SettingsLink({ icon: Icon, title, detail, onClick }: { icon: LucideIcon; title: string; detail: string; onClick?: () => void }) {
   return <button type="button" className="settings-link" onClick={onClick}><span className="settings-link-icon" aria-hidden="true"><Icon size={18}/></span><span className="settings-link-text"><strong>{title}</strong><small>{detail}</small></span><ChevronRight size={18} className="settings-link-arrow" aria-hidden="true"/></button>;
@@ -81,7 +82,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
  const page=active&&sections.find(item=>item.key===active)!;
  const errorText=error&&<p className="form-error" role="alert">{friendlyError({code:error})=== 'Proses belum berhasil. Coba lagi.'?error:friendlyError({code:error})}</p>;
  const walletOptions=data.wallets.filter(w=>!w.isArchived).map(w=><option key={w.id} value={w.id}>{w.name}</option>);
- return <>{!(page&&!wide)&&<div className="page-heading"><div><h1>Pengaturan</h1><p>Atur akun, tampilan, dan data aplikasimu.</p></div></div>}
+ return <>{!(page&&!wide)&&<div className="page-heading"><div><h1>Pengaturan</h1><p>Atur akun, tampilan, dan data aplikasimu.</p></div></div>}{!page&&<FeatureTips menu="settings" navigate={navigate}/>}
  <div className={`set-layout ${active?'has-page':''}`}>
   <aside className="set-menu" aria-label="Menu pengaturan">
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>

@@ -9,6 +9,7 @@ import { budgetCurrent, rupiah } from '@/lib/accounting';
 import { upcomingEvents } from '@/lib/finance-control';
 import { dateInTimeZone, formatDate, nextDate, todayInTimeZone } from '@/lib/period';
 import { defaultReminders } from '@/lib/reminders';
+import { featureUsed } from './feature-tips-events';
 
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
@@ -190,7 +191,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
   const reminders = { ...defaultReminders, ...(profile?.reminders || {}) };
   const permission = open && typeof Notification !== 'undefined' ? Notification.permission : 'granted';
   const tip = !reminders.balanceEnabled && !reminders.billsEnabled ? 'Pengingat tagihan dan perbarui saldo belum aktif. Nyalakan agar muncul sebagai notifikasi di HP.' : permission !== 'granted' ? 'Pengingat sudah aktif, tetapi perangkat ini belum mengizinkan notifikasi. Izinkan agar pengingat muncul walau aplikasi tertutup.' : '';
-  function show(next: boolean) {
+  function show(next: boolean) { if (next) featureUsed('home_bell');
     setOpen(next);
     if (!next) return;
     const ids = attention.map(item => item.id);

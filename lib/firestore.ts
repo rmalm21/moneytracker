@@ -1,4 +1,4 @@
-import { collection, deleteField, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { arrayUnion, collection, deleteField, doc, waitForPendingWrites, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromCache, increment, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, updateDoc, where, writeBatch, type DocumentData, type DocumentReference, type Query, type QueryDocumentSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { isCurrent, syncedCollections, watchSync, whenCurrent, type SyncedName } from './sync';
 import { runTx, settle, isOffline, whenOnline } from './offline';
 import { deletedTxIds, forgetTxDeleted, markTxDeleted, withoutDeleted } from './tombstones';
@@ -142,6 +142,16 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),local,s=>{cycle=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
   if(month.start!==start||month.end!==end)all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',month.start),where('date','<',month.end)),local,s=>{calendar=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
   return ()=>{all.forEach(stop=>stop());customStop?.();};
+}
+/** 8.10 "Bisa dicoba di sini": a feature used, a card hidden, a suggestion shown or closed (lib/feature-tips.ts), as
+ * single fields of the profile, so two devices never overwrite each other's marks. */
+export async function saveTipState(uid:string,change:{used?:string;hideMenu?:string;until?:string;suggested?:{menu:string;day:string;id:string};closed?:{id:string;until:string}}) {
+  const fields:Record<string,unknown>={};
+  if(change.used)fields['featureTips.used']=arrayUnion(change.used);
+  if(change.hideMenu&&change.until)fields[`featureTips.hiddenUntil.${change.hideMenu}`]=change.until;
+  if(change.suggested)fields[`featureTips.suggested.${change.suggested.menu}`]={day:change.suggested.day,id:change.suggested.id};
+  if(change.closed)fields[`featureTips.closed.${change.closed.id}`]=change.closed.until;
+  if(Object.keys(fields).length)await settle(updateDoc(userRef(uid),fields));
 }
 export async function saveProfile(uid:string,changes:Partial<Profile>) { await settle(updateDoc(userRef(uid),{...changes,updatedAt:serverTimestamp()})); }
 /**

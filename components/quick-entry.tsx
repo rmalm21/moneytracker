@@ -22,6 +22,7 @@ import { groupDefaults, type WalletGroup } from '@/lib/wallet-groups';
 import { priorityLabels, wishColors } from '@/lib/wishlist';
 import { walletActions, walletAllows } from '@/lib/wallet-capabilities';
 import type { Budget, Category, Fund, LedgerTx, Recurring, Wallet } from '@/lib/types';
+import { featureUsed } from './feature-tips-events';
 
 /**
  * "Catat otomatis": type a sentence and see at once what will happen. Transactions ("beli pocari 8rb di alfa",
@@ -318,6 +319,9 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
       track(Promise.all(work.map(start)), { open: openList, link: openList && { view: 'transactions' }, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
     void Promise.all(started).then(learnLexicon, () => {});
+    // 8.10 "Beberapa transaksi sekaligus" and "Bikin anggaran lewat kalimat" were used.
+    if (entries.filter(([, e]) => txKinds.has(e!.kind)).length > 1) featureUsed('add_multi');
+    if (entries.some(([, e]) => e!.kind === 'budget')) featureUsed('budget_sentence');
     onSaved?.(nav && !work.length ? 'Menu dibuka.' : work.length === 1 ? [work[0].success, ...[...new Set((work[0].detail || '').split(' · '))]].filter(Boolean).join(' · ') : `${work.length} catatan tersimpan.`);
     reset(); onDone?.();
     if (nav) onNavigate?.(nav.key, nav.target);

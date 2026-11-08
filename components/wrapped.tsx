@@ -6,6 +6,7 @@ import { usePeriodTransactions } from './period-selector';
 import { Select } from './fields';
 import { buildWrapped, defaultPeriod, periodChoices, periodOf, previousOf, type Wrapped } from '@/lib/wrapped';
 import { formatDate } from '@/lib/period';
+import { featureUsed } from './feature-tips-events';
 
 /**
  * 8.5 Rekap: a month or a year told in a few slides (swipe or tap the sides), with "Sembunyikan nominal" (shares and
@@ -72,6 +73,7 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   const { data, profile } = useApp();
   const today = new Date().toLocaleDateString('en-CA');
   const choices = useMemo(() => periodChoices(today), [today]);
+  useEffect(() => { featureUsed('home_rekap'); }, []);
   const [key, setKey] = useState(() => initial || (() => { const p = defaultPeriod(today); return p.kind === 'year' ? p.start.slice(0, 4) : p.start.slice(0, 7); })());
   const period = periodOf(key), prev = previousOf(period);
   const now = usePeriodTransactions({ start: period.start, end: period.end }), before = usePeriodTransactions({ start: prev.start, end: prev.end });

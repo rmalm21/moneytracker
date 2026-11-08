@@ -21,6 +21,7 @@ import { deleteTransaction, subscribeRelatedTransactions } from '@/lib/firestore
 import { rupiah } from '@/lib/accounting';
 import { formatDate, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx, SplitBill, SplitGroup, SplitPayment, SplitPerson } from '@/lib/types';
+import { FeatureTips, useTipTry } from './feature-tips';
 
 /**
  * Split Bill: shared bills and who still owes what. The list shows open bills first; details, payments and sharing
@@ -38,6 +39,8 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
   const [bills, setBills] = useState<SplitBill[] | null>(null), [contacts, setContacts] = useState<{ people: SplitPerson[]; groups: SplitGroup[] }>({ people: [], groups: [] }), [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('open'), [search, setSearch] = useState(''), [filter, setFilter] = useState<Filter>(noFilter), [filterOpen, setFilterOpen] = useState(false), [limit, setLimit] = useState(PAGE);
   const [flow, setFlow] = useState<FlowStart | null>(null), [openId, setOpenId] = useState(''), [chooser, setChooser] = useState(false), [picker, setPicker] = useState(false), [peopleOpen, setPeopleOpen] = useState(false);
+  // 8.10 The tip "Teman yang bayar dulu" starts a manual Split Bill (who paid is chosen there).
+  useTipTry({ split_friendpaid: () => setFlow({ mode: 'manual' }) });
   const today = todayInTimeZone(profile?.timeZone);
   useEffect(() => { if (!user) return; return subscribeSplitBills(user.uid, setBills, e => setError(e.message)); }, [user?.uid]);
   useEffect(() => { if (!user) return; return subscribeSplitContacts(user.uid, setContacts, e => setError(e.message)); }, [user?.uid]);
@@ -95,6 +98,7 @@ export function SplitBillView({ notify, navigate, focus }: Props) {
 
   return <>
     <div className="page-heading"><div><h1>Split Bill</h1><p>Patungan dan tagihan bersama: siapa bayar berapa, dan siapa yang belum.</p></div><div className="heading-actions"><Button variant="secondary" onClick={() => setPeopleOpen(true)}><Users size={16}/> Orang & grup</Button><Button onClick={() => setChooser(true)}><Plus size={16}/> Buat Split Bill</Button></div></div>
+    <FeatureTips menu="splitbill" navigate={navigate}/>
     {error && <p className="form-error" role="alert">{error}</p>}
     {bills === null ? <div className="view-skeleton" aria-busy="true" aria-label="Memuat Split Bill"><span/><span/><span/></div>
       : !bills.length ? <div className="panel sb-empty"><span className="sb-empty-icon" aria-hidden="true"><ReceiptText size={26}/></span><h2>Belum ada Split Bill.</h2><p>Patungan makanan, nongkrong, perjalanan, atau kegiatan lainnya bisa dicatat di sini.</p><Button onClick={() => setChooser(true)}><Plus size={16}/> Buat Split Bill</Button></div>

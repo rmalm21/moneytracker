@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '8.10', date: '8 Nov 2026', title: 'Bisa dicoba di sini: fitur tiap menu dikenalkan pelan-pelan', items: [
+    ['💡', 'Di atas tiap menu (Beranda, Tambah, Transaksi, Dompet, Konfirmasi, Anggaran, Split Bill, chat, Pengaturan, Insight) ada kartu kecil berisi sampai 3 fitur yang belum pernah kamu pakai. Ketuk Coba untuk langsung mencobanya.'],
+    ['✅', 'Fitur hilang dari kartu hanya setelah benar-benar dipakai, lalu fitur berikutnya menyusul. Fitur yang sudah biasa kamu pakai tidak ditawarkan. Tombol ✕ menyembunyikan kartu selama 7 hari.'],
+    ['🧭', 'Setelah kenal, fitur muncul lagi sebagai saran satu baris kalau sedang cocok: gajian tinggal beberapa hari, transaksi yang sama sering dicatat, atau Konfirmasi sedang kosong. Paling banyak satu saran per menu per hari dan bisa ditutup. Semuanya tersimpan di akunmu, jadi sama di semua HP.'],
+  ] },
   { version: '8.9', date: '8 Nov 2026', title: 'Tebakan kategori impor lebih tepat, diuji ribuan baris', items: [
     ['🏪', 'Mutasi bank yang tertulis transfer ke toko atau tempat (misalnya "TRSF E-BANKING DB … Bakso Pak Kumis" atau "BI-FAST CR … Bonus Kinerja") sekarang dibaca sebagai bayar ke tempat itu atau pemasukan biasa, bukan transfer ke orang. Transfer ke nama orang tetap ditanya dulu untuk apa.'],
     ['🎯', 'Tebakan kategori yang dulu meleset dibetulkan: ongkos becak dan bajaj jadi Transportasi, tukang sayur jadi Bahan Makanan, cek gula darah dan tes lab jadi Kesehatan, sprei dan bantal jadi Rumah & Kebutuhan, materai jadi Biaya Keuangan, pasta gigi bukan ke dokter gigi, tiket konser bukan langganan musik, pempek bukan kapal, dan banyak kata sehari-hari lain.'],

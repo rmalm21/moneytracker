@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { hasAmount, hasBareAmount, maskAmounts, maskBareAmounts } from '@/lib/privacy';
+import { featureUsed } from './feature-tips-events';
 
 /**
  * Privacy switch: amounts on screen show as "Rp•••••" (lib/privacy.ts).
@@ -97,7 +98,7 @@ function stopMasking() {
 const ALWAYS_KEY = 'dompet-ajaib:hide-amounts-always';
 const CHANGED = 'dompet-ajaib:hide-amounts-changed';
 export function readAlwaysHide() { try { return localStorage.getItem(ALWAYS_KEY) === '1'; } catch { return false; } }
-export function setAlwaysHide(on: boolean) {
+export function setAlwaysHide(on: boolean) { if (on) featureUsed('settings_hide');
   try { localStorage.setItem(ALWAYS_KEY, on ? '1' : '0'); if (on) localStorage.setItem(KEY, '1'); } catch { /* this visit only */ }
   window.dispatchEvent(new CustomEvent(CHANGED, { detail: on ? true : undefined }));
 }
@@ -129,7 +130,7 @@ export function useHideAmounts() {
     startMasking(chosen);
     return () => { stopMasking(); document.documentElement.removeAttribute('data-hide-amounts'); };
   }, [hidden, chosen]);
-  const toggle = useCallback(() => setHidden(current => { const next = !current; try { localStorage.setItem(KEY, next ? '1' : '0'); } catch { /* still works for this visit */ } return next; }), []);
+  const toggle = useCallback(() => setHidden(current => { const next = !current; featureUsed('home_eye'); try { localStorage.setItem(KEY, next ? '1' : '0'); } catch { /* still works for this visit */ } return next; }), []);
   return [hidden, toggle] as const;
 }
 

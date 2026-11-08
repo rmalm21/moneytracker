@@ -17,6 +17,7 @@ import { fromDraft, recordRow } from '@/lib/import/record';
 import { rupiah } from '@/lib/accounting';
 import { formatDate } from '@/lib/period';
 import type { Draft, LedgerTx } from '@/lib/types';
+import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
 
 /** The form preset for a waiting draft: a schedule's, or an imported statement row's (with its subcategory and the bank's text). */
 const presetOf = (item: Draft): Partial<LedgerTx> => ({ type: item.type, ...(item.debtId ? { debtId: item.debtId } : {}), ...(item.receivableId ? { receivableId: item.receivableId } : {}), amount: item.amount, date: item.plannedDate, walletId: item.walletId, destinationWalletId: item.destinationWalletId, categoryId: item.categoryId, ...(item.subcategoryId ? { subcategoryId: item.subcategoryId } : {}), description: item.name, ...(item.note ? { notes: `Mutasi: ${item.note}` } : {}), draftId: item.id, recurringTransactionId: item.recurringId || null });
@@ -32,6 +33,8 @@ type Filter = 'all' | 'ready' | 'check';
 export function TransactionInbox({ openTx, notify }: { openTx: (preset?: Partial<LedgerTx>) => void; notify: (message: string) => void }) {
   const { data, user } = useApp();
   const [error, setError] = useState(''), [importing, setImporting] = useState(false), [busy, setBusy] = useState('');
+  // 8.10 The tip "Impor mutasi" (and its suggestion) opens the import.
+  useTipTry({ inbox_import: () => setImporting(true) });
   const [filter, setFilter] = useState<Filter>('all'), [picked, setPicked] = useState<string[]>([]), [menu, setMenu] = useState<Draft | null>(null);
   const [ask, setAsk] = useState<{ title: string; description: string; label: string; danger?: boolean; run: () => Promise<void> } | null>(null);
   const pending = useMemo(() => data.drafts.filter(row => row.status === 'pending').sort((a, b) => a.plannedDate.localeCompare(b.plannedDate) || a.name.localeCompare(b.name)), [data.drafts]);
@@ -43,7 +46,7 @@ export function TransactionInbox({ openTx, notify }: { openTx: (preset?: Partial
   const pickedRows = pending.filter(item => picked.includes(item.id)), pickedReady = pickedRows.filter(item => !problemOf(item));
   const allShownPicked = shown.length > 0 && shown.every(item => picked.includes(item.id));
   const days = useMemo(() => { const map = new Map<string, Draft[]>(); for (const item of shown) map.set(item.plannedDate, [...(map.get(item.plannedDate) || []), item]); return [...map]; }, [shown]);
-  const hold = useLongPress(id => setMenu(pending.find(item => item.id === id) || null));
+  const hold = useLongPress(id => { featureUsed('inbox_hold'); setMenu(pending.find(item => item.id === id) || null); });
   // While rows are ticked the bar for them sits at the bottom; the floating chat button steps aside.
   useEffect(() => { document.body.classList.toggle('ix-picking', picked.length > 0); return () => document.body.classList.remove('ix-picking'); }, [picked.length]);
   const walletName = (id: string | null) => data.wallets.find(w => w.id === id)?.name || '';
@@ -65,6 +68,7 @@ export function TransactionInbox({ openTx, notify }: { openTx: (preset?: Partial
     return upsertTransaction(uid, newTx({ ...presetOf(item), type: item.type, amount: item.amount, walletId: item.walletId }));
   }
   async function recordMany(items: Draft[]) {
+    if (items.length > 1) featureUsed('inbox_bulk');
     if (!user || !items.length) return;
     setError(''); setBusy('post');
     let done = 0; const failed: string[] = [];
@@ -108,6 +112,7 @@ export function TransactionInbox({ openTx, notify }: { openTx: (preset?: Partial
 
   return <>
     <div className="page-heading"><div><h1>Perlu dikonfirmasi</h1><p>Jadwal rutin dan mutasi yang diimpor di sini belum mengubah saldo. Tinjau sebelum mencatatnya.</p></div><div className="heading-actions"><Button variant="secondary" onClick={() => setImporting(true)}><FileSpreadsheet size={16} /> Impor mutasi</Button></div></div>
+    <FeatureTips menu="inbox"/>
     <Summary items={[{ label: 'Menunggu konfirmasi', value: `${pending.length} transaksi`, icon: SumInbox, tone: 'warn' }, { label: 'Total keluar', value: rupiah(pending.filter(i => !moneyIn(i) && i.type !== 'transfer').reduce((n, i) => n + i.amount, 0)), icon: SumTrendingDown, tone: 'out' }, { label: 'Total masuk', value: rupiah(pending.filter(i => moneyIn(i)).reduce((n, i) => n + i.amount, 0)), icon: SumTrendingUp, tone: 'in' }]} />
     {pending.length > 0 && <div className="ix-bar">
       <div className="ix-filters" role="tablist" aria-label="Tampilkan">

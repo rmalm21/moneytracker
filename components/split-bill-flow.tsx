@@ -19,6 +19,7 @@ import { rupiah } from '@/lib/accounting';
 import { walletAllows } from '@/lib/wallet-capabilities';
 import { formatDate, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx, ReceiptSnapshot, SplitBill, SplitExtra, SplitExtraKind, SplitGroup, SplitItem, SplitMethod, SplitParticipant, SplitPerson } from '@/lib/types';
+import { featureUsed } from './feature-tips-events';
 
 /**
  * Making or changing a Split Bill on one page: who, the items and who had them, extra costs and discounts, each
@@ -192,6 +193,7 @@ export function SplitFlow({ start, people, groups, bills = [], onClose, onSaved 
     setSaving(true); setError('');
     try {
       const id = await saveSplitBill(user.uid, { ...input, total: bill.items.length && !bill.fromTransaction ? result.total : bill.total }, { draft });
+      if (bill.payer === 'other') featureUsed('split_friendpaid');
       onSaved(id, draft ? 'Draft Split Bill disimpan.' : editing ? 'Split Bill diperbarui.' : 'Split Bill disimpan.');
     } catch (e) { setError((e as Error).message || 'Split Bill belum tersimpan.'); }
     finally { setSaving(false); }

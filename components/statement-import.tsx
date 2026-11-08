@@ -14,6 +14,7 @@ import { draftRows, recordRow, undoSaved, type Saved } from '@/lib/import/record
 import type { LedgerTx, Recurring } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
 import { formatDate } from '@/lib/period';
+import { featureUsed } from './feature-tips-events';
 
 /** Import rows the person skipped in Perlu dikonfirmasi, kept on this device so importing the file again leaves them out. */
 const SKIPPED_KEY = (uid: string) => `dompet-ajaib:import-skipped:${uid}`;
@@ -48,7 +49,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
   const [saved, setSaved] = useState<(Saved & { gone?: boolean })[] | null>(null);
   // 8.8 Rows ticked to take out together, and the row whose menu is open (long press or right click).
   const [picked, setPicked] = useState<string[]>([]), [menuId, setMenuId] = useState('');
-  const hold = useLongPress(id => setMenuId(id));
+  const hold = useLongPress(id => { featureUsed('inbox_hold'); setMenuId(id); });
   const [focus, setFocusState] = useState<Focus>('all');
   useEffect(() => { setFocusState(readFocus()); }, []);
   const setFocus = (f: Focus) => { setFocusState(f); setPicked([]); try { localStorage.setItem(FOCUS_KEY, f); } catch { /* only a convenience */ } };

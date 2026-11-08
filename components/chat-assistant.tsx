@@ -19,6 +19,7 @@ import { VOICES } from '@/lib/chat/voice';
 import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhrase, loadChat, loadSettings, page, saveChat, saveSettings, type ChatMessage, type ChatSettings, type ChatStatus, type ChatStyle } from '@/lib/chat/store';
 import { dateInTimeZone, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
+import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
 
 const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const clock = (at: number) => new Date(at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -57,6 +58,9 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
   // Picking messages to copy or delete, and what was just deleted (for "Urungkan").
   const [picked, setPicked] = useState<Set<string> | null>(null), [undo, setUndo] = useState<{ removed: ChatMessage[]; memory: ChatMemory } | null>(null), [copied, setCopied] = useState(false);
   const listRef = useRef<HTMLDivElement>(null), inputRef = useRef<HTMLTextAreaElement>(null), timer = useRef<number | undefined>(undefined), sheetRef = useRef(sheet), busy = useRef(false);
+  // 8.10 Tips: "Asisten chat" opens it; "Tanya keuangan" and "Catat lewat chat" put an example in the box.
+  const tryText = (text: string) => { setOpen(true); setDraft(text); window.setTimeout(() => inputRef.current?.focus(), 60); };
+  useTipTry({ home_chat: () => setOpen(true), chat_ask: () => tryText('uang bebas berapa?'), chat_record: () => tryText('makan siang 35rb pakai gopay') });
   const pickRef = useRef(picked), hold = useRef<{ x: number; y: number; t: number } | null>(null), swallow = useRef(false);
   sheetRef.current = sheet; pickRef.current = picked;
 
@@ -112,11 +116,12 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
     busy.current = true;
     setDraft(''); if (inputRef.current) inputRef.current.style.height = '';
     const userMsg: ChatMessage = { id: uid(), at: Date.now(), role: 'user', text: t };
-    setMessages(list => [...list, userMsg]); setTyping(true);
+    setMessages(list => [...list, userMsg]); setTyping(true); featureUsed('home_chat');
     const started = Date.now();
     const now = dateInTimeZone(new Date(), profile?.timeZone);
     const result = await chatReply(t, memory, { ...chatCtx, hour: now.getHours(), minute: now.getMinutes() }).catch(() => null);
     if (!result) { busy.current = false; setTyping(false); return; }
+    if (result.reply.kind === 'say' && (result.reply.hero || result.reply.stats?.length || result.reply.card || result.reply.bars?.length)) featureUsed('chat_ask');
     if (result.setVoice) changeSettings({ voice: result.setVoice });
     if (result.learn) changeSettings({ learned: learnPhrase(settings.learned, result.learn.phrase, result.learn.as) });
     // A change or a cancel takes the place of the card waiting to be saved.
@@ -131,6 +136,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
     }, Math.max(0, 280 + Math.min(420, t.length * 5) - (Date.now() - started)));
   }
   function saved(id: string, planText: string, summary: string) {
+    featureUsed('chat_record');
     mark(id, 'saved', summary);
     setMemory(m => m.plan?.text === planText ? { ...m, plan: { ...m.plan, status: 'saved' } } : m);
   }
@@ -205,6 +211,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false }: { openTx: 
           {style !== 'penuh' && <button type="button" className="chat-icon-btn" aria-label="Tutup" onClick={() => setOpen(false)}><X size={19}/></button>}
         </header>}
 
+        {!picked && <FeatureTips menu="chat" className="ft-in-chat"/>}
         <div className={`chat-list ${picked ? 'is-picking' : ''}`} ref={listRef} aria-live="polite" onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
           {more && <button type="button" className="chat-more" onClick={() => setShown(n => n + PAGE)}><ChevronUp size={14}/> Muat lebih banyak <small>({hidden} pesan lagi)</small></button>}
           {!messages.length && <Welcome name={chatCtx.name} groups={templates} onPick={send}/>}

@@ -15,6 +15,7 @@ import { budgetCommitted } from '@/lib/finance-control';
 import { dateInTimeZone } from '@/lib/period';
 import type { Budget, LedgerTx } from '@/lib/types';
 import { BudgetDetail } from './budget-detail';
+import { FeatureTips, askToTry, useTipTry } from './feature-tips';
 
 const weekdays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 type SortMode = 'manual' | 'remaining' | 'used' | 'amount' | 'name';
@@ -82,6 +83,8 @@ export function BudgetsView({ notify, navigate, openTx, focus }: { notify: (mess
     return data.budgets.filter(b => b.active && b.id !== editing?.id && b.categoryId === category).filter(b => { const m = budgetMatcher(b, data.categories); return ids.some(id => m(category, id) && draft(category, id)); }).map(b => b.name);
   }, [category, subs, data.budgets, data.categories, editing?.id, children]);
 
+  // 8.10 Tips: a new budget form, or Catat otomatis to type "anggaran makan 2jt".
+  useTipTry({ budget_sub: () => edit(), budget_sentence: () => { openTx?.(); window.setTimeout(() => askToTry('add_sentence'), 350); } });
   function edit(b?: Budget) { setSubsOpen(false); setEditing(b || null); setName(b?.name || ''); setNameTouched(Boolean(b)); setCategory(b?.categoryId || ''); setSubs(b ? budgetSubcategories(b) : []); setAmount(b?.amount || 0); setClassification(b?.classification || 'living'); setPeriod(b?.cycleType || 'salary'); setDay(b?.cycleStartDay || salaryDay); setWarning(b?.warningPercent || profile?.budgetWarningPercent || 80); setNotes(b?.notes || ''); setRollover(b?.rolloverEnabled || false); setActive(b?.active ?? true); setError(''); setOpen(true); }
   async function act(fn: () => Promise<unknown>, message: string, close = false) { if (close) { setOpen(false); track(fn(), { pending: 'Menyimpan…', success: message, failure: 'Belum tersimpan', retry: { label: 'Buka lagi', run: () => setOpen(true) } }); return; } setError(''); setBusy(true); try { await fn(); notify(message); if (close) setOpen(false); } catch (e) { setError((e as Error).message || 'Belum berhasil. Coba lagi.'); } finally { setBusy(false); } }
   function submit(event: FormEvent) {
@@ -98,6 +101,7 @@ export function BudgetsView({ notify, navigate, openTx, focus }: { notify: (mess
 
   return <div className="bgt-page">
     <div className="page-heading"><div><h1>Anggaran</h1><p>Batas belanja per kategori. Ketuk kartu untuk melihat rinciannya.</p></div><div className="heading-actions"><Button onClick={() => edit()}><Plus size={16}/> Buat anggaran</Button></div></div>
+    <FeatureTips menu="budgets" navigate={navigate}/>
 
     {data.budgets.length > 0 && <section className={`bgt-hero ${totalLeft < 0 ? 'is-over' : ''}`}>
       <div className="bgt-hero-main">

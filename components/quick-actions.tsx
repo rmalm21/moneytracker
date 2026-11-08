@@ -8,6 +8,7 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { saveProfile } from '@/lib/firestore';
 import { rupiah } from '@/lib/accounting';
 import type { LedgerTx, QuickAction } from '@/lib/types';
+import { useTipTry } from './feature-tips-events';
 
 const defaults: QuickAction[] = [
   { id: 'expense', label: 'Pengeluaran', kind: 'expense' },
@@ -29,6 +30,8 @@ function isTransactionKind(kind: QuickAction['kind']): kind is 'expense' | 'inco
 export function QuickActions({ openTx, navigate, notify }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (view: string) => void; notify: (message: string) => void }) {
   const { user, profile, data } = useApp();
   const [open, setOpen] = useState(false);
+  // 8.10 The tip "Ubah tombol Catat cepat" (and its suggestion) opens the editor.
+  useTipTry({ home_quick: () => setOpen(true) });
   const [actions, setActions] = useState<QuickAction[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<QuickAction>({ id: '', label: '', kind: 'expense' });

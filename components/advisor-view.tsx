@@ -34,6 +34,7 @@ import { priorityLabels, riskLabels, type InsightProfile } from '@/lib/insight-p
 import { INFLATION, rangeText } from '@/lib/invest-plan';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { Budget } from '@/lib/types';
+import { FeatureTips, useTipTry } from './feature-tips';
 
 /**
  * Insight: a personal financial check-up built from several salary cycles of history.
@@ -159,6 +160,8 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
   const [busy, setBusy] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false); const [rekap, setRekap] = useState(false);
+  // 8.10 Tips on Insight open its two sheets.
+  useTipTry({ insight_profile: () => setProfileOpen(true), insight_layout: () => setLayoutOpen(true) });
   const layout = profile?.insightLayout || {};
   const order = mergeOrder(layout.order);
   const hiddenSections = layout.hidden || [];
@@ -368,6 +371,7 @@ export function AdvisorView({ navigate }: { navigate: (view: string, focus?: str
 
   return <div className="insight-page ix-page">
     {heading}
+    <FeatureTips menu="advisor" navigate={navigate}/>
     {history.error && <p className="form-error" role="alert">{history.error}</p>}
     <div className={`ix-top ${firstKey ? 'has-side' : ''}`}>
       <InsightHero hero={hero} onFullScore={openHealth}/>
