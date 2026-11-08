@@ -48,6 +48,8 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number) { if (ctx
  * what they had and their total, then the bill total and whom to pay.
  */
 export async function renderNota(nota: import('@/lib/split-bill').Nota): Promise<Blob> {
+  // 9.3.1 The title's web font is loaded first (a canvas does not wait for it); offline it draws with what there is.
+  if (document.fonts) await Promise.race([document.fonts.load('700 21px "DM Sans"', 'Split Bill').catch(() => []), new Promise(done => window.setTimeout(done, 1500))]);
   const scale = 2, width = 440, pad = 30, inner = width - pad * 2;
   const mono = (weight: number, size: number) => `${weight} ${size}px ui-monospace, "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace`;
   const sans = (weight: number, size: number) => `${weight} ${size}px "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;

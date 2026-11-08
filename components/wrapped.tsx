@@ -36,35 +36,57 @@ function slidesOf(w: Wrapped, hide: boolean, name: string): Slide[] {
   return out;
 }
 
-/** One picture of the recap (1080×1350), drawn on a canvas in the page's colours. */
+/**
+ * 9.3.1 The app's own fonts for the picture: the ones picked in Tampilan (DM Sans and Manrope unless changed), read from
+ * the page and loaded first. A canvas does not wait for web fonts: drawing before they are in fell back to the phone's
+ * plain font (Arial-like on many Androids). Offline or slow, it gives up after a moment and draws with what there is.
+ */
+function appFonts() {
+  const css = getComputedStyle(document.documentElement);
+  const body = css.getPropertyValue('--font-body').trim() || getComputedStyle(document.body).fontFamily || 'sans-serif';
+  const head = css.getPropertyValue('--font-head').trim() || body;
+  const first = (list: string) => list.split(',')[0].trim();
+  const fonts = document.fonts as FontFaceSet | undefined;
+  const loads = fonts ? [...[600, 700].map(w => `${w} 40px ${first(body)}`), ...[700, 800].map(w => `${w} 40px ${first(head)}`)].map(f => fonts.load(f, 'Rp1.234 Rekap•…').catch(() => [])) : [];
+  const ready = Promise.race([Promise.all(loads), new Promise(done => window.setTimeout(done, 2500))]);
+  return { body, head, ready };
+}
+
+/** One picture of the recap (1080×1350), drawn on a canvas in the page's colours and the app's fonts. */
 async function drawPicture(w: Wrapped, hide: boolean, colors: { accent: string; ink: string; muted: string; paper: string }): Promise<Blob> {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d')!, money = (n: number) => hide ? HIDDEN : rp(n);
-  const font = (size: number, weight = 700) => `${weight} ${size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  const fonts = appFonts(); await fonts.ready;
+  // Headings and big figures in the heading font (tighter, as on screen); labels in the body font.
+  const type = (size: number, weight = 700) => {
+    const head = weight >= 700;
+    g.font = `${weight} ${size}px ${head ? fonts.head : fonts.body}`;
+    if ('letterSpacing' in g) (g as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = head && size >= 60 ? `${(-0.02 * size).toFixed(1)}px` : '0px';
+  };
   const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, colors.accent); bg.addColorStop(1, '#0f2a2a');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.arc(W - 120, 140, 260, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#fff'; g.font = font(40, 600); g.fillText(w.period.kind === 'month' ? 'Rekap bulanan' : 'Rekap tahunan', 80, 140);
-  g.font = font(92, 800); g.fillText(w.period.label, 80, 250);
+  g.fillStyle = '#fff'; type(40, 600); g.fillText(w.period.kind === 'month' ? 'Rekap bulanan' : 'Rekap tahunan', 80, 140);
+  type(92, 800); g.fillText(w.period.label, 80, 250);
   const card = (y: number, h: number) => { g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.roundRect(60, y, W - 120, h, 36); g.fill(); g.fillStyle = '#fff'; };
   card(310, 230);
-  g.font = font(34, 600); g.globalAlpha = .8; g.fillText('Keluar', 110, 375); g.fillText('Masuk', 580, 375); g.globalAlpha = 1;
-  g.font = font(64, 800); g.fillText(money(w.expense), 110, 455); g.fillText(money(w.income), 580, 455);
-  g.font = font(32, 600); g.globalAlpha = .85; g.fillText(w.saved >= 0 ? `Sisa ${hide ? (w.income ? pct(w.savedRate) : HIDDEN) : rp(w.saved)}` : 'Pengeluaran lebih besar dari pemasukan', 110, 510); g.globalAlpha = 1;
+  type(34, 600); g.globalAlpha = .8; g.fillText('Keluar', 110, 375); g.fillText('Masuk', 580, 375); g.globalAlpha = 1;
+  type(64, 800); g.fillText(money(w.expense), 110, 455); g.fillText(money(w.income), 580, 455);
+  type(32, 600); g.globalAlpha = .85; g.fillText(w.saved >= 0 ? `Sisa ${hide ? (w.income ? pct(w.savedRate) : HIDDEN) : rp(w.saved)}` : 'Pengeluaran lebih besar dari pemasukan', 110, 510); g.globalAlpha = 1;
   card(570, 420);
-  g.font = font(36, 700); g.fillText('Paling banyak ke', 110, 640);
+  type(36, 700); g.fillText('Paling banyak ke', 110, 640);
   w.top.slice(0, 3).forEach((t, i) => {
     const y = 720 + i * 95;
-    g.font = font(38, 700); g.fillText(t.name.length > 22 ? `${t.name.slice(0, 21)}…` : t.name, 110, y);
-    g.font = font(34, 600); const v = hide ? pct(t.share) : rp(t.amount), tw = g.measureText(v).width; g.fillText(v, W - 110 - tw, y);
+    type(38, 700); g.fillText(t.name.length > 22 ? `${t.name.slice(0, 21)}…` : t.name, 110, y);
+    type(34, 600); const v = hide ? pct(t.share) : rp(t.amount), tw = g.measureText(v).width; g.fillText(v, W - 110 - tw, y);
     g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.roundRect(110, y + 18, W - 220, 14, 7); g.fill();
     g.fillStyle = '#fff'; g.beginPath(); g.roundRect(110, y + 18, Math.max(14, (W - 220) * t.share), 14, 7); g.fill();
   });
   card(1020, 200);
-  g.font = font(34, 600); g.globalAlpha = .8; g.fillText('Rajin mencatat', 110, 1085); g.fillText(w.place ? 'Tempat favorit' : 'Catatan', 580, 1085); g.globalAlpha = 1;
-  g.font = font(50, 800); g.fillText(`${w.longestStreak} hari`, 110, 1160);
+  type(34, 600); g.globalAlpha = .8; g.fillText('Rajin mencatat', 110, 1085); g.fillText(w.place ? 'Tempat favorit' : 'Catatan', 580, 1085); g.globalAlpha = 1;
+  type(50, 800); g.fillText(`${w.longestStreak} hari`, 110, 1160);
   const fav = w.place ? w.place.name : `${w.count} transaksi`; g.fillText(fav.length > 14 ? `${fav.slice(0, 13)}…` : fav, 580, 1160);
-  g.font = font(30, 600); g.globalAlpha = .75; g.fillText('Dompet Ajaib · dihitung di HP sendiri', 80, H - 60); g.globalAlpha = 1;
+  type(30, 600); g.globalAlpha = .75; g.fillText('Dompet Ajaib · dihitung di HP sendiri', 80, H - 60); g.globalAlpha = 1;
   void colors;
   return new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(Error('Gambar belum bisa dibuat.')), 'image/png'));
 }
@@ -73,7 +95,8 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   const { data, profile } = useApp();
   const today = new Date().toLocaleDateString('en-CA');
   const choices = useMemo(() => periodChoices(today), [today]);
-  useEffect(() => { featureUsed('home_rekap'); }, []);
+  // The fonts start loading when the recap opens, so "Bagikan" does not have to wait for them.
+  useEffect(() => { featureUsed('home_rekap'); void appFonts().ready; }, []);
   const [key, setKey] = useState(() => initial || (() => { const p = defaultPeriod(today); return p.kind === 'year' ? p.start.slice(0, 4) : p.start.slice(0, 7); })());
   const period = periodOf(key), prev = previousOf(period);
   const now = usePeriodTransactions({ start: period.start, end: period.end }), before = usePeriodTransactions({ start: prev.start, end: prev.end });

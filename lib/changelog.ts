@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.3.1', date: '8 Nov 2026', title: 'Gambar rekap pakai font aplikasi', items: [
+    ['🎨', 'Gambar Rekap yang dibagikan sekarang memakai font yang sama dengan aplikasi (termasuk font pilihanmu di Pengaturan → Tampilan), tidak lagi berubah jadi font biasa seperti Arial.'],
+  ] },
   { version: '9.3', date: '8 Nov 2026', title: 'Chat grup: tandai, balas, dan tanda dibaca', items: [
     ['🤖', 'Ketik @ di grup, langsung muncul saran Asisten dan nama anggota. Cukup ketik sebagian, misalnya "@ass" atau "@be". @asisten juga boleh ditulis di tengah kalimat.'],
     ['🤝', 'Tandai anggota dengan @nama, misalnya "@Bejo ntar transfer iuran ya". Yang ditandai dapat notifikasi "Tes menandaimu", dan namanya diberi warna di pesan.'],
