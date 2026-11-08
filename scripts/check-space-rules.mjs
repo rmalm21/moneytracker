@@ -123,6 +123,16 @@ await expect('Budi menghapus pesannya sendiri', true, () => deleteDoc(msg(B, 'm1
 await fetch(`${FS}/v1/projects/${PROJECT}/databases/(default)/documents/spaces/${S}/messages/old1`, { method: 'PATCH', headers: { 'content-type': 'application/json', Authorization: 'Bearer owner' }, body: JSON.stringify({ fields: { by: { stringValue: A.uid }, byName: { stringValue: 'ana' }, at: { timestampValue: '2026-01-01T00:00:00Z' }, kind: { stringValue: 'text' }, text: { stringValue: 'lama' } } }) });
 await expect('Budi menghapus pesan Ana yang sudah lewat 90 hari', true, () => deleteDoc(msg(B, 'old1')));
 await expect('Ana kirim kartu transaksi', true, () => setDoc(msg(A, 'm5'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'tx', text: '', tx: { id: 't1', title: 'Belanja', amount: 160000, type: 'expense', date: '2026-11-08' } }));
+await expect('Ana membalas pesan Budi dan menandai Budi', true, () => setDoc(msg(A, 'm7'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'text', text: '@budi siap', replyTo: { id: 'm1', by: B.uid, byName: 'budi', text: 'Belanja dapur udah ya', kind: 'text' }, mentions: [B.uid] }));
+await expect('pesan dengan isian tak dikenal', false, () => setDoc(msg(A, 'm8'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'text', text: 'hai', pinned: true }));
+await expect('kutipan balasan terlalu panjang', false, () => setDoc(msg(A, 'm9'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'text', text: 'hai', replyTo: { id: 'm1', text: 'x'.repeat(201) } }));
+await expect('menandai lebih dari 5 orang', false, () => setDoc(msg(A, 'm10'), { by: A.uid, byName: 'ana', at: serverTimestamp(), kind: 'text', text: 'hai', mentions: ['a', 'b', 'c', 'd', 'e', 'f'] }));
+const readDoc = (who, uid) => doc(who.db, 'spaces', S, 'reads', uid);
+await expect('Budi menandai sudah membaca', true, () => setDoc(readDoc(B, B.uid), { at: serverTimestamp(), name: 'budi' }));
+await expect('Ana melihat siapa yang sudah membaca', true, () => getDocs(collection(A.db, 'spaces', S, 'reads')));
+await expect('Ana menandai Budi sudah membaca', false, () => setDoc(readDoc(A, B.uid), { at: serverTimestamp(), name: 'budi' }));
+await expect('waktu baca dari HP sendiri (bukan waktu server)', false, () => setDoc(readDoc(A, A.uid), { at: new Date(2030, 0, 1), name: 'ana' }));
+await expect('bukan anggota melihat siapa yang membaca', false, () => getDocs(collection(C.db, 'spaces', S, 'reads')));
 await expect('Budi kirim pesan lagi', true, () => setDoc(msg(B, 'm6'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'oke' }));
 
 console.log('\nMaksimal 5 anggota');
@@ -146,6 +156,8 @@ await expect('Cici keluar', true, () => leave(C, S, [A.uid, B.uid]));
 await expect('Budi keluar', true, () => leave(B, S, [A.uid]));
 await expect('Ana (anggota terakhir) keluar tanpa menghapus', false, () => updateDoc(sref(A), { memberIds: [], members: {} }));
 await expect('Ana (anggota terakhir) menghapus pesan Budi', true, () => deleteDoc(msg(A, 'm6')));
+await expect('Ana (anggota terakhir) menghapus tanda baca Budi', true, () => deleteDoc(readDoc(A, B.uid)));
+await expect('Ana menghapus balasannya', true, () => deleteDoc(msg(A, 'm7')));
 await expect('Ana menghapus isi ruang', true, async () => { for (const id of ['t1', 't2']) await deleteDoc(tx(A, id)); await deleteDoc(doc(A.db, 'spaces', S, 'activity', 'a1')); await deleteDoc(doc(A.db, 'spaces', S, 'messages', 'm5')); });
 await expect('Ana (anggota terakhir) menghapus ruang', true, () => deleteDoc(sref(A)));
 

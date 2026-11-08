@@ -9085,9 +9085,10 @@ html[data-theme="dark"] .sp-colors button { background: var(--sw-dark); color: #
 .sp-own-only { margin: 0 0 10px; font-size: .84rem; }
 
 /* 9.2 Chat grup (Ruang Bersama): tabs in the chat panel, the group's messages, sharing a transaction. */
-.chat-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 12px 6px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
-.chat-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 700 .8rem/1 inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-tabs button.on { background: var(--paper); color: var(--accent); box-shadow: var(--elev-1); }
+.chat-tabs { display: flex; width: max-content; max-width: calc(100% - 24px); gap: 2px; margin: -2px auto 4px; padding: 2px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+.chat-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 24px; max-width: 150px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 700 .69rem/1 inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-tabs button.on { background: var(--paper); color: var(--accent); box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 14%, transparent); }
+.chat-tabs .chat-tab-badge { min-width: 15px; height: 15px; padding: 0 4px; font-size: .6rem; }
 .chat-tab-badge, .chat-fab-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--danger, #d64545); color: #fff; font: 800 .66rem/1 inherit; }
 .chat-fab-badge { position: absolute; top: -2px; right: -2px; box-shadow: 0 0 0 2px var(--paper); }
 .gc-row { display: flex; align-items: flex-end; gap: 6px; margin: 6px 0; }
@@ -9120,3 +9121,43 @@ html[data-theme="dark"] .sp-colors button { background: var(--sw-dark); color: #
 .gc-share p { margin: 12px; }
 .gc-row.is-run { margin-top: 2px; }
 .gc-avatar.is-blank { visibility: hidden; }
+
+/* 9.3 Chat grup: swipe to answer, quotes, tags, suggestions, read marks */
+.gc-row { position: relative; touch-action: pan-y; }
+.gc-slide { display: flex; align-items: flex-end; gap: 6px; max-width: 88%; min-width: 0; will-change: transform; }
+.gc-row.is-mine .gc-slide { margin-left: auto; }
+.gc-row .gc-msg { max-width: 100%; }
+.gc-swipe-ico { position: absolute; top: 50%; display: grid; place-items: center; width: 28px; height: 28px; margin-top: -14px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); opacity: 0; pointer-events: none; transform: scale(calc(.6 + .4 * var(--swipe, 0))); }
+.gc-swipe-ico.is-l { left: 2px; } .gc-swipe-ico.is-r { right: 2px; transform: scaleX(-1) scale(calc(.6 + .4 * var(--swipe, 0))); }
+.gc-row[data-dir="right"] .gc-swipe-ico.is-l, .gc-row[data-dir="left"] .gc-swipe-ico.is-r { opacity: var(--swipe, 0); }
+.gc-quote { display: grid; gap: 1px; max-width: 100%; padding: 5px 9px; border: 0; border-left: 3px solid var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 9%, var(--paper)); color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.gc-quote b { color: var(--accent); font-size: .7rem; }
+.gc-quote span { overflow: hidden; color: var(--muted); font-size: .76rem; white-space: nowrap; text-overflow: ellipsis; }
+.gc-row.is-mine .gc-quote { justify-self: end; }
+.gc-tag { color: var(--accent); font-weight: 800; }
+.gc-row.is-mine .gc-tag { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.gc-tag.is-me { padding: 0 3px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.gc-row.is-tagged:not(.is-mine) .gc-bubble { box-shadow: inset 3px 0 0 var(--accent); }
+.gc-row.is-flash .gc-bubble, .gc-row.is-flash .gc-tx { animation: gc-flash 1.2s ease; }
+@keyframes gc-flash { 0%, 60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: none; } }
+.gc-meta { display: inline-flex; align-items: center; gap: 3px; }
+.gc-row.is-mine .gc-meta { justify-self: end; }
+.gc-ticks { display: inline-flex; color: var(--muted); }
+.gc-ticks.is-some { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
+.gc-ticks.is-read { color: var(--accent); }
+.gc-seen { justify-self: end; margin-top: -2px; color: var(--muted); font-size: .68rem; }
+.gc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.gc-row.is-mine .gc-actions { justify-content: flex-end; }
+.gc-actions button { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: 700 .74rem/1 inherit; cursor: pointer; }
+.gc-actions button.is-danger { color: var(--danger, #c0392b); }
+.gc-readinfo { flex-basis: 100%; color: var(--muted); font-size: .72rem; text-align: right; }
+.gc-suggest { display: grid; gap: 2px; max-height: 210px; margin: 0 10px 6px; padding: 4px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: var(--elev-2, 0 6px 20px rgba(0,0,0,.12)); list-style: none; }
+.gc-suggest button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 42px; padding: 4px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.gc-suggest button.on, .gc-suggest button:hover { background: color-mix(in srgb, var(--accent) 9%, var(--paper)); }
+.gc-suggest button > span:last-child { display: grid; gap: 1px; min-width: 0; }
+.gc-suggest b { font-size: .84rem; } .gc-suggest small { color: var(--muted); font-size: .7rem; }
+.gc-replybar { display: flex; align-items: center; gap: 8px; margin: 0 10px 4px; padding: 6px 6px 6px 10px; border-left: 3px solid var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); color: var(--accent); }
+.gc-replybar > span { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.gc-replybar b { font-size: .74rem; } .gc-replybar small { overflow: hidden; color: var(--muted); font-size: .76rem; white-space: nowrap; text-overflow: ellipsis; }
+.gc-note { position: static; margin: 0 auto 6px; }
+@media (prefers-reduced-motion: reduce) { .gc-row.is-flash .gc-bubble, .gc-row.is-flash .gc-tx { animation: none; } }

@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.3', date: '8 Nov 2026', title: 'Chat grup: tandai, balas, dan tanda dibaca', items: [
+    ['🤖', 'Ketik @ di grup, langsung muncul saran Asisten dan nama anggota. Cukup ketik sebagian, misalnya "@ass" atau "@be". @asisten juga boleh ditulis di tengah kalimat.'],
+    ['🤝', 'Tandai anggota dengan @nama, misalnya "@Bejo ntar transfer iuran ya". Yang ditandai dapat notifikasi "Tes menandaimu", dan namanya diberi warna di pesan.'],
+    ['🔁', 'Balas pesan tertentu: geser pesan anggota lain ke kiri atau kanan seperti di WhatsApp, atau ketuk pesan lalu pilih Balas. Ketuk kutipannya untuk lompat ke pesan aslinya.'],
+    ['✅', 'Tanda dibaca: centang dua di pesanmu, plus tulisan "Dibaca Dina" atau "Dibaca semua" di bawah pesan terakhirmu. Ketuk pesanmu untuk melihat siapa yang sudah dan belum membaca.'],
+    ['📱', 'Tombol back di HP saat chat terbuka sekarang menutup chat dan kembali ke halaman sebelumnya, tidak lagi menutup aplikasi. Pilihan tampilan chat juga tidak muncul terus setiap aplikasi dibuka.'],
+    ['🎨', 'Tombol Asisten | Grup dibuat lebih kecil.'],
+  ] },
   { version: '9.2', date: '8 Nov 2026', title: 'Chat grup di Ruang Bersama', items: [
     ['🤝', 'Tombol chat di mode Bersama sekarang punya dua tab: Asisten dan Grup. Di tab Grup kamu bisa ngobrol dengan semua anggota ruang. Anggota yang baru gabung juga bisa membaca obrolan sebelumnya.'],
     ['🧾', 'Bagikan transaksi ke grup untuk didiskusikan, lewat tombol struk di kolom pesan atau tombol Bagikan ke grup di detail transaksi. Kartunya bisa diketuk untuk membuka transaksi itu.'],

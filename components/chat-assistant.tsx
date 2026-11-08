@@ -20,6 +20,7 @@ import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhra
 import { dateInTimeZone, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 import { FeatureTips, featureUsed, useTipTry } from './feature-tips';
+import { useBackHandler } from './back-guard';
 import { GroupChat, useGroup, type GroupAnswer } from './space-chat';
 import { OPEN_GROUP } from '@/lib/space-chat';
 import { rupiah as rupiahText } from '@/lib/accounting';
@@ -86,7 +87,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
   // Opening: the latest ten, the model warmed up, the style asked once.
   useEffect(() => {
     if (!open) return;
-    setShown(PAGE); setSheet(s => s || (settings.picked ? null : 'style'));
+    setShown(PAGE);
     if (!settings.seen) changeSettings({ seen: true });
     void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {});
     // The message box is focused only with a mouse or trackpad: on a phone the keyboard waits for a tap.
@@ -96,6 +97,12 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     window.addEventListener('keydown', onKey);
     return () => { window.clearTimeout(t); window.removeEventListener('keydown', onKey); };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 9.3 The phone's back button closes what is on top (a sheet, the picking of messages), then the chat itself, so the
+  // page behind (usually Beranda) shows again instead of the app closing.
+  useBackHandler(open, () => { if (sheetRef.current && settings.picked) setSheet(null); else if (pickRef.current) setPicked(null); else { setSheet(null); setOpen(false); } });
+  // The look is asked once: only after this account's saved settings are read (9.3: the chat loads on the first tap and
+  // opens at once, so asking before reading them showed the picker on every first open).
+  useEffect(() => { if (open && loaded && !settings.picked) setSheet(s => s || 'style'); }, [open, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   // The latest message stays in view: cards that finish drawing later (Catat otomatis) grow the list, so it keeps to the
   // bottom until the person scrolls up.
   const stick = useRef(true);
@@ -191,7 +198,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
   // 9.2 In a Ruang Bersama: the Asisten tab (this chat) and the Grup tab (the members' group chat).
   const [tab, setTab] = useState<'bot' | 'group'>(startTab);
   useEffect(() => { if (!space) setTab('bot'); }, [space?.id]);
-  const group = useGroup(space?.id, account?.uid);
+  const group = useGroup(space?.id);
   // In the group the money is everyone's: "Pengeluaranmu" reads "Pengeluaran bersama".
   const ours = (text: string) => text.replace(/\b(pengeluaran|pemasukan|saldo|anggaran|uang bebas|uang)mu\b/gi, '$1 bersama');
   const askGroup = useCallback(async (question: string): Promise<GroupAnswer | null> => {
@@ -240,10 +247,10 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
         </header>}
 
         {space && !picked && <div className="chat-tabs" role="tablist" aria-label="Jenis chat">
-          <button type="button" role="tab" aria-selected={!groupOn} className={!groupOn ? 'on' : ''} onClick={() => setTab('bot')}><ChatMark size={14}/> Asisten</button>
+          <button type="button" role="tab" aria-selected={!groupOn} className={!groupOn ? 'on' : ''} onClick={() => setTab('bot')}><ChatMark size={12}/> Asisten</button>
           <button type="button" role="tab" aria-selected={groupOn} className={groupOn ? 'on' : ''} onClick={() => { setSheet(null); setTab('group'); }}>Grup {space.name}{group.unread > 0 && !groupOn && <span className="chat-tab-badge">{group.unread > 9 ? '9+' : group.unread}</span>}</button>
         </div>}
-        {groupOn ? <GroupChat list={group.list} read={group.read} ask={askGroup} onOpenTx={t => { setOpen(false); const next = new Date(`${t.date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${t.id}@${t.date}..${next.toLocaleDateString('en-CA')}`); }}/> : <>
+        {groupOn ? <GroupChat list={group.list} reads={group.reads} read={group.read} ask={askGroup} onOpenTx={t => { setOpen(false); const next = new Date(`${t.date}T12:00:00`); next.setDate(next.getDate() + 1); go('transactions', `tx:${t.id}@${t.date}..${next.toLocaleDateString('en-CA')}`); }}/> : <>
         {!picked && <FeatureTips menu="chat" className="ft-in-chat"/>}
         <div className={`chat-list ${picked ? 'is-picking' : ''}`} ref={listRef} aria-live="polite" onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
           {more && <button type="button" className="chat-more" onClick={() => setShown(n => n + PAGE)}><ChevronUp size={14}/> Muat lebih banyak <small>({hidden} pesan lagi)</small></button>}

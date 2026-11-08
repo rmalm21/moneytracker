@@ -45,7 +45,10 @@ export function SpaceWatch({ navigate }: { navigate: (view: string, focus?: stri
         for (const m of [...list].reverse()) {
           const at = millis(m.at);
           if (!at || m.by === uid || !fresh(`g:${space.id}`, at) || viewingGroup() === space.id) continue;
-          const title = m.kind === 'tx' && m.tx ? `${m.byName} membagikan ${m.tx.title} · ${rupiah(m.tx.amount)}` : m.kind === 'bot' ? `Asisten menjawab ${m.bot?.askedBy || 'anggota'}` : `${m.byName}: ${m.text.slice(0, 80)}${m.text.length > 80 ? '…' : ''}`;
+          const said = `${m.text.slice(0, 80)}${m.text.length > 80 ? '…' : ''}`;
+          // 9.3 Being tagged or answered says so first.
+          const title = m.mentions?.includes(uid) ? `${m.byName} menandaimu: ${said}` : m.replyTo?.by === uid && m.kind !== 'bot' ? `${m.byName} membalas pesanmu: ${said}`
+            : m.kind === 'tx' && m.tx ? `${m.byName} membagikan ${m.tx.title} · ${rupiah(m.tx.amount)}` : m.kind === 'bot' ? `Asisten menjawab ${m.bot?.askedBy || 'anggota'}` : `${m.byName}: ${said}`;
           push({ title, body: `Grup ${space.name}`, kind: 'info', history: true, open: () => { switchTo(space.id); window.setTimeout(openGroup, 300); } });
         }
       }));

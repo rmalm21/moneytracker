@@ -176,16 +176,29 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if memberOf(spaceId);
         allow create: if memberOf(spaceId)
+          && request.resource.data.keys().hasOnly(['by', 'byName', 'at', 'kind', 'text', 'tx', 'bot', 'replyTo', 'mentions'])
           && request.resource.data.by == request.auth.uid
           && request.resource.data.at == request.time
           && request.resource.data.kind in ['text', 'tx', 'bot']
-          && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          // 9.3 A reply quotes a short piece of the message it answers; tags name at most 5 members.
+          && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is map
+            && request.resource.data.replyTo.text is string && request.resource.data.replyTo.text.size() <= 200))
+          && (!('mentions' in request.resource.data) || (request.resource.data.mentions is list
+            && request.resource.data.mentions.size() <= 5));
         allow delete: if memberOf(spaceId)
           && (resource.data.by == request.auth.uid || resource.data.at < request.time - duration.value(90, 'd')
             || space(spaceId).data.memberIds == [request.auth.uid]);
       }
+      // 9.3 Up to where each member has read the group (for "dibaca"): written only by that member, at the server's time.
+      match /reads/{uid} {
+        allow read: if memberOf(spaceId);
+        allow create, update: if memberOf(spaceId) && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['at', 'name']) && request.resource.data.at == request.time;
+        allow delete: if memberOf(spaceId) && (request.auth.uid == uid || space(spaceId).data.memberIds == [request.auth.uid]);
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages']);
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads']);
       }
     }
     // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which

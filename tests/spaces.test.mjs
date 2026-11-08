@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rootSegments, isSpaceKey, spaceKey, spaceIdOf, setActor, stamp } from '../lib/space-key.ts';
 import { spaceProfile, formatCode, cleanCode, SPACE_FIELDS, targetShares } from '../lib/space-profile.ts';
-import { askedAssistant, balances, equalShares, restorable, unreadCount } from '../lib/space-math.ts';
+import { askedAssistant, balances, equalShares, mentionQuery, mentionsIn, readersOf, restorable, splitMentions, suggestionFits, unreadCount } from '../lib/space-math.ts';
 import { contributions } from '../lib/space-report.ts';
 import { SPACE_COLORS, spaceColor } from '../lib/space-look.ts';
 import { validAccent } from '../lib/appearance.ts';
@@ -98,7 +98,7 @@ test('9.2 chat grup: @asisten and unread', () => {
   assert.equal(askedAssistant('  @Asisten, sisa anggaran makan?'), 'sisa anggaran makan?');
   assert.equal(askedAssistant('@bot: pengeluaran bulan ini'), 'pengeluaran bulan ini');
   assert.equal(askedAssistant('@asisten'), '');
-  assert.equal(askedAssistant('halo @asisten'), null);
+  assert.equal(askedAssistant('a@asisten.com'), null);
   assert.equal(askedAssistant('@asistenku'), null);
   assert.equal(askedAssistant('udah bayar listrik'), null);
   const at = ms => ({ toMillis: () => ms });
@@ -106,4 +106,25 @@ test('9.2 chat grup: @asisten and unread', () => {
   assert.equal(unreadCount(list, 'a', 0), 2);
   assert.equal(unreadCount(list, 'a', 200), 1);
   assert.equal(unreadCount(list, 'b', 0), 1);
+});
+
+test('9.3 chat grup: @asisten anywhere, tags, suggestions, who read', () => {
+  assert.equal(askedAssistant('@Dina @asisten sisa kas berapa?'), 'sisa kas berapa?');
+  assert.equal(askedAssistant('menurut @asisten listrik bulan ini berapa'), 'menurut listrik bulan ini berapa');
+  const members = [{ uid: 'b', name: 'Bejo Santoso' }, { uid: 'd', name: 'Dina' }];
+  assert.deepEqual(mentionsIn('@bejo ntar transfer ya', members), ['b']);
+  assert.deepEqual(mentionsIn('@Bejo Santoso sama @DINA cek', members), ['b', 'd']);
+  assert.deepEqual(mentionsIn('@dinah atau dina@mail.com', members), []);
+  assert.deepEqual(mentionQuery('halo @be', 8), { start: 5, query: 'be' });
+  assert.deepEqual(mentionQuery('@ass', 4), { start: 0, query: 'ass' });
+  assert.equal(mentionQuery('halo be', 7), null);
+  assert.equal(mentionQuery('dina@ma', 7), null);
+  assert.deepEqual(splitMentions('@bejo ntar @asisten cek', ['Bejo Santoso']).filter(p => p.tag).map(p => p.text), ['@bejo', '@asisten']);
+  assert.deepEqual(splitMentions('tanpa tag', ['Dina']), [{ text: 'tanpa tag', tag: false }]);
+  assert.deepEqual(readersOf(100, 'a', ['a', 'b', 'd'], { a: 300, b: 150, d: 50 }), ['b']);
+  const bot = ['asisten', 'assistant', 'bot', 'dompet'];
+  for (const q of ['', 'a', 'ass', 'asis', 'asst', 'bo', 'dom']) assert.ok(suggestionFits(q, bot), q);
+  for (const q of ['be', 'bjo', 'santoso']) assert.ok(suggestionFits(q, ['Bejo Santoso']), q);
+  for (const q of ['x', 'din', 'sb']) assert.ok(!suggestionFits(q, bot), q);
+  assert.ok(!suggestionFits('ojb', ['Bejo']));
 });
