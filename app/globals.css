@@ -810,7 +810,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 
 .datetime-control { display: block; position: relative; width: 100%; min-width: 0; }
 .datetime-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
-.datetime-trigger span { min-width: 0; overflow-wrap: anywhere; }
+.datetime-trigger span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .datetime-trigger svg { flex: none; color: var(--accent); }
 .calendar-toolbar { display: grid; grid-template-columns: 36px minmax(0, 1.3fr) minmax(90px, .9fr) 36px; align-items: center; gap: 6px; margin-bottom: 12px; }
 .calendar-toolbar .app-select-trigger { min-height: 40px; padding: 6px 10px; }
@@ -8843,7 +8843,7 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .si-editor { display: grid; gap: 10px; padding: 10px 0 4px; border-top: 1px dashed var(--line); }
 .si-editor .field { margin: 0; }
 .si-editor > small.muted { font-size: .74rem; overflow-wrap: anywhere; }
-.si-edit-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.si-edit-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 10px; }
 .si-save { display: grid; gap: 8px; }
 .si-save .btn { width: 100%; justify-content: center; }
 .si-save > small { text-align: center; }
