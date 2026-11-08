@@ -62,8 +62,8 @@ export const BADGES: { days: number; name: string; xp: number; emoji: string }[]
 // ——— 9.5 More badges (achievements), in four tiers ———
 export type Tier = 'perunggu' | 'perak' | 'emas' | 'legenda';
 export const TIERS: Record<Tier, { name: string; xp: number }> = { perunggu: { name: 'Perunggu', xp: 50 }, perak: { name: 'Perak', xp: 100 }, emas: { name: 'Emas', xp: 250 }, legenda: { name: 'Legenda', xp: 500 } };
-export type GameStats = { missions: number; fullDays: number; challenges: number; checkins: number; scans: number; scanDay: string; quickDays: number; quickDay: string; early: number; late: number; shields: number; comebacks: number; sharedBest: number; weekends: number; /** 9.6 mini games */ spins: number; coinBest: number; coinGames: number };
-export const emptyStats = (): GameStats => ({ missions: 0, fullDays: 0, challenges: 0, checkins: 0, scans: 0, scanDay: '', quickDays: 0, quickDay: '', early: 0, late: 0, shields: 0, comebacks: 0, sharedBest: 0, weekends: 0, spins: 0, coinBest: 0, coinGames: 0 });
+export type GameStats = { missions: number; fullDays: number; challenges: number; checkins: number; scans: number; scanDay: string; quickDays: number; quickDay: string; early: number; late: number; shields: number; comebacks: number; sharedBest: number; weekends: number; /** 9.6 mini games */ spins: number; coinBest: number; coinGames: number; coinMissions: number };
+export const emptyStats = (): GameStats => ({ missions: 0, fullDays: 0, challenges: 0, checkins: 0, scans: 0, scanDay: '', quickDays: 0, quickDay: '', early: 0, late: 0, shields: 0, comebacks: 0, sharedBest: 0, weekends: 0, spins: 0, coinBest: 0, coinGames: 0, coinMissions: 0 });
 export type Achievement = { id: string; group: string; name: string; desc: string; emoji: string; tier: Tier; target: number; value: (s: Pick<GameState, 'days' | 'stats'>) => number };
 const ach = (id: string, group: string, name: string, desc: string, emoji: string, tier: Tier, target: number, value: Achievement['value']): Achievement => ({ id, group, name, desc, emoji, tier, target, value });
 const st = (k: keyof GameStats) => (s: Pick<GameState, 'stats'>) => Number(s.stats?.[k] || 0);
@@ -250,7 +250,8 @@ export type GameState = {
   week: string; challenge: Challenge | null; challengeDone: boolean; challengeLost: boolean;
   seenLevel: number; lostRun: number; lostDay: string;
   /** 9.5 Counters for the badges, and the badges unlocked (id → day). */ stats: GameStats; achievements: Record<string, string>;
-  /** 9.6 Putar Roda (the day it was spun) and Tangkap Koin (XP earned today, best score). */ spinDay: string; coinDay: string; coinXp: number; coinBest: number;
+  /** 9.6 Putar Roda (the day it was spun) and Tangkap Koin (XP earned today, best score, the five best, the day's
+   * mission done). */ spinDay: string; coinDay: string; coinXp: number; coinBest: number; coinTop: number[]; coinMissionDay: string;
 };
 export const MAX_SHIELDS = 2, TX_XP = 10, TX_CAP = 5, LIT_XP = 20;
 export type GameEvent =
@@ -277,7 +278,7 @@ export type Observation = {
   /** Only in Pribadi: this week and last week from the records, and the habits to pick a challenge from. */ week?: WeekRaw; lastWeek?: WeekRaw; habits?: Habits;
   /** 9.5 The longest api bareng streak running now in any of their spaces. */ shared?: number;
 };
-export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '', stats: emptyStats(), achievements: {}, spinDay: '', coinDay: '', coinXp: 0, coinBest: 0 });
+export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '', stats: emptyStats(), achievements: {}, spinDay: '', coinDay: '', coinXp: 0, coinBest: 0, coinTop: [], coinMissionDay: '' });
 const keep = (list: string[], n: number) => [...new Set(list)].sort().slice(-n);
 
 /** A copy to change (an older saved state gets the newer fields). */
@@ -308,17 +309,33 @@ export function spinWheel(previous: GameState, today: string, seed: string): { s
   addXp(s, today, xp);
   return { state: s, index, xp, shield };
 }
-/** Tangkap Koin: 30 seconds; XP is a third of the score, at most 30 a day (the game can be played as often as wanted). */
-export const COIN_SECONDS = 30, COIN_XP_CAP = 30;
+/** Tangkap Koin: 40 seconds in three waves (gajian, tengah bulan, tanggal tua); XP is a third of the score plus 5 for
+ * the day's mission (once a day), at most 30 a day. The game can be played as often as wanted. */
+export const COIN_SECONDS = 40, COIN_XP_CAP = 30, COIN_MISSION_XP = 5;
+export type CoinStats = { score: number; coins: number; gems: number; bestCombo: number; dodged: number; fevers: number; powerups: number };
+export const COIN_MISSIONS: { id: string; text: string; stat: keyof CoinStats; target: number }[] = [
+  { id: 'permata3', text: 'Tangkap 3 permata', stat: 'gems', target: 3 }, { id: 'beruntun15', text: 'Tangkap 15 kali beruntun', stat: 'bestCombo', target: 15 },
+  { id: 'hindar12', text: 'Hindari 12 jajan boros', stat: 'dodged', target: 12 }, { id: 'skor60', text: 'Raih skor 60', stat: 'score', target: 60 },
+  { id: 'fever1', text: 'Masuk mode Fever', stat: 'fevers', target: 1 }, { id: 'koin35', text: 'Tangkap 35 koin', stat: 'coins', target: 35 },
+  { id: 'power3', text: 'Pakai 3 power-up', stat: 'powerups', target: 3 },
+];
+/** The day's mission (the same all day, on every phone). */
+export const coinMission = (seed: string, day: string) => COIN_MISSIONS[hash(`${seed}:${day}:koin`) % COIN_MISSIONS.length];
+/** Stars for a score: 1 from 30, 2 from 60, 3 from 100. */
+export const coinStars = (score: number) => score >= 100 ? 3 : score >= 60 ? 2 : score >= 30 ? 1 : 0;
 export const coinXpLeft = (s: Pick<GameState, 'coinDay' | 'coinXp'>, today: string) => Math.max(0, COIN_XP_CAP - (s.coinDay === today ? s.coinXp || 0 : 0));
-export function coinResult(previous: GameState, today: string, score: number): { state: GameState; xp: number; record: boolean; best: number } {
+export function coinResult(previous: GameState, today: string, score: number, opts: { mission?: boolean } = {}): { state: GameState; xp: number; record: boolean; best: number; missionXp: number } {
   const s = copyState(previous), points = Math.max(0, Math.floor(score));
-  const xp = Math.min(coinXpLeft(previous, today), Math.floor(points / 3));
+  const missionNew = Boolean(opts.mission) && previous.coinMissionDay !== today;
+  const left = coinXpLeft(previous, today), base = Math.min(left, Math.floor(points / 3)), missionXp = missionNew ? Math.min(left - base, COIN_MISSION_XP) : 0;
+  const xp = base + missionXp;
+  if (missionNew) { s.coinMissionDay = today; s.stats.coinMissions++; }
+  s.coinTop = [...(previous.coinTop || []), points].filter(n => n > 0).sort((a, b) => b - a).slice(0, 5);
   if (s.coinDay !== today) { s.coinDay = today; s.coinXp = 0; }
   s.coinXp += xp; addXp(s, today, xp);
   const record = points > (previous.coinBest || 0) && points > 0;
   s.coinBest = Math.max(previous.coinBest || 0, points); s.stats.coinBest = Math.max(s.stats.coinBest, points); s.stats.coinGames++;
-  return { state: s, xp, record, best: s.coinBest };
+  return { state: s, xp, record, best: s.coinBest, missionXp };
 }
 
 /** Applies one moment to the state: new lit day, perisai used or earned, XP, badges, level, missions, the challenge. */

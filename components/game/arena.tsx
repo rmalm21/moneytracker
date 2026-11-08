@@ -188,7 +188,7 @@ function BadgeShelf({ s, today }: { s: GameState; today: string }) {
     {BADGE_GROUPS.map(g => { const items = list.filter(b => b.group === g.id); if (!items.length) return null; const n = items.filter(b => b.got).length; return <div key={g.id} className="ap-group">
       <div className="ap-group-head"><span><Emoji e={g.emoji}/> {g.id}</span><small>{g.hint} · {n}/{items.length}</small></div>
       <div className="ap-medals">{items.map((b, i) => <button type="button" key={b.id} className={`ap-medal tier-${b.tier} ${b.got ? 'is-got' : ''} ${pick?.id === b.id ? 'is-picked' : ''}`} onClick={() => tap(b)} aria-label={`${b.name}, ${TIERS[b.tier].name}, ${b.got ? 'sudah didapat' : `${b.value} dari ${b.target}`}`} aria-pressed={pick?.id === b.id}>
-        <span className="ap-medal-ic" style={{ '--p': `${Math.round(b.value / b.target * 100)}%`, '--d': (i % 5) * .5 } as React.CSSProperties}><Emoji e={b.emoji}/>{!b.got && <Lock size={11} className="ap-lock"/>}{b.group === 'Api' && <b className="ap-medal-n">{b.target}</b>}</span>
+        <span className="ap-medal-ic" style={{ '--p': `${Math.round(b.value / b.target * 100)}%`, '--d': (i % 5) * .5 } as React.CSSProperties}><Emoji e={b.emoji}/>{!b.got && <span className="ap-lock-badge" aria-hidden="true"><Lock size={11} strokeWidth={2.4}/></span>}{b.group === 'Api' && <b className="ap-medal-n">{b.target}</b>}</span>
         <small>{b.name}</small>
       </button>)}</div>
       {pick && pick.group === g.id && <div className={`ap-detail tier-${pick.tier}`} role="status">
@@ -212,7 +212,7 @@ function GameRow({ big = false, onBefore }: { big?: boolean; onBefore?: () => vo
     </button>
     <button type="button" className="ag-btn is-coin" onClick={e => { e.stopPropagation(); launchMinigame('coin', onBefore); }}>
       <span className="ag-ic"><Emoji e="🪙"/></span>
-      <span className="ag-text"><b>Tangkap Koin</b><small>{m.best ? `Rekor ${m.best}` : 'Main 30 detik'}{big ? ` · XP ${30 - m.xpLeft}/30` : ''}</small></span>
+      <span className="ag-text"><b>Tangkap Koin</b><small>{m.best ? `Rekor ${m.best}` : 'Main 40 detik'}{big ? ` · XP ${30 - m.xpLeft}/30` : ''}</small></span>
     </button>
   </div>;
 }

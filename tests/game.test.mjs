@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACHIEVEMENTS, canSpin, COIN_XP_CAP, coinResult, coinXpLeft, SPIN_PRIZES, spinIndex, spinWheel, advance, addDays, BADGE_GROUPS, BADGE_TOTAL, BADGES, badgeList, challengeFor, nearestBadge, spaceDays, TIERS, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
+import { ACHIEVEMENTS, canSpin, COIN_MISSIONS, COIN_SECONDS, COIN_XP_CAP, coinMission, coinStars, coinResult, coinXpLeft, SPIN_PRIZES, spinIndex, spinWheel, advance, addDays, BADGE_GROUPS, BADGE_TOTAL, BADGES, badgeList, challengeFor, nearestBadge, spaceDays, TIERS, challengeProgress, challengesFor, emptyState, flameOf, levelOf, localDay, longestRun, missionsFor, mondayOf, sharedDays, sharedStreak, streakOf, weekCtx, xpForLevel } from '../lib/game.ts';
 
 // 9.4 Arena Catat — the recording streak, perisai, badges, XP, missions, weekly challenge, api bareng.
 const T = '2026-11-08'; // a Sunday
@@ -229,4 +229,21 @@ test('9.6 Tangkap Koin: a third of the score in XP, at most 30 a day; best score
   // The badges for the mini games come from these counters.
   const r = advance({ ...d.state, missionDay: T, missionIds: [] }, obs());
   assert.ok(r.state.achievements.koin30 && r.state.achievements.koin80);
+});
+
+test('9.6 Tangkap Koin 2.0: 40 seconds, a daily mission (bonus once a day), stars, the five best', () => {
+  assert.equal(COIN_SECONDS, 40);
+  assert.equal(coinMission('u1', T).id, coinMission('u1', T).id);
+  assert.ok(COIN_MISSIONS.some(m => m.id === coinMission('u1', T).id));
+  assert.deepEqual([0, 29, 30, 59, 60, 99, 100].map(coinStars), [0, 0, 1, 1, 2, 2, 3]);
+  const s = { ...emptyState(), xp: 0 };
+  const a = coinResult(s, T, 30, { mission: true });
+  assert.deepEqual([a.xp, a.missionXp, a.state.coinMissionDay, a.state.stats.coinMissions], [15, 5, T, 1]);
+  const b = coinResult(a.state, T, 30, { mission: true }); assert.equal(b.missionXp, 0); assert.equal(b.xp, 10); // the bonus once a day
+  const c = coinResult(b.state, T, 12); assert.equal(c.xp, 4); assert.equal(coinResult(c.state, T, 90).xp, 1); // up to the cap of 30
+  assert.deepEqual(c.state.coinTop, [30, 30, 12]);
+  let st = c.state; for (const n of [80, 5, 44, 61]) st = coinResult(st, addDays(T, 1), n).state;
+  assert.deepEqual(st.coinTop, [80, 61, 44, 30, 30]);
+  assert.equal(coinResult(st, addDays(T, 1), 20, { mission: true }).missionXp, 0); // that day's XP is already full
+  assert.equal(coinResult(st, addDays(T, 2), 20, { mission: true }).missionXp, 5); // a new day, a new bonus
 });

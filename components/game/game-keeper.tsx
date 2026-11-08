@@ -133,7 +133,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
       checkinSpace: spaceId => { const today = todayInTimeZone(tz); publishSpace(spaceId, [today]); play('mission'); celebrate([{ kind: 'note', title: 'Hari aman tercatat', text: 'Kamu sudah nyala untuk api bareng hari ini' }]); },
       // 9.6 Mini games: the prize is worked out and saved at once (closing the game mid-way keeps it).
       spin: () => { const out = apply(s => spinWheel(s, todayInTimeZone(tz), uid || '')); return out && { index: out.index, xp: out.xp, shield: out.shield }; },
-      coinDone: score => { const out = apply(s => coinResult(s, todayInTimeZone(tz), score)); return out && { xp: out.xp, record: out.record, best: out.best }; },
+      coinDone: (score, mission) => { const out = apply(s => coinResult(s, todayInTimeZone(tz), score, { mission })); return out && { xp: out.xp, record: out.record, best: out.best, missionXp: out.missionXp, top: out.state.coinTop }; },
     });
     if (takePendingCheckin()) { checkinWanted.current = true; step(); }
     const onView = (e: Event) => { const view = (e as CustomEvent<string>).detail; if (uid && markVisited(uid, todayInTimeZone(tz), view)) step(); };

@@ -30,8 +30,8 @@ export const gameNow = () => store;
 /** Actions the cards ask of the keeper (it owns the data it needs to answer them). */
 /** checkin: "Hari ini aman" for the person's own flame (Beranda Pribadi). checkinSpace: for a space's api bareng only. */
 export type SpinOutcome = { index: number; xp: number; shield: boolean };
-export type CoinOutcome = { xp: number; record: boolean; best: number };
-type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void; /** 9.6 */ spin: () => SpinOutcome | null; coinDone: (score: number) => CoinOutcome | null };
+export type CoinOutcome = { xp: number; record: boolean; best: number; missionXp: number; top: number[] };
+type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void; /** 9.6 */ spin: () => SpinOutcome | null; coinDone: (score: number, mission?: boolean) => CoinOutcome | null };
 let actions: Actions = { checkin: () => { pendingCheckin = true; }, checkinSpace: () => {}, spin: () => null, coinDone: () => null };
 export const setGameActions = (a: Actions) => { actions = a; };
 export const gameActions = () => actions;

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Share2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Palette, Share2, X } from 'lucide-react';
 import { useApp } from './app-provider';
 import { usePeriodTransactions } from './period-selector';
 import { Select } from './fields';
@@ -10,6 +10,7 @@ import { featureUsed } from './feature-tips-events';
 import { Emoji } from './emoji';
 import { play, playRekap } from '@/lib/game-sound';
 import { confetti } from './game/confetti';
+import { lookOf, REKAP_THEMES, rekapTheme, setRekapTheme, type RekapThemeId } from './rekap-themes';
 
 /**
  * 8.5 Rekap: a month or a year told in a few slides (swipe or tap the sides), with "Sembunyikan nominal" (shares and
@@ -65,111 +66,142 @@ function appFonts() {
 }
 
 /**
- * 9.6 The picture of the recap: a story-size card (1080×1920) in midnight and gold, drawn on this device in the app's
- * fonts. Only the "Dompet Ajaib" mark at the bottom; amounts follow "Sembunyikan nominal".
+ * 9.6 The picture of the recap: story size (1080×1920), drawn on this device in the chosen look and the app's fonts.
+ * Only the "Dompet Ajaib" mark at the bottom; amounts follow "Sembunyikan nominal".
  */
-async function drawPicture(w: Wrapped, hide: boolean): Promise<Blob> {
+async function drawPicture(w: Wrapped, hide: boolean, themeId: RekapThemeId): Promise<Blob> {
   const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d')!, money = (n: number) => hide ? HIDDEN : rp(n), month = w.period.kind === 'month';
+  const t = lookOf(themeId), appAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1f7a6d';
+  const accent = t.accent || (t.id === 'gelap' ? lighten(appAccent) : appAccent);
   const fonts = appFonts(); await fonts.ready;
-  const type = (size: number, weight = 700, spacing = 0) => {
+  const serif = "Georgia, 'Noto Serif', 'Times New Roman', serif";
+  const type = (size: number, weight = 700, spacing = 0, display = false) => {
     const head = weight >= 700;
-    g.font = `${weight} ${size}px ${head ? fonts.head : fonts.body}`;
-    if ('letterSpacing' in g) (g as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${spacing || (head && size >= 60 ? -0.02 * size : 0)}px`;
+    g.font = `${weight} ${size}px ${display && t.serif ? serif : head ? fonts.head : fonts.body}`;
+    if ('letterSpacing' in g) (g as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${spacing || (head && size >= 60 && !t.serif ? -0.025 * size : 0)}px`;
   };
-  const fit = (text: string, max: number, size: number, weight = 800) => { let s = size; type(s, weight); while (g.measureText(text).width > max && s > 24) { s -= 2; type(s, weight); } return s; };
-  const clip = (text: string, max: number) => { if (g.measureText(text).width <= max) return text; let t = text; while (t.length > 1 && g.measureText(`${t}…`).width > max) t = t.slice(0, -1); return `${t}…`; };
-  const gold = (x0: number, y0: number, x1: number, y1: number) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#fff7d6'); gr.addColorStop(.35, '#f6d26b'); gr.addColorStop(.6, '#c9971f'); gr.addColorStop(1, '#ffe9a8'); return gr; };
+  const fit = (text: string, max: number, size: number, weight = 800, display = true) => { let s = size; type(s, weight, 0, display); while (g.measureText(text).width > max && s > 24) { s -= 2; type(s, weight, 0, display); } return s; };
+  const clip = (text: string, max: number) => { if (g.measureText(text).width <= max) return text; let x = text; while (x.length > 1 && g.measureText(`${x}…`).width > max) x = x.slice(0, -1); return `${x}…`; };
   const round = (x: number, y: number, ww: number, hh: number, r: number) => { g.beginPath(); g.roundRect(x, y, ww, hh, r); };
-  const center = (text: string, y: number) => { const tw = g.measureText(text).width; g.fillText(text, (W - tw) / 2, y); };
-  // Midnight with a gold glow, soft rays and gold dust.
-  const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0b0718'); bg.addColorStop(.45, '#1b1140'); bg.addColorStop(1, '#2b1650');
-  g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  const glow = g.createRadialGradient(W / 2, 330, 20, W / 2, 330, 760); glow.addColorStop(0, 'rgba(255,200,90,.38)'); glow.addColorStop(1, 'rgba(255,200,90,0)');
-  g.fillStyle = glow; g.fillRect(0, 0, W, H);
-  g.save(); g.translate(W / 2, 330); g.globalAlpha = .07; g.fillStyle = '#ffd56b';
-  for (let i = 0; i < 18; i++) { g.rotate(Math.PI / 9); g.beginPath(); g.moveTo(0, 0); g.lineTo(-60, -1400); g.lineTo(60, -1400); g.closePath(); g.fill(); }
-  g.restore();
-  let seed = 7; const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 140; i++) { g.globalAlpha = .15 + rand() * .55; g.fillStyle = rand() > .3 ? '#ffe39a' : '#ffffff'; g.beginPath(); g.arc(rand() * W, rand() * H, .8 + rand() * 2.6, 0, Math.PI * 2); g.fill(); }
-  g.globalAlpha = 1;
-  // A thin gold frame with corner ornaments.
-  g.strokeStyle = gold(0, 0, W, H); g.lineWidth = 3; round(40, 40, W - 80, H - 80, 44); g.stroke();
-  g.globalAlpha = .35; g.lineWidth = 1.5; round(58, 58, W - 116, H - 116, 34); g.stroke(); g.globalAlpha = 1;
-  for (const [x, y] of [[40, 40], [W - 40, 40], [40, H - 40], [W - 40, H - 40]]) { g.fillStyle = gold(x - 14, y - 14, x + 14, y + 14); g.save(); g.translate(x, y); g.rotate(Math.PI / 4); g.fillRect(-11, -11, 22, 22); g.restore(); }
-  // Title.
-  type(34, 600, 10); g.fillStyle = '#f6d26b';
-  const kicker = month ? 'REKAP BULANAN' : 'REKAP TAHUNAN', kw = g.measureText(kicker).width;
-  center(kicker, 190);
-  g.strokeStyle = 'rgba(246,210,107,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2 - kw / 2 - 110, 178); g.lineTo(W / 2 - kw / 2 - 30, 178); g.moveTo(W / 2 + kw / 2 + 30, 178); g.lineTo(W / 2 + kw / 2 + 110, 178); g.stroke();
-  fit(w.period.label, W - 220, 128, 800); g.fillStyle = gold(0, 220, 0, 360); center(w.period.label, 340);
-  // The big number: what went out.
-  const card = (y: number, h: number) => { const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, 'rgba(255,255,255,.11)'); gr.addColorStop(1, 'rgba(255,255,255,.04)'); g.fillStyle = gr; round(96, y, W - 192, h, 40); g.fill(); g.strokeStyle = 'rgba(246,210,107,.35)'; g.lineWidth = 2; g.stroke(); };
-  card(420, 430);
-  type(32, 600, 4); g.fillStyle = 'rgba(255,255,255,.72)'; center('TOTAL KELUAR', 500);
-  fit(money(w.expense), W - 300, 136, 800); g.fillStyle = gold(0, 520, 0, 660); center(money(w.expense), 650);
-  g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 2; g.beginPath(); g.moveTo(150, 710); g.lineTo(W - 150, 710); g.stroke();
-  if (!w.income) { type(34, 600); g.fillStyle = 'rgba(255,255,255,.72)'; center(`Belum ada pemasukan tercatat ${month ? 'bulan' : 'tahun'} ini`, 795); }
-  else {
-    const bal = balanceRow(w, hide);
-    g.beginPath(); g.moveTo(W / 2, 735); g.lineTo(W / 2, 820); g.stroke();
-    type(28, 600, 2); g.fillStyle = 'rgba(255,255,255,.65)'; g.fillText('Masuk', 170, 770); g.fillText(bal.label, W / 2 + 50, 770);
-    type(46, 800); g.fillStyle = '#ffffff'; g.fillText(clip(money(w.income), W / 2 - 230), 170, 825);
-    g.fillStyle = w.saved >= 0 ? '#7dffc0' : '#ffb3a8'; g.fillText(clip(bal.value, W / 2 - 200), W / 2 + 50, 825);
+  const left = 96, right = W - 96, inner = right - left;
+  // Background, by look.
+  if (t.id === 'bersih') {
+    g.fillStyle = '#f6f7f9'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(17,20,24,.07)'; for (let x = 620; x < W; x += 36) for (let y = 40; y < 520; y += 36) { g.globalAlpha = Math.max(0, 1 - (y / 520) - (W - x) / 900); g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill(); }
+    g.globalAlpha = 1; g.fillStyle = accent; round(left, 120, 64, 10, 5); g.fill();
+  } else if (t.id === 'editorial') {
+    g.fillStyle = '#f3ede2'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = t.ink; g.lineWidth = 3; g.beginPath(); g.moveTo(left, 104); g.lineTo(right, 104); g.stroke(); g.lineWidth = 1; g.beginPath(); g.moveTo(left, 114); g.lineTo(right, 114); g.stroke();
+  } else if (t.id === 'pastel') {
+    g.fillStyle = '#fbf9ff'; g.fillRect(0, 0, W, H);
+    for (const [x, y, r, col] of [[180, 260, 620, '255,196,178'], [900, 420, 640, '214,196,255'], [260, 1500, 700, '186,236,214'], [920, 1680, 560, '255,236,170']] as [number, number, number, string][]) {
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},.95)`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    }
+  } else if (t.id === 'gelap') {
+    g.fillStyle = '#0f1115'; g.fillRect(0, 0, W, H);
+    const gr = g.createRadialGradient(160, 120, 0, 160, 120, 900); gr.addColorStop(0, hexA(accent, .22)); gr.addColorStop(1, hexA(accent, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = accent; round(left, 120, 64, 8, 4); g.fill();
+  } else {
+    g.fillStyle = '#2f5bff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ff6b4a'; g.beginPath(); g.arc(W + 40, 140, 300, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffcc33'; g.beginPath(); g.arc(-60, H - 220, 260, 0, Math.PI * 2); g.fill();
   }
-  // Where it went (as tall as it needs).
+  // Title.
+  type(32, 700, 6); g.fillStyle = t.id === 'pop' ? '#ffcc33' : t.id === 'editorial' ? t.accent : t.sub;
+  g.fillText(month ? 'REKAP BULANAN' : 'REKAP TAHUNAN', left, t.id === 'editorial' ? 180 : 200);
+  fit(w.period.label, inner, t.serif ? 132 : 124, t.serif ? 700 : 800, true); g.fillStyle = t.ink;
+  if (t.id === 'pastel') { const gr = g.createLinearGradient(left, 0, right, 0); gr.addColorStop(0, '#5b3bdb'); gr.addColorStop(1, '#d9485f'); g.fillStyle = gr; }
+  g.fillText(w.period.label, left, t.id === 'editorial' ? 320 : 330);
+  // Cards, by look.
+  const cardInk = (i: number) => t.id === 'pop' ? (i === 0 ? '#1a1a1a' : '#ffffff') : t.ink;
+  const cardSub = (i: number) => t.id === 'pop' ? (i === 0 ? 'rgba(26,26,26,.7)' : 'rgba(255,255,255,.85)') : t.sub;
+  const card = (y: number, h: number, i: number) => {
+    if (t.id === 'editorial') { g.strokeStyle = t.line; g.lineWidth = 2; g.beginPath(); g.moveTo(left, y); g.lineTo(right, y); g.stroke(); return; }
+    const fill = t.id === 'pop' ? ['#ffcc33', '#ff6b4a', '#18b07a', '#8b5cf6', '#ffffff'][i] || '#ff6b4a' : t.card;
+    if (t.id === 'bersih') { g.save(); g.shadowColor = 'rgba(17,20,24,.08)'; g.shadowBlur = 30; g.shadowOffsetY = 10; g.fillStyle = fill; round(left, y, inner, h, 36); g.fill(); g.restore(); }
+    g.fillStyle = fill; round(left, y, inner, h, t.id === 'pop' ? 44 : 36); g.fill();
+    if (t.line !== 'transparent') { g.strokeStyle = t.line; g.lineWidth = 2; g.stroke(); }
+  };
+  const P = 54; // inside padding
+  // What went out.
+  card(400, 430, 0);
+  type(30, 600, 2); g.fillStyle = cardSub(0); g.fillText('Total keluar', left + P, 480);
+  fit(money(w.expense), inner - P * 2, 132, 800, true); g.fillStyle = t.id === 'gelap' ? accent : cardInk(0); g.fillText(money(w.expense), left + P, 630);
+  g.strokeStyle = t.id === 'pop' ? 'rgba(26,26,26,.15)' : t.line; g.lineWidth = 2; g.beginPath(); g.moveTo(left + P, 690); g.lineTo(right - P, 690); g.stroke();
+  if (!w.income) { type(32, 600); g.fillStyle = cardSub(0); g.fillText(`Belum ada pemasukan tercatat ${month ? 'bulan' : 'tahun'} ini`, left + P, 775); }
+  else {
+    const bal = balanceRow(w, hide), mid = left + inner / 2;
+    type(26, 600, 1); g.fillStyle = cardSub(0); g.fillText('Masuk', left + P, 750); g.fillText(bal.label, mid + 20, 750);
+    type(46, 800); g.fillStyle = cardInk(0); g.fillText(clip(money(w.income), inner / 2 - P - 20), left + P, 808);
+    g.fillStyle = t.id === 'pop' ? (w.saved >= 0 ? '#0b6b45' : '#b42318') : w.saved >= 0 ? t.good : t.warn; g.fillText(clip(bal.value, inner / 2 - P - 20), mid + 20, 808);
+  }
+  // Where it went.
   const rows = Math.max(1, Math.min(3, w.top.length)), topH = 125 + rows * 105;
-  card(890, topH);
-  type(36, 800); g.fillStyle = '#f6d26b'; g.fillText('Paling banyak ke', 150, 965);
-  if (!w.top.length) { type(32, 600); g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText('Belum ada pengeluaran', 150, 1040); }
-  w.top.slice(0, 3).forEach((t, i) => {
-    const y = 1045 + i * 105;
-    type(36, 700); g.fillStyle = '#fff'; const label = clip(`${i + 1}. ${t.name}`, 560); g.fillText(label, 150, y);
-    type(32, 600); const v = hide ? pct(t.share) : rp(t.amount), tw = g.measureText(v).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText(v, W - 150 - tw, y);
-    g.fillStyle = 'rgba(255,255,255,.12)'; round(150, y + 22, W - 300, 14, 7); g.fill();
-    g.fillStyle = gold(150, 0, W - 150, 0); round(150, y + 22, Math.max(14, (W - 300) * t.share), 14, 7); g.fill();
+  card(870, topH, 1);
+  type(34, 800, 0, true); g.fillStyle = t.id === 'pop' ? '#ffffff' : t.id === 'editorial' ? t.accent : t.ink; g.fillText('Paling banyak ke', left + P, 945);
+  if (!w.top.length) { type(30, 600); g.fillStyle = cardSub(1); g.fillText('Belum ada pengeluaran', left + P, 1020); }
+  w.top.slice(0, 3).forEach((x, i) => {
+    const y = 1025 + i * 105;
+    type(34, 700); g.fillStyle = cardInk(1); g.fillText(clip(`${i + 1}. ${x.name}`, inner - 2 * P - 230), left + P, y);
+    type(30, 600); const v = hide ? pct(x.share) : rp(x.amount), tw = g.measureText(v).width; g.fillStyle = cardSub(1); g.fillText(v, right - P - tw, y);
+    g.fillStyle = t.id === 'pop' ? 'rgba(255,255,255,.3)' : t.id === 'gelap' ? '#262a33' : 'rgba(17,20,24,.08)'; round(left + P, y + 22, inner - 2 * P, 12, 6); g.fill();
+    g.fillStyle = t.id === 'pop' ? '#ffffff' : accent; round(left + P, y + 22, Math.max(12, (inner - 2 * P) * x.share), 12, 6); g.fill();
   });
   // Four small figures.
-  const tilesY = 890 + topH + 44;
+  const tilesY = 870 + topH + 40, tw = (inner - 24) / 2;
   const tiles: [string, string][] = [
-    ['Rajin mencatat', `${w.longestStreak} hari`],
-    ['Total catatan', `${w.count}`],
+    ['Rajin mencatat', `${w.longestStreak} hari`], ['Total catatan', `${w.count}`],
     [w.place ? 'Tempat favorit' : 'Rata-rata/hari', w.place ? w.place.name : money(w.perDay)],
     [w.biggestDay ? 'Hari paling boros' : 'Hari tercatat', w.biggestDay ? new Date(`${w.biggestDay.date}T12:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : `${w.recordedDays} hari`],
   ];
   tiles.forEach(([label, value], i) => {
-    const x = 96 + (i % 2) * ((W - 192) / 2 + 12), y = tilesY + Math.floor(i / 2) * 170, tw = (W - 192) / 2 - 12;
-    g.fillStyle = 'rgba(255,255,255,.07)'; round(x, y, tw, 150, 32); g.fill(); g.strokeStyle = 'rgba(246,210,107,.22)'; g.lineWidth = 2; g.stroke();
-    type(26, 600, 1); g.fillStyle = 'rgba(255,255,255,.62)'; g.fillText(label, x + 34, y + 54);
-    type(44, 800); g.fillStyle = '#fff'; g.fillText(clip(value, tw - 68), x + 34, y + 112);
+    const x = left + (i % 2) * (tw + 24), y = tilesY + Math.floor(i / 2) * 170, popFill = ['#ffffff', '#18b07a', '#8b5cf6', '#ffcc33'][i];
+    if (t.id === 'editorial') { g.strokeStyle = t.line; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + tw, y); g.stroke(); }
+    else { g.fillStyle = t.id === 'pop' ? popFill : t.card; round(x, y, tw, 150, 32); g.fill(); if (t.line !== 'transparent') { g.strokeStyle = t.line; g.lineWidth = 2; g.stroke(); } }
+    const dark = t.id === 'pop' ? (i === 0 || i === 3) : false;
+    type(26, 600, 1); g.fillStyle = t.id === 'pop' ? (dark ? 'rgba(26,26,26,.65)' : 'rgba(255,255,255,.85)') : t.sub; g.fillText(label, x + (t.id === 'editorial' ? 0 : 34), y + 54);
+    type(44, 800, 0, true); g.fillStyle = t.id === 'pop' ? (dark ? '#1a1a1a' : '#ffffff') : t.ink; g.fillText(clip(value, tw - 68), x + (t.id === 'editorial' ? 0 : 34), y + 114);
   });
   // Against the period before.
   if (w.change !== null) {
     const up = w.change > .05, down = w.change < -.05, text = `${up ? '▲' : down ? '▼' : '='} ${pct(Math.abs(w.change))} dibanding ${previousOf(w.period).label}`;
-    type(30, 700); const tw = g.measureText(text).width + 64, py = tilesY + 345;
-    g.fillStyle = up ? 'rgba(255,120,100,.18)' : 'rgba(80,230,160,.16)'; round((W - tw) / 2, py, tw, 64, 32); g.fill();
-    g.fillStyle = up ? '#ffb3a8' : '#7dffc0'; center(text, py + 43);
+    type(30, 700); const pw = g.measureText(text).width + 64, py = tilesY + 345;
+    g.fillStyle = t.id === 'pop' ? '#ffffff' : t.id === 'gelap' ? '#171a21' : up ? hexA(t.warn, .12) : hexA(t.good, .12); round(left, py, pw, 64, 32); g.fill();
+    g.fillStyle = t.id === 'pop' ? (up ? '#b42318' : '#0b6b45') : up ? t.warn : t.good; g.fillText(text, left + 32, py + 43);
   }
   // The mark, and nothing else.
-  type(34, 800, 2); g.fillStyle = gold(0, H - 110, 0, H - 70); center('✦ Dompet Ajaib', H - 82);
+  type(32, 800, 1); g.fillStyle = t.id === 'pop' ? '#ffffff' : t.id === 'editorial' ? t.ink : t.sub;
+  const mark = '✦ Dompet Ajaib', mw = g.measureText(mark).width; g.fillText(mark, (W - mw) / 2, H - 84);
   return new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(Error('Gambar belum bisa dibuat.')), 'image/png'));
 }
+/** A colour's red, green and blue (#rgb, #rrggbb or rgb()/rgba()); null when it cannot be read. */
+function rgbOf(color: string): [number, number, number] | null {
+  const c = color.trim(), hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+  if (hex) { const h = hex[1].length === 3 ? hex[1].split('').map(x => x + x).join('') : hex[1], n = parseInt(h, 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+  const fn = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/i.exec(c); return fn ? [Number(fn[1]), Number(fn[2]), Number(fn[3])] : null;
+}
+/** A colour with some transparency (a colour that cannot be read becomes a soft grey, never a solid fill). */
+function hexA(color: string, a: number) { const v = rgbOf(color) || [128, 128, 128]; return `rgba(${v[0]},${v[1]},${v[2]},${a})`; }
+/** The app accent, lighter, for the dark look. */
+function lighten(color: string) { const v = rgbOf(color); if (!v) return '#5eead4'; const mix = (x: number) => Math.round(x + (255 - x) * .35); return `rgb(${mix(v[0])},${mix(v[1])},${mix(v[2])})`; }
 
 export function WrappedView({ onClose, initial }: { onClose: () => void; initial?: string }) {
   const { data, profile } = useApp();
   const today = new Date().toLocaleDateString('en-CA');
   const choices = useMemo(() => periodChoices(today), [today]);
   // The fonts start loading when the recap opens, so "Bagikan" does not have to wait for them.
-  // 9.5 A sound as it opens (Drumroll, Kilau ajaib or Whoosh boom: Pengaturan → Tampilan) and a burst of confetti.
+  // 9.5 A sound as it opens (Drumroll, Kilau ajaib or Whoosh boom: Pengaturan → Tampilan).
   useEffect(() => {
     featureUsed('home_rekap'); void appFonts().ready; playRekap();
-    const t = window.setTimeout(() => confetti({ count: 90, spread: .9, origin: { x: .5, y: .35 } }), 650);
-    return () => window.clearTimeout(t);
   }, []);
   const [key, setKey] = useState(() => initial || (() => { const p = defaultPeriod(today); return p.kind === 'year' ? p.start.slice(0, 4) : p.start.slice(0, 7); })());
   const period = periodOf(key), prev = previousOf(period);
   const now = usePeriodTransactions({ start: period.start, end: period.end }), before = usePeriodTransactions({ start: prev.start, end: prev.end });
   const [hide, setHide] = useState(false), [index, setIndex] = useState(0), [status, setStatus] = useState('');
+  // 9.6 Five looks (kept on this device).
+  const [theme, setTheme] = useState<RekapThemeId>(() => rekapTheme()), [picking, setPicking] = useState(false);
+  const pickTheme = (id: RekapThemeId) => { setTheme(id); setRekapTheme(id); play('step'); };
   const wrapped = useMemo(() => buildWrapped(now.items, before.items, data.categories, period, today), [now.items, before.items, data.categories, key, today]);
   const name = (profile?.displayName || profile?.username || '').trim().split(/\s+/)[0] || '';
   const slides = slidesOf(wrapped, hide, name);
@@ -180,12 +212,12 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   const shown = useRef(0);
   useEffect(() => {
     if (index === shown.current) return; shown.current = index;
-    if (index === slides.length - 1 && slides.length > 2) { play('level'); confetti({ count: 140, origin: { x: .5, y: .4 } }); } else play('step');
+    if (index === slides.length - 1 && slides.length > 2) { play('note'); confetti({ count: 70, spread: .7, origin: { x: .5, y: .4 } }); } else play('step');
   }, [index, slides.length]);
   async function share() {
     setStatus('');
     try {
-      const blob = await drawPicture(wrapped, hide);
+      const blob = await drawPicture(wrapped, hide, theme);
       const file = new File([blob], `rekap-${key}.png`, { type: 'image/png' });
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
       if (nav.canShare?.({ files: [file] })) { await nav.share({ files: [file], title: `Rekap ${period.label}` }); return; }
@@ -195,20 +227,21 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
   }
   const loading = now.loading || before.loading;
   return <div className="wr-overlay" role="dialog" aria-modal="true" aria-label={`Rekap ${period.label}`}>
-    <div className="wr-intro" aria-hidden="true"><span className="wr-intro-burst"/><span className="wr-intro-ring"/><span className="wr-intro-word">Rekap</span></div>
-    <div className="wr-shell">
-      <span className="wr-aurora" aria-hidden="true"/><span className="wr-dust" aria-hidden="true"/><span className="wr-frame" aria-hidden="true"/>
+    <div className="wr-shell" data-wr-theme={theme} data-n={index % 5}>
+      <div className="wr-intro" aria-hidden="true"><span className="wr-intro-burst"/><span className="wr-intro-word">Rekap</span></div>
+      <span className="wr-deco" aria-hidden="true"/><span className="wr-deco2" aria-hidden="true"/>
       <div className="wr-top">
         <div className="wr-dots" aria-hidden="true">{slides.map((s, i) => <i key={s.key} className={i <= index ? 'on' : ''}/>)}</div>
         <div className="wr-bar">
           <Select value={key} onChange={e => setKey(e.target.value)} aria-label="Pilih periode rekap" className="wr-period">{choices.map(c => { const k = c.kind === 'year' ? c.start.slice(0, 4) : c.start.slice(0, 7); return <option key={k} value={k}>{c.kind === 'year' ? `Tahun ${c.label}` : c.label}</option>; })}</Select>
           <button type="button" className="wr-icon" onClick={() => setHide(h => !h)} aria-pressed={hide} aria-label={hide ? 'Tampilkan nominal' : 'Sembunyikan nominal'} title={hide ? 'Tampilkan nominal' : 'Sembunyikan nominal'}>{hide ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
+          <button type="button" className={`wr-icon ${picking ? 'is-on' : ''}`} onClick={() => setPicking(p => !p)} aria-pressed={picking} aria-label="Pilih desain rekap" title="Desain"><Palette size={18}/></button>
           <button type="button" className="wr-icon" onClick={onClose} aria-label="Tutup rekap"><X size={19}/></button>
         </div>
       </div>
       <div className="wr-track" ref={track} onScroll={e => { const el = e.currentTarget; const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth)); if (i !== index) setIndex(i); }} aria-busy={loading}>
-        {slides.map((s, i) => <section key={s.key} className={`wr-slide is-${s.key} ${s.tone ? `tone-${s.tone}` : ''} ${i === index ? 'is-on' : ''}`} aria-hidden={i !== index}>
-          <span className="wr-emblem" aria-hidden="true"><span className="wr-emblem-ring"/><Emoji e={s.key === 'change' ? ((wrapped.change || 0) > 0 ? '📈' : '📉') : EMBLEM[s.key] || '✨'}/></span>
+        {slides.map((s, i) => <section key={s.key} className={`wr-slide is-${s.key} ${s.tone ? `tone-${s.tone}` : ''} ${i === index ? 'is-on' : ''}`} data-n={i % 5} aria-hidden={i !== index}>
+          <span className="wr-head-row" aria-hidden="true"><span className="wr-emblem"><Emoji e={s.key === 'change' ? ((wrapped.change || 0) > 0 ? '📈' : '📉') : EMBLEM[s.key] || '✨'}/></span><span className="wr-num">{String(i + 1).padStart(2, '0')}<small>/{String(slides.length).padStart(2, '0')}</small></span></span>
           <small className="wr-kicker">{s.kicker}</small>
           <strong className="wr-big">{loading && i > 0 ? '…' : s.big}</strong>
           {s.line && <p className="wr-line">{s.line}</p>}
@@ -217,6 +250,15 @@ export function WrappedView({ onClose, initial }: { onClose: () => void; initial
           {s.key === 'end' && status && <p className="wr-status" role="status">{status}</p>}
         </section>)}
       </div>
+      {picking && <div className="wr-themes" role="dialog" aria-label="Pilih desain rekap">
+        <strong>Pilih desain</strong>
+        <div className="wr-theme-list">{REKAP_THEMES.map(t => <button type="button" key={t.id} className={`wr-theme ${theme === t.id ? 'is-on' : ''}`} data-wr-theme={t.id} onClick={() => pickTheme(t.id)} aria-pressed={theme === t.id}>
+          <span className="wr-theme-prev" aria-hidden="true"><i/><b/><em/></span>
+          <span className="wr-theme-text"><b>{t.name}</b><small>{t.hint}</small></span>
+          {theme === t.id && <Check size={16}/>}
+        </button>)}</div>
+        <button type="button" className="wr-theme-done" onClick={() => setPicking(false)}>Selesai</button>
+      </div>}
       <div className="wr-nav">
         <button type="button" className="wr-icon" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Sebelumnya"><ChevronLeft size={20}/></button>
         <button type="button" className="wr-share-mini" onClick={() => void share()}><Share2 size={15}/> Bagikan</button>

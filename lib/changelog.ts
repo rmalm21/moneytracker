@@ -4,10 +4,10 @@ export type Release = { version: string; date: string; title: string; items: [em
 export const releases: Release[] = [
   { version: '9.6', date: '9 Nov 2026', title: 'Mini game & Rekap mewah', items: [
     ['🎡', 'Mini game baru di Arena: Putar Roda Harian. Sekali sehari setelah api nyala, putar rodanya buat dapat XP (sampai +100) atau Perisai Api.'],
-    ['🪙', 'Mini game Tangkap Koin: 30 detik geser dompet buat nangkep koin, permata, dan bintang, hindari tagihan dan jajan boros. Makin beruntun makin besar poinnya. Dapat XP maksimal 30 sehari, ada rekor skor dan 3 lencana baru (jadi 33 lencana).'],
-    ['✨', 'Rekap jauh lebih mewah: tema malam dan emas, aurora bergerak, emblem di tiap slide, angka berkilau emas. Gambar yang dibagikan sekarang ukuran story dengan desain baru, dan cuma ada tanda Dompet Ajaib.'],
+    ['🪙', 'Mini game Tangkap Koin: 40 detik dalam 3 gelombang (Gajian, Tengah bulan, Tanggal tua). Tangkap koin, permata, dan bintang, hindari tagihan, jajan, dan paylater. Ada power-up magnet, perisai, gerak lambat, dan kotak kejutan, mode Fever ×3 tiap beruntun 12, misi harian, bintang 1–3, tombol jeda, dan 5 skor terbaikmu. XP maksimal 30 sehari, plus 3 lencana baru (jadi 33).'],
+    ['✨', 'Rekap dirombak dengan 5 desain yang bisa dipilih lewat tombol palet: Bersih, Editorial, Pastel, Gelap, dan Pop. Gambar yang dibagikan ikut desain pilihanmu, ukuran story, dan cuma ada tanda Dompet Ajaib.'],
     ['🔥', 'Kartu Arena langsung tampil begitu Beranda dibuka, nggak muncul belakangan lagi. Api bareng juga.'],
-    ['🏅', 'Lencana streak sekarang beda-beda: 🔥 ⚡ 💥 🎆 🌋 ☄️ 🌟 👑, dengan tingkat Perunggu sampai Legenda. Angka hari di lencana nggak kepotong lagi.'],
+    ['🏅', 'Lencana streak sekarang beda-beda: 🔥 ⚡ 💥 🎆 🌋 ☄️ 🌟 👑, dengan tingkat Perunggu sampai Legenda. Angka hari di lencana nggak kepotong lagi, dan nama lencana diberi jarak dari gambarnya.'],
     ['💡', 'Chat: pesan yang dikirim di menit yang sama dari orang yang sama digabung, jamnya cukup di pesan terakhir seperti di WhatsApp. Tombol Asisten | Grup diberi jarak dari judul.'],
     ['🔧', 'Perbaikan: di Rekap, "Lebih besar pasak" diganti jadi "Sisa" atau "Tekor" yang jelas. Kilau bar XP sekarang sampai ujung, kotak Level di Cara main sejajar, dan suara konfeti diganti jadi lebih enak didengar.'],
   ] },
