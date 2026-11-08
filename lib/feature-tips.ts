@@ -38,7 +38,7 @@ export const TIPS: Tip[] = [
   T('transactions', 'trans_transfer', '🔁', 'Transfer antardompet', 'Pindah uang antar dompetmu tanpa tercatat sebagai pengeluaran.', { event: true }),
   T('transactions', 'trans_recurring', '🗓️', 'Tagihan rutin', 'Tagihan bulanan dicatat atau diingatkan otomatis.', { go: ['recurring'] }),
   T('wallets', 'wallet_kantong', '🎯', 'Kantong', 'Kelompokkan beberapa dompet untuk satu tujuan, misalnya Dana darurat = Mandiri + BRI.', { event: true }),
-  T('wallets', 'wallet_adjust', '⚖️', 'Cocokkan saldo', 'Isi saldo asli dompetmu, selisihnya dicatat otomatis. Ada di menu ⋯ tiap dompet.', { pulse: '.wallet-row .more-actions, .wallet-card .more-actions' }),
+  T('wallets', 'wallet_adjust', '⚖️', 'Cocokkan saldo', 'Isi saldo asli dompetmu, selisihnya dicatat otomatis. Ada di menu ⋯ tiap dompet.', { event: true }),
   T('wallets', 'wallet_order', '↕️', 'Geser urutan dompet', 'Tahan pegangan titik-titik sebentar, lalu geser.', { pulse: '.wallet-row .sort-handle, .wallet-card .sort-handle' }),
   T('wallets', 'wallet_emergency', '🛟', 'Dana darurat', 'Pisahkan dana darurat dari uang harian supaya tidak terpakai.', { event: true }),
   T('inbox', 'inbox_import', '📥', 'Impor mutasi', 'Masukkan PDF, CSV, atau Excel dari bank dan e-wallet. File dibaca di HP, tidak diunggah.', { event: true }),
@@ -57,6 +57,8 @@ export const TIPS: Tip[] = [
   T('advisor', 'insight_layout', '🗂️', 'Atur bagian Insight', 'Urutkan, sembunyikan, atau sematkan bagian yang paling kamu perlukan.', { event: true }),
 ];
 export const tipById = new Map(TIPS.map(t => [t.id, t]));
+/** Features whose use shows in records older than the months the app keeps loaded (checked once per account). */
+export const HISTORY_TIPS = ['add_sentence', 'add_scan', 'trans_transfer', 'wallet_adjust', 'inbox_import', 'split_friendpaid'];
 
 /** Kept in the profile document. */
 export type TipState = {
@@ -67,7 +69,11 @@ export type TipState = {
   suggested?: Partial<Record<TipMenu, { day: string; id: string }>>;
   /** Suggestion → the day it may show again after it was closed. */
   closed?: Record<string, string>;
+  /** The whole history was read once for features used long ago (1 = done). */
+  scanned?: number;
 };
+/** What a suggestion already knows, to fill the form it opens ("Kopi susu", 25.000, the category…). */
+export type TipPayload = { name?: string; amount?: number; categoryId?: string | null; subcategoryId?: string | null; walletId?: string };
 
 export const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 
@@ -118,10 +124,10 @@ export function cardTips(menu: TipMenu, used: Set<string>, state: TipState | und
   return TIPS.filter(t => t.menu === menu && !used.has(t.id)).slice(0, size);
 }
 
-export type Suggestion = { id: string; menu: TipMenu; text: string; label: string; try: TipTry; tip: string };
+export type Suggestion = { id: string; menu: TipMenu; text: string; label: string; try: TipTry; tip: string; payload?: TipPayload };
 export type SuggestCtx = {
   used: Set<string>; today: string; layout: string[]; daysUntilSalary: number;
-  transactions: Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'description' | 'merchant' | 'origin' | 'categoryId' | 'recurringTransactionId'>[];
+  transactions: Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'description' | 'merchant' | 'origin' | 'categoryId' | 'subcategoryId' | 'walletId' | 'recurringTransactionId'>[];
   recurring: Pick<Recurring, 'name'>[]; budgets: Pick<Budget, 'categoryId' | 'active'>[]; categories: Pick<Category, 'id' | 'name' | 'type' | 'parentId'>[];
   quickActions: { description?: string; label: string }[]; pendingDrafts: number;
 };
@@ -131,31 +137,39 @@ const key = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 /** One-line suggestions that fit the moment, for features the person already knows (never one still on the card). */
 export function suggestionsFor(menu: TipMenu, c: SuggestCtx): Suggestion[] {
   const out: Suggestion[] = [], known = (id: string) => c.used.has(id);
-  const S = (id: string, tip: string, text: string, label: string, how: TipTry) => { if (known(tip)) out.push({ id, menu, tip, text, label, try: how }); };
+  const S = (id: string, tip: string, text: string, label: string, how: TipTry, payload?: TipPayload) => { if (known(tip)) out.push({ id, menu, tip, text, label, try: how, ...(payload ? { payload } : {}) }); };
   const recent = (days: number) => c.transactions.filter(t => t.date >= addDays(c.today, -days) && t.date <= c.today);
   if (menu === 'home') {
-    if (c.daysUntilSalary >= 0 && c.daysUntilSalary <= 3 && !c.layout.includes('daysUntilSalary')) S('home_payday', 'home_cards', `Gajian tinggal ${c.daysUntilSalary === 0 ? 'hari ini' : `${c.daysUntilSalary} hari lagi`}. Pasang kartu Hitung mundur gajian di Beranda?`, 'Pasang kartu', { event: true });
+    // The salary cycle counts at least one day: 1 means payday is tomorrow.
+    if (c.daysUntilSalary >= 0 && c.daysUntilSalary <= 3 && !c.layout.includes('daysUntilSalary')) S('home_payday', 'home_cards', `${c.daysUntilSalary <= 1 ? 'Besok gajian' : `Gajian tinggal ${c.daysUntilSalary} hari lagi`}. Pasang kartu Hari Menuju Gajian di Beranda?`, 'Pasang kartu', { event: true });
     // The same spending three times in two weeks, with no Catat cepat button for it yet.
-    const counts = new Map<string, { n: number; name: string }>();
-    for (const t of recent(14)) if (t.type === 'expense' && said(t)) { const k = `${key(said(t))}|${t.amount}`, v = counts.get(k) || { n: 0, name: said(t) }; v.n++; counts.set(k, v); }
+    const counts = new Map<string, { n: number; name: string; last: SuggestCtx['transactions'][number] }>();
+    for (const t of recent(14)) if (t.type === 'expense' && said(t)) { const k = `${key(said(t))}|${t.amount}`, v = counts.get(k) || { n: 0, name: said(t), last: t }; v.n++; if (t.date >= v.last.date) v.last = t; counts.set(k, v); }
     const buttons = new Set(c.quickActions.map(q => key(q.description || q.label)));
     const often = [...counts.values()].filter(v => v.n >= 3 && !buttons.has(key(v.name))).sort((a, b) => b.n - a.n)[0];
-    if (often) S('home_quickrepeat', 'home_quick', `Kamu sering mencatat “${often.name}”. Jadikan tombol Catat cepat?`, 'Atur Catat cepat', { event: true });
+    // The new button comes filled in from the latest of those entries.
+    if (often) S('home_quickrepeat', 'home_quick', `Kamu sering mencatat “${often.name}”. Jadikan tombol Catat cepat?`, 'Bikin tombol', { event: true },
+      { name: often.name, amount: often.last.amount, categoryId: often.last.categoryId || null, subcategoryId: often.last.subcategoryId || null, ...(often.last.walletId ? { walletId: often.last.walletId } : {}) });
   }
   if (menu === 'add') {
     const last = [...c.transactions].filter(t => t.type === 'expense' || t.type === 'income').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
     if (last.length === 3 && last.every(t => !t.origin)) S('add_sentence_again', 'add_sentence', 'Lebih cepat: ketik satu kalimat, misalnya “kopi 25rb pakai gopay”.', 'Coba ketik', { event: true });
   }
   if (menu === 'transactions') {
-    // The same name in at least two of the last three months, not made by a schedule and with no schedule of that name.
-    const months = new Map<string, Set<string>>();
-    for (const t of recent(92)) if ((t.type === 'expense' || t.type === 'income') && !t.recurringTransactionId && said(t)) { const k = key(said(t)); months.set(k, (months.get(k) || new Set()).add(t.date.slice(0, 7))); }
+    // Looks like a bill: the same name in at least two of the last three months, about once a month (not a place visited
+    // often, like GrabFood), for about the same amount, not made by a schedule and with no schedule of that name.
+    const seen = new Map<string, { name: string; months: Map<string, number>; amounts: number[] }>();
+    for (const t of recent(92)) if ((t.type === 'expense' || t.type === 'income') && !t.recurringTransactionId && said(t)) {
+      const k = key(said(t)), v = seen.get(k) || { name: said(t), months: new Map<string, number>(), amounts: [] as number[] }, m = t.date.slice(0, 7);
+      v.months.set(m, (v.months.get(m) || 0) + 1); v.amounts.push(t.amount); seen.set(k, v);
+    }
     const scheduled = new Set(c.recurring.map(r => key(r.name)));
-    const monthly = [...months.entries()].find(([k, m]) => m.size >= 2 && !scheduled.has(k) && k.length >= 3);
-    if (monthly) { const name = said(c.transactions.find(t => key(said(t)) === monthly[0])!); S('trans_make_recurring', 'trans_recurring', `“${name}” muncul tiap bulan. Jadikan tagihan rutin?`, 'Buka Rutin', { go: ['recurring'] }); }
+    const monthly = [...seen.entries()].find(([k, v]) => k.length >= 3 && !scheduled.has(k) && v.months.size >= 2
+      && Math.max(...v.months.values()) <= 2 && Math.max(...v.amounts) <= Math.min(...v.amounts) * 1.25);
+    if (monthly) S('trans_make_recurring', 'trans_recurring', `“${monthly[1].name}” muncul tiap bulan. Jadikan tagihan rutin?`, 'Buka Rutin', { go: ['recurring'] });
   }
   if (menu === 'wallets') {
-    if (!c.transactions.some(t => t.type === 'adjustment' && t.date >= addDays(c.today, -30))) S('wallet_check', 'wallet_adjust', 'Sudah sebulan lebih tidak mencocokkan saldo. Samakan dengan saldo asli di bank dan e-wallet?', 'Tunjukkan', { pulse: '.wallet-row .more-actions, .wallet-card .more-actions' });
+    if (!c.transactions.some(t => t.type === 'adjustment' && t.date >= addDays(c.today, -30))) S('wallet_check', 'wallet_adjust', 'Sudah sebulan lebih tidak mencocokkan saldo. Samakan dengan saldo asli di bank dan e-wallet?', 'Tunjukkan', { event: true });
   }
   if (menu === 'inbox') {
     if (c.pendingDrafts === 0) S('inbox_empty_import', 'inbox_import', 'Belum ada yang menunggu. Impor mutasi terbaru dari bank atau e-wallet?', 'Impor mutasi', { event: true });
@@ -166,7 +180,7 @@ export function suggestionsFor(menu: TipMenu, c: SuggestCtx): Suggestion[] {
     const covered = new Set(c.budgets.filter(b => b.active !== false).map(b => b.categoryId));
     const top = [...spend.entries()].filter(([id, n]) => n >= 3 && !covered.has(id)).sort((a, b) => b[1] - a[1])[0];
     const cat = top && c.categories.find(x => x.id === top[0]);
-    if (cat) S('budget_missing', 'budget_sub', `Pengeluaran ${cat.name} cukup sering bulan ini. Bikin anggarannya?`, 'Buat anggaran', { event: true });
+    if (cat) S('budget_missing', 'budget_sub', `Pengeluaran ${cat.name} cukup sering sebulan terakhir. Bikin anggarannya?`, 'Buat anggaran', { event: true }, { categoryId: cat.id });
   }
   return out;
 }

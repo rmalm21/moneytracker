@@ -145,9 +145,21 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
 }
 /** 8.10 "Bisa dicoba di sini": a feature used, a card hidden, a suggestion shown or closed (lib/feature-tips.ts), as
  * single fields of the profile, so two devices never overwrite each other's marks. */
-export async function saveTipState(uid:string,change:{used?:string;hideMenu?:string;until?:string;suggested?:{menu:string;day:string;id:string};closed?:{id:string;until:string}}) {
+/** 8.10 Features used long ago, beyond the transactions the app keeps loaded: one small query each, reading at most one
+ * document, only for the features still asked about. */
+export async function usedInHistory(uid:string,want:string[]){
+  const checks:[string,'transactions'|'drafts'|'splitBills',ReturnType<typeof where>][]=[['add_sentence','transactions',where('origin','==','quick')],['add_scan','transactions',where('origin','==','scan')],['trans_transfer','transactions',where('type','==','transfer')],['wallet_adjust','transactions',where('type','==','adjustment')],['inbox_import','drafts',where('source','==','import')],['split_friendpaid','splitBills',where('payer','==','other')]];
+  const found:string[]=[];
+  await Promise.all(checks.filter(([id])=>want.includes(id)).map(async([id,name,check])=>{if(!(await getDocs(query(coll(uid,name),check,limit(1)))).empty)found.push(id)}));
+  return found;
+}
+export async function saveTipState(uid:string,change:{used?:string|string[];hideMenu?:string;until?:string;suggested?:{menu:string;day:string;id:string};closed?:{id:string;until:string};scanned?:number;reset?:boolean}) {
   const fields:Record<string,unknown>={};
-  if(change.used)fields['featureTips.used']=arrayUnion(change.used);
+  const used=typeof change.used==='string'?[change.used]:change.used||[];
+  if(used.length)fields['featureTips.used']=arrayUnion(...used);
+  if(change.scanned)fields['featureTips.scanned']=change.scanned;
+  // "Tampilkan lagi": the cards and closed suggestions come back; what was used stays used.
+  if(change.reset){fields['featureTips.hiddenUntil']=deleteField();fields['featureTips.closed']=deleteField();fields['featureTips.suggested']=deleteField();}
   if(change.hideMenu&&change.until)fields[`featureTips.hiddenUntil.${change.hideMenu}`]=change.until;
   if(change.suggested)fields[`featureTips.suggested.${change.suggested.menu}`]={day:change.suggested.day,id:change.suggested.id};
   if(change.closed)fields[`featureTips.closed.${change.closed.id}`]=change.closed.until;

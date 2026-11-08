@@ -6,7 +6,7 @@ import { hasPassword } from '@/lib/auth';
 import { biometricEnabled } from '@/lib/biometric';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useBackHandler } from './back-guard';
-import { Ticket, BadgeInfo, BookOpenText, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Upload, UserRound, type LucideIcon } from 'lucide-react';
+import { Ticket, BadgeInfo, BookOpenText, BellRing, Check, ChevronLeft, ChevronRight, CircleHelp, DatabaseBackup, Download, FileJson, KeyRound, LayoutDashboard, LogOut, Palette, RefreshCw, SlidersHorizontal, Smartphone, Sparkles, Upload, UserRound, type LucideIcon } from 'lucide-react';
 import { resyncAll } from '@/lib/sync';
 import { useApp } from './app-provider';
 import { AppearanceSettings } from './appearance-settings';
@@ -17,7 +17,7 @@ import { PinSettings } from './pin-lock';
 import { ReminderSettings, reminderConfig } from './reminders';
 import { applyUpdate, promptInstall, usePwa } from '@/lib/pwa';
 import { friendlyError, logout } from '@/lib/auth';
-import { importData, saveProfile, validateBackup } from '@/lib/firestore';
+import { importData, saveProfile, saveTipState, validateBackup } from '@/lib/firestore';
 import { downloadBackup } from '@/lib/account';
 import { AccountDangerZone } from './account-danger';
 import { PasswordCard } from './password-ui';
@@ -87,7 +87,7 @@ export function SettingsView({notify,navigate,onLockNow,focus}:{notify:(msg:stri
   <aside className="set-menu" aria-label="Menu pengaturan">
    <div className="set-hero"><span className="avatar settings-avatar">{(profile?.displayName||profile?.username||'A')[0]}</span><div><strong>{profile?.displayName||profile?.username}</strong><small>{user?.email}</small></div></div>
    {groups.map(group=><section key={group} className="set-group"><h2>{group}</h2><div className="set-list">{sections.filter(item=>item.group===group&&(item.key!=='access'||admin)).map(({key,title,icon:Icon,tone})=><button type="button" key={key} className={`set-row ${active===key?'is-active':''}`} aria-current={active===key?'page':undefined} onClick={()=>open(key)}><span className={`set-row-icon tone-${tone}`} aria-hidden="true"><Icon size={18}/></span><span className="set-row-text"><strong>{title}{key==='about'&&!aboutSeen&&<em className="set-row-badge">Baru</em>}</strong><small>{summaries[key]}</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>)}</div></section>)}
-   {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button></div></section>}
+   {navigate&&<section className="set-group"><h2>Bantuan</h2><div className="set-list"><button type="button" className="set-row" onClick={()=>navigate('help')}><span className="set-row-icon tone-violet" aria-hidden="true"><CircleHelp size={18}/></span><span className="set-row-text"><strong>Tanya Jawab</strong><small>Istilah, fungsi menu, dan cara pakai.</small></span><ChevronRight size={18} className="set-row-arrow" aria-hidden="true"/></button>{/* 8.10 Cards hidden with ✕ (and closed suggestions) come back; what was used stays used. */}{user&&(Object.keys(profile?.featureTips?.hiddenUntil||{}).length>0||Object.keys(profile?.featureTips?.closed||{}).length>0)&&<button type="button" className="set-row" onClick={()=>void saveTipState(user.uid,{reset:true}).then(()=>notify('Kartu “Bisa dicoba di sini” muncul lagi di tiap menu.')).catch(()=>notify('Belum berhasil, coba lagi sebentar.'))}><span className="set-row-icon tone-pink" aria-hidden="true"><Sparkles size={18}/></span><span className="set-row-text"><strong>Tampilkan lagi “Bisa dicoba di sini”</strong><small>Kartu dan saran yang kamu tutup muncul lagi.</small></span></button>}</div></section>}
    <AccountDangerZone notify={notify}/>
    <div className="set-group"><Confirm title="Keluar dari akun?" description="Kamu perlu masuk lagi dengan username dan password untuk membuka catatan keuangan ini." confirmLabel="Ya, keluar" onConfirm={()=>logout()}><button type="button" className="settings-logout"><LogOut size={18}/> Keluar dari akun</button></Confirm><small className="set-version">Dompet Ajaib · Versi {APP_VERSION}</small></div>
   </aside>

@@ -30,8 +30,6 @@ function isTransactionKind(kind: QuickAction['kind']): kind is 'expense' | 'inco
 export function QuickActions({ openTx, navigate, notify }: { openTx: (preset?: Partial<LedgerTx>) => void; navigate: (view: string) => void; notify: (message: string) => void }) {
   const { user, profile, data } = useApp();
   const [open, setOpen] = useState(false);
-  // 8.10 The tip "Ubah tombol Catat cepat" (and its suggestion) opens the editor.
-  useTipTry({ home_quick: () => setOpen(true) });
   const [actions, setActions] = useState<QuickAction[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<QuickAction>({ id: '', label: '', kind: 'expense' });
@@ -40,6 +38,12 @@ export function QuickActions({ openTx, navigate, notify }: { openTx: (preset?: P
   const visible = (profile?.quickActions ?? defaults).filter(action => !isLegacy(action));
 
   function start() { setActions(visible.map(action => ({ ...action }))); setEditing(null); setError(''); setOpen(true); }
+  // 8.10 The tip "Ubah tombol Catat cepat" opens the editor with the current buttons; its suggestion ("Kamu sering mencatat
+  // Kopi susu") also starts a new button already filled in.
+  useTipTry({ home_quick: payload => {
+    start();
+    if (payload?.name) { setEditing(-1); setDraft({ id: crypto.randomUUID(), label: payload.name.slice(0, 24), kind: 'expense', ...(payload.amount ? { amount: payload.amount } : {}), description: payload.name, ...(payload.categoryId ? { categoryId: payload.categoryId } : {}), ...(payload.subcategoryId ? { subcategoryId: payload.subcategoryId } : {}), ...(payload.walletId ? { walletId: payload.walletId } : {}) }); }
+  } });
   function close(next: boolean) { setOpen(next); if (!next) setEditing(null); }
   function launch(action: QuickAction) {
     if (!isTransactionKind(action.kind)) { navigate(action.kind); return; }

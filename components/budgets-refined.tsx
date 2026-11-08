@@ -84,7 +84,7 @@ export function BudgetsView({ notify, navigate, openTx, focus }: { notify: (mess
   }, [category, subs, data.budgets, data.categories, editing?.id, children]);
 
   // 8.10 Tips: a new budget form, or Catat otomatis to type "anggaran makan 2jt".
-  useTipTry({ budget_sub: () => edit(), budget_sentence: () => { openTx?.(); window.setTimeout(() => askToTry('add_sentence'), 350); } });
+  useTipTry({ budget_sub: payload => { edit(); if (payload?.categoryId && data.categories.some(c => c.id === payload.categoryId)) { setCategory(payload.categoryId); setName(autoName(payload.categoryId, [])); } }, budget_sentence: () => { openTx?.(); window.setTimeout(() => askToTry('add_sentence'), 350); } });
   function edit(b?: Budget) { setSubsOpen(false); setEditing(b || null); setName(b?.name || ''); setNameTouched(Boolean(b)); setCategory(b?.categoryId || ''); setSubs(b ? budgetSubcategories(b) : []); setAmount(b?.amount || 0); setClassification(b?.classification || 'living'); setPeriod(b?.cycleType || 'salary'); setDay(b?.cycleStartDay || salaryDay); setWarning(b?.warningPercent || profile?.budgetWarningPercent || 80); setNotes(b?.notes || ''); setRollover(b?.rolloverEnabled || false); setActive(b?.active ?? true); setError(''); setOpen(true); }
   async function act(fn: () => Promise<unknown>, message: string, close = false) { if (close) { setOpen(false); track(fn(), { pending: 'Menyimpan…', success: message, failure: 'Belum tersimpan', retry: { label: 'Buka lagi', run: () => setOpen(true) } }); return; } setError(''); setBusy(true); try { await fn(); notify(message); if (close) setOpen(false); } catch (e) { setError((e as Error).message || 'Belum berhasil. Coba lagi.'); } finally { setBusy(false); } }
   function submit(event: FormEvent) {
