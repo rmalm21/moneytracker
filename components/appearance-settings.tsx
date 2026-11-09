@@ -10,6 +10,7 @@ import { readAlwaysHide, readHideLevel, setAlwaysHide, setHideLevel, type HideLe
 import { rememberSplashStyle, type SplashStyle } from './loading-screen';
 import { Emoji } from './emoji';
 import { arenaHidden, setArenaHidden } from './game/game-store';
+import { openPetSheet, petHidden, setPetHidden } from './pet/pet-store';
 import { playRekap, REKAP_SOUNDS, rekapSound, setRekapSound, type RekapSound, setSoundOn, soundOn } from '@/lib/game-sound';
 import type { ColorMode, Profile, ThemePreset } from '@/lib/types';
 
@@ -55,8 +56,10 @@ function SplashChoice(){
 }
 
 /** 9.4 Arena Catat on this device: the card on Beranda, and the sound and buzz of its celebrations. */
-function ArenaToggles(){const {account}=useApp();const uid=account?.uid||'';const [shown,setShown]=useState(()=>uid?!arenaHidden(uid):true),[sound,setSound]=useState(soundOn);
+function ArenaToggles(){const {account}=useApp();const uid=account?.uid||'';const [shown,setShown]=useState(()=>uid?!arenaHidden(uid):true),[sound,setSound]=useState(soundOn),[pet,setPet]=useState(()=>uid?!petHidden(uid):true);
  return <><label className="switch-row"><input type="checkbox" checked={shown} onChange={e=>{setShown(e.target.checked);if(uid)setArenaHidden(uid,!e.target.checked)}}/><span><strong>Kartu Arena Catat di Beranda</strong><small>Streak api, level, misi harian, dan tantangan mingguan. Streak tetap dihitung walau kartunya disembunyikan.</small></span></label>
+ <label className="switch-row"><input type="checkbox" checked={pet} onChange={e=>{setPet(e.target.checked);if(uid)setPetHidden(uid,!e.target.checked)}}/><span><strong>Pet di samping tombol chat</strong><small>Kucing, anjing, burung hantu, ayam, elang, atau tokek yang bisa kamu kasih nama. Ketuk namanya buat buka panel pet.</small></span></label>
+ {pet&&<button type="button" className="btn btn-secondary small" onClick={()=>openPetSheet()}><Emoji e="🐾"/> Buka panel pet</button>}
  <label className="switch-row"><input type="checkbox" checked={sound} onChange={e=>{setSound(e.target.checked);setSoundOn(e.target.checked)}}/><span><strong>Suara & getar perayaan</strong><small>Saat api nyala, misi selesai, naik level, dapat lencana, dan buka Rekap. Berlaku di perangkat ini.</small></span></label></>;
 }
 /** 9.5 The sound Rekap opens with: three to pick from (tap to hear it), taking turns, or none. On this device. */

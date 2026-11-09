@@ -32,6 +32,7 @@ export async function wipeUserData(uid: string, onProgress?: (progress: WipeProg
   }
   // 9.4 Arena Catat (streak, XP, missions) starts over too.
   await deleteDoc(doc(db, 'users', uid, 'game', 'state')).catch(() => {});
+  await deleteDoc(doc(db, 'users', uid, 'game', 'pet')).catch(() => {});
   // Delete notes live in their own collection; a subcollection stays in Firestore unless its documents are deleted.
   for (let page = 0; page < 2000; page++) {
     const snap = await getDocs(query(collection(db, 'users', uid, 'deletions'), limit(400)));

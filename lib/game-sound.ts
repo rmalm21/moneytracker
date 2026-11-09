@@ -56,11 +56,13 @@ const PENTA = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349.3, 2637, 3136];
 const sparkle = (c: AudioContext, at: number, count = 8, spread = 0.5) => { for (let i = 0; i < count; i++) bell(c, PENTA[(i * 2 + (i >> 2)) % PENTA.length], at + (i / Math.max(1, count)) * spread, 0.32, 0.028); };
 const chord = (c: AudioContext, notes: number[], at: number, length: number, type: OscillatorType = 'triangle', volume = 0.08) => notes.forEach(f => tone(c, f, at, length, type, volume));
 
-export type GameSound = 'lit' | 'mission' | 'level' | 'badge' | 'shield' | 'soft' | 'tick' | 'pop' | 'open' | 'poke' | 'achievement' | 'broken' | 'step' | 'crackle' | 'coin' | 'welcome' | 'note' | /** 9.6 mini games */ 'click' | 'bonk' | 'gem' | 'go' | 'heart' | 'jackpot' | 'over';
+export type GameSound = 'lit' | 'mission' | 'level' | 'badge' | 'shield' | 'soft' | 'tick' | 'pop' | 'open' | 'poke' | 'achievement' | 'broken' | 'step' | 'crackle' | 'coin' | 'welcome' | 'note' | /** 9.6 mini games */ 'click' | 'bonk' | 'gem' | 'go' | 'heart' | 'jackpot' | 'over' |
+  /** 9.8 pets */ 'meow' | 'bark' | 'hoot' | 'cluck' | 'screech' | 'tokek' | 'purr' | 'munch' | 'wow' | 'sparkle';
 const VIBES: Record<GameSound, number[]> = {
   lit: [18, 40, 28], mission: [12], level: [20, 50, 20, 50, 40], badge: [30, 60, 30, 60, 60], shield: [25, 40, 25], soft: [10],
   tick: [6], pop: [8], open: [10], poke: [14, 30, 14], achievement: [20, 40, 20, 40, 50], broken: [60], step: [6], crackle: [10, 20, 8], coin: [8], welcome: [20, 40, 30, 40, 50], note: [12, 30, 12],
   click: [], bonk: [40, 30, 40], gem: [10, 20, 10], go: [20], heart: [10, 30, 10], jackpot: [30, 50, 30, 50, 80], over: [30],
+  meow: [8], bark: [12, 30, 12], hoot: [8], cluck: [6, 20, 6], screech: [14], tokek: [10, 40, 10], purr: [4, 20, 4, 20, 4], munch: [6, 30, 6], wow: [20], sparkle: [10],
 };
 export function play(kind: GameSound) {
   if (!soundOn()) return;
@@ -91,6 +93,17 @@ export function play(kind: GameSound) {
       case 'jackpot': popper(c, 0); kick(c, 0, 0.3); [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => tone(c, f, 0.05 + i * 0.07, 0.35, 'triangle', 0.09)); chord(c, [1046, 1318, 1568, 2093], 0.5, 1.3, 'sine', 0.04); sparkle(c, 0.5, 12, 0.9); break;
       case 'over': [784, 659, 523].forEach((f, i) => bell(c, f, i * 0.12, 0.45, 0.08)); break;
       case 'note': tone(c, 784, 0, 0.14, 'sine', 0.1); tone(c, 1046, 0.09, 0.22, 'sine', 0.09); sparkle(c, 0.15, 4, 0.2); break;
+      // 9.8 The pets' voices (made up from tones, like everything here).
+      case 'meow': tone(c, 520, 0, 0.16, 'triangle', 0.1, 860); tone(c, 860, 0.15, 0.32, 'triangle', 0.1, 470); break;
+      case 'bark': [0, 0.2].forEach(at => { tone(c, 340, at, 0.12, 'square', 0.07, 170); noise(c, at, 0.08, { type: 'bandpass', from: 900, volume: 0.08, fadeIn: 0.004 }); }); break;
+      case 'hoot': tone(c, 410, 0, 0.3, 'sine', 0.13, 380); tone(c, 360, 0.36, 0.45, 'sine', 0.12, 330); break;
+      case 'cluck': [0, 0.1, 0.2, 0.42].forEach((at, i) => tone(c, i === 3 ? 900 : 700, at, i === 3 ? 0.18 : 0.07, 'triangle', 0.09, i === 3 ? 600 : 520)); break;
+      case 'screech': tone(c, 1900, 0, 0.45, 'sawtooth', 0.035, 1250); noise(c, 0, 0.4, { type: 'highpass', from: 3000, volume: 0.03 }); break;
+      case 'tokek': tone(c, 230, 0, 0.09, 'square', 0.08, 200); tone(c, 470, 0.16, 0.14, 'square', 0.08, 380); break;
+      case 'purr': for (let i = 0; i < 6; i++) noise(c, i * 0.13, 0.12, { type: 'lowpass', from: 220, volume: 0.16, fadeIn: 0.03 }); break;
+      case 'munch': [0, 0.14, 0.28].forEach(at => noise(c, at, 0.08, { type: 'bandpass', from: 1200, volume: 0.12, fadeIn: 0.005 })); break;
+      case 'wow': tone(c, 380, 0, 0.3, 'sine', 0.12, 920); break;
+      case 'sparkle': sparkle(c, 0, 6, 0.35); break;
       default: tone(c, 660, 0, 0.15, 'sine', 0.08);
     }
   } catch { /* audio is a nicety */ }
