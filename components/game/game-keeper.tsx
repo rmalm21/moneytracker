@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../app-provider';
 import { useNotify } from '../notifications';
 import { transactionExpense } from '@/lib/accounting';
-import { addDays, advance, BADGES, challengeProgress, coinResult, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
+import { addDays, advance, arcadeResult, BADGES, challengeProgress, coinResult, scratchCard, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import type { LedgerTx } from '@/lib/types';
 import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
@@ -132,7 +132,9 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
       checkin: () => { checkinWanted.current = true; step(); },
       checkinSpace: spaceId => { const today = todayInTimeZone(tz); publishSpace(spaceId, [today]); play('mission'); celebrate([{ kind: 'note', title: 'Hari aman tercatat', text: 'Kamu sudah nyala untuk api bareng hari ini' }]); },
       // 9.6 Mini games: the prize is worked out and saved at once (closing the game mid-way keeps it).
-      spin: () => { const out = apply(s => spinWheel(s, todayInTimeZone(tz), uid || '')); return out && { index: out.index, xp: out.xp, shield: out.shield }; },
+      spin: () => { const out = apply(s => spinWheel(s, todayInTimeZone(tz), uid || '')); return out && { index: out.index, xp: out.xp, shield: out.shield, golden: out.golden }; },
+      arcadeDone: (game, score, mission) => { const out = apply(s => arcadeResult(s, todayInTimeZone(tz), game, score, { mission })); return out && { xp: out.xp, missionXp: out.missionXp, record: out.record, best: out.best, top: out.top }; },
+      scratch: () => { const out = apply(s => scratchCard(s, todayInTimeZone(tz), uid || '')); return out && { index: out.index, xp: out.xp, shield: out.shield }; },
       coinDone: (score, mission) => { const out = apply(s => coinResult(s, todayInTimeZone(tz), score, { mission })); return out && { xp: out.xp, record: out.record, best: out.best, missionXp: out.missionXp, top: out.state.coinTop }; },
     });
     if (takePendingCheckin()) { checkinWanted.current = true; step(); }

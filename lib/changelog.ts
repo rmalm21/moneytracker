@@ -2,6 +2,15 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.7', date: '9 Nov 2026', title: 'Tiga mini game baru, semuanya makin seru', items: [
+    ['💵', 'Mini game baru: Cocok Cuan. Geser koin, uang kertas, permata, kantong uang, kartu, dan celengan biar 3 sejajar. 4 sejajar jadi Petir, bentuk L atau T jadi Ledakan, 5 sejajar jadi Bom Cuan. Ada kotak tagihan yang lunas kalau ada yang pecah di sebelahnya, alat bantu Palu dan Acak, tombol jeda, bonus akhir dari spesial yang tersisa, misi harian, bintang 1–3, dan 5 skor terbaik. XP maksimal 25 sehari.'],
+    ['🛒', 'Mini game baru: Belanja Bijak. Pilih beli atau lewat dengan uang seminggu, dalam 5 skenario: anak kos, pekerja kantoran, mahasiswa, belanja keluarga, dan freelancer. Kartunya beda tiap main, ada kejadian darurat yang harus dibayar dan uang tambahan yang masuk, plus komentar langsung tiap keputusan. Hasilnya skor 0–100, rapor 50/30/20, misi harian, bintang, dan tips. XP maksimal 20 sehari.'],
+    ['🎟️', 'Gosok Berhadiah: kartu gosok 3×3 yang kebuka setelah 3 misi hari itu tuntas. Gosok kotaknya dan temukan 3 simbol yang sama buat dapat XP (sampai +75) atau Perisai Api. Ada tombol Buka semua dan riwayat kartu minggu ini.'],
+    ['👑', 'Putar Roda: putar 7 hari berturut-turut buat dapat Roda Emas dengan hadiah ×2. Kemajuannya kelihatan di bawah judul roda.'],
+    ['🎮', 'Di kartu Beranda ada 2 game harian (Putar Roda dan Gosok Berhadiah) plus tombol Game lain yang baru, lengkap dengan XP game hari ini. Selesai main dari daftar game di Arena, kamu balik lagi ke daftar itu.'],
+    ['🎨', 'Teks abu-abu di kartu Arena dan Api bareng dibuat lebih terang biar gampang dibaca.'],
+    ['🏅', '3 lencana baru: Juragan Cuan, Si Paling Bijak, dan Hoki Terus. Total sekarang 36 lencana.'],
+  ] },
   { version: '9.6', date: '9 Nov 2026', title: 'Mini game & Rekap mewah', items: [
     ['🎡', 'Mini game baru di Arena: Putar Roda Harian. Sekali sehari setelah api nyala, putar rodanya buat dapat XP (sampai +100) atau Perisai Api.'],
     ['🪙', 'Mini game Tangkap Koin: 40 detik dalam 3 gelombang (Gajian, Tengah bulan, Tanggal tua). Tangkap koin, permata, dan bintang, hindari tagihan, jajan, dan paylater. Ada power-up magnet, perisai, gerak lambat, dan kotak kejutan, mode Fever ×3 tiap beruntun 12, misi harian, bintang 1–3, tombol jeda, dan 5 skor terbaikmu. XP maksimal 30 sehari, plus 3 lencana baru (jadi 33).'],

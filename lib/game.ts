@@ -62,8 +62,8 @@ export const BADGES: { days: number; name: string; xp: number; emoji: string }[]
 // ——— 9.5 More badges (achievements), in four tiers ———
 export type Tier = 'perunggu' | 'perak' | 'emas' | 'legenda';
 export const TIERS: Record<Tier, { name: string; xp: number }> = { perunggu: { name: 'Perunggu', xp: 50 }, perak: { name: 'Perak', xp: 100 }, emas: { name: 'Emas', xp: 250 }, legenda: { name: 'Legenda', xp: 500 } };
-export type GameStats = { missions: number; fullDays: number; challenges: number; checkins: number; scans: number; scanDay: string; quickDays: number; quickDay: string; early: number; late: number; shields: number; comebacks: number; sharedBest: number; weekends: number; /** 9.6 mini games */ spins: number; coinBest: number; coinGames: number; coinMissions: number };
-export const emptyStats = (): GameStats => ({ missions: 0, fullDays: 0, challenges: 0, checkins: 0, scans: 0, scanDay: '', quickDays: 0, quickDay: '', early: 0, late: 0, shields: 0, comebacks: 0, sharedBest: 0, weekends: 0, spins: 0, coinBest: 0, coinGames: 0, coinMissions: 0 });
+export type GameStats = { missions: number; fullDays: number; challenges: number; checkins: number; scans: number; scanDay: string; quickDays: number; quickDay: string; early: number; late: number; shields: number; comebacks: number; sharedBest: number; weekends: number; /** 9.6 mini games */ spins: number; coinBest: number; coinGames: number; coinMissions: number; /** 9.7 */ matchBest: number; shopBest: number; scratches: number };
+export const emptyStats = (): GameStats => ({ missions: 0, fullDays: 0, challenges: 0, checkins: 0, scans: 0, scanDay: '', quickDays: 0, quickDay: '', early: 0, late: 0, shields: 0, comebacks: 0, sharedBest: 0, weekends: 0, spins: 0, coinBest: 0, coinGames: 0, coinMissions: 0, matchBest: 0, shopBest: 0, scratches: 0 });
 export type Achievement = { id: string; group: string; name: string; desc: string; emoji: string; tier: Tier; target: number; value: (s: Pick<GameState, 'days' | 'stats'>) => number };
 const ach = (id: string, group: string, name: string, desc: string, emoji: string, tier: Tier, target: number, value: Achievement['value']): Achievement => ({ id, group, name, desc, emoji, tier, target, value });
 const st = (k: keyof GameStats) => (s: Pick<GameState, 'stats'>) => Number(s.stats?.[k] || 0);
@@ -93,6 +93,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   ach('roda7', 'Mini game', 'Roda Keberuntungan', 'Putar Roda Harian di 7 hari', '🎡', 'perak', 7, st('spins')),
   ach('koin30', 'Mini game', 'Tangan Cepat', 'Skor 30 di Tangkap Koin', '🪙', 'perunggu', 30, st('coinBest')),
   ach('koin80', 'Mini game', 'Raja Koin', 'Skor 80 di Tangkap Koin', '👑', 'emas', 80, st('coinBest')),
+  ach('cuan4k', 'Mini game', 'Juragan Cuan', 'Skor 4.000 di Cocok Cuan', '💵', 'perak', 4000, st('matchBest')),
+  ach('bijak90', 'Mini game', 'Si Paling Bijak', 'Skor 90 di Belanja Bijak', '🛒', 'emas', 90, st('shopBest')),
+  ach('gosok7', 'Mini game', 'Hoki Terus', 'Buka Gosok Berhadiah di 7 hari', '🎟️', 'perak', 7, st('scratches')),
 ];
 /** The streak badges' tiers (for the look). */
 export const streakTier = (days: number): Tier => days >= 100 ? 'legenda' : days >= 30 ? 'emas' : days >= 7 ? 'perak' : 'perunggu';
@@ -102,7 +105,7 @@ export const BADGE_GROUPS: { id: string; emoji: string; hint: string }[] = [
   { id: 'Api', emoji: '🔥', hint: 'Api nyala berturut-turut' }, { id: 'Rajin', emoji: '✏️', hint: 'Total hari apimu nyala' },
   { id: 'Misi', emoji: '🎯', hint: 'Misi harian' }, { id: 'Tantangan', emoji: '🏆', hint: 'Tantangan mingguan' },
   { id: 'Kebiasaan', emoji: '🌟', hint: 'Cara kamu mencatat' }, { id: 'Bertahan', emoji: '🛡️', hint: 'Jatuh bangun' }, { id: 'Bareng', emoji: '🤝', hint: 'Api bareng di Ruang Bersama' },
-  { id: 'Mini game', emoji: '🎮', hint: 'Putar Roda & Tangkap Koin' },
+  { id: 'Mini game', emoji: '🎮', hint: 'Roda, Gosok, dan game Arena' },
 ];
 export type BadgeView = { id: string; group: string; name: string; desc: string; emoji: string; tier: Tier; target: number; value: number; got: string | null; xp: number };
 /** Every badge (the streak ones and the rest) with how far the person is, for the Arena. */
@@ -252,6 +255,8 @@ export type GameState = {
   /** 9.5 Counters for the badges, and the badges unlocked (id → day). */ stats: GameStats; achievements: Record<string, string>;
   /** 9.6 Putar Roda (the day it was spun) and Tangkap Koin (XP earned today, best score, the five best, the day's
    * mission done). */ spinDay: string; coinDay: string; coinXp: number; coinBest: number; coinTop: number[]; coinMissionDay: string;
+  /** 9.7 Cocok Cuan and Belanja Bijak (per game: XP today, best, the five best, the day's mission), Gosok Berhadiah. */ arcade: Record<string, ArcadeRec>; scratchDay: string;
+  /** 9.7 The last two weeks of spins and scratches (for the 7-day strip and Roda Emas). */ spinDays: string[]; scratchDays: string[];
 };
 export const MAX_SHIELDS = 2, TX_XP = 10, TX_CAP = 5, LIT_XP = 20;
 export type GameEvent =
@@ -278,11 +283,11 @@ export type Observation = {
   /** Only in Pribadi: this week and last week from the records, and the habits to pick a challenge from. */ week?: WeekRaw; lastWeek?: WeekRaw; habits?: Habits;
   /** 9.5 The longest api bareng streak running now in any of their spaces. */ shared?: number;
 };
-export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '', stats: emptyStats(), achievements: {}, spinDay: '', coinDay: '', coinXp: 0, coinBest: 0, coinTop: [], coinMissionDay: '' });
+export const emptyState = (): GameState => ({ v: 1, days: [], checkins: [], frozen: [], shields: 0, shieldDay: '', best: 0, badges: [], xp: 0, xpDay: '', xpToday: 0, txDay: '', txCounted: {}, missionDay: '', missionIds: [], missionsDone: [], missionBonus: false, week: '', challenge: null, challengeDone: false, challengeLost: false, seenLevel: 1, lostRun: 0, lostDay: '', stats: emptyStats(), achievements: {}, spinDay: '', coinDay: '', coinXp: 0, coinBest: 0, coinTop: [], coinMissionDay: '', arcade: {}, scratchDay: '', spinDays: [], scratchDays: [] });
 const keep = (list: string[], n: number) => [...new Set(list)].sort().slice(-n);
 
 /** A copy to change (an older saved state gets the newer fields). */
-const copyState = (p: GameState): GameState => ({ ...emptyState(), ...p, txCounted: { ...(p.txCounted || {}) }, stats: { ...emptyStats(), ...(p.stats || {}) }, achievements: { ...(p.achievements || {}) } });
+const copyState = (p: GameState): GameState => ({ ...emptyState(), ...p, txCounted: { ...(p.txCounted || {}) }, stats: { ...emptyStats(), ...(p.stats || {}) }, achievements: { ...(p.achievements || {}) }, arcade: Object.fromEntries(Object.entries(p.arcade || {}).map(([k, v]) => [k, { ...v, top: [...(v.top || [])] }])), spinDays: [...(p.spinDays || [])], scratchDays: [...(p.scratchDays || [])] });
 const addXp = (s: GameState, today: string, xp: number) => { if (s.xpDay !== today) { s.xpDay = today; s.xpToday = 0; } s.xp += xp; s.xpToday += xp; };
 
 // ——— 9.6 Mini games ———
@@ -299,15 +304,27 @@ export function spinIndex(seed: string, day: string) {
   return 0;
 }
 export const canSpin = (s: Pick<GameState, 'days' | 'spinDay'>, today: string) => s.days.includes(today) && s.spinDay !== today;
-/** Spins the wheel: XP, or a perisai (+50 XP when the hand is already full). Null when it cannot be spun today. */
-export function spinWheel(previous: GameState, today: string, seed: string): { state: GameState; index: number; xp: number; shield: boolean } | null {
+/** 9.7 Days in a row with a spin, up to yesterday. */
+export function spinRun(s: Pick<GameState, 'spinDays' | 'spinDay'>, today: string) {
+  const days = new Set([...(s.spinDays || []), s.spinDay].filter(Boolean)); let n = 0;
+  for (let d = addDays(today, -1); days.has(d); d = addDays(d, -1)) n++;
+  return n;
+}
+/** 9.7 Roda Emas: the seventh day in a row (the 14th, the 21st…) doubles the prize. */
+export const goldenSpin = (s: Pick<GameState, 'spinDays' | 'spinDay'>, today: string) => spinRun(s, today) % 7 === 6;
+const recent = (days: string[] | undefined, today: string) => [...(days || []).filter(d => d !== today && d >= addDays(today, -13)), today].sort();
+/** Spins the wheel: XP, or a perisai (+50 XP when the hand is already full). Roda Emas doubles it (a perisai brings
+ * +25 XP along). Null when it cannot be spun today. */
+export function spinWheel(previous: GameState, today: string, seed: string): { state: GameState; index: number; xp: number; shield: boolean; golden: boolean } | null {
   if (!canSpin(previous, today)) return null;
+  const golden = goldenSpin(previous, today);
   const s = copyState(previous), index = spinIndex(seed, today), prize = SPIN_PRIZES[index];
-  s.spinDay = today; s.stats.spins++;
+  s.spinDay = today; s.spinDays = recent(s.spinDays, today); s.stats.spins++;
   let xp = prize.xp, shield = false;
-  if (prize.shield) { if (s.shields < MAX_SHIELDS) { s.shields++; shield = true; } else xp = 50; }
+  if (prize.shield) { if (s.shields < MAX_SHIELDS) { s.shields++; shield = true; xp = 0; } else xp = 50; }
+  if (golden) xp = shield ? 25 : xp * 2;
   addXp(s, today, xp);
-  return { state: s, index, xp, shield };
+  return { state: s, index, xp, shield, golden };
 }
 /** Tangkap Koin: 40 seconds in three waves (gajian, tengah bulan, tanggal tua); XP is a third of the score plus 5 for
  * the day's mission (once a day), at most 30 a day. The game can be played as often as wanted. */
@@ -336,6 +353,58 @@ export function coinResult(previous: GameState, today: string, score: number, op
   const record = points > (previous.coinBest || 0) && points > 0;
   s.coinBest = Math.max(previous.coinBest || 0, points); s.stats.coinBest = Math.max(s.stats.coinBest, points); s.stats.coinGames++;
   return { state: s, xp, record, best: s.coinBest, missionXp };
+}
+
+// ——— 9.7 Cocok Cuan, Belanja Bijak, Gosok Berhadiah ———
+export type ArcadeId = 'match' | 'shop';
+export type ArcadeRec = { day: string; xp: number; best: number; top: number[]; missionDay: string; plays: number };
+/** XP per game: one XP for every `per` points, at most `cap` a day (the day's mission adds 5, still within the cap). */
+export const ARCADE: Record<ArcadeId, { cap: number; per: number; name: string }> = { match: { cap: 25, per: 150, name: 'Cocok Cuan' }, shop: { cap: 20, per: 5, name: 'Belanja Bijak' } };
+const blankArcade = (): ArcadeRec => ({ day: '', xp: 0, best: 0, top: [], missionDay: '', plays: 0 });
+export const arcadeOf = (s: Pick<GameState, 'arcade'>, id: ArcadeId) => ({ ...blankArcade(), ...(s.arcade?.[id] || {}) });
+export const arcadeXpLeft = (s: Pick<GameState, 'arcade'>, id: ArcadeId, today: string) => { const a = arcadeOf(s, id); return Math.max(0, ARCADE[id].cap - (a.day === today ? a.xp : 0)); };
+export function arcadeResult(previous: GameState, today: string, id: ArcadeId, score: number, opts: { mission?: boolean } = {}) {
+  const s = copyState(previous), a = arcadeOf(previous, id), points = Math.max(0, Math.floor(score));
+  const left = arcadeXpLeft(previous, id, today), base = Math.min(left, Math.floor(points / ARCADE[id].per));
+  const missionNew = Boolean(opts.mission) && a.missionDay !== today, missionXp = missionNew ? Math.min(left - base, COIN_MISSION_XP) : 0, xp = base + missionXp;
+  const next: ArcadeRec = { ...a, day: today, xp: (a.day === today ? a.xp : 0) + xp, best: Math.max(a.best, points), top: [...a.top, points].filter(n => n > 0).sort((x, y) => y - x).slice(0, 5), missionDay: missionNew ? today : a.missionDay, plays: a.plays + 1 };
+  s.arcade = { ...s.arcade, [id]: next }; addXp(s, today, xp);
+  if (id === 'match') s.stats.matchBest = Math.max(s.stats.matchBest, points); else s.stats.shopBest = Math.max(s.stats.shopBest, points);
+  return { state: s, xp, missionXp, record: points > a.best && points > 0, best: next.best, top: next.top };
+}
+/** Cocok Cuan's mission of the day: collect a kind of piece, make a Bom Cuan, a chain of four, or pay off tagihan. */
+export type MatchMission = { id: string; text: string; kind?: number; target: number; stat: 'collect' | 'bomb' | 'chain' | 'bills' };
+const PIECE_NAMES = ['koin', 'uang kertas', 'permata', 'kantong uang', 'kartu', 'celengan'];
+export function matchMission(seed: string, day: string): MatchMission {
+  const n = hash(`${seed}:${day}:cocok`) % 9;
+  if (n < 6) return { id: `kumpul${n}`, text: `Kumpulkan 30 ${PIECE_NAMES[n]}`, kind: n, target: 30, stat: 'collect' };
+  if (n === 8) return { id: 'tagihan8', text: 'Lunasi 8 tagihan', target: 8, stat: 'bills' };
+  return n === 6 ? { id: 'bom', text: 'Buat 1 Bom Cuan (5 sejajar)', target: 1, stat: 'bomb' } : { id: 'rantai4', text: 'Bikin rantai 4 kali dalam satu langkah', target: 4, stat: 'chain' };
+}
+/** Gosok Berhadiah: a card a day once all three missions are done; the prize of the day is fixed. */
+export const SCRATCH_PRIZES: { id: string; label: string; xp: number; shield?: boolean; weight: number; emoji: string }[] = [
+  { id: 'xp15', label: '+15 XP', xp: 15, weight: 35, emoji: '🪙' }, { id: 'xp25', label: '+25 XP', xp: 25, weight: 27, emoji: '💵' }, { id: 'xp40', label: '+40 XP', xp: 40, weight: 15, emoji: '💰' },
+  { id: 'perisai', label: 'Perisai Api', xp: 0, shield: true, weight: 15, emoji: '🛡️' }, { id: 'xp75', label: '+75 XP', xp: 75, weight: 8, emoji: '💎' },
+];
+/** 9.7 The day's 3×3 card: the prize's symbol three times, every other symbol at most twice (one set of three only). */
+export function scratchGrid(seed: string, day: string): number[] {
+  const win = scratchIndex(seed, day); let h = hash(`${seed}:${day}:kotak`) || 1;
+  const rnd = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+  const counts = SCRATCH_PRIZES.map((_, k) => (k === win ? 3 : 0)), cells = [win, win, win];
+  while (cells.length < 9) { const k = Math.floor(rnd() * SCRATCH_PRIZES.length); if (counts[k] < 2) { counts[k]++; cells.push(k); } }
+  for (let k = cells.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [cells[k], cells[j]] = [cells[j], cells[k]]; }
+  return cells;
+}
+export function scratchIndex(seed: string, day: string) { let n = hash(`${seed}:${day}:gosok`) % 100; for (let i = 0; i < SCRATCH_PRIZES.length; i++) { n -= SCRATCH_PRIZES[i].weight; if (n < 0) return i; } return 0; }
+export const canScratch = (s: Pick<GameState, 'missionDay' | 'missionBonus' | 'scratchDay'>, today: string) => s.missionDay === today && s.missionBonus && s.scratchDay !== today;
+export function scratchCard(previous: GameState, today: string, seed: string): { state: GameState; index: number; xp: number; shield: boolean } | null {
+  if (!canScratch(previous, today)) return null;
+  const s = copyState(previous), index = scratchIndex(seed, today), prize = SCRATCH_PRIZES[index];
+  s.scratchDay = today; s.scratchDays = recent(s.scratchDays, today); s.stats.scratches++;
+  let xp = prize.xp, shield = false;
+  if (prize.shield) { if (s.shields < MAX_SHIELDS) { s.shields++; shield = true; } else xp = 30; }
+  addXp(s, today, xp);
+  return { state: s, index, xp, shield };
 }
 
 /** Applies one moment to the state: new lit day, perisai used or earned, XP, badges, level, missions, the challenge. */

@@ -10,8 +10,11 @@ import { Pause, X } from 'lucide-react';
 import { useBackHandler } from '../back-guard';
 import { Emoji } from '../emoji';
 import { confetti } from './confetti';
-import { gameActions, openMinigame, useGame, type CoinOutcome, type SpinOutcome } from './game-store';
-import { useMiniGameStatus } from './minigame-status';
+import { gameActions, useGame, type CoinOutcome, type SpinOutcome } from './game-store';
+import { closeMinigame, useMiniGameStatus } from './minigame-status';
+import { MatchGame } from './match-game';
+import { ShopGame } from './shop-game';
+import { ScratchGame } from './scratch-game';
 import { COIN_MISSION_XP, COIN_SECONDS, COIN_XP_CAP, coinMission, coinStars, SPIN_PRIZES, type CoinStats } from '@/lib/game';
 import { todayInTimeZone } from '@/lib/period';
 import { useApp } from '../app-provider';
@@ -23,10 +26,11 @@ export function MiniGames() {
   const { minigame } = useGame();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const close = () => openMinigame(null);
+  const close = closeMinigame;
   useBackHandler(Boolean(minigame), close);
   if (!mounted || !minigame) return null;
-  return createPortal(minigame === 'spin' ? <SpinGame onClose={close}/> : <CoinGame onClose={close}/>, document.body);
+  const game = minigame === 'spin' ? <SpinGame onClose={close}/> : minigame === 'coin' ? <CoinGame onClose={close}/> : minigame === 'match' ? <MatchGame onClose={close}/> : minigame === 'shop' ? <ShopGame onClose={close}/> : <ScratchGame onClose={close}/>;
+  return createPortal(game, document.body);
 }
 
 // ——— Putar Roda Harian ———
@@ -64,16 +68,25 @@ function SpinGame({ onClose }: { onClose: () => void }) {
     raf.current = requestAnimationFrame(tick);
   }
   const prize = outcome ? SPIN_PRIZES[outcome.index] : st?.prize || null;
-  const prizeText = !prize ? '' : outcome ? (outcome.shield ? 'Dapat Perisai Api!' : prize.shield ? 'Perisai penuh, jadi +50 XP' : `+${outcome.xp} XP`) : prize.shield ? 'Perisai Api' : `${prize.label} XP`;
-  return <div className="mg-overlay mg-spin" role="dialog" aria-modal="true" aria-label="Putar Roda Harian">
+  const golden = outcome ? outcome.golden : Boolean(st?.golden);
+  const prizeText = !prize ? '' : outcome ? (outcome.shield ? (outcome.golden ? 'Perisai Api + 25 XP!' : 'Dapat Perisai Api!') : prize.shield ? `Perisai penuh, jadi +${outcome.xp} XP` : `+${outcome.xp} XP${outcome.golden ? ' (×2)' : ''}`) : prize.shield ? 'Perisai Api' : `${prize.label} XP`;
+  // 9.7 The strip toward Roda Emas: seven days in a row.
+  const cycle = Math.min(7, ((st?.spinRun || 0) % 7) + (st?.spun ? 1 : 0));
+  const runText = golden ? (st?.spun ? 'Roda Emas hari ini sudah diputar. Mulai lagi dari hari ke-1 besok!' : 'Hari ke-7 berturut-turut: Roda Emas, hadiah ×2!') : `Putar ${7 - cycle} hari lagi berturut-turut buat Roda Emas (hadiah ×2)`;
+  return <div className={`mg-overlay mg-spin ${golden ? 'is-golden' : ''}`} role="dialog" aria-modal="true" aria-label="Putar Roda Harian">
     <span className="mg-rays" aria-hidden="true"/>
     <button type="button" className="mg-close" onClick={onClose} aria-label="Tutup"><X size={20}/></button>
     <div className="mg-spin-head">
-      <small>Arena Catat · sekali sehari</small>
-      <h2>Putar Roda Harian</h2>
+      <small>{golden ? 'Roda Emas · hadiah ×2' : 'Arena Catat · sekali sehari'}</small>
+      <h2>{golden ? 'Roda Emas!' : 'Putar Roda Harian'}</h2>
       <p>{!st?.lit ? 'Nyalakan apimu hari ini dulu, baru roda bisa diputar.' : phase === 'done' ? 'Roda hari ini sudah diputar. Besok putar lagi ya!' : 'Api hari ini sudah nyala. Saatnya putar roda!'}</p>
     </div>
+    <div className="mg-spin-run" aria-label={runText}>
+      <span className="msr-dots">{Array.from({ length: 7 }, (_, k) => <i key={k} className={`${k < cycle ? 'on' : ''} ${k === 6 ? 'is-gold' : ''}`}>{k === 6 ? <Emoji e="👑"/> : null}</i>)}</span>
+      <small>{runText}</small>
+    </div>
     <div className={`mg-wheel-wrap ${phase === 'spinning' ? 'is-spinning' : ''} ${phase === 'done' ? 'is-done' : ''}`}>
+      {golden && <span className="mg-x2" aria-hidden="true">×2</span>}
       <span className="mg-wheel-glow" aria-hidden="true"/>
       <span className="mg-pointer" ref={pointer} aria-hidden="true"/>
       <svg className="mg-wheel" viewBox="0 0 300 300" aria-hidden="true">

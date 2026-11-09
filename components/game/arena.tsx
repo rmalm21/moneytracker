@@ -11,9 +11,9 @@ import { Dialog, DialogContent } from '../ui/dialog';
 import { Flame } from './flame';
 import { arenaHidden, arenaMini, cachedState, gameActions, setArenaHidden, setArenaMini, useGame } from './game-store';
 import { rupiah } from '@/lib/accounting';
-import { addDays, emptyState, BADGE_GROUPS, BADGE_TOTAL, badgeList, flameOf, levelOf, MAX_SHIELDS, MISSION_BONUS, missionById, mondayOf, nearestBadge, nextFlame, streakOf, TIERS, titleOfLevel, type BadgeView, type GameState } from '@/lib/game';
+import { addDays, COIN_XP_CAP, emptyState, BADGE_GROUPS, BADGE_TOTAL, badgeList, flameOf, levelOf, MAX_SHIELDS, MISSION_BONUS, missionById, mondayOf, nearestBadge, nextFlame, streakOf, TIERS, titleOfLevel, type BadgeView, type GameState } from '@/lib/game';
 import { HowToPlay } from './how-to-play';
-import { launchMinigame, useMiniGameStatus } from './minigame-status';
+import { ARENA_GAMES_EVENT, launchMinigame, useMiniGameStatus } from './minigame-status';
 import { confetti } from './confetti';
 import { play, setSoundOn, soundOn } from '@/lib/game-sound';
 import { todayInTimeZone } from '@/lib/period';
@@ -49,6 +49,12 @@ export function ArenaCard() {
   const { account } = useApp();
   const a = useArena(), [open, setOpenRaw] = useState(false);
   const setOpen = (o: boolean) => { if (o) play('open'); setOpenRaw(o); };
+  const [focus, setFocus] = useState<'games' | undefined>();
+  // 9.7 A game started from the Arena's list comes back to the list when it closes.
+  useEffect(() => {
+    const back = () => { setFocus('games'); setOpenRaw(true); };
+    window.addEventListener(ARENA_GAMES_EVENT, back); return () => window.removeEventListener(ARENA_GAMES_EVENT, back);
+  }, []);
   if (!account || arenaHidden(account.uid)) return null;
   // Nothing seen yet on this device: the card's place is kept from the start (no jump when it arrives).
   if (!a.v) return <section className={`arena-card is-loading ${arenaMini(account.uid, 'me') ? 'is-mini' : ''}`} aria-label="Arena Catat" aria-busy="true"><span className="arena-bg" aria-hidden="true"/><Flame tier={1} size={arenaMini(account.uid, 'me') ? 40 : 56}/><div><strong>{a.g.ready ? 'Menyalakan Arena Catat…' : 'Arena Catat'}</strong><small>{a.g.ready ? 'Menghitung apimu dari catatan selama ini' : 'Memuat apimu…'}</small></div></section>;
@@ -73,7 +79,7 @@ export function ArenaCard() {
       {!st.litToday && <CheckinButton compact short/>}
       <button type="button" className="arena-min-btn" onClick={toggle} aria-label="Tampilkan Arena lengkap" title="Tampilkan lengkap"><ChevronDown size={16}/></button>
     </section>
-    {open && <ArenaPanel onClose={() => setOpen(false)}/>}
+    {open && <ArenaPanel focus={focus} onClose={() => { setOpen(false); setFocus(undefined); }}/>}
   </>;
   return <>
     <section className={`arena-card t${flame.tier} ${evening ? 'is-danger' : ''} ${st.litToday ? 'is-lit' : ''}`} aria-label="Arena Catat">
@@ -101,7 +107,7 @@ export function ArenaCard() {
         <span className="ac-text"><small>Tantangan minggu ini{s.challengeDone ? ' · berhasil!' : s.challengeLost ? ' · coba lagi minggu depan' : ''}</small><b>{ch.title}</b>{cv && !s.challengeDone && <span className="ac-bar"><i style={{ width: `${Math.min(100, Math.round(cv.value / Math.max(1, ch.target) * 100))}%` }} className={ch.lower ? 'is-lower' : ''}/></span>}</span>
         <span className="ac-val">{ch.id === 'hemat' ? (cv ? rupiah(cv.value) : '') : cv ? `${cv.value}/${ch.target}` : ''}</span>
       </button>}
-      <GameRow/>
+      <GameRow onMore={() => { setFocus('games'); setOpen(true); }}/>
       <div className="arena-foot">
         <span className="arena-shields" title="Perisai Api">{Array.from({ length: MAX_SHIELDS }, (_, i) => <span key={i} className={i < s.shields ? 'on' : ''}><Emoji e="🛡️"/></span>)}<small>Perisai</small></span>
         <span className="arena-mcount"><Emoji e="🎯"/> Misi {doneCount}/{missions.length || 3}</span>
@@ -109,13 +115,14 @@ export function ArenaCard() {
         {!st.litToday ? <CheckinButton compact/> : <button type="button" className="arena-more" onClick={() => setOpen(true)}>Lihat Arena <ChevronRight size={15}/></button>}
       </div>
     </section>
-    {open && <ArenaPanel onClose={() => setOpen(false)}/>}
+    {open && <ArenaPanel focus={focus} onClose={() => { setOpen(false); setFocus(undefined); }}/>}
   </>;
 }
 
-export function ArenaPanel({ onClose }: { onClose: () => void }) {
+export function ArenaPanel({ onClose, focus }: { onClose: () => void; /** 9.7 Open at the mini games. */ focus?: 'games' }) {
   const { account } = useApp();
-  const a = useArena(), [sound, setSound] = useState(soundOn), [poked, setPoked] = useState(0), flameRef = useRef<HTMLButtonElement>(null);
+  const a = useArena(), [sound, setSound] = useState(soundOn), [poked, setPoked] = useState(0), flameRef = useRef<HTMLButtonElement>(null), gamesRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (focus !== 'games') return; const t = window.setTimeout(() => gamesRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); return () => window.clearTimeout(t); }, [focus]);
   if (!a.v) return null;
   // Tap the flame: it crackles and throws sparks.
   const poke = () => {
@@ -161,7 +168,7 @@ export function ArenaPanel({ onClose }: { onClose: () => void }) {
           <small className="ap-ch-foot">{s.challengeDone ? `Berhasil! +${ch.xp} XP sudah masuk` : s.challengeLost ? 'Kali ini belum berhasil. Minggu depan ada tantangan baru.' : `${daysLeft ? `${daysLeft} hari lagi` : 'Hari terakhir'} · hadiah +${ch.xp} XP${ch.endOfWeek ? ' (dinilai saat minggu berakhir)' : ''}`}</small>
         </div>
       </section>}
-      <section className="ap-sec"><h3><Emoji e="🎮"/> Mini game</h3><GameRow big onBefore={onClose}/></section>
+      <section className="ap-sec ap-games" ref={gamesRef}><h3><Emoji e="🎮"/> Mini game</h3><GameRow big onBefore={onClose}/></section>
       <BadgeShelf s={s} today={a.today}/>
       <section className="ap-sec ap-rules">
         <h3><Emoji e="💡"/> Cara main</h3>
@@ -202,17 +209,34 @@ function BadgeShelf({ s, today }: { s: GameState; today: string }) {
   </section>;
 }
 
-/** 9.6 The two mini games: Putar Roda (glows when it can be spun) and Tangkap Koin. */
-function GameRow({ big = false, onBefore }: { big?: boolean; onBefore?: () => void }) {
+/** 9.7 The mini games. On the card: the two daily ones (Putar Roda, Gosok Berhadiah) and a way to the rest; in the
+ * Arena: all five. */
+function GameRow({ big = false, onBefore, onMore }: { big?: boolean; onBefore?: () => void; onMore?: () => void }) {
   const m = useMiniGameStatus(); if (!m) return null;
-  return <div className={`arena-games ${big ? 'is-big' : ''}`}>
-    <button type="button" className={`ag-btn is-spin ${m.ready ? 'is-ready' : ''}`} onClick={e => { e.stopPropagation(); launchMinigame('spin', onBefore); }}>
-      <span className="ag-ic"><Emoji e="🎡"/></span>
-      <span className="ag-text"><b>Putar Roda</b><small>{m.ready ? 'Siap diputar!' : m.spun ? `Besok lagi${m.prize ? ` · ${m.prize.shield ? 'Perisai' : `${m.prize.label} XP`}` : ''}` : 'Nyalakan api dulu'}</small></span>
-    </button>
-    <button type="button" className="ag-btn is-coin" onClick={e => { e.stopPropagation(); launchMinigame('coin', onBefore); }}>
-      <span className="ag-ic"><Emoji e="🪙"/></span>
-      <span className="ag-text"><b>Tangkap Koin</b><small>{m.best ? `Rekor ${m.best}` : 'Main 40 detik'}{big ? ` · XP ${30 - m.xpLeft}/30` : ''}</small></span>
-    </button>
+  const go = (kind: Parameters<typeof launchMinigame>[0]) => (e: React.MouseEvent) => { e.stopPropagation(); launchMinigame(kind, onBefore); };
+  const spin = <button type="button" key="spin" className={`ag-btn is-spin ${m.ready ? 'is-ready' : ''}`} onClick={go('spin')}>
+    <span className="ag-ic"><Emoji e="🎡"/></span>
+    <span className="ag-text"><b>Putar Roda</b><small>{m.ready ? 'Siap diputar!' : m.spun ? `Besok lagi${m.prize ? ` · ${m.prize.shield ? 'Perisai' : `${m.prize.label} XP`}` : ''}` : 'Nyalakan api dulu'}</small></span>
+  </button>;
+  const scratch = <button type="button" key="scratch" className={`ag-btn is-scratch ${m.scratchReady ? 'is-ready' : ''}`} onClick={go('scratch')}>
+    <span className="ag-ic"><Emoji e="🎟️"/></span>
+    <span className="ag-text"><b>Gosok Berhadiah</b><small>{m.scratchReady ? 'Siap digosok!' : m.scratched ? `Besok lagi${m.scratchPrize ? ` · ${m.scratchPrize.label}` : ''}` : `Misi ${m.missionsDone}/${m.missionsTotal}`}</small></span>
+  </button>;
+  if (!big) {
+    const xp = (COIN_XP_CAP - m.xpLeft) + (m.match.cap - m.match.xpLeft) + (m.shop.cap - m.shop.xpLeft), cap = COIN_XP_CAP + m.match.cap + m.shop.cap;
+    return <div className="arena-games">
+      {spin}{scratch}
+      <button type="button" className="ag-more" onClick={e => { e.stopPropagation(); onMore?.(); }} aria-label={`Game lain: Tangkap Koin, Cocok Cuan, Belanja Bijak. XP game hari ini ${xp} dari ${cap}`}>
+        <span className="ag-more-ics" aria-hidden="true">{['🪙', '💵', '🛒'].map((e, i) => <i key={e} style={{ '--i': i } as React.CSSProperties}><Emoji e={e}/></i>)}</span>
+        <span className="ag-more-text"><b>Game lain <span className={`ag-more-xp ${xp >= cap ? 'is-full' : ''}`}>{xp >= cap ? 'XP penuh' : `XP ${xp}/${cap}`}</span></b><small>Tangkap Koin · Cocok Cuan · Belanja Bijak</small></span>
+        <span className="ag-more-go" aria-hidden="true"><ChevronRight size={17}/></span>
+      </button>
+    </div>;
+  }
+  return <div className="arena-games is-big">
+    {spin}{scratch}
+    <button type="button" className="ag-btn is-coin" onClick={go('coin')}><span className="ag-ic"><Emoji e="🪙"/></span><span className="ag-text"><b>Tangkap Koin</b><small>{m.best ? `Rekor ${m.best}` : '40 detik'} · XP {COIN_XP_CAP - m.xpLeft}/{COIN_XP_CAP}</small></span></button>
+    <button type="button" className="ag-btn is-match" onClick={go('match')}><span className="ag-ic"><Emoji e="💵"/></span><span className="ag-text"><b>Cocok Cuan</b><small>{m.match.best ? `Rekor ${m.match.best.toLocaleString('id-ID')}` : '25 langkah'} · XP {m.match.cap - m.match.xpLeft}/{m.match.cap}</small></span></button>
+    <button type="button" className="ag-btn is-shop" onClick={go('shop')}><span className="ag-ic"><Emoji e="🛒"/></span><span className="ag-text"><b>Belanja Bijak</b><small>{m.shop.best ? `Rekor ${m.shop.best}` : 'Skor 0–100'} · XP {m.shop.cap - m.shop.xpLeft}/{m.shop.cap}</small></span></button>
   </div>;
 }

@@ -149,9 +149,9 @@ test('9.5 api bareng counts only what is done in that space', () => {
   assert.equal(advance(s, obs({ root: 'space:s1', recordedToday: 1 })).state.days.includes(T), true);
 });
 
-test('9.5 more badges: 33 in four tiers, by group, unlocked once with XP, quiet on the first look', () => {
-  assert.equal(BADGE_TOTAL, 33); assert.equal(ACHIEVEMENTS.length, 25);
-  assert.equal(new Set(ACHIEVEMENTS.map(a => a.id)).size, 25);
+test('9.5 more badges (36 with 9.7) in four tiers, by group, unlocked once with XP, quiet on the first look', () => {
+  assert.equal(BADGE_TOTAL, 36); assert.equal(ACHIEVEMENTS.length, 28);
+  assert.equal(new Set(ACHIEVEMENTS.map(a => a.id)).size, 28);
   assert.ok(ACHIEVEMENTS.every(a => BADGE_GROUPS.some(g => g.id === a.group) && TIERS[a.tier]));
   // The first look gives the badges already earned without a party.
   const first = advance(null, obs({ history: run('2026-10-20', 20) }));
@@ -180,7 +180,7 @@ test('9.5 more badges: 33 in four tiers, by group, unlocked once with XP, quiet 
 test('9.5 badge list: progress for every badge and the nearest one', () => {
   const s = { ...emptyState(), days: run('2026-11-01', 8), best: 8, badges: [3, 7], stats: { ...emptyState().stats, missions: 25 }, achievements: { misi1: '2026-11-02' } };
   const list = badgeList(s, T);
-  assert.equal(list.length, 33);
+  assert.equal(list.length, 36);
   const api14 = list.find(b => b.id === 'api14');
   assert.deepEqual([api14.value, api14.target, api14.got, api14.tier], [8, 14, null, 'perak']);
   assert.equal(list.find(b => b.id === 'api7').got, 'ya');

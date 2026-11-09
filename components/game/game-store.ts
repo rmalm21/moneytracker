@@ -6,8 +6,9 @@
 import { useSyncExternalStore } from 'react';
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { GameEvent, GameState } from '@/lib/game';
+import type { ArcadeId, GameEvent, GameState } from '@/lib/game';
 
+export type MiniGameId = 'spin' | 'coin' | 'match' | 'shop' | 'scratch';
 export type Celebration = GameEvent | { kind: 'shared-badge'; days: number; name: string; space: string } | { kind: 'note'; title: string; text: string };
 type Store = {
   state: GameState | null; ready: boolean;
@@ -15,7 +16,7 @@ type Store = {
   queue: Celebration[];
   /** What the Beranda card shows next to the time (refreshed every minute). */ today: string; hour: number;
   /** This week's challenge, how far it is (worked out by the keeper from the records). */ challengeView: { value: number; won: boolean; lost: boolean } | null;
-  /** 9.6 The mini game open on screen. */ minigame: 'spin' | 'coin' | null;
+  /** 9.6 The mini game open on screen (9.7: Cocok Cuan, Belanja Bijak, Gosok Berhadiah too). */ minigame: MiniGameId | null;
 };
 let store: Store = { state: null, ready: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
 const listeners = new Set<() => void>();
@@ -29,10 +30,13 @@ export const gameNow = () => store;
 
 /** Actions the cards ask of the keeper (it owns the data it needs to answer them). */
 /** checkin: "Hari ini aman" for the person's own flame (Beranda Pribadi). checkinSpace: for a space's api bareng only. */
-export type SpinOutcome = { index: number; xp: number; shield: boolean };
+export type SpinOutcome = { index: number; xp: number; shield: boolean; golden: boolean };
 export type CoinOutcome = { xp: number; record: boolean; best: number; missionXp: number; top: number[] };
-type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void; /** 9.6 */ spin: () => SpinOutcome | null; coinDone: (score: number, mission?: boolean) => CoinOutcome | null };
-let actions: Actions = { checkin: () => { pendingCheckin = true; }, checkinSpace: () => {}, spin: () => null, coinDone: () => null };
+export type ArcadeOutcome = { xp: number; missionXp: number; record: boolean; best: number; top: number[] };
+export type ScratchOutcome = { index: number; xp: number; shield: boolean };
+type Actions = { checkin: () => void; checkinSpace: (spaceId: string) => void; /** 9.6 */ spin: () => SpinOutcome | null; coinDone: (score: number, mission?: boolean) => CoinOutcome | null;
+  /** 9.7 */ arcadeDone: (game: ArcadeId, score: number, mission?: boolean) => ArcadeOutcome | null; scratch: () => ScratchOutcome | null };
+let actions: Actions = { checkin: () => { pendingCheckin = true; }, checkinSpace: () => {}, spin: () => null, coinDone: () => null, arcadeDone: () => null, scratch: () => null };
 export const setGameActions = (a: Actions) => { actions = a; };
 export const gameActions = () => actions;
 export function celebrate(items: Celebration[]) { if (items.length) setGame(s => ({ queue: [...s.queue, ...items] })); }
