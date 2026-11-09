@@ -10,7 +10,7 @@ import { Emoji } from '../emoji';
 import { Dialog, DialogContent } from '../ui/dialog';
 import { askToTry } from '../feature-tips-events';
 import { useGame } from '../game/game-store';
-import { PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
+import { PetImg, PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
 import { openPetSheet, petHidden, setPetHidden, usePetStore } from './pet-store';
 import { commitPet, hourIn, hourKey, petSound, waitText } from './pet-actions';
 import { ACCESSORIES, adopt, care, CARE, collectEgg, eggReady, emptyPet, feed, growthFor, levelOf, mealWait, MEALS_A_DAY, moodOf, needsAt, NEEDS, pet, petTip, play as playPet, PET_KINDS, PETS, readTip, rename, stageOf, STAGES, wear, type PetKind } from '@/lib/pet';
@@ -55,7 +55,7 @@ export function PetSheet() {
           {PET_KINDS.map(k => { const p = PETS[k], own = state.pets[k]; return <button type="button" role="radio" aria-checked={chosen === k} key={k} className={`ps-card ${chosen === k ? 'is-on' : ''} ${state.active === k ? 'is-active' : ''}`} onClick={() => choose(k)}>
             <span className="ps-card-pic"><PetSprite kind={k} growth={own?.growth ?? 120} acc={own?.acc ?? null} size={58}/></span>
             <b>{own ? own.name : p.species}</b><small>{own ? `${p.species} · Lv ${levelOf(own.growth)}` : p.trait}</small>
-            <span className="ps-chips"><span><Emoji e={p.food.emoji}/>{p.food.name}</span><span><Emoji e={NEEDS[p.needs[1]].emoji}/>{NEEDS[p.needs[1]].name}</span></span>
+            <span className="ps-chips"><span><PetImg e={p.food.emoji}/>{p.food.name}</span><span><Emoji e={NEEDS[p.needs[1]].emoji}/>{NEEDS[p.needs[1]].name}</span></span>
             <span className="ps-special"><Emoji e={p.special.emoji}/>{p.special.name}</span>
           </button>; })}
         </div>
@@ -86,7 +86,7 @@ export function PetSheet() {
         </div>
         <div className="ps-needs">
           {info.needs.map(id => { const val = Math.round(needs[id]); return <div key={id} className={`ps-need ${val < 30 ? 'is-low' : val >= 70 ? 'is-good' : ''}`}>
-            <span className="ps-need-ic"><Emoji e={id === 'kenyang' ? info.food.emoji : NEEDS[id].emoji}/></span>
+            <span className="ps-need-ic"><PetImg e={id === 'kenyang' ? info.food.emoji : NEEDS[id].emoji}/></span>
             <span className="ps-need-main"><span className="ps-need-top"><b>{NEEDS[id].name}</b><small>{val}%</small></span><span className="ps-bar"><i style={{ width: `${val}%` }}/></span>
               <small>{id === 'kenyang' ? mealLine : NEEDS[id].hint}</small></span>
           </div>; })}
@@ -96,7 +96,7 @@ export function PetSheet() {
             const r = feed(state, Date.now(), today, hourOf);
             if (r.ok) { commitPet(r.state); run('eat', info.food.emoji); play('munch'); setNote(`Nyam! ${rec.name} makan ${info.food.name}.`); return; }
             play('bonk'); setNote(r.reason === 'full' ? `${rec.name} masih kenyang.` : r.reason === 'limit' ? `Udah ${MEALS_A_DAY}× makan hari ini. Besok lagi ya!` : `Barusan makan. Bisa makan lagi ${waitText(r.waitMs || 0)}.`);
-          }}><Emoji e={info.food.emoji}/><span>Kasih makan</span></button>
+          }}><PetImg e={info.food.emoji}/><span>Kasih makan</span></button>
           {CARE[rec.kind] && <button type="button" className="ps-act" onClick={() => {
             const c = CARE[rec.kind]!, r = care(state, Date.now(), hourOf);
             if (r.ok) { commitPet(r.state); run('dance'); petSound(info.voice); setNote(c.say); } else { play('bonk'); setNote(`Barusan ${c.name.toLowerCase()}. Bisa lagi ${waitText(r.waitMs || 0)}.`); }
@@ -120,7 +120,7 @@ export function PetSheet() {
           <div className="ps-acc-row">
             <button type="button" className={`ps-acc-chip ${!rec.acc ? 'is-on' : ''}`} onClick={() => commitPet(wear(state, null))}>Tanpa</button>
             {ACCESSORIES.map(a => { const open = level >= a.level; return <button type="button" key={a.id} disabled={!open} className={`ps-acc-chip ${rec.acc === a.id ? 'is-on' : ''}`} onClick={() => { commitPet(wear(state, a.id)); play('step'); }}>
-              <Emoji e={a.emoji}/>{open ? a.name : `Lv ${a.level}`}</button>; })}
+              <PetImg e={a.emoji}/>{open ? a.name : `Lv ${a.level}`}</button>; })}
           </div>
         </div>
         <button type="button" className="btn btn-secondary full" onClick={() => { setPicking(true); setChosen(null); }}>Ganti atau adopsi pet lain</button>

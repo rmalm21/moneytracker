@@ -25,6 +25,15 @@ const ANCHOR: Record<string, { top: [number, number]; eyes: [number, number]; ne
   '1f98e': { top: [50, 9], eyes: [50, 17], neck: [50, 30] },
 };
 const ACC_SPOT: Record<string, 'top' | 'eyes' | 'neck' | 'bow'> = { pita: 'bow', syal: 'neck', kacamata: 'eyes', topi: 'top', mahkota: 'top' };
+/** 9.8 The pets, their food and accessories are drawn big (up to 112px, on sharp phone screens three times that), so they
+ * come from 256px pictures in /public/pet instead of the 72px emoji set. */
+export const HI_RES = new Set(['1f431', '1f408', '1f408-200d-2b1b', '1f436', '1f415', '1f415-200d-1f9ba', '1f989', '1f423', '1f425', '1f414', '1f413', '1f985', '1f98e',
+  '1f380', '1f9e3', '1f576', '1f3a9', '1f451', '1f41f', '1f9b4', '1f997', '1f33d', '1f356', '1f99f']);
+export function PetImg({ e, className = '' }: { e: string; className?: string }) {
+  const key = emojiKey(e);
+  if (!HI_RES.has(key)) return <Emoji e={e} className={className}/>;
+  return <img src={`/pet/${key}.webp`} alt={e} width={256} height={256} className={`emoji ${className}`} draggable={false} decoding="async"/>;
+}
 
 export function PetSprite({ kind, growth, acc, size = 48, sleeping = false, fx = '', className = '' }: { kind: PetKind; growth: number; acc: string | null; size?: number; sleeping?: boolean; fx?: string; className?: string }) {
   const stage = stageOf(levelOf(growth)), emoji = PETS[kind].emoji[stage], a = ANCHOR[emojiKey(emoji)] || ANCHOR['1f431'];
@@ -32,7 +41,7 @@ export function PetSprite({ kind, growth, acc, size = 48, sleeping = false, fx =
   const at = spot === 'bow' ? [a.top[0] + 14, a.top[1] + 4] : spot ? a[spot] : null;
   return <span className={`pet-sprite kind-${kind} stage-${stage} ${sleeping ? 'is-asleep' : ''} ${fx ? `fx-${fx}` : ''} ${className}`} style={{ '--s': `${size}px` } as React.CSSProperties}>
     {stage === 3 && <span className="pet-aura" aria-hidden="true"/>}
-    <span className="pet-body"><Emoji e={emoji}/>{wear && at && <span className={`pet-acc acc-${wear.id}`} style={{ left: `${at[0]}%`, top: `${at[1]}%` }} aria-hidden="true"><Emoji e={wear.emoji}/></span>}</span>
+    <span className="pet-body"><PetImg e={emoji}/>{wear && at && <span className={`pet-acc acc-${wear.id}`} style={{ left: `${at[0]}%`, top: `${at[1]}%` }} aria-hidden="true"><PetImg e={wear.emoji}/></span>}</span>
     {sleeping && <span className="pet-zzz" aria-hidden="true"><Emoji e="💤"/></span>}
   </span>;
 }
@@ -72,5 +81,5 @@ export function usePetFx() {
   return { fx, parts, run };
 }
 export function PetParts({ parts }: { parts: Part[] }) {
-  return <>{parts.map(x => <span key={x.id} className={`pet-part ${x.cls}`} style={x.style} aria-hidden="true">{x.e && <Emoji e={x.e}/>}</span>)}</>;
+  return <>{parts.map(x => <span key={x.id} className={`pet-part ${x.cls}`} style={x.style} aria-hidden="true">{x.e && <PetImg e={x.e}/>}</span>)}</>;
 }

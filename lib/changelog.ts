@@ -2,6 +2,9 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.8.1', date: '9 Nov 2026', title: 'Pet lebih tajam', items: [
+    ['🐾', 'Gambar pet, makanan, dan aksesorinya sekarang pakai resolusi tinggi, jadi tajam dan nggak pecah lagi, baik di samping tombol chat maupun di panel pet.'],
+  ] },
   { version: '9.8', date: '9 Nov 2026', title: 'Pet di samping tombol chat', items: [
     ['🐾', 'Pet baru yang nangkring di samping tombol asisten chat, lengkap dengan namanya yang melayang di atasnya. Pilih kucing, anjing, burung hantu, ayam, elang, atau tokek, lalu kasih nama sendiri. Bisa ganti kapan saja: tiap pet tetap ingat nama dan levelnya.'],
     ['🍽️', 'Tiap pet punya kebutuhannya sendiri. Semua butuh makan (kucing ikan, anjing tulang, burung hantu jangkrik, ayam jagung, elang daging, tokek nyamuk): kamu sendiri yang kasih makan lewat tombol Kasih makan, sampai 4× sehari. Nggak tergantung transaksi, jadi pet aman walau hari itu nggak ada yang dicatat, dan pet nggak pernah mati. Kucing pengin dielus, anjing pengin diajak jalan, burung hantu doyan tips, ayam suka diajak mengais, elang suka terbang, tokek senang kalau pengeluaran hari ini di bawah biasanya.'],

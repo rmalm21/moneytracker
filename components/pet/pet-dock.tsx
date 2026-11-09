@@ -12,7 +12,7 @@ import { useApp } from '../app-provider';
 import { Emoji } from '../emoji';
 import { askToTry } from '../feature-tips-events';
 import { celebrate, useGame } from '../game/game-store';
-import { PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
+import { PetImg, PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
 import { cachedPet, openPetSheet, PET_HIDE_EVENT, petHidden, setPetStore, subscribePet, usePetStore, cachePet } from './pet-store';
 import { commitPet, hourIn, hourKey, petSound, waitText } from './pet-actions';
 import { ACCESSORIES, collectEgg, eggReady, emptyPet, feed, hematScore, MEALS_A_DAY, moodOf, needsAt, pet, petTip, play as playPet, PETS, readTip, STAGES, syncPet, type PetEvent, type PetState } from '@/lib/pet';
@@ -165,7 +165,7 @@ export function PetDock() {
           <PetSprite kind={rec.kind} growth={rec.growth} acc={rec.acc} size={46} sleeping={mood.id === 'tidur'} fx={fx}/>
           <PetParts parts={parts}/>
         </button>
-        {hungry && <button type="button" className="pet-food" onClick={giveFood} aria-label={`Kasih ${info.food.name} ke ${rec.name}`}><Emoji e={info.food.emoji}/></button>}
+        {hungry && <button type="button" className="pet-food" onClick={giveFood} aria-label={`Kasih ${info.food.name} ke ${rec.name}`}><PetImg e={info.food.emoji}/></button>}
         {egg && <button type="button" className="pet-egg" onClick={() => { if (!state) return; const n = (rec.eggs || 0) + 1; commitPet(collectEgg(state, today)); run('egg'); play('gem'); say(`Telur emas ke-${n}! Makasih udah ngerawat ${rec.name}.`); }} aria-label="Ambil telur emas"><Emoji e="🥚"/></button>}
       </> : <button type="button" className="pet-adopt" onClick={() => { play('pop'); openPetSheet(); }} aria-label="Adopsi pet"><Emoji e="🎁"/><span>Adopsi pet</span></button>}
     </div>
