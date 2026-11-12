@@ -24,10 +24,11 @@ import { useBackHandler } from './back-guard';
 import { GroupChat, useGroup, type GroupAnswer } from './space-chat';
 import { OPEN_GROUP } from '@/lib/space-chat';
 import { rupiah as rupiahText } from '@/lib/accounting';
+import { localeDate, localeTime } from '@/lib/intl-cache';
 
 const uid = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-const clock = (at: number) => new Date(at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-const dayKey = (at: number) => new Date(at).toLocaleDateString('en-CA');
+const clock = (at: number) => localeTime(new Date(at), 'id-ID', { hour: '2-digit', minute: '2-digit' });
+const dayKey = (at: number) => localeDate(new Date(at), 'en-CA', {});
 const STATUS_TEXT: Partial<Record<ChatStatus, string>> = { dismissed: 'Tidak jadi dicatat.', replaced: 'Diganti dengan yang di bawah.', form: 'Dilanjutkan di formulir.' };
 /** Each template group: its icon and colour. */
 const GROUP_LOOK: Record<string, { icon: LucideIcon; tone: string }> = {

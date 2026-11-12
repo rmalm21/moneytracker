@@ -8,6 +8,7 @@ import { savingsPlan } from './savings.ts';
 import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
 import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from './invest-plan.ts';
 import { walletGroup } from './wallet-groups.ts';
+import { localeDate, localeNumber } from './intl-cache.ts';
 import { ownedWallets } from './wallet-portions.ts';
 import { emergencyPockets, isEmergencyFund, isKantong, kantongWalletIds, kantongWallets, resolveFunds } from './pockets.ts';
 import type { Budget, Category, Data, LedgerTx } from './types';
@@ -58,7 +59,7 @@ function quantile(values: number[], q: number) { if (!values.length) return 0; c
 export function friendlyRound(value: number) { const step = value < 200_000 ? 5_000 : value < 2_000_000 ? 10_000 : 50_000; return Math.max(step, Math.ceil(value / step) * step); }
 // Amounts in advice are estimates: show them to the nearest thousand.
 const shortRp = (value: number) => Math.abs(value) >= 1e6 ? `Rp${(value / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} jt` : Math.abs(value) >= 1e3 ? `Rp${Math.round(value / 1e3)} rb` : `Rp${Math.round(value)}`;
-const rp = (value: number) => `Rp${(Math.abs(value) >= 10_000 ? Math.round(value / 1000) * 1000 : Math.round(value)).toLocaleString('id-ID')}`;
+const rp = (value: number) => `Rp${localeNumber(Math.abs(value) >= 10_000 ? Math.round(value / 1000) * 1000 : Math.round(value), 'id-ID')}`;
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 const clamp = (value: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, value));
 const inRange = (date: string, range: Range) => date >= range.start && date < range.end;
@@ -189,7 +190,7 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   const currentExpense = expenseOf(currentItems);
   // Early in a cycle the pace says little; lean on history until a fifth of the cycle has passed.
   const projectedSpend = progress >= .2 || !avgExpense ? currentExpense / progress : Math.max(currentExpense, avgExpense);
-  const cycleLabels = covered.map(c => parse(c.start).toLocaleDateString('id-ID', { month: 'short' }));
+  const cycleLabels = covered.map(c => localeDate(parse(c.start), 'id-ID', { month: 'short' }));
 
   // Categories: history per cycle, trend and share.
   const perCycle = cycleItems.map(items => new Map(categoryBreakdown(items, categories).map(slice => [slice.id, slice])));

@@ -13,6 +13,7 @@ import { emergencyPockets, isKantong, kantongWallets, pocketEmoji } from '@/lib/
 import { progress as wishProgress, remaining as wishRemaining, sortWishes } from '@/lib/wishlist';
 import { walletGroup, walletGroups } from '@/lib/wallet-groups';
 import { dateInTimeZone, formatDate, nextDate, parseDate, type DateRange } from '@/lib/period';
+import { localeDate } from '@/lib/intl-cache';
 import type { LedgerTx } from '@/lib/types';
 
 /**
@@ -27,7 +28,7 @@ const short = (value: number) => { const n = Math.abs(value), sign = value < 0 ?
 const shift = (date: string, days: number) => { const d = parseDate(date); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const daysUntil = (from: string, to: string) => Math.round((parseDate(to).getTime() - parseDate(from).getTime()) / 86400000);
 const whenText = (days: number) => days < 0 ? `terlambat ${-days} hari` : days === 0 ? 'hari ini' : days === 1 ? 'besok' : `${days} hari lagi`;
-const monthName = (start: string) => { const d = parseDate(start); d.setDate(d.getDate() + 15); return d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }); };
+const monthName = (start: string) => { const d = parseDate(start); d.setDate(d.getDate() + 15); return localeDate(d, 'id-ID', { month: 'long', year: 'numeric' }); };
 
 function Card({ title, sub, value, tone, children, link }: { title: string; sub?: ReactNode; value?: ReactNode; tone?: string; children: ReactNode; link?: [string, () => void] }) {
   return <details className="panel widget-details dx-card" open>

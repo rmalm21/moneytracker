@@ -10,6 +10,7 @@ import { useNotify } from '../notifications';
 import { transactionExpense } from '@/lib/accounting';
 import { addDays, advance, arcadeResult, BADGES, challengeProgress, coinResult, scratchCard, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
+import { dateFormat } from '@/lib/intl-cache';
 import type { LedgerTx } from '@/lib/types';
 import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
 import { play } from '@/lib/game-sound';
@@ -47,7 +48,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     const dayOf = (t: LedgerTx) => { const ms = createdMs(t); return ms ? localDay(ms, tz) : t.date; };
     const todays = d.transactions.filter(t => mine(t) && dayOf(t) === today);
     const flows = todays.filter(t => t.type === 'expense' || t.type === 'income');
-    const hourOf = (ms: number) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(new Date(ms)));
+    const hourOf = (ms: number) => Number(dateFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(new Date(ms)));
     const o: Observation = {
       today, hour, seed: uid, root, recordedToday: todays.length, checkin: checkinWanted.current,
       shared: Math.max(0, ...spacesRef.current.map(sp => { const m = gameNow().shared[sp.id]; return m ? sharedStreak(m, sp.memberIds, today).current : 0; })),

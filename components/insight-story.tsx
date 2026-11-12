@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, BellOff, Check
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { rupiah } from '@/lib/accounting';
+import { localeDate, localeNumber } from '@/lib/intl-cache';
 import type { Apply, CalcRow, Finding } from '@/lib/advisor';
 import type { ScoreDelta } from '@/lib/insight-v25/health';
 import type { ResolvedItem, TimelineEntry } from '@/lib/insight-v25/lifecycle';
@@ -18,8 +19,8 @@ export const statusTone: Record<Status, 'bad' | 'warn' | 'good' | 'info'> = { im
 const statusWord: Record<Status, string> = { important: 'Penting', watch: 'Perlu dipantau', positive: 'Kabar baik', neutral: 'Info' };
 const statusIcon: Record<Status, LucideIcon> = { important: AlertTriangle, watch: AlertTriangle, positive: CircleCheck, neutral: Info };
 const stateWord: Partial<Record<LifecycleState, string>> = { NEW: 'Baru', WORSENING: 'Memburuk', IMPROVING: 'Membaik', SNOOZED: 'Ditunda', DISMISSED: 'Diabaikan' };
-const times = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('id-ID')}×`;
-const dateText = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+const times = (n: number) => `${localeNumber(Math.round(n * 10) / 10, 'id-ID')}×`;
+const dateText = (date: string) => localeDate(new Date(`${date}T12:00:00`), 'id-ID', { day: 'numeric', month: 'short' });
 
 export type StoryHandlers = { onOpen: (signature: string) => void; onGo: (view: string, focus?: string) => void; onApply: (apply: Apply, finding: Finding) => void; busy?: string };
 

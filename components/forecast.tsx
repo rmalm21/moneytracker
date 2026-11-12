@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { usePeriodTransactions } from './period-selector';
 import { metrics, rupiah } from '@/lib/accounting';
 import { forecast, statusText, type ForecastStatus } from '@/lib/forecast';
+import { localeDate } from '@/lib/intl-cache';
 import { savingsPlan } from '@/lib/savings';
 import { todayInTimeZone } from '@/lib/period';
 import { dateInTimeZone, formatDate, parseDate, previousDate, resolvePeriodRange, summarizeTransactions } from '@/lib/period';
@@ -35,7 +36,7 @@ export function useCountUp(target: number, duration = 650) {
 export function AnimatedRupiah({ value, className }: { value: number; className?: string }) { return <span className={className}>{rupiah(useCountUp(value))}</span>; }
 
 const shortMoney = (value: number) => { const abs = Math.abs(value), sign = value < 0 ? '−' : ''; return abs >= 1e9 ? `${sign}${(abs / 1e9).toFixed(1).replace('.', ',')} M` : abs >= 1e6 ? `${sign}${(abs / 1e6).toFixed(1).replace('.', ',')} jt` : abs >= 1e3 ? `${sign}${Math.round(abs / 1e3)} rb` : `${sign}${abs}`; };
-const monthLabel = (cycleEnd: string, index: number) => { const day = parseDate(cycleEnd); day.setMonth(day.getMonth() + index); return day.toLocaleDateString('id-ID', { month: 'short' }); };
+const monthLabel = (cycleEnd: string, index: number) => { const day = parseDate(cycleEnd); day.setMonth(day.getMonth() + index); return localeDate(day, 'id-ID', { month: 'short' }); };
 
 /** Everything the page and the dashboard card need, from the live data. */
 function useForecastData(options: { salary?: number; overtime?: number; extra?: number; claim?: number; debtDue?: number; spendAdjust?: number } = {}) {

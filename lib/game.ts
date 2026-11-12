@@ -7,6 +7,7 @@
  * record), so an honest day without spending never breaks the streak and nobody needs to make up a transaction.
  * XP for recording is capped per day for the same reason.
  */
+import { dateFormat } from './intl-cache.ts';
 
 // ——— Days (YYYY-MM-DD, calendar arithmetic in UTC) ———
 const D = (day: string) => Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10));
@@ -18,7 +19,7 @@ export const daysBetween = (a: string, b: string) => Math.round((D(b) - D(a)) / 
 export const mondayOf = (day: string) => addDays(day, -((new Date(D(day)).getUTCDay() + 6) % 7));
 /** The local calendar day of a moment, in the person's time zone. */
 export function localDay(ms: number, timeZone = 'Asia/Jakarta') {
-  try { return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms)); }
+  try { return dateFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms)); }
   catch { return iso(ms + 7 * 36e5); }
 }
 

@@ -10509,7 +10509,8 @@ html.chat-is-open .pet-dock, html.chat-locked .pet-dock, body.ix-picking .pet-do
    clickable that was not before: the app is always under the dialog's backdrop, and the layers that sit above the
    backdrop are switched off exactly as before while a dialog is open. */
 .app-layout { pointer-events: auto; }
-/* Same for the scroll lock of dialogs: it sets a variable on <body> that every element would inherit (and so be
-   restyled); the app does not use it, so it is fixed here and only <body> changes. */
-.app-layout { --removed-body-scroll-bar-size: 0px; }
+/* 9.9.1 Same for the scroll lock of dialogs: it sets a variable on <body>, and a variable that is passed down makes the
+   phone restyle every element of the page (about 1,150 on Beranda) each time a dialog or menu opens or closes. Nothing
+   in the app reads it, so it is kept on <body> only: opening a dialog now restyles about 20 elements. */
+@property --removed-body-scroll-bar-size { syntax: '*'; inherits: false; }
 body[style*="pointer-events: none"] .heads-up-stack, body[style*="pointer-events: none"] .wn-overlay, body[style*="pointer-events: none"] .wn-card, body[style*="pointer-events: none"] .wr-overlay, body[style*="pointer-events: none"] .cel-overlay, body[style*="pointer-events: none"] .cel-pop, body[style*="pointer-events: none"] .cel-toast, body[style*="pointer-events: none"] .mg-overlay, body[style*="pointer-events: none"] .splash, body[style*="pointer-events: none"] .app-select-menu { pointer-events: none; }

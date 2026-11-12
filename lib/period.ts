@@ -1,5 +1,6 @@
 import type { LedgerTx, TimeZone } from './types';
 import { salaryCycle, transactionExpense, transactionIncome } from './accounting.ts';
+import { dateFormat, localeDate } from './intl-cache.ts';
 
 export type PeriodPreset = 'salary_cycle' | 'calendar_month' | 'last_7_days' | 'last_30_days' | 'last_3_months' | 'year_to_date' | 'custom';
 export type Granularity = 'auto' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -12,11 +13,11 @@ export const periodOptions: { value: PeriodPreset; label: string }[] = [
 ];
 export const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 export function dateInTimeZone(now = new Date(), timeZone: TimeZone = 'Asia/Jakarta') {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(part => [part.type, Number(part.value)]));
+  const parts = Object.fromEntries(dateFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(part => [part.type, Number(part.value)]));
   return new Date(parts.year, parts.month - 1, parts.day, 12);
 }
 export const todayInTimeZone = (timeZone: TimeZone = 'Asia/Jakarta') => localDate(dateInTimeZone(new Date(), timeZone));
-export const timeInTimeZone = (timeZone: TimeZone = 'Asia/Jakarta') => new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+export const timeInTimeZone = (timeZone: TimeZone = 'Asia/Jakarta') => dateFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
 export const parseDate = (date: string) => new Date(`${date}T12:00:00`);
 export const nextDate = (date: string) => { const day = parseDate(date); day.setDate(day.getDate() + 1); return localDate(day); };
 export const previousDate = (date: string) => { const day = parseDate(date); day.setDate(day.getDate() - 1); return localDate(day); };
@@ -36,8 +37,8 @@ export function resolvePeriodRange(preset: PeriodPreset, salaryDay: number, toda
 }
 
 /** Human date for lists, e.g. "24 Sep 2026". Invalid or empty values are returned unchanged. */
-export const formatDate = (date: string, withYear = true) => /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? parseDate(date).toLocaleDateString('id-ID', withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }) : date;
-export const periodLabel = (range: DateRange) => `${parseDate(range.start).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} – ${parseDate(previousDate(range.end)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+export const formatDate = (date: string, withYear = true) => /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? localeDate(parseDate(date), 'id-ID', withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }) : date;
+export const periodLabel = (range: DateRange) => `${localeDate(parseDate(range.start), 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} – ${localeDate(parseDate(previousDate(range.end)), 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 export const automaticGranularity = (range: DateRange): Exclude<Granularity, 'auto'> => { const days = daysInRange(range); return days <= 45 ? 'daily' : days <= 125 ? 'weekly' : days <= 730 ? 'monthly' : 'yearly'; };
 
 export function summarizeTransactions(items: LedgerTx[]) {
@@ -72,7 +73,7 @@ export function groupTransactions(items: LedgerTx[], range: DateRange, requested
     row.expense += transactionExpense(item);
     row.cashFlow = row.income - row.expense;
   }
-  return [...grouped].map(([date, values]) => ({ date, label: granularity === 'yearly' ? date.slice(0, 4) : granularity === 'monthly' ? parseDate(date).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }) : parseDate(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), ...values }));
+  return [...grouped].map(([date, values]) => ({ date, label: granularity === 'yearly' ? date.slice(0, 4) : granularity === 'monthly' ? localeDate(parseDate(date), 'id-ID', { month: 'short', year: '2-digit' }) : localeDate(parseDate(date), 'id-ID', { day: 'numeric', month: 'short' }), ...values }));
 }
 
 const shiftDays = (date: string, days: number) => { const day = parseDate(date); day.setDate(day.getDate() + days); return localDate(day); };

@@ -1,6 +1,7 @@
 /** Pure helpers behind Laporan and Analisis. */
 import { transactionExpense, transactionIncome } from './accounting.ts';
 import { parseDate } from './period.ts';
+import { localeDate } from './intl-cache.ts';
 import type { Category, LedgerTx, Wallet } from './types';
 
 const IN_TYPES = new Set(['income', 'claim_payment', 'receivable_payment', 'borrowing']);
@@ -97,7 +98,7 @@ export function largestExpenses(items: LedgerTx[], limit = 5) { return items.fil
 
 /** Twelve months of one year: income, spending, net and savings rate per month. */
 export function monthlyTotals(items: LedgerTx[], year: number) {
-  const months = Array.from({ length: 12 }, (_, month) => ({ month, label: new Date(year, month, 1).toLocaleDateString('id-ID', { month: 'short' }), start: `${year}-${String(month + 1).padStart(2, '0')}-01`, income: 0, expense: 0, net: 0, rate: 0, count: 0 }));
+  const months = Array.from({ length: 12 }, (_, month) => ({ month, label: localeDate(new Date(year, month, 1), 'id-ID', { month: 'short' }), start: `${year}-${String(month + 1).padStart(2, '0')}-01`, income: 0, expense: 0, net: 0, rate: 0, count: 0 }));
   for (const tx of items) {
     if (!tx.date.startsWith(`${year}-`)) continue;
     const row = months[Number(tx.date.slice(5, 7)) - 1];

@@ -10,6 +10,7 @@ import { dateText, pct, rp, short, signal } from '../insight-v25/signals/common.
 import type { InsightSignal } from '../insight-v25/types.ts';
 import { obligationClusters, type ScenarioResult } from './scenario.ts';
 import type { FinancialWorld } from './world.ts';
+import { localeDate } from '../intl-cache.ts';
 
 export function liquiditySignals(world: FinancialWorld, base: ScenarioResult, arrives: ScenarioResult, delayed: ScenarioResult, hasOpenClaims: boolean): InsightSignal[] {
   const out: InsightSignal[] = [];
@@ -91,4 +92,4 @@ export function yieldSignals(world: FinancialWorld): InsightSignal[] {
     series: { labels: [...i.trend.map((_, k) => k === i.trend.length - 1 ? 'Kini' : `S${k + 1}`)], values: i.trend },
   }, world.asOf)];
 }
-const addDay = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
+const addDay = (date: string, n: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + n); return localeDate(d, 'en-CA', {}); };

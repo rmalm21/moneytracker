@@ -7,9 +7,10 @@
 import { addDays, type InsightContext, type Line } from '../context.ts';
 import type { InsightSignal } from '../types.ts';
 import { clamp01, rp, signal } from './common.ts';
+import { localeNumber } from '../../intl-cache.ts';
 
 const WEEKS = 8, MIN_WEEKS_SEEN = 3, MIN_RATIO = 2, MIN_EXTRA = 40_000;
-const times = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('id-ID')}×`;
+const times = (n: number) => `${localeNumber(Math.round(n * 10) / 10, 'id-ID')}×`;
 
 export function weeklySignals(ctx: InsightContext): InsightSignal[] {
   const seen = new Set<string>(), lines: Line[] = [];

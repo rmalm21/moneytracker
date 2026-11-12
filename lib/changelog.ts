@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.9.1', date: '12 Nov 2026', title: 'Form dan chat langsung muncul', items: [
+    ['🚀', 'Buka form Pengeluaran pertama kali sekarang jauh lebih cepat, dan chat juga langsung muncul begitu diketuk. Kodenya sudah disiapkan diam-diam selagi aplikasi santai, jadi pas kamu ketuk nggak ada lagi jeda nunggu.'],
+    ['⚡', 'Buka menu Tambah, form, kalender, atau jendela lain nggak lagi bikin seluruh halaman dihitung ulang, dan Beranda (termasuk grafiknya) nggak ikut digambar ulang tiap ada form atau menu yang dibuka. Rasanya lebih mulus dan nggak tersendat.'],
+    ['💨', 'Tanggal, jam, dan angka sekarang ditulis pakai cetakan yang dipakai ulang, jadi buka aplikasi dan pindah menu sedikit lebih enteng.'],
+    ['🎨', 'Tampilan, isi, dan cara pakainya tetap sama persis. Yang berubah cuma kecepatannya.'],
+  ] },
   { version: '9.9', date: '12 Nov 2026', title: 'Lebih ringan, nggak nge-lag', items: [
     ['⚡', 'Beranda, panel Arena, dan chat jauh lebih ringan. Api, kilau, rantai streak, pet, dan tombol pelangi tetap bergerak persis seperti sebelumnya, tapi sekarang digerakkan chip grafis HP. Prosesor nggak lagi menggambar ulang layar terus-menerus walau kamu cuma diam di Beranda, jadi HP lebih adem dan baterai lebih awet.'],
     ['🚀', 'Buka chat, menu Tambah, form, dan pindah menu terasa lebih cepat dan nggak tersendat, karena aplikasi nggak lagi menghitung ulang tampilan seluruh halaman tiap ada jendela yang dibuka atau ditutup.'],

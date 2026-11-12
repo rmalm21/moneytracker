@@ -10,6 +10,7 @@ import type { LedgerTx } from '@/lib/types';
 import type { ChangeItem, PriorityItem, progressView } from '@/lib/insight-v3/view';
 import { help } from '@/lib/insight-v3/view';
 import { dayMonth, money, moneyFull, signedMoney } from '@/lib/insight-v3/format';
+import { localeDate, localeNumber } from '@/lib/intl-cache';
 import { HelpButton, OverflowMenu } from './section';
 
 /** Story presentation: what changed (one root story per card), priorities as rows, progress, and the story sheet. */
@@ -67,14 +68,14 @@ function DriverRow({ d, total, txById, depth = 0 }: { d: Driver; total: number; 
     </div>}
   </li>;
 }
-const fmtCount = (n: number) => (Math.round(n * 10) / 10).toLocaleString('id-ID');
+const fmtCount = (n: number) => localeNumber(Math.round(n * 10) / 10, 'id-ID');
 
 const basisWord = { direct: 'langsung', estimated: 'perkiraan', associated: 'bersamaan' } as const;
 const effectWord = (kind: string) => kind === 'reduces' ? 'berkurang' : kind === 'increases' ? 'bertambah' : kind === 'estimated_to_affect' ? 'bisa lebih sempit' : kind === 'funds' ? 'diisi dari sisa siklus' : 'terkait';
 
 /** Story sheet: answer → why (drivers) → impact (forward flow) → evidence & calculation, each a step deeper. */
 /** A link to exactly these transactions in Transaksi (between the first and the last date). */
-const txLink = (txs: LedgerTx[]) => { const dates = txs.map(t => t.date).sort(), last = new Date(`${dates[dates.length - 1]}T12:00:00`); last.setDate(last.getDate() + 1); return `tx:${txs.map(t => t.id).join(',')}@${dates[0]}..${last.toLocaleDateString('en-CA')}`; };
+const txLink = (txs: LedgerTx[]) => { const dates = txs.map(t => t.date).sort(), last = new Date(`${dates[dates.length - 1]}T12:00:00`); last.setDate(last.getDate() + 1); return `tx:${txs.map(t => t.id).join(',')}@${dates[0]}..${localeDate(last, 'en-CA', {})}`; };
 export function StorySheet({ report, signature, extraSignals, items, onClose, onGo, onApply, busy, onDismiss, onSnooze }: { report: InsightV3Report; signature: string; extraSignals: InsightSignal[]; items: LedgerTx[]; onClose: () => void; onGo: (view: string, focus?: string) => void; onApply: (apply: Apply, finding: Finding) => void; busy?: string; onDismiss: (s: InsightSignal) => void; onSnooze: (s: InsightSignal) => void }) {
   const story = report.v25.stories.find(st => st.signature === signature);
   const s = story?.root || [...report.v25.signals, ...extraSignals].find(x => x.signature === signature);
