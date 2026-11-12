@@ -94,7 +94,7 @@ export function ArenaCard() {
         </span>
         <span className="arena-lv" style={{ '--p': `${Math.round(lv.progress * 100)}%` } as React.CSSProperties}><span className="arena-lv-ring"/><b>{lv.level}</b><small>Lv</small></span>
       </button>
-      <div className="arena-week" role="list" aria-label="Minggu ini">{week.map(d => <span key={d.day} role="listitem" className={`aw-day is-${d.state} ${d.joinL ? 'j-l' : ''} ${d.joinR ? 'j-r' : ''}`} title={d.day}><i>{d.state === 'lit' ? <Emoji e="🔥"/> : d.state === 'ice' ? <Emoji e="🛡️"/> : null}</i><small>{d.label}</small></span>)}</div>
+      <div className="arena-week" role="list" aria-label="Minggu ini">{week.map(d => <span key={d.day} role="listitem" className={`aw-day is-${d.state} ${d.joinL ? 'j-l' : ''} ${d.joinR ? 'j-r' : ''}`} title={d.day}>{d.joinL && <span className="aw-link is-l" aria-hidden="true"/>}<i>{d.state === 'lit' ? <Emoji e="🔥"/> : d.state === 'ice' ? <Emoji e="🛡️"/> : null}</i><small>{d.label}</small>{d.joinR && <span className="aw-link is-r" aria-hidden="true"/>}</span>)}</div>
       <div className="arena-xp"><span className="arena-xp-bar"><i style={{ width: `${Math.round(lv.progress * 100)}%` }}/></span><small><Emoji e={lv.emoji}/> {lv.title} · {(s.xp - lv.from).toLocaleString('id-ID')}/{(lv.to - lv.from).toLocaleString('id-ID')} XP{s.xpToday ? <b> · +{s.xpToday} hari ini</b> : null}</small></div>
       <ul className="arena-missions">{missions.map(({ m, done }) => <li key={m.id} className={done ? 'is-done' : ''}>
         <span className="am-check" aria-hidden="true">{done ? '✓' : ''}</span>
@@ -195,7 +195,7 @@ function BadgeShelf({ s, today }: { s: GameState; today: string }) {
     {BADGE_GROUPS.map(g => { const items = list.filter(b => b.group === g.id); if (!items.length) return null; const n = items.filter(b => b.got).length; return <div key={g.id} className="ap-group">
       <div className="ap-group-head"><span><Emoji e={g.emoji}/> {g.id}</span><small>{g.hint} · {n}/{items.length}</small></div>
       <div className="ap-medals">{items.map((b, i) => <button type="button" key={b.id} className={`ap-medal tier-${b.tier} ${b.got ? 'is-got' : ''} ${pick?.id === b.id ? 'is-picked' : ''}`} onClick={() => tap(b)} aria-label={`${b.name}, ${TIERS[b.tier].name}, ${b.got ? 'sudah didapat' : `${b.value} dari ${b.target}`}`} aria-pressed={pick?.id === b.id}>
-        <span className="ap-medal-ic" style={{ '--p': `${Math.round(b.value / b.target * 100)}%`, '--d': (i % 5) * .5 } as React.CSSProperties}><Emoji e={b.emoji}/>{!b.got && <span className="ap-lock-badge" aria-hidden="true"><Lock size={11} strokeWidth={2.4}/></span>}{b.group === 'Api' && <b className="ap-medal-n">{b.target}</b>}</span>
+        <span className="ap-medal-ic" style={{ '--p': `${Math.round(b.value / b.target * 100)}%`, '--d': (i % 5) * .5 } as React.CSSProperties}><Emoji e={b.emoji}/>{!b.got && <span className="ap-lock-badge" aria-hidden="true"><Lock size={11} strokeWidth={2.4}/></span>}{b.group === 'Api' && <b className="ap-medal-n">{b.target}</b>}{b.got && <span className="ap-shine" aria-hidden="true"/>}</span>
         <small>{b.name}</small>
       </button>)}</div>
       {pick && pick.group === g.id && <div className={`ap-detail tier-${pick.tier}`} role="status">

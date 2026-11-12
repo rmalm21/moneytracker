@@ -119,6 +119,9 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
   useEffect(() => { if (!copied) return; const t = window.setTimeout(() => setCopied(false), 1800); return () => window.clearTimeout(t); }, [copied]);
   const modal = open && ['lembar', 'penuh', 'samping'].includes(settings.style);
   useEffect(() => { document.documentElement.classList.toggle('chat-locked', modal); return () => document.documentElement.classList.remove('chat-locked'); }, [modal]);
+  // 9.9 A class while the chat is open (any look), so the pet hides by a cheap rule instead of a :has() on <body>,
+  // which made the phone restyle the whole page whenever anything opened or closed.
+  useEffect(() => { document.documentElement.classList.toggle('chat-is-open', open); return () => document.documentElement.classList.remove('chat-is-open'); }, [open]);
 
   const mark = useCallback((id: string, status: ChatStatus, summary?: string) => setMessages(list => list.map(m => m.id === id ? { ...m, status, ...(summary ? { summary } : {}) } : m)), []);
   async function send(text: string) {

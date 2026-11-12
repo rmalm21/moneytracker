@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.9', date: '12 Nov 2026', title: 'Lebih ringan, nggak nge-lag', items: [
+    ['⚡', 'Beranda, panel Arena, dan chat jauh lebih ringan. Api, kilau, rantai streak, pet, dan tombol pelangi tetap bergerak persis seperti sebelumnya, tapi sekarang digerakkan chip grafis HP. Prosesor nggak lagi menggambar ulang layar terus-menerus walau kamu cuma diam di Beranda, jadi HP lebih adem dan baterai lebih awet.'],
+    ['🚀', 'Buka chat, menu Tambah, form, dan pindah menu terasa lebih cepat dan nggak tersendat, karena aplikasi nggak lagi menghitung ulang tampilan seluruh halaman tiap ada jendela yang dibuka atau ditutup.'],
+    ['🎨', 'Tampilannya nggak ada yang berubah: warna, gerakan, dan ukuran semuanya sama, cuma cara kerjanya yang dibuat lebih hemat.'],
+  ] },
   { version: '9.8.1', date: '9 Nov 2026', title: 'Pet lebih tajam', items: [
     ['🐾', 'Gambar pet, makanan, dan aksesorinya sekarang pakai resolusi tinggi, jadi tajam dan nggak pecah lagi, baik di samping tombol chat maupun di panel pet.'],
   ] },
