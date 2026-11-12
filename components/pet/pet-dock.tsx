@@ -18,6 +18,7 @@ import { commitPet, hourIn, hourKey, petSound, waitText } from './pet-actions';
 import { ACCESSORIES, collectEgg, eggReady, emptyPet, feed, hematScore, MEALS_A_DAY, moodOf, needsAt, pet, petTip, play as playPet, PETS, readTip, STAGES, syncPet, type PetEvent, type PetState } from '@/lib/pet';
 import { canScratch, canSpin, hash, streakOf, type GameState } from '@/lib/game';
 import { todayInTimeZone } from '@/lib/period';
+import { isOffline } from '@/lib/offline';
 import { play } from '@/lib/game-sound';
 import type { LedgerTx } from '@/lib/types';
 
@@ -43,7 +44,15 @@ export function PetDock() {
   useEffect(() => {
     if (!uid) return;
     setPetStore({ uid, state: cachedPet(uid), ready: false });
-    return subscribePet(uid, st => { const next = st || emptyPet(); setPetStore({ uid, state: next, ready: true }); cachePet(uid, next); });
+    // 9.9.2 Shown from the phone's copy at once, but moved on (meals, needs, growth) only from the server's copy, so a phone
+    // opened later does not save its older pet over another phone's. Offline, or no answer in 10 s: as before.
+    let confirmed = false;
+    const fallback = window.setTimeout(() => { confirmed = true; setPetStore({ ready: true }); }, 10_000);
+    const stop = subscribePet(uid, (st, fromServer) => {
+      const next = st || emptyPet(); confirmed = confirmed || fromServer || isOffline();
+      setPetStore({ uid, state: next, ready: confirmed }); cachePet(uid, next);
+    });
+    return () => { window.clearTimeout(fallback); stop(); };
   }, [uid]);
   useEffect(() => { const on = () => setHidden(uid ? petHidden(uid) : false); window.addEventListener(PET_HIDE_EVENT, on); return () => window.removeEventListener(PET_HIDE_EVENT, on); }, [uid]);
   // The needs move with time: look again every minute.
@@ -83,12 +92,12 @@ export function PetDock() {
 
   // What happened since the last look: meals, the flame, missions, games, Arena XP.
   useEffect(() => {
-    if (!ps.ready || !state || !g.state) return;
+    if (!ps.ready || !state || !g.state || !g.confirmed) return;
     const s = g.state;
     const r = syncPet(state, { today, recordedToday: recordedOf(s, today), lit: s.days.includes(today), missions: s.stats?.missions || 0, games: gamesOf(s), xp: s.xp || 0, now: Date.now() }, hourOf, hemat);
     if (r.events.length || countersOf(r.state) !== countersOf(state)) commitPet(r.state);
     r.events.forEach(react);
-  }, [ps.ready, state, g.state, today, hemat]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ps.ready, state, g.state, g.confirmed, today, hemat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A big expense just recorded: it jumps.
   const seen = useRef<Set<string> | null>(null);

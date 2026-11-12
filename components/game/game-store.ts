@@ -4,21 +4,24 @@
  * (users/{uid}/game/state for the person, spaces/{id}/streak/{uid} for "api bareng"). Rules: lib/game.ts.
  */
 import { useSyncExternalStore } from 'react';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
+import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { isOffline } from '@/lib/offline';
+import { changedFields, sameData } from '@/lib/same-data';
 import type { ArcadeId, GameEvent, GameState } from '@/lib/game';
 
 export type MiniGameId = 'spin' | 'coin' | 'match' | 'shop' | 'scratch';
 export type Celebration = GameEvent | { kind: 'shared-badge'; days: number; name: string; space: string } | { kind: 'note'; title: string; text: string };
 type Store = {
   state: GameState | null; ready: boolean;
+  /** 9.9.2 The game shown is the account's copy from the server (not only this phone's older copy). */ confirmed: boolean;
   /** Each space's members' lit days (space id → uid → days). */ shared: Record<string, Record<string, string[]>>;
   queue: Celebration[];
   /** What the Beranda card shows next to the time (refreshed every minute). */ today: string; hour: number;
   /** This week's challenge, how far it is (worked out by the keeper from the records). */ challengeView: { value: number; won: boolean; lost: boolean } | null;
   /** 9.6 The mini game open on screen (9.7: Cocok Cuan, Belanja Bijak, Gosok Berhadiah too). */ minigame: MiniGameId | null;
 };
-let store: Store = { state: null, ready: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
+let store: Store = { state: null, ready: false, confirmed: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
 const listeners = new Set<() => void>();
 export function setGame(patch: Partial<Store> | ((s: Store) => Partial<Store>)) {
   store = { ...store, ...(typeof patch === 'function' ? patch(store) : patch) };
@@ -79,14 +82,46 @@ export function onceToday(key: string, day: string) { try { if (localStorage.get
 // ——— Firestore ———
 function database() { if (!db) throw Error('Konfigurasi Firebase belum tersedia.'); return db; }
 const stateRef = (uid: string) => doc(database(), 'users', uid, 'game', 'state');
-/** The person's game. A device that has never seen it waits for the server, so it never starts over by mistake. */
-export function subscribeGameState(uid: string, onValue: (state: GameState | null) => void): Unsubscribe {
+/** The person's game. A device that has never seen it waits for the server, so it never starts over by mistake.
+ * 9.9.2 `fromServer` tells a copy the server sent apart from this phone's own older copy. */
+export function subscribeGameState(uid: string, onValue: (state: GameState | null, fromServer: boolean) => void): Unsubscribe {
   return onSnapshot(stateRef(uid), { includeMetadataChanges: true }, snap => {
     if (!snap.exists() && snap.metadata.fromCache) return;
-    onValue(snap.exists() ? snap.data() as GameState : null);
+    onValue(snap.exists() ? snap.data() as GameState : null, !snap.metadata.fromCache);
   }, () => {});
 }
-export async function saveGameState(uid: string, state: GameState) { await setDoc(stateRef(uid), state); }
+/**
+ * 9.9.2 Saves the game on top of what the account holds. `next` was made from `base`; if another phone changed the game
+ * since then, `redo` runs again on that newer copy, so neither phone's progress is lost (it used to overwrite the whole
+ * game with this phone's older copy). Saves run one after another. Offline the change waits on the phone, as before.
+ * Resolves with the game that is now saved.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+export function saveGameOnTop(uid: string, base: GameState | null, next: GameState, redo: (current: GameState | null) => GameState | null): Promise<GameState> {
+  const run = async (): Promise<GameState> => {
+    const ref = stateRef(uid);
+    if (!isOffline()) {
+      try {
+        return await runTransaction(database(), async trx => {
+          const snap = await trx.get(ref), current = snap.exists() ? snap.data() as GameState : null;
+          const out = sameData(current, base) ? next : redo(current);
+          if (!out) return current ?? next;
+          if (!sameData(out, current)) trx.set(ref, out);
+          return out;
+        });
+      } catch (error) {
+        const code = (error as { code?: string } | null)?.code;
+        if (code !== 'unavailable' && code !== 'deadline-exceeded') throw error;
+      }
+    }
+    // Offline the write waits on the phone and goes out with the connection (not awaited, so later saves are not held up).
+    // Only the fields this phone changed are sent, so what another phone did to the rest meanwhile stays.
+    void (base ? setDoc(ref, changedFields(base, next), { merge: true }) : setDoc(ref, next)).catch(() => undefined);
+    return next;
+  };
+  const done = queue.then(run, run); queue = done.catch(() => undefined);
+  return done;
+}
 /** 9.5 Each member's days in this space. Only days written by 9.5 (v 2) count: up to 9.4 the days were the person's own
  * flame (Pribadi too), which is not what api bareng means now. A member's days start again from what they record there. */
 export function subscribeSharedFire(spaceId: string, onValue: (members: Record<string, string[]>) => void): Unsubscribe {

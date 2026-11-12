@@ -112,8 +112,10 @@ export function subscribePeriodTransactions(uid:string,start:string,end:string,o
 export function subscribeRelatedTransactions(uid:string,field:'receivableId'|'claimId'|'debtId'|'fundId',id:string,onValue:(items:LedgerTx[])=>void,onError:(error:Error)=>void):Unsubscribe {
  return onSnapshot(query(coll(uid,'transactions'),where(field,'==',id)),local,snapshot=>onValue(withoutDeleted(snapshot.docs.map(row=>hydrate<LedgerTx>(row))).sort(newestFirst)),onError);
 }
-export function subscribeData(uid:string,start:string,end:string,onPart:(key:Name,value:unknown[])=>void,onError:(e:Error)=>void,onSync?:(state:'syncing'|'synced'|'offline')=>void,asOf=new Date(),salaryDay=24):Unsubscribe {
+export function subscribeData(uid:string,start:string,end:string,onPart:(key:Name,value:unknown[])=>void,onError:(e:Error)=>void,onSync?:(state:'syncing'|'synced'|'offline')=>void,asOf=new Date(),salaryDay=24,onLoaded?:()=>void):Unsubscribe {
   const all:Unsubscribe[]=[];
+  // 9.9.2 Once every part has come in from the device copy at least once (Beranda can then be drawn complete).
+  let waiting=0,loaded=false;const firstOf=()=>{waiting++;let seen=false;return ()=>{if(seen)return;seen=true;if(--waiting===0&&!loaded){loaded=true;onLoaded?.();}};};
   const month=calendarCycle(asOf);
   const baseline=start<month.start?start:month.start;
   const baselineEnd=end>month.end?end:month.end;
@@ -127,11 +129,12 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
   window.addEventListener('online',report);window.addEventListener('offline',report);all.push(()=>{window.removeEventListener('online',report);window.removeEventListener('offline',report)});
   for(const name of names) {
     if(name==='transactions'||name==='categorizationRules'||onDemand.has(name)) continue;
+    const first=firstOf();
     all.push(onSnapshot(coll(uid,name),local,s=>{
       const value=s.docs.map(d=>hydrate(d));
       // Wallets in the order arranged on the Dompet page, so "the first wallet" (a form's default) is the same one everywhere.
       if(name==='wallets')(value as Wallet[]).sort((a,b)=>(a.displayOrder??1e6)-(b.displayOrder??1e6)||a.name.localeCompare(b.name));
-      onPart(name,value);
+      onPart(name,value);first();
       if(name!=='budgets')return;
       const windows=(value as Budget[]).map(budget=>budgetWindow(budget,asOf,salaryDay));
       const earliest=windows.reduce((date,window)=>window.start<date?window.start:date,baseline);
@@ -141,9 +144,10 @@ export function subscribeData(uid:string,start:string,end:string,onPart:(key:Nam
       if(earliest<baseline||latest>baselineEnd)customStop=onSnapshot(query(coll(uid,'transactions'),where('date','>=',earliest),where('date','<',latest)),local,history=>{custom=history.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError);
     },onError));
   }
-  all.push(onSnapshot(query(coll(uid,'transactions'),orderBy('date','desc'),limit(60)),{...local,includeMetadataChanges:true},s=>{recent=s.docs.map(d=>hydrate<LedgerTx>(d));emit();pending=s.metadata.hasPendingWrites;report();},onError));
-  all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),local,s=>{cycle=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
-  if(month.start!==start||month.end!==end)all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',month.start),where('date','<',month.end)),local,s=>{calendar=s.docs.map(d=>hydrate<LedgerTx>(d));emit();},onError));
+  const firstRecent=firstOf(),firstCycle=firstOf(),firstCalendar=month.start!==start||month.end!==end?firstOf():()=>{};
+  all.push(onSnapshot(query(coll(uid,'transactions'),orderBy('date','desc'),limit(60)),{...local,includeMetadataChanges:true},s=>{recent=s.docs.map(d=>hydrate<LedgerTx>(d));emit();pending=s.metadata.hasPendingWrites;report();firstRecent();},onError));
+  all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',start),where('date','<',end)),local,s=>{cycle=s.docs.map(d=>hydrate<LedgerTx>(d));emit();firstCycle();},onError));
+  if(month.start!==start||month.end!==end)all.push(onSnapshot(query(coll(uid,'transactions'),where('date','>=',month.start),where('date','<',month.end)),local,s=>{calendar=s.docs.map(d=>hydrate<LedgerTx>(d));emit();firstCalendar();},onError));
   return ()=>{all.forEach(stop=>stop());customStop?.();};
 }
 /** 8.10 "Bisa dicoba di sini": a feature used, a card hidden, a suggestion shown or closed (lib/feature-tips.ts), as

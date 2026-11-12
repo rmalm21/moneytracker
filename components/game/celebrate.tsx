@@ -31,7 +31,7 @@ function useCount(to: number, ms = 900, from = 0) {
 
 /** A big celebration waits while another window is open (a dialog, "Apa yang baru", the PIN screen): a modal there
  * holds every tap outside it, so the celebration's button could not be pressed. */
-const BUSY = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], .pin-screen, .onboarding, .mg-overlay';
+const BUSY = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], .pin-screen, .onboarding, .mg-overlay, #home-shot';
 const big = (c?: Celebration) => Boolean(c) && !['lit', 'mission', 'shield-full', 'note'].includes(c!.kind);
 function useFree(wanted: boolean) {
   const [free, setFree] = useState(false);

@@ -68,7 +68,7 @@ export async function resetAllData(uid: string, options: { preferences: boolean 
   for (const field of recordLinks) changes[field] = deleteField();
   if (options.preferences) { for (const field of preferences) changes[field] = deleteField(); Object.assign(changes, { theme: 'light', dashboardWidgets: [], hideReserved: true }); }
   await updateDoc(userRef(uid), changes);
-  forgetOnDevice(uid, ['seen', 'notifications']);
+  forgetOnDevice(uid, ['seen', 'notifications', 'home-shot']);
 }
 
 export type DeleteProgress = WipeProgress & { stage: 'verify' | 'data' | 'account' };

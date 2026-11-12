@@ -11,8 +11,10 @@ import { transactionExpense } from '@/lib/accounting';
 import { addDays, advance, arcadeResult, BADGES, challengeProgress, coinResult, scratchCard, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { dateFormat } from '@/lib/intl-cache';
+import { isOffline } from '@/lib/offline';
+import { sameData } from '@/lib/same-data';
 import type { LedgerTx } from '@/lib/types';
-import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameState, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
+import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameOnTop, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
 import { play } from '@/lib/game-sound';
 import { openGroup } from '@/lib/space-chat';
 
@@ -24,7 +26,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   const { push } = useNotify();
   const uid = account?.uid, tz = personalProfile?.timeZone || 'Asia/Jakarta';
   const name = personalProfile?.displayName || account?.displayName || (account?.email || '').split('@')[0] || 'Anggota';
-  const remote = useRef<{ state: GameState | null; loaded: boolean }>({ state: null, loaded: false });
+  const remote = useRef<{ state: GameState | null; loaded: boolean; confirmed: boolean }>({ state: null, loaded: false, confirmed: false });
   const latest = useRef<GameState | null>(null), saving = useRef(''), checkinWanted = useRef(false);
   const since = useRef(0);
   const nav = useRef(navigate); nav.current = navigate;
@@ -33,11 +35,20 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
 
   // The game of this person (from the server the first time).
   useEffect(() => {
-    remote.current = { state: null, loaded: false }; latest.current = null; setGame({ state: null, ready: false });
+    remote.current = { state: null, loaded: false, confirmed: false }; latest.current = null; setGame({ state: null, ready: false, confirmed: false });
     if (!uid) return;
     // 9.5 The step of now (not the one from when this started): an old one still thought Pribadi was open, so in a
     // Ruang Bersama every save counted that space's records a second time for Pribadi (XP, missions).
-    return subscribeGameState(uid, state => { remote.current = { state, loaded: true }; latest.current = state; setGame({ state, ready: true }); cacheState(uid, state); stepRef.current(); });
+    // 9.9.2 The phone's own copy is shown at once, but the game only moves on once the server's copy is in: a phone opened
+    // the next day used to move its older copy forward and save it over what another phone had done meanwhile.
+    // Offline, or no answer from the server in 10 s: the phone's copy is used, as before.
+    const fallback = window.setTimeout(() => trustCopy(), 10_000);
+    const stop = subscribeGameState(uid, (state, fromServer) => {
+      const confirmed = remote.current.confirmed || fromServer;
+      remote.current = { ...remote.current, state, loaded: true, confirmed }; latest.current = state;
+      setGame({ state, ready: true, confirmed }); cacheState(uid, state); stepRef.current();
+    });
+    return () => { window.clearTimeout(fallback); stop(); };
   }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** One look at the records now, turned into an observation for the rules. */
@@ -82,6 +93,8 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   /** Moves the game forward with what is seen now; saves and celebrates what changed. */
   const step = useCallback(() => {
     if (!uid || !remote.current.loaded || loading) return;
+    // 9.9.2 Not from this phone's older copy while the server's is on its way.
+    if (!remote.current.confirmed) { if (!isOffline()) return; trustCopy(false); }
     const prev = latest.current, first = !prev;
     // The very first time, wait for the person's own records (so the streak can start from their history).
     if (first && (space || (!dataRef.current.transactions.length && Date.now() - since.current < 4000))) return;
@@ -93,7 +106,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     const text = JSON.stringify(state);
     if (text !== JSON.stringify(prev)) {
       latest.current = state; setGame({ state }); cacheState(uid, state);
-      if (saving.current !== text) { saving.current = text; void saveGameState(uid, state).catch(() => { saving.current = ''; }); }
+      if (saving.current !== text) { saving.current = text; void saveGameOnTop(uid, prev, state, current => advance(current, o).state).then(saved => adopt(state, saved)).catch(() => { saving.current = ''; }); }
     }
     if (o.week && state.challenge) setGame({ challengeView: challengeProgress(state.challenge, weekCtx(state.days, mondayOf(today), today, o.week), false) });
     const shown = events.filter(e => e.kind !== 'xp');
@@ -114,13 +127,23 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   useEffect(() => { if (space) publishSpace(space.id); }, [space?.id, data.transactions, sharedNow[space?.id || ''] === undefined, publishSpace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stepRef = useRef(step); stepRef.current = step;
+  /** 9.9.2 Goes on with the phone's own copy of the game (no connection, or the server is too slow to answer). */
+  function trustCopy(look = true) {
+    if (remote.current.confirmed) return;
+    remote.current.confirmed = true; setGame({ confirmed: true }); if (look) stepRef.current();
+  }
+  /** 9.9.2 What was saved on top of another phone's newer game is shown here too (unless this phone moved on since). */
+  function adopt(made: GameState, saved: GameState) {
+    if (!uid || latest.current !== made || sameData(saved, made)) return;
+    latest.current = saved; setGame({ state: saved }); cacheState(uid, saved);
+  }
   /** Changes the saved game outside a look at the records (the mini games); then a look, for level ups and badges. */
   function apply<T extends { state: GameState }>(fn: (s: GameState) => T | null): T | null {
     const prev = latest.current; if (!uid || !prev) return null;
     const out = fn(prev); if (!out) return null;
     latest.current = out.state; setGame({ state: out.state }); cacheState(uid, out.state);
     const text = JSON.stringify(out.state); saving.current = text;
-    void saveGameState(uid, out.state).catch(() => { saving.current = ''; });
+    void saveGameOnTop(uid, prev, out.state, current => (current ? fn(current)?.state ?? null : null)).then(saved => adopt(out.state, saved)).catch(() => { saving.current = ''; });
     window.setTimeout(() => stepRef.current(), 300);
     return out;
   }

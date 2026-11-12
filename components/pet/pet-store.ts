@@ -5,7 +5,9 @@
  * (per device). Rules: lib/pet.ts.
  */
 import { useSyncExternalStore } from 'react';
-import { doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction, setDoc, type Unsubscribe } from 'firebase/firestore';
+import { isOffline } from '@/lib/offline';
+import { changedFields, mergeChanges, sameData } from '@/lib/same-data';
 import { db } from '@/lib/firebase';
 import type { PetState } from '@/lib/pet';
 
@@ -18,10 +20,39 @@ export const petNow = () => store;
 export const openPetSheet = (open = true) => setPetStore({ sheet: open });
 
 const ref = (uid: string) => { if (!db) throw Error('Konfigurasi Firebase belum tersedia.'); return doc(db, 'users', uid, 'game', 'pet'); };
-export function subscribePet(uid: string, onValue: (state: PetState | null) => void): Unsubscribe {
-  try { return onSnapshot(ref(uid), snap => onValue(snap.exists() ? snap.data() as PetState : null), () => {}); } catch { return () => {}; }
+/** 9.9.2 `fromServer` tells the server's copy apart from this phone's own older copy (shown first). */
+export function subscribePet(uid: string, onValue: (state: PetState | null, fromServer: boolean) => void): Unsubscribe {
+  try {
+    let last = '';
+    return onSnapshot(ref(uid), { includeMetadataChanges: true }, snap => {
+      const state = snap.exists() ? snap.data() as PetState : null, fromServer = !snap.metadata.fromCache, key = `${fromServer}|${JSON.stringify(state)}`;
+      if (key !== last) { last = key; onValue(state, fromServer); }
+    }, () => {});
+  } catch { return () => {}; }
 }
-export async function savePetState(uid: string, state: PetState) { await setDoc(ref(uid), JSON.parse(JSON.stringify(state))); }
+/**
+ * 9.9.2 Saves this phone's change to the pet on top of what the account holds: what this phone changed since `base` is
+ * written over the newest copy field by field, so a meal, a pat or growth given on another phone meanwhile is kept
+ * (it used to overwrite the whole pet). Offline the change waits on the phone, as before.
+ */
+export async function savePetOnTop(uid: string, base: PetState | null, next: PetState) {
+  const target = ref(uid), clean = (s: PetState) => JSON.parse(JSON.stringify(s)) as PetState;
+  if (!isOffline()) {
+    try {
+      await runTransaction(db!, async trx => {
+        const snap = await trx.get(target), current = snap.exists() ? snap.data() as PetState : null;
+        const out = current && base ? mergeChanges(clean(base), clean(next), current) : clean(next);
+        if (!sameData(out, current)) trx.set(target, out);
+      });
+      return;
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code !== 'unavailable' && code !== 'deadline-exceeded') throw error;
+    }
+  }
+  // Offline: only the fields this phone changed, so what another phone did to the rest meanwhile stays.
+  void (base ? setDoc(target, changedFields(clean(base), clean(next)), { merge: true }) : setDoc(target, clean(next))).catch(() => undefined);
+}
 
 const CACHE = (uid: string) => `dompet-ajaib:pet-cache:${uid}`, HIDE = (uid: string) => `dompet-ajaib:pet-hidden:${uid}`;
 export function cachedPet(uid: string): PetState | null { try { const t = localStorage.getItem(CACHE(uid)); return t ? JSON.parse(t) as PetState : null; } catch { return null; } }

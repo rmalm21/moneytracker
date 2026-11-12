@@ -10514,3 +10514,12 @@ html.chat-is-open .pet-dock, html.chat-locked .pet-dock, body.ix-picking .pet-do
    in the app reads it, so it is kept on <body> only: opening a dialog now restyles about 20 elements. */
 @property --removed-body-scroll-bar-size { syntax: '*'; inherits: false; }
 body[style*="pointer-events: none"] .heads-up-stack, body[style*="pointer-events: none"] .wn-overlay, body[style*="pointer-events: none"] .wn-card, body[style*="pointer-events: none"] .wr-overlay, body[style*="pointer-events: none"] .cel-overlay, body[style*="pointer-events: none"] .cel-pop, body[style*="pointer-events: none"] .cel-toast, body[style*="pointer-events: none"] .mg-overlay, body[style*="pointer-events: none"] .splash, body[style*="pointer-events: none"] .app-select-menu { pointer-events: none; }
+
+/* 9.9.2 Beranda as it last looked on this phone, shown the moment the app opens (components/home-shot.tsx) and swapped
+   for the live Beranda once that is drawn. It only covers the screen: touches go to the app beneath. */
+#home-shot { position: fixed; inset: 0; z-index: 2147483000; overflow: hidden; background: var(--bg); pointer-events: none; }
+/* A still picture: nothing moves under it (the live Beranda, a moment later, does), so it costs the phone nothing per frame. */
+#home-shot, #home-shot * { animation: none !important; transition: none !important; }
+/* The live app is not painted under it (it is still laid out and loads as usual): painting both made the data arrive about
+   1.5 s later on a slow phone. */
+html.home-shot-on body > .app-layout, html.home-shot-on body > .pet-dock { visibility: hidden; }

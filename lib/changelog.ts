@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.9.2', date: '12 Nov 2026', title: 'Beranda kilat, Arena sinkron', items: [
+    ['⚡', 'Beranda langsung muncul begitu aplikasi dibuka. Yang tampil duluan adalah Beranda terakhir yang kamu lihat di HP ini, lalu otomatis diganti angka terbaru begitu datanya siap. Nggak dipakai kalau PIN aktif, kalau nominal sedang disembunyikan, atau habis update.'],
+    ['🔄', 'Arena dan pet sekarang benar-benar sinkron di semua HP. HP yang lama nggak dibuka nggak lagi menimpa XP, misi, rekor mini game, atau pet yang kamu kumpulkan di HP lain. Progres dari dua HP digabung, nggak ada yang hilang.'],
+    ['✨', 'Buka chat lebih mulus: otak asistennya baru dimuat setelah panel chat selesai muncul, jadi animasinya nggak tersendat.'],
+  ] },
   { version: '9.9.1', date: '12 Nov 2026', title: 'Form dan chat langsung muncul', items: [
     ['🚀', 'Buka form Pengeluaran pertama kali sekarang jauh lebih cepat, dan chat juga langsung muncul begitu diketuk. Kodenya sudah disiapkan diam-diam selagi aplikasi santai, jadi pas kamu ketuk nggak ada lagi jeda nunggu.'],
     ['⚡', 'Buka menu Tambah, form, kalender, atau jendela lain nggak lagi bikin seluruh halaman dihitung ulang, dan Beranda (termasuk grafiknya) nggak ikut digambar ulang tiap ada form atau menu yang dibuka. Rasanya lebih mulus dan nggak tersendat.'],

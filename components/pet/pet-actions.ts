@@ -1,15 +1,17 @@
 'use client';
 /** 9.8 Changing the pet: the new state goes to the store at once, to the phone's copy, and to the account a moment later. */
-import { cachePet, petNow, savePetState, setPetStore } from './pet-store';
+import { cachePet, petNow, savePetOnTop, setPetStore } from './pet-store';
 import type { PetState } from '@/lib/pet';
 import { play, type GameSound } from '@/lib/game-sound';
 
-let timer = 0, pending: PetState | null = null;
+let timer = 0, pending: PetState | null = null, pendingBase: PetState | null = null;
 export function commitPet(next: PetState) {
-  const { uid } = petNow(); if (!uid) return;
+  const { uid, state: before } = petNow(); if (!uid) return;
+  // 9.9.2 The copy the first unsaved change was made from, so only this phone's changes go on top of the account's pet.
+  if (!pending) pendingBase = before;
   setPetStore({ state: next }); cachePet(uid, next);
   pending = next; window.clearTimeout(timer);
-  timer = window.setTimeout(() => { const s = pending; pending = null; if (s) void savePetState(uid, s).catch(() => {}); }, 900);
+  timer = window.setTimeout(() => { const s = pending, base = pendingBase; pending = null; pendingBase = null; if (s) void savePetOnTop(uid, base, s).catch(() => {}); }, 900);
 }
 /** Hour of the day in a time zone (0–23). */
 const formats = new Map<string, Intl.DateTimeFormat>();

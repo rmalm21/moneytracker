@@ -90,13 +90,19 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     if (!open) return;
     setShown(PAGE);
     if (!settings.seen) changeSettings({ seen: true });
-    void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {});
+    // 9.9.2 The model is warmed once the panel has slid in: loading it is heavy enough to make the opening stutter. A
+    // message sent before that loads it on the spot, as before.
+    const warm = window.setTimeout(() => {
+      const run = () => { void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {}); };
+      const idle = (window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (idle) idle(run, { timeout: 1500 }); else run();
+    }, 400);
     // The message box is focused only with a mouse or trackpad: on a phone the keyboard waits for a tap.
     const t = window.setTimeout(() => { if (window.matchMedia('(pointer: fine)').matches) inputRef.current?.focus({ preventScroll: true }); }, 220);
     // Escape closes what is on top: a sheet first, then the chat (a form opened from the chat handles its own Escape).
     const onKey = (e: KeyboardEvent) => { if (e.key !== 'Escape' || document.querySelector('.modal-overlay')) return; if (pickRef.current) setPicked(null); else if (sheetRef.current) setSheet(null); else setOpen(false); };
     window.addEventListener('keydown', onKey);
-    return () => { window.clearTimeout(t); window.removeEventListener('keydown', onKey); };
+    return () => { window.clearTimeout(t); window.clearTimeout(warm); window.removeEventListener('keydown', onKey); };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   // 9.3 The phone's back button closes what is on top (a sheet, the picking of messages), then the chat itself, so the
   // page behind (usually Beranda) shows again instead of the app closing.
