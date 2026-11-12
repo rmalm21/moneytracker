@@ -2,6 +2,12 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '9.10', date: '13 Nov 2026', title: 'Pilihan di form bisa diketuk lagi', items: [
+    ['✅', 'Daftar pilihan di dalam form sekarang bisa diketuk lagi. Sejak 9.9, daftarnya muncul tapi nggak bisa dipilih: kategori dan periode di Anggaran baru, dompet di form Pengeluaran, jenis dompet, kategori di jadwal Rutin, sampai pilihan bulan, tahun, dan jam di kalender. Sekarang semua form kembali normal.'],
+    ['💸', 'Isi dana langsung memilihkan dompet asal yang beda dari dompet tujuan danamu, jadi nggak langsung kena pesan “Pilih dua dompet yang berbeda”.'],
+    ['⚡', 'Beranda kilat: kalau data gagal dibaca, Beranda yang asli langsung tampil dengan pesannya, nggak nunggu gambaran Beranda lama hilang sendiri.'],
+    ['🛠️', 'Seluruh aplikasi disisir ulang setelah optimasi 9.9. Semua form, menu, tab, dan fitur yang paling sering dipakai dicoba satu per satu, di HP dan laptop, di Pribadi maupun Ruang Bersama, dan hasil simpanannya dicek. Ada juga penjaga otomatis supaya masalah pilihan di form ini nggak terulang.'],
+  ] },
   { version: '9.9.2', date: '12 Nov 2026', title: 'Beranda kilat, Arena sinkron', items: [
     ['⚡', 'Beranda langsung muncul begitu aplikasi dibuka. Yang tampil duluan adalah Beranda terakhir yang kamu lihat di HP ini, lalu otomatis diganti angka terbaru begitu datanya siap. Nggak dipakai kalau PIN aktif, kalau nominal sedang disembunyikan, atau habis update.'],
     ['🔄', 'Arena dan pet sekarang benar-benar sinkron di semua HP. HP yang lama nggak dibuka nggak lagi menimpa XP, misi, rekor mini game, atau pet yang kamu kumpulkan di HP lain. Progres dari dua HP digabung, nggak ada yang hilang.'],

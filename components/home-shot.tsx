@@ -17,7 +17,8 @@ export const homeShotOn = () => typeof document !== 'undefined' && !!document.ge
 export function dropHomeShot() { document.documentElement.classList.remove('home-shot-on'); document.getElementById(ID)?.remove(); }
 export function forgetHomeShot(uid: string) { try { localStorage.removeItem(KEY(uid)); } catch { /* nothing kept */ } }
 
-/** The live Beranda takes over once it is drawn with its data (charts in, nothing still loading); anything else at once. */
+/** The live Beranda takes over once it is drawn with its data (charts in, nothing still loading); anything else at once.
+ *  9.10 `ready` is also true when the data could not be read: the live page, with its message, shows at once. */
 const LOADING = '.chart-skeleton, [aria-busy="true"], .is-loading';
 export function HomeShotSwap({ show, ready }: { show: boolean; ready: boolean }) {
   useLayoutEffect(() => {

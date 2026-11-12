@@ -18,7 +18,7 @@ import { splitDebtNamed } from '@/lib/split-bill';
 import { suggestCategory } from '@/lib/categorize';
 import { walletActions, walletAllows } from '@/lib/wallet-capabilities';
 import { formatDate, previousDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
-import type { LedgerTx, SplitLine, TxType } from '@/lib/types';
+import type { LedgerTx, SplitLine, TxType, Wallet } from '@/lib/types';
 import { useTipTry } from './feature-tips-events';
 const labels:Record<TxType,string>={expense:'Pengeluaran',income:'Pemasukan',transfer:'Transfer dompet',adjustment:'Koreksi saldo',borrowing:'Dana pinjaman',debt_payment:'Bayar utang',claim_advance:'Talangan kantor',claim_payment:'Klaim cair',claim_writeoff:'Klaim ditolak',receivable_issue:'Talangan teman',receivable_payment:'Piutang dibayar',fund_contribution:'Isi tujuan dana'};
 const visible:TxType[]=['expense','income','transfer','debt_payment','claim_payment','receivable_payment','fund_contribution','adjustment'];
@@ -33,7 +33,8 @@ export function TransactionForm({onDone,onCancel,preset,editing,background,onQui
  const splitTotal=splits.reduce((sum,line)=>sum+line.amount,0),splitDifference=amount-splitTotal;
  const closed=isCycleClosed(editing?.date||date,data.cycleSnapshots||[])||isCycleClosed(date,data.cycleSnapshots||[]);
  function updateSplit(index:number,change:Partial<SplitLine>){setSplits(rows=>rows.map((row,i)=>i===index?{...row,...change}:row));}
- useEffect(()=>{if(!walletId&&data.wallets.length){const preferred=type==='income'?profile?.defaultIncomeWalletId:profile?.defaultExpenseWalletId;setWallet(data.wallets.find(w=>w.id===preferred&&walletAllows(w,walletActions({type,adjustmentDirection:direction}).source))?.id||data.wallets.find(w=>walletAllows(w,walletActions({type,adjustmentDirection:direction}).source))?.id||'');}},[data.wallets,walletId,type,profile?.defaultExpenseWalletId,profile?.defaultIncomeWalletId,direction]);
+ // 9.10 A move between wallets (Transfer, Isi dana) given its destination does not start from that same wallet ("Pilih dua dompet yang berbeda" right away): the first other wallet is taken.
+ useEffect(()=>{if(!walletId&&data.wallets.length){const preferred=type==='income'?profile?.defaultIncomeWalletId:profile?.defaultExpenseWalletId;const can=(w:Wallet)=>walletAllows(w,walletActions({type,adjustmentDirection:direction}).source);const other=(w:Wallet)=>can(w)&&!((type==='transfer'||type==='fund_contribution')&&destination&&w.id===destination);setWallet(data.wallets.find(w=>w.id===preferred&&other(w))?.id||data.wallets.find(other)?.id||data.wallets.find(w=>w.id===preferred&&can(w))?.id||data.wallets.find(can)?.id||'');}},[data.wallets,walletId,type,profile?.defaultExpenseWalletId,profile?.defaultIncomeWalletId,direction,destination]);
  useEffect(()=>{if(type==='fund_contribution'&&fundId){const linked=data.funds.find(f=>f.id===fundId)?.linkedWalletId;if(linked)setDest(linked);const f=data.funds.find(x=>x.id===fundId);const match=data.categories.find(c=>c.name.toLowerCase()===f?.name.toLowerCase());if(match)setCategory(match.id);}},[fundId,type,data.funds]);
  const cats=data.categories.filter(c=>!c.isArchived&&c.type===(type==='income'||type==='receivable_payment'?'income':'expense')&&!c.parentId);
  const children=data.categories.filter(c=>!c.isArchived&&c.parentId===categoryId);
