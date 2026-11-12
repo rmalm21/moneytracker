@@ -20,3 +20,5 @@ bench/v81/baseline-v80/
 # 8.3 bench: the 8.2 engines, extracted from git by bench/v83/make-baseline.sh
 bench/v83/baseline-v82/
 bench/v84/baseline-v833/
+# 10.0 bench: the 9.10 engines, extracted from git by bench/v100/make-baseline.sh
+bench/v100/baseline-v910/
