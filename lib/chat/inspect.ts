@@ -10,7 +10,8 @@ export type Reading = 'record' | 'question' | 'unanswered' | 'none';
 export type AskField = 'amount' | 'wallet' | 'to' | 'category' | 'date' | 'borrower' | 'lender';
 export type Inspection = { reading: Reading; ask?: { field: AskField; choices: string[] }; kind?: string; count?: number; /** 7.9: the person of the first entry ("dia" next time), the wallet named, the total of all entries. */ person?: string; walletId?: string; total?: number;
   /** 8.0: the category of a single entry (the same treat recorded again and again gets a tease). */ categoryId?: string; subcategoryId?: string;
-  /** 10.0 A budget card that changes one already there (its name and limit now), not a new one. */ replaces?: { name: string; amount: number } };
+  /** 10.0 A budget card that changes one already there (its name and limit now), not a new one. */ replaces?: { name: string; amount: number };
+  /** 10.1 Every spending in it (a category split counts each part), for the budgets' "sehari seharusnya" after saving. */ spent?: { categoryId?: string | null; subcategoryId?: string | null; amount: number; date?: string }[] };
 
 const COMMON = ['Makan & Minum', 'Transportasi', 'Belanja', 'Tagihan', 'Hiburan'];
 
@@ -22,6 +23,8 @@ export function inspect(text: string, quick: QuickContext): Inspection {
   if (!acts.length) return { reading: mayAsk(text) ? 'unanswered' : 'none' };
   const a = acts[0], r = a.result, name = (id: string) => quick.wallets.find(w => w.id === id)?.name || id;
   const base: Inspection = { reading: 'record', kind: r.kind, count: acts.length, ...(r.person ? { person: r.person } : {}), ...(r.preset.walletId ? { walletId: r.preset.walletId } : {}), total: acts.reduce((n, x) => n + (x.result.amount || 0), 0), ...(acts.length === 1 && r.preset.categoryId ? { categoryId: r.preset.categoryId } : {}), ...(acts.length === 1 && r.preset.subcategoryId ? { subcategoryId: r.preset.subcategoryId } : {}) };
+  const spent = acts.filter(x => x.result.kind === 'expense').flatMap(x => x.result.preset.splits?.length ? x.result.preset.splits.map(l => ({ categoryId: l.categoryId, subcategoryId: l.subcategoryId, amount: l.amount, ...(x.result.preset.date ? { date: x.result.preset.date } : {}) })) : [{ categoryId: x.result.preset.categoryId, subcategoryId: x.result.preset.subcategoryId, amount: x.result.amount || 0, ...(x.result.preset.date ? { date: x.result.preset.date } : {}) }]);
+  if (spent.length) base.spent = spent;
   if (acts.length > 1) return base;
   if (r.kind === 'budget' && r.budget?.id) { const b = (quick.budgets || []).find(x => x.id === r.budget!.id); if (b) base.replaces = { name: b.name, amount: b.amount }; }
   // 8.4 A receivable or a debt without a name ("516rb piutang"): who, asked first (the next message answers it).

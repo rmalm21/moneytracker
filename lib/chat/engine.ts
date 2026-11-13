@@ -26,6 +26,7 @@ import { suggestCategory } from '../categorize.ts';
 import { readEveryday } from '../catat/everyday.ts';
 import { findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
 import type { Data, LedgerTx } from '../types';
+import { dailyForSpending, perDayAmount } from '../budget-daily.ts';
 import { calculate, calcText } from './calc.ts';
 import { clausesOf, readBreakdown, readDiscount, readDraftEdit, readHappened, withAmount, withCategory, withDate, withWallet } from './draft.ts';
 import { compareAnswer, readFaq } from './faq.ts';
@@ -121,7 +122,7 @@ export type ChatReply =
   /** Read by Catat otomatis: cards to save, an answer, a change to a record. `intro` is said before the card. */
   | { kind: 'plan'; text: string; intro?: string; chips?: string[] }
   /** An answer: the sentence, then (each optional) one big figure, small figure tiles, bars, numbered steps, and rows. */
-  | { kind: 'say'; text: string; title?: string; card?: SayCard; hero?: { label: string; value: string; note?: string; tone?: SayTone }; stats?: SayLine[]; bars?: SayBar[]; steps?: string[]; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string;
+  | { kind: 'say'; text: string; title?: string; card?: SayCard; hero?: { label: string; value: string; note?: string; tone?: SayTone }; stats?: SayLine[]; bars?: SayBar[]; steps?: string[]; lines?: SayLine[]; chips?: string[]; tone?: 'good' | 'warn' | 'info'; note?: string; /** 10.1 "Sehari seharusnya ±Rp…" after a spending is saved: a line of its own. */ daily?: string;
     /** 7.8: how this answer was worked out, said when the person asks "kenapa?" (not shown on the card). */
     why?: string;
     /** 8.0: a button to the menu the answer is about. */
@@ -656,6 +657,40 @@ export function commentOnSaved(planText: string, memory: ChatMemory, ctx: ChatCo
   const c = commentFor(facts, v, turn);
   if (!c) return null;
   return { reply: { kind: 'say', card: 'talk', text: c.text, tone: c.tone, chips: c.chips }, memory: { ...memory, topic: 'comment', ...(c.offer ? { offer: c.offer } : {}) } };
+}
+
+/**
+ * 10.1 After a spending is saved: "sehari seharusnya segini" from each budget it counts toward (left after what is
+ * already planned, over the days remaining, as the Anggaran menu works it out), in the chosen way of talking. Nothing
+ * when no budget covers it, or when the person switched it off (Pengaturan chat → Tampilkan jatah per hari).
+ */
+export function dailyOnSaved(planText: string, ctx: ChatContext, opts: { daily?: boolean } = {}): string | null {
+  if (opts.daily === false) return null;
+  const ins = ctx.inspect(planText);
+  if (ins.reading !== 'record' || !ins.spent?.length) return null;
+  // The record may already be in the ledger (the app's data updates as soon as it is saved): counted once.
+  const now = Date.now(), fresh = (x: { createdAt?: unknown }) => { const at = x.createdAt as { toMillis?: () => number } | null | undefined; return at === null || (typeof at?.toMillis === 'function' && now - at.toMillis() < 180_000); };
+  const already = ctx.data.transactions.some(x => x.amount === ins.total && fresh(x));
+  const list = dailyForSpending(ctx.data as Data, ins.spent, new Date(`${ctx.today}T12:00:00`), ctx.salaryDay, !already);
+  if (!list.length) return null;
+  const v = ctx.voice || 'santai';
+  return list.map(d => {
+    const per = rp(perDayAmount(d.perDay)), left = rp(d.left), over = rp(d.over), name = d.name, days = d.days;
+    if (d.left <= 0) return vo(v, {
+      santai: `Anggaran ${name} ${d.over ? `udah lewat ${over}` : 'udah habis'}, jadi ${days} hari ke depan sebaiknya nggak nambah dulu.`,
+      sopan: `Anggaran ${name} ${d.over ? `sudah melewati batas sebesar ${over}` : 'sudah habis'}. Sebaiknya tidak menambah pengeluaran ini selama ${days} hari ke depan.`,
+      singkat: `${name}: ${d.over ? `lewat ${over}` : 'habis'}. Rem ${days} hari.`,
+      gaul: `Anggaran ${name} ${d.over ? `udah jebol ${over}` : 'udah abis'}, ${days} hari ke depan puasa dulu ya.`,
+      barbar: `${name} ${d.over ? `udah jebol ${over}` : 'udah ludes'}, bos. ${days} hari ke depan stop dulu.`,
+    });
+    return vo(v, {
+      santai: `Anggaran ${name} sisa ${left} buat ${days} hari lagi, jadi sehari seharusnya ±${per}.`,
+      sopan: `Sisa anggaran ${name} ${left} untuk ${days} hari, sehingga idealnya ±${per} per hari.`,
+      singkat: `${name}: ±${per}/hari (${days} hari lagi).`,
+      gaul: `Anggaran ${name} tinggal ${left} buat ${days} hari, jadi sehari jatah lo ±${per}.`,
+      barbar: `${name} sisa ${left} buat ${days} hari. Sehari maksimal ±${per}, jangan lebih, bos.`,
+    });
+  }).join(' ');
 }
 
 /* ------------------------------------------------------------------ The reply */

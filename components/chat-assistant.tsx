@@ -12,7 +12,7 @@ import { ArrowUpRight, Banknote, BookOpen, Gamepad2, Brain, Calculator, Calendar
 import { useApp } from './app-provider';
 import { ChatMark } from './chat-mark';
 import { QuickEntryBox } from './quick-entry';
-import { chatReply, commentOnSaved, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
+import { chatReply, commentOnSaved, dailyOnSaved, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
 import { suggestFor, type Suggestion, type SuggestIcon } from '@/lib/chat/suggest';
 import { VOICES } from '@/lib/chat/voice';
@@ -164,10 +164,13 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     // gone over), in the chosen style, when it fits and the person has not switched it off. The ledger as it was when Simpan
     // was tapped is read, so the record is counted once.
     const remark = commentOnSaved(planText, memory, chatCtx, { comments: settings.comments });
-    if (!remark) return;
+    // 10.1 "Sehari seharusnya segini" from the budget the spending counts toward: under the remark, or on its own.
+    const daily = dailyOnSaved(planText, chatCtx, { daily: settings.daily });
+    if (!remark && !daily) return;
+    const reply: ChatReply = remark && remark.reply.kind === 'say' ? { ...remark.reply, ...(daily ? { daily } : {}) } : { kind: 'say', card: 'talk', text: '', daily: daily || '' };
     window.setTimeout(() => {
-      setMessages(list => [...list, { id: uid(), at: Date.now(), role: 'bot', text: remark.reply.kind === 'say' ? remark.reply.text : '', reply: remark.reply }]);
-      setMemory(m => ({ ...m, topic: remark.memory.topic, ...(remark.memory.offer ? { offer: remark.memory.offer } : {}) }));
+      setMessages(list => [...list, { id: uid(), at: Date.now(), role: 'bot', text: reply.kind === 'say' ? [reply.text, reply.daily].filter(Boolean).join(' ') : '', reply }]);
+      if (remark) setMemory(m => ({ ...m, topic: remark.memory.topic, ...(remark.memory.offer ? { offer: remark.memory.offer } : {}) }));
     }, 450);
   }
   function submit(e: FormEvent) { e.preventDefault(); void send(draft); }
@@ -322,6 +325,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
               <h4 className="chat-sheet-sub">Gaya bahasa</h4>
               <div className="chat-voices" role="radiogroup" aria-label="Gaya bahasa">{VOICES.map(x => <button type="button" key={x.key} role="radio" aria-checked={settings.voice === x.key} className={`chat-voice ${settings.voice === x.key ? 'is-on' : ''}`} onClick={() => changeSettings({ voice: x.key })}><b>{x.name}</b><small>“{x.sample}”</small></button>)}</div>
               <label className="switch-row chat-switch"><input type="checkbox" checked={settings.comments} onChange={e => changeSettings({ comments: e.target.checked })}/><span><strong>Komentar setelah mencatat</strong><small>Sedekah atau nabung dipuji, jajan yang kebanyakan diingatkan, ikut gaya bahasa di atas. Muncul kalau pas saja.</small></span></label>
+              <label className="switch-row chat-switch"><input type="checkbox" checked={settings.daily} onChange={e => changeSettings({ daily: e.target.checked })}/><span><strong>Tampilkan jatah per hari</strong><small>Habis mencatat pengeluaran, kasih tahu “sehari seharusnya segini” dari anggaran kategorinya. Juga di notifikasi Catat otomatis dan form Tambah.</small></span></label>
               <h4 className="chat-sheet-sub">Tampilan</h4>
               <StylePicker value={style} onChange={s => changeSettings({ style: s, picked: true })}/>
               <h4 className="chat-sheet-sub">Simpan riwayat</h4>
@@ -387,9 +391,12 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
     const rich = Boolean(r.hero || r.stats?.length || r.bars?.length || r.steps?.length || r.lines?.length);
     const open = r.open && <button type="button" className="chat-open" onClick={() => onNavigate(r.open!.view, r.open!.target)}><ArrowUpRight size={14} aria-hidden="true"/><span>{r.open.label}</span></button>;
     const lines = r.lines && <dl className={`cm-lines ${r.lines.every(l => /^\d+$/.test(l.label)) ? 'is-list' : ''}`}>{r.lines.map(l => <div key={l.label + l.value} className={l.tone ? `is-${l.tone}` : ''}><dt>{l.label}</dt><dd>{l.value}</dd></div>)}</dl>;
+    // 10.1 "Sehari seharusnya ±Rp…" after a spending is saved, on a line of its own.
+    const daily = r.daily && <p className="cm-daily"><CalendarClock size={14} aria-hidden="true"/><span>{r.daily}</span></p>;
     if (!rich || !look) return shell(<>
       {r.title && <b className="cm-kicker">{r.title}</b>}
-      <p>{r.text}</p>
+      {r.text && <p>{r.text}</p>}
+      {daily}
       {lines}
       {r.note && <small className="cm-note">{r.note}</small>}
       {open}
@@ -401,6 +408,7 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
       {calc ? <div className="cc-calc"><small>{r.hero!.label}</small><strong>= {r.hero!.value}</strong></div>
         : r.hero && <div className={`cc-hero ${r.hero.tone ? `is-${r.hero.tone}` : ''}`}><small>{r.hero.label}</small><strong>{r.hero.value}</strong>{r.hero.note && <span>{r.hero.note}</span>}</div>}
       {!calc && r.text && <p className="cc-text">{r.text}</p>}
+      {daily}
       {r.stats && r.stats.length > 0 && <div className={`cc-stats n${Math.min(3, r.stats.length)}`}>{r.stats.map(x => <div key={x.label} className={`cc-stat ${x.tone ? `is-${x.tone}` : ''}`}><small>{x.label}</small><b>{x.value}</b></div>)}</div>}
       {r.bars && r.bars.length > 0 && <ul className="cc-bars">{r.bars.map(b => <li key={b.label} className={b.tone ? `is-${b.tone}` : ''}><span className="cc-bar-label">{b.label}</span><b>{b.value}</b><i className="cc-track" aria-hidden="true"><i style={{ width: `${Math.max(3, Math.min(100, b.ratio * 100))}%` }}/></i>{b.note && <small>{b.note}</small>}</li>)}</ul>}
       {r.steps && r.steps.length > 0 && <ol className="cc-steps">{r.steps.map((x, i) => <li key={i}><span className="cc-num" aria-hidden="true">{i + 1}</span><span>{x}</span></li>)}</ol>}

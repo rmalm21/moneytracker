@@ -16,6 +16,7 @@ import { looksLikeQuestion, mayAsk, type AskMeta } from '@/lib/catat/ask';
 import { FIELD_LABELS, FIELD_STATUS, type ActionCandidate, type FieldKey, type FieldState, type FieldStatus, type QuickParseResult } from '@/lib/quick-plan';
 import { createClaim, createDebt, createReceivable, deleteTransaction, newTx, saveLexicon, saveRecord, saveWallet, saveWish, upsertTransaction, validateTx } from '@/lib/firestore';
 import { budgetWindow, rupiah } from '@/lib/accounting';
+import { dailyForSpending, dailyLine, dailyLineOn, type SpentEntry } from '@/lib/budget-daily';
 import { dateInTimeZone, formatDate, timeInTimeZone, todayInTimeZone } from '@/lib/period';
 import { presetHex } from '@/lib/category-templates';
 import { groupDefaults, type WalletGroup } from '@/lib/wallet-groups';
@@ -169,7 +170,7 @@ function iconFor(name: string) {
 type Edit = { time?: string; amount?: number; /** V3.4: the place, corrected by hand (feeds the Kamus Pribadi quietly). */ merchant?: string; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
 
 /** What one card saves when it is confirmed, built only when the person presses save. */
-type SaveJob = { /** V3.3: `linked` is the id of the record made by the action this one waits for (`after`). */ run: (linked?: string) => Promise<unknown>; after?: string; id?: string; pending: string; success: string; detail?: string; failure: string; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
+type SaveJob = { /** V3.3: `linked` is the id of the record made by the action this one waits for (`after`). */ run: (linked?: string) => Promise<unknown>; after?: string; id?: string; pending: string; success: string; detail?: string; failure: string; /** 10.1 The spending it saves, for the budgets' "sehari seharusnya" in the note after saving. */ spent?: SpentEntry[]; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
 type CardEntry = { missing: string; build: () => SaveJob; openForm?: () => void; kind: QuickKind; amount: number; /** V3.4: what the saved card teaches the Kamus Pribadi and the short session. */ learn?: { facts: SavedFacts; session: (id?: string) => SessionItem } };
 type SessionItem = Parameters<typeof rememberSaved>[1][number];
 type Register = (id: string, entry: CardEntry | null) => void;
@@ -312,11 +313,14 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
     const learnLexicon = () => { if (lex.on === false) return; const changes: Record<string, PersonalAlias | null> = { ...learnFromSave(lex, facts, ctx, contacts), ...learnOverrides(lex, overrides, ctx) }; if (Object.keys(changes).length) void saveLexicon(account?.uid || uid, changes).catch(() => {}); };
     // 6.4: a saved transaction's card opens Transaksi when tapped.
     const openList = onNavigate && entries.every(([, e]) => txKinds.has(e!.kind)) ? () => onNavigate('transactions') : undefined;
-    if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, failure: j.failure, retry: j.retry, open: openList, link: openList && { view: 'transactions' } }); }
+    // 10.1 "Sehari seharusnya segini" from the budgets these spendings count toward (in the chat, the assistant says it).
+    const spentAll = work.flatMap(j => j.spent || []);
+    const daily = !onSaved && spentAll.length && dailyLineOn(account?.uid || uid) ? dailyForSpending(data, spentAll, dateInTimeZone(new Date(), profile?.timeZone), profile?.salaryCycleStartDay || 24).map(dailyLine).join(' ') : '';
+    if (work.length === 1) { const j = work[0]; track(start(j), { pending: j.pending, success: j.success, detail: j.detail, extra: daily || undefined, failure: j.failure, retry: j.retry, open: openList, link: openList && { view: 'transactions' } }); }
     else if (work.length) {
       // Started in order in one go, like the forms: queued writes keep their order offline too.
       const spent = entries.filter(([, e]) => e!.kind === 'expense').reduce((n, [, e]) => n + e!.amount, 0);
-      track(Promise.all(work.map(start)), { open: openList, link: openList && { view: 'transactions' }, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
+      track(Promise.all(work.map(start)), { open: openList, link: openList && { view: 'transactions' }, pending: `Menyimpan ${work.length} catatan…`, success: `${work.length} catatan tersimpan.`, extra: daily || undefined, detail: [spent ? `Pengeluaran ${rupiah(spent)}` : '', ...[...new Set(entries.filter(([, e]) => e!.kind !== 'expense' && e!.kind !== 'open').map(([, e]) => QUICK_LABELS[e!.kind]))]].filter(Boolean).join(' · ') || undefined, failure: 'Sebagian catatan belum tersimpan' });
     }
     void Promise.all(started).then(learnLexicon, () => {});
     // 8.10 "Beberapa transaksi sekaligus" and "Bikin anggaran lewat kalimat" were used.
@@ -668,7 +672,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   /** The save of this card, the same way the menu's own form saves it. */
   function build(): SaveJob {
     const uid = user!.uid, money = rupiah(amount), label = heading;
-    let run: () => Promise<unknown>, detail = '', success = `${label} ${money} tersimpan.`;
+    let run: () => Promise<unknown>, detail = '', success = `${label} ${money} tersimpan.`, spent: SpentEntry[] | undefined;
     switch (kind) {
       case 'open': return { run: async () => undefined, pending: '', success: '', failure: '', navigate: { key: result.menu!.key, target: result.menu!.target } };
       case 'budget': {
@@ -735,6 +739,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
         const tx = newTx({ ...preset(), type: result.preset.type!, amount, walletId, date, time: time || (date === today ? timeInTimeZone(profile?.timeZone) : ''), ...((kind === 'expense' || kind === 'income') && person.trim() ? { counterparty: person.trim() } : {}), ...(comp ? { receipt: compositionReceipt(comp, description || category?.name || '', result.preset.merchant) } : {}) } as Partial<LedgerTx> & Pick<LedgerTx, 'type' | 'amount' | 'walletId'>);
         // Several categories: saved like the form saves them (the lines carry the categories).
         if (tx.splits?.length) { tx.categoryId = null; tx.subcategoryId = null; }
+        if (kind === 'expense' && !split) spent = tx.splits?.length ? tx.splits.map(l => ({ categoryId: l.categoryId, subcategoryId: l.subcategoryId, amount: l.amount, date: tx.date })) : [{ categoryId: tx.categoryId, subcategoryId: tx.subcategoryId, amount: tx.amount, date: tx.date }];
         const op = result.operation, linkedTo = op?.linkAction;
         // V3.3 Split Bill: one cash transaction for the total, the others' shares as receivables, in one commit (lib/split-bill-store.ts).
         // V4: paid by someone else → your share is an expense without a wallet and a debt to them.
@@ -758,7 +763,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       }
     }
     const retryPreset = preset();
-    return { run, pending: `Menyimpan ${label.toLowerCase()}…`, success, detail, failure: `${label} belum tersimpan`, retry: txKinds.has(kind) ? { label: 'Buka formulir', run: () => onOpenForm(retryPreset) } : undefined };
+    return { run, pending: `Menyimpan ${label.toLowerCase()}…`, success, detail, spent, failure: `${label} belum tersimpan`, retry: txKinds.has(kind) ? { label: 'Buka formulir', run: () => onOpenForm(retryPreset) } : undefined };
   }
   const openForm = txKinds.has(kind) ? () => onOpenForm(preset()) : undefined;
   const learn = {

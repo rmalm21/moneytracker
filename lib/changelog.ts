@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.1', date: '13 Nov 2026', title: 'Jatah per hari tiap habis mencatat', items: [
+    ['🎯', 'Habis mencatat pengeluaran lewat asisten chat, asisten langsung bilang “sehari seharusnya segini” dari anggaran kategorinya. Contohnya habis nyatet kopi: “Anggaran Makan & Minum sisa Rp388.500 buat 9 hari lagi, jadi sehari seharusnya ±Rp43.100.” Angkanya dihitung sama persis dengan “±…/hari” di menu Anggaran, dan ikut gaya bahasa pilihanmu.'],
+    ['⚡', 'Hal yang sama juga muncul di notifikasi setelah menyimpan lewat Catat otomatis dan form Tambah. Kalau anggarannya udah lewat batas, kamu diingatkan buat ngerem dulu.'],
+    ['🛠️', 'Kategori yang belum punya anggaran nggak dikasih angka apa-apa. Bisa dimatikan di Pengaturan chat → “Tampilkan jatah per hari”.'],
+  ] },
   { version: '10.0', date: '13 Nov 2026', title: 'Asisten chat 3.0', items: [
     ['🤖', 'Asisten chat makin ngerti bahasa sehari-hari, bukan cuma bahasa baku: singkatan dan bahasa gaul (gw, bgt, gmn, udh, mo, bkin, pgn, bajet, boncos, gaskeun), salah ketik, bahasa Jawa, Sunda, dan Betawi (“duitku kari piro”, “duit aye berape”), sampai campur Inggris (“can i afford a 2 million phone”). “Budget jajan aman ga?” sekarang dijawab dengan anggaran yang menaungi jajan.'],
     ['🎯', 'Asisten ngerti maksudmu walau ditulis beda-beda: “budgeting baru”, “set limit jajan”, “nambah rekening”, “pengen mulai nabung”, “patungan makan sama temen”. Kalau detailnya belum lengkap, asisten nanya satu per satu di chat (ada pilihan cepat yang tinggal diketuk), lalu kasih kartu yang siap disimpan. Ada juga tombol buat langsung buka formulirnya.'],

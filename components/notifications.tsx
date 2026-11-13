@@ -14,14 +14,14 @@ import { featureUsed } from './feature-tips-events';
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
 /** `app`: a reminder from Dompet Ajaib itself, shown as a floating banner with the app logo (like a phone notification). */
-export type Note = { id: string; title: string; body?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean; /** 6.4: tapping the card opens what it is about. */ open?: () => void; /** 6.5: where the card leads, kept in the history so the bell panel opens it too. */ link?: Link };
+export type Note = { id: string; title: string; body?: string; /** 10.1 A line of its own under the body ("sehari seharusnya ±Rp…"), never cut short. */ extra?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean; /** 6.4: tapping the card opens what it is about. */ open?: () => void; /** 6.5: where the card leads, kept in the history so the bell panel opens it too. */ link?: Link };
 export type Link = { view: string; focus?: string };
-type PushInput = { id?: string; title: string; body?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean; open?: () => void; link?: Link };
+type PushInput = { id?: string; title: string; body?: string; extra?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean; open?: () => void; link?: Link };
 /**
  * `quiet`: small changes (reorder, toggles, pause) save without any card unless they fail.
  * `detail`: a second line such as the category and wallet. `log`: keep it in Riwayat (every save that shows a card does).
  */
-type TrackLabels = { pending: string; success: string; failure: string; /** 6.4: tapping the success card opens this. */ open?: () => void; link?: Link; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string; /** Show the progress card at once instead of only when slow. */ immediate?: boolean };
+type TrackLabels = { pending: string; success: string; failure: string; /** 10.1 A line of its own, shown whole. */ extra?: string; /** 6.4: tapping the success card opens this. */ open?: () => void; link?: Link; detail?: string; retry?: Action; after?: () => void; quiet?: boolean; log?: boolean; /** What to say when done offline (default: saved on the device, sent when online). */ offlineNote?: string; /** Show the progress card at once instead of only when slow. */ immediate?: boolean };
 type Api = { push: (input: PushInput) => string; dismiss: (id: string) => void; track: (task: Promise<unknown>, labels: TrackLabels) => void; notify: (message: string) => void };
 
 const Context = createContext<Api | null>(null);
@@ -49,7 +49,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: string) => { setFloating(list => list.filter(note => note.id !== id)); const timer = timers.current.get(id); if (timer) clearTimeout(timer); timers.current.delete(id); }, []);
   const push = useCallback((input: PushInput) => {
     const id = input.id || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    const note: Note = { id, title: input.title, body: input.body, kind: input.kind || 'success', time: Date.now(), action: input.action, app: input.app, open: input.open, link: input.link };
+    const note: Note = { id, title: input.title, body: input.body, ...(input.extra ? { extra: input.extra } : {}), kind: input.kind || 'success', time: Date.now(), action: input.action, app: input.app, open: input.open, link: input.link };
     setFloating(list => [note, ...list.filter(item => item.id !== id)].slice(0, 4));
     if (input.history !== false && note.kind !== 'progress') setHistory(list => [note, ...list.filter(item => item.id !== id)].slice(0, 60));
     const old = timers.current.get(id); if (old) clearTimeout(old);
@@ -71,7 +71,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       done();
       const body = [labels.detail, navigator.onLine ? '' : labels.offlineNote ?? 'Tersimpan di perangkat · dikirim otomatis saat online'].filter(Boolean).join(' · ') || undefined;
       const log = labels.log ?? !labels.quiet;
-      if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body, kind: 'success' }); } else push({ id, title: labels.success, body, kind: 'success', history: log, open: labels.open, link: labels.link });
+      if (labels.quiet) { if (id) dismiss(id); if (log) remember({ title: labels.success, body: [body, labels.extra].filter(Boolean).join(' · ') || undefined, kind: 'success' }); } else push({ id, title: labels.success, body, extra: labels.extra, kind: 'success', history: log, open: labels.open, link: labels.link });
       labels.after?.();
     }).catch(error => {
       done();
@@ -145,7 +145,7 @@ function Toast({ note, onDismiss }: { note: Note; onDismiss: () => void }) {
   function up() { if (!start.current) return; start.current = null; if (Math.abs(dx) > 70) { setLeaving(true); setDx(dx > 0 ? 480 : -480); setTimeout(onDismiss, 160); } else { const tapped = Math.abs(dx) < 6; setDx(0); if (tapped && note.open) { note.open(); onDismiss(); } } }
   return <div className={`toast-card is-${note.kind} ${leaving ? 'is-leaving' : ''} ${note.open ? 'is-openable' : ''}`} role={note.kind === 'error' ? 'alert' : 'status'} style={{ transform: dx ? `translateX(${dx}px)` : undefined, opacity: dx ? Math.max(.2, 1 - Math.abs(dx) / 260) : undefined, transition: start.current ? 'none' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <span className="toast-icon" aria-hidden="true"><Icon size={19}/></span>
-    <div className="toast-text"><strong><EmojiText text={note.title}/></strong>{note.body && <small><EmojiText text={note.body}/></small>}{note.action && <button type="button" className="toast-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}</div>
+    <div className="toast-text"><strong><EmojiText text={note.title}/></strong>{note.body && <small><EmojiText text={note.body}/></small>}{note.extra && <small className="toast-extra">{note.extra}</small>}{note.action && <button type="button" className="toast-action" onClick={() => { note.action?.run(); onDismiss(); }}>{note.action.label}</button>}</div>
     <button type="button" className="toast-close" aria-label="Tutup notifikasi" onClick={onDismiss}><X size={16}/></button>
     {(note.kind === 'progress' || note.kind === 'success') && <span className={`toast-progress ${note.kind === 'progress' ? 'is-running' : 'is-done'}`} aria-hidden="true"><i/></span>}
   </div>;
@@ -204,7 +204,7 @@ export function NotificationBell({ navigate }: { navigate: (view: string, focus?
     <Dialog open={open} onOpenChange={show}><DialogContent title="Notifikasi" className="notification-dialog">
       {attention.length > 0 && <section className="notif-section"><h3>Perlu perhatian</h3>{attention.map(item => { const Icon = item.id === 'offline' ? CloudOff : item.id === 'install' ? Download : item.id === 'update' ? RefreshCw : icons[item.kind]; return <div key={item.id} className={`notif-item is-${item.kind}`}><span className="notif-icon"><Icon size={17}/></span><div><strong><EmojiText text={item.title}/></strong><small><EmojiText text={item.body}/></small></div>{item.action && <button type="button" className="link-button" onClick={item.action.run}>{item.action.label}</button>}</div>; })}</section>}
       <section className="notif-section"><div className="notif-head"><h3>Riwayat</h3>{center.history.length > 0 && <button type="button" className="link-button" onClick={() => center.setHistory([])}><Trash2 size={14}/> Hapus semua</button>}</div>
-        {center.history.length ? center.history.map(note => { const Icon = icons[note.kind]; return <SwipeRow key={note.id} onRemove={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><div className={`notif-item is-${note.kind} ${note.link ? 'is-openable' : ''}`}><span className="notif-icon"><Icon size={17}/></span>{note.link ? <button type="button" className="notif-open" onClick={() => { const link = note.link!; setOpen(false); navigate(link.view, link.focus); }}><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{ago(note.time)}</small></button> : <div><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{ago(note.time)}</small></div>}<button type="button" className="icon-btn" aria-label="Hapus notifikasi" onClick={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><X size={15}/></button></div></SwipeRow>; }) : <p className="muted notif-empty">Belum ada notifikasi. Aktivitas seperti menyimpan transaksi akan muncul di sini.</p>}
+        {center.history.length ? center.history.map(note => { const Icon = icons[note.kind]; return <SwipeRow key={note.id} onRemove={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><div className={`notif-item is-${note.kind} ${note.link ? 'is-openable' : ''}`}><span className="notif-icon"><Icon size={17}/></span>{note.link ? <button type="button" className="notif-open" onClick={() => { const link = note.link!; setOpen(false); navigate(link.view, link.focus); }}><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{note.extra ? `${note.extra} · ` : ''}{ago(note.time)}</small></button> : <div><strong><EmojiText text={note.title}/></strong><small>{note.body ? `${note.body} · ` : ''}{note.extra ? `${note.extra} · ` : ''}{ago(note.time)}</small></div>}<button type="button" className="icon-btn" aria-label="Hapus notifikasi" onClick={() => center.setHistory(list => list.filter(item => item.id !== note.id))}><X size={15}/></button></div></SwipeRow>; }) : <p className="muted notif-empty">Belum ada notifikasi. Aktivitas seperti menyimpan transaksi akan muncul di sini.</p>}
       </section>
       {tip && <div className="notif-tip"><span className="notif-tip-icon" aria-hidden="true"><BellRing size={16}/></span><p>{tip}</p><button type="button" className="link-button" onClick={() => { setOpen(false); navigate('settings', 'reminders'); }}>Atur pengingat</button></div>}
     </DialogContent></Dialog>
