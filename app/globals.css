@@ -8425,6 +8425,9 @@ button.int-more { justify-self: start; font-size: .74rem; }
 .chat-sheet-head strong { font-size: 1rem; }
 .chat-sheet-lead, .chat-sheet-note { margin: 0 0 12px; color: var(--muted); font-size: .8rem; line-height: 1.45; }
 .chat-sheet-note { margin: 8px 0 14px; }
+/* 10.0 Komentar setelah mencatat: the switch under Gaya bahasa. */
+.chat-sheet .chat-switch { margin: 12px 0 4px; padding: 10px 12px; }
+.chat-sheet .chat-switch small { font-size: 12px; }
 .chat-sheet-sub { margin: 14px 0 8px; color: var(--muted); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; }
 .chat-acc { display: grid; gap: 8px; }
 .chat-acc-item { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); transition: border-color .15s ease; }

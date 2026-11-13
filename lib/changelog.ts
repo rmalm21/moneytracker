@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.0', date: '13 Nov 2026', title: 'Asisten chat 3.0', items: [
+    ['🤖', 'Asisten chat makin ngerti bahasa sehari-hari, bukan cuma bahasa baku: singkatan dan bahasa gaul (gw, bgt, gmn, udh, mo, bkin, pgn, bajet, boncos, gaskeun), salah ketik, bahasa Jawa, Sunda, dan Betawi (“duitku kari piro”, “duit aye berape”), sampai campur Inggris (“can i afford a 2 million phone”). “Budget jajan aman ga?” sekarang dijawab dengan anggaran yang menaungi jajan.'],
+    ['🎯', 'Asisten ngerti maksudmu walau ditulis beda-beda: “budgeting baru”, “set limit jajan”, “nambah rekening”, “pengen mulai nabung”, “patungan makan sama temen”. Kalau detailnya belum lengkap, asisten nanya satu per satu di chat (ada pilihan cepat yang tinggal diketuk), lalu kasih kartu yang siap disimpan. Ada juga tombol buat langsung buka formulirnya.'],
+    ['🎉', 'Habis kamu simpan catatan, asisten kasih komentar kalau memang pas: sedekah dan nabung diapresiasi, jajan yang udah berkali-kali siklus ini diomelin, anggaran yang baru jebol diingatkan. Gayanya ikut gaya bahasa pilihanmu. Bisa dimatikan di Pengaturan chat → Komentar setelah mencatat.'],
+    ['🔄', 'Obrolan lebih nyambung: jawaban pendek seperti “iya”, “jajan”, “300rb”, atau “gak jadi” langsung dipahami dari pertanyaan terakhir, dan tawaran asisten bisa langsung diiyakan.'],
+    ['💡', 'Saran nyata dari catatanmu sendiri: uang tinggal sedikit sampai gajian (jatah per hari), gaji enaknya dibagi gimana (50/30/20 dalam rupiah), dana darurat, sering lupa nyatet, kok uang cepet abis, langganan, belanja impulsif, sampai “aku boros banget ya”. Tiap saran juga nunjukin fitur yang pas, misalnya Pengingat, Scan struk, Impor mutasi, Wish list, Split Bill, atau Piutang.'],
+    ['🛠️', 'Semuanya tetap jalan di HP-mu, tanpa AI di internet dan tanpa unggahan. Nggak ada yang tersimpan sendiri: tiap kartu tetap nunggu kamu ketuk Simpan.'],
+  ] },
   { version: '9.10', date: '13 Nov 2026', title: 'Pilihan di form bisa diketuk lagi', items: [
     ['✅', 'Daftar pilihan di dalam form sekarang bisa diketuk lagi. Sejak 9.9, daftarnya muncul tapi nggak bisa dipilih: kategori dan periode di Anggaran baru, dompet di form Pengeluaran, jenis dompet, kategori di jadwal Rutin, sampai pilihan bulan, tahun, dan jam di kalender. Sekarang semua form kembali normal.'],
     ['💸', 'Isi dana langsung memilihkan dompet asal yang beda dari dompet tujuan danamu, jadi nggak langsung kena pesan “Pilih dua dompet yang berbeda”.'],

@@ -21,6 +21,14 @@ const SHORT: Record<string, string> = {
   duit: 'uang', doku: 'uang', cuan: 'uang', td: 'tadi', tdi: 'tadi', bsk: 'besok', kmrn: 'kemarin', kmarin: 'kemarin', kemaren: 'kemarin',
   sori: 'maaf', sorry: 'maaf', sory: 'maaf', maap: 'maaf', mf: 'maaf', jgn: 'jangan', gausah: 'gak usah', gajadi: 'gak jadi',
   cape: 'capek', capai: 'capek', bete: 'bete', stress: 'stres', pls: 'tolong', plis: 'tolong', please: 'tolong',
+  // 10.0 More of how people type: shorthand, slang and typos of the words the rules read.
+  bkin: 'bikin', bkinin: 'bikinin', bikinn: 'bikin', mo: 'mau', mw: 'mau', pngen: 'pengen', pgen: 'pengen', pngn: 'pengen', pengn: 'pengen',
+  bajet: 'budget', budjet: 'budget', bujet: 'budget', badget: 'budget', bujed: 'budget', budged: 'budget', anggran: 'anggaran', angaran: 'anggaran', anggarn: 'anggaran',
+  batesin: 'batasin', ngebatesin: 'batasin', ngebatasin: 'batasin', ngebatasi: 'batasin', pasangin: 'pasang', masangin: 'pasang', nambahin: 'tambahin',
+  kluar: 'keluar', klwr: 'keluar', tabungn: 'tabungan', tbngan: 'tabungan', kmrin: 'kemarin', kmaren: 'kemarin', tgl: 'tanggal', thn: 'tahun', byr: 'bayar',
+  gaada: 'gak ada', gada: 'gak ada', kaga: 'gak', kgk: 'gak', jd: 'jadi', jdi: 'jadi', blg: 'bilang', ntar: 'nanti', nnti: 'nanti', bntr: 'bentar',
+  krg: 'kurang', lbh: 'lebih', ttg: 'tentang', gimn: 'gimana', gmana: 'gimana', bgmn: 'gimana', dmn: 'di mana', kmn: 'ke mana', ane: 'aku', gwa: 'gue',
+  mager: 'males', fulus: 'uang', simpen: 'simpan', kudu: 'harus',
   kpn: 'kapan', kapn: 'kapan', bnyk: 'banyak', byk: 'banyak', sebenernya: 'sebenarnya', sbnrnya: 'sebenarnya', tmpt: 'tempat', ngapain: 'ngapain',
 };
 

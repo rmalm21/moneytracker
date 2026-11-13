@@ -23,6 +23,7 @@ export type ChatSettings = {
   /** Phrases learned from this person (what they wrote → the message that meant it), at most 60. */ learned: Record<string, string>;
   /** The suggestion strip above the message box is open (it can be minimized). */ tray: boolean;
   /** The chat was opened once (the button stops glowing). */ seen: boolean;
+  /** 10.0 A short remark after a record is saved (praise for sedekah, a nudge for the fifth jajan), when it fits. */ comments: boolean;
 };
 
 export const CHAT_STYLES: { key: ChatStyle; name: string; note: string }[] = [
@@ -36,7 +37,7 @@ export const KEEP_OPTIONS: { days: KeepDays; label: string }[] = [{ days: 7, lab
 /** Messages shown at once; "Muat lebih banyak" adds this many again. */
 export const PAGE = 10;
 const MAX = 400, DAY = 86_400_000;
-export const DEFAULT_SETTINGS: ChatSettings = { keepDays: 7, style: 'lembar', picked: false, voice: 'santai', learned: {}, tray: true, seen: false };
+export const DEFAULT_SETTINGS: ChatSettings = { keepDays: 7, style: 'lembar', picked: false, voice: 'santai', learned: {}, tray: true, seen: false, comments: true };
 const VOICES = ['santai', 'sopan', 'singkat', 'gaul', 'barbar'];
 /** A phrase learned, keeping only the latest 60. */
 export function learnPhrase(learned: Record<string, string>, phrase: string, as: string) {
@@ -57,7 +58,7 @@ export function page(messages: ChatMessage[], shown: number) {
 }
 
 export function loadSettings(uid: string): ChatSettings {
-  try { const s = JSON.parse(localStorage.getItem(key(uid, 'settings')) || 'null'); if (s && typeof s === 'object') return { ...DEFAULT_SETTINGS, ...s, keepDays: [7, 14, 30].includes(s.keepDays) ? s.keepDays : 7, style: CHAT_STYLES.some(x => x.key === s.style) ? s.style : 'lembar', voice: VOICES.includes(s.voice) ? s.voice : 'santai', learned: s.learned && typeof s.learned === 'object' ? s.learned : {} }; } catch { /* private window */ }
+  try { const s = JSON.parse(localStorage.getItem(key(uid, 'settings')) || 'null'); if (s && typeof s === 'object') return { ...DEFAULT_SETTINGS, ...s, keepDays: [7, 14, 30].includes(s.keepDays) ? s.keepDays : 7, style: CHAT_STYLES.some(x => x.key === s.style) ? s.style : 'lembar', voice: VOICES.includes(s.voice) ? s.voice : 'santai', learned: s.learned && typeof s.learned === 'object' ? s.learned : {}, comments: s.comments !== false }; } catch { /* private window */ }
   return DEFAULT_SETTINGS;
 }
 export function saveSettings(uid: string, settings: ChatSettings) { try { localStorage.setItem(key(uid, 'settings'), JSON.stringify(settings)); } catch { /* storage full or blocked */ } }

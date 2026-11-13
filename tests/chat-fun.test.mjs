@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chatReply } from '../lib/chat/engine.ts';
+import { chatReply, commentOnSaved } from '../lib/chat/engine.ts';
 import { readSwear, readLaugh, laughBack } from '../lib/chat/fun.ts';
 import { readModule } from '../lib/chat/modules.ts';
 import { fullCtx, borosCtx } from '../bench/v80/state.mjs';
@@ -45,10 +45,13 @@ test('8.0 roasting dari catatan sendiri, dan sindiran kalau jajan yang sama teru
   assert.equal(r.intent, 'roast'); assert.match(said(r), /Jajan|Kopi/);
   const [hemat] = await talk('santai', ['roasting aku dong']);
   assert.match(said(hemat), /hemat|celah/i);
+  // 10.0 The remark on the same treat again and again comes once the card is saved (commentOnSaved), not on the card,
+  // so it is said once and can be switched off in the chat settings.
   const [kopi] = await talk('gaul', ['kopi 45rb pake jago'], borosCtx);
-  assert.equal(kopi.reply.kind, 'plan'); assert.match(kopi.reply.intro, /ke-\d+/);
-  const [singkat] = await talk('singkat', ['kopi 45rb pake jago'], borosCtx);
-  assert.doesNotMatch(singkat.reply.intro || '', /ke-\d+/);
+  assert.equal(kopi.reply.kind, 'plan'); assert.doesNotMatch(kopi.reply.intro || '', /ke-\d+/);
+  const remark = commentOnSaved(kopi.reply.text, kopi.memory, { ...borosCtx, voice: 'gaul' });
+  assert.equal(remark?.reply.tone, 'warn'); assert.match(remark.reply.text, /kopi/i);
+  assert.equal(commentOnSaved(kopi.reply.text, kopi.memory, { ...borosCtx, voice: 'gaul' }, { comments: false }), null);
 });
 
 test('8.0 semua menu: buka menu dan jawab dari data dengan tombol', async () => {

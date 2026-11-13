@@ -4,7 +4,7 @@ import { useUndoDelete } from './undo-delete';
 import { Emoji, EmojiText, emojiAvatar } from './emoji';
 import { Summary } from './summary';
 import { Inbox as SumInbox, Repeat as SumRepeat, TrendingDown as SumTrendingDown, TrendingUp as SumTrendingUp } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useApp } from './app-provider';
 import { useNotify } from './notifications';
 import { Button } from './ui/button';
@@ -20,8 +20,10 @@ import { walletAllows } from '@/lib/wallet-capabilities';
 import type { Recurring } from '@/lib/types';
 import { anchorFor, scheduleDay } from '@/lib/recurring';
 
-export function RecurringControl({notify,navigateInbox}:{notify:(message:string)=>void;navigateInbox:()=>void}){
+export function RecurringControl({notify,navigateInbox,focus}:{notify:(message:string)=>void;navigateInbox:()=>void;/** 10.0 'new': the form for a new schedule opens at once (from the chat). */focus?:string}){
  const {user,data,profile}=useApp();const {track}=useNotify();const undo=useUndoDelete();const [editing,setEditing]=useState<Recurring|null>(null),[open,setOpen]=useState(false),[name,setName]=useState(''),[type,setType]=useState<'expense'|'income'>('expense'),[amount,setAmount]=useState(0),[wallet,setWallet]=useState(''),[category,setCategory]=useState(''),[frequency,setFrequency]=useState<Recurring['frequency']>('monthly'),[mode,setMode]=useState<Recurring['mode']>('inbox'),[next,setNext]=useState(todayInTimeZone(profile?.timeZone)),[error,setError]=useState(''),[saving,setSaving]=useState(false);
+ // 10.0 "Buka form Jadwal rutin" from the chat: the form for a new schedule opens at once.
+ useEffect(()=>{if(focus==='new')edit()},[focus]);// eslint-disable-line react-hooks/exhaustive-deps
  function edit(row?:Recurring){setEditing(row||null);setName(row?.name||'');setType(row?.type==='income'?'income':'expense');setAmount(row?.amount||0);setWallet(row?.walletId||'');setCategory(row?.categoryId||'');setFrequency(row?.frequency||'monthly');setMode(row?.mode||'inbox');setNext(row?.nextDate||todayInTimeZone(profile?.timeZone));setError('');setOpen(true)}
  async function submit(e:FormEvent){e.preventDefault();if(!user)return;setSaving(true);setError('');try{if(mode==='auto'&&type==='expense'&&!category)throw Error('Pilih kategori agar Catat otomatis bisa mencatat pengeluaran.');setOpen(false);track(saveRecord(user.uid,'recurring',{name:name.trim(),type,amount,walletId:wallet,destinationWalletId:null,categoryId:category||null,frequency,mode,nextDate:next,anchorDay:anchorFor(next,editing),active:editing?.active??true},editing?.id),{pending:'Menyimpan jadwal rutin…',success:'Jadwal rutin tersimpan.',failure:'Jadwal belum tersimpan',retry:{label:'Buka lagi',run:()=>setOpen(true)}})}catch(e){setError((e as Error).message)}finally{setSaving(false)}}
  const pending=data.drafts.filter(row=>row.status==='pending');

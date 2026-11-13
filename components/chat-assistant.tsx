@@ -12,7 +12,7 @@ import { ArrowUpRight, Banknote, BookOpen, Gamepad2, Brain, Calculator, Calendar
 import { useApp } from './app-provider';
 import { ChatMark } from './chat-mark';
 import { QuickEntryBox } from './quick-entry';
-import { chatReply, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
+import { chatReply, commentOnSaved, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
 import { suggestFor, type Suggestion, type SuggestIcon } from '@/lib/chat/suggest';
 import { VOICES } from '@/lib/chat/voice';
@@ -160,6 +160,15 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     featureUsed('chat_record');
     mark(id, 'saved', summary);
     setMemory(m => m.plan?.text === planText ? { ...m, plan: { ...m.plan, status: 'saved' } } : m);
+    // 10.0 A short remark on what was just saved (praise for sedekah or nabung, a nudge for the fifth jajan or a budget
+    // gone over), in the chosen style, when it fits and the person has not switched it off. The ledger as it was when Simpan
+    // was tapped is read, so the record is counted once.
+    const remark = commentOnSaved(planText, memory, chatCtx, { comments: settings.comments });
+    if (!remark) return;
+    window.setTimeout(() => {
+      setMessages(list => [...list, { id: uid(), at: Date.now(), role: 'bot', text: remark.reply.kind === 'say' ? remark.reply.text : '', reply: remark.reply }]);
+      setMemory(m => ({ ...m, topic: remark.memory.topic, ...(remark.memory.offer ? { offer: remark.memory.offer } : {}) }));
+    }, 450);
   }
   function submit(e: FormEvent) { e.preventDefault(); void send(draft); }
 
@@ -312,6 +321,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
               <SheetHead title="Pengaturan chat" onClose={() => setSheet(null)}/>
               <h4 className="chat-sheet-sub">Gaya bahasa</h4>
               <div className="chat-voices" role="radiogroup" aria-label="Gaya bahasa">{VOICES.map(x => <button type="button" key={x.key} role="radio" aria-checked={settings.voice === x.key} className={`chat-voice ${settings.voice === x.key ? 'is-on' : ''}`} onClick={() => changeSettings({ voice: x.key })}><b>{x.name}</b><small>“{x.sample}”</small></button>)}</div>
+              <label className="switch-row chat-switch"><input type="checkbox" checked={settings.comments} onChange={e => changeSettings({ comments: e.target.checked })}/><span><strong>Komentar setelah mencatat</strong><small>Sedekah atau nabung dipuji, jajan yang kebanyakan diingatkan, ikut gaya bahasa di atas. Muncul kalau pas saja.</small></span></label>
               <h4 className="chat-sheet-sub">Tampilan</h4>
               <StylePicker value={style} onChange={s => changeSettings({ style: s, picked: true })}/>
               <h4 className="chat-sheet-sub">Simpan riwayat</h4>
@@ -375,7 +385,7 @@ function BotMessage({ m, onChip, onOpenForm, onNavigate, onSaved, onDismiss }: {
   if (r.kind === 'say') {
     const look = r.card ? CARD_LOOK[r.card] : undefined, calc = r.card === 'calc' && r.hero;
     const rich = Boolean(r.hero || r.stats?.length || r.bars?.length || r.steps?.length || r.lines?.length);
-    const open = r.open && <button type="button" className="chat-open" onClick={() => onNavigate(r.open!.view)}><ArrowUpRight size={14} aria-hidden="true"/><span>{r.open.label}</span></button>;
+    const open = r.open && <button type="button" className="chat-open" onClick={() => onNavigate(r.open!.view, r.open!.target)}><ArrowUpRight size={14} aria-hidden="true"/><span>{r.open.label}</span></button>;
     const lines = r.lines && <dl className={`cm-lines ${r.lines.every(l => /^\d+$/.test(l.label)) ? 'is-list' : ''}`}>{r.lines.map(l => <div key={l.label + l.value} className={l.tone ? `is-${l.tone}` : ''}><dt>{l.label}</dt><dd>{l.value}</dd></div>)}</dl>;
     if (!rich || !look) return shell(<>
       {r.title && <b className="cm-kicker">{r.title}</b>}

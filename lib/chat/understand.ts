@@ -26,6 +26,7 @@ const ENGLISH_PHRASES: [RegExp, string][] = [
   [/\bdaily (?:budget|limit|allowance)\b/g, 'jatah harian'],
   [/\b(?:total )?(?:spending|spendings|expenses|expense|spend)\b/g, 'pengeluaran'], [/\bincome\b/g, 'pemasukan'], [/\bbalance\b/g, 'saldo'], [/\bdebt\b/g, 'utang'],
   [/\bthis month\b/g, 'bulan ini'], [/\blast month\b/g, 'bulan lalu'], [/\bthis week\b/g, 'minggu ini'], [/\blast week\b/g, 'minggu lalu'], [/\byesterday\b/g, 'kemarin'], [/\btoday\b/g, 'hari ini'],
+  [/\bwhere (?:did|does|has|do) (?:all )?my money (?:go|gone|went)\b|\bwhere(?:'s| is) my money going\b/g, 'rincian pengeluaran'],
   [/\bcoffee\b/g, 'kopi'], [/\bfood\b/g, 'makan'], [/\bhow many times\b/g, 'berapa kali'], [/\bhow much\b/g, 'berapa'],
 ];
 /** Javanese, Sundanese and Betawi words → Indonesian. */
@@ -38,12 +39,12 @@ const REGIONAL: [RegExp, string][] = [
   // Sundanese
   [/\bbulan ieu\b/g, 'bulan ini'], [/\bkamari\b/g, 'kemarin'], [/\bbeak\b/g, 'habis'], [/\bsabaraha\b/g, 'berapa'], [/\bsesa\b/g, 'sisa'], [/\bartos\b/g, 'uang'], [/\babdi\b/g, 'aku'],
   // Betawi
-  [/\bberape\b/g, 'berapa'], [/\baye\b/g, 'aku'],
+  [/\bberape\b/g, 'berapa'], [/\baye\b/g, 'aku'], [/\budeh\b/g, 'udah'], [/\bkagak\b/g, 'gak'], [/\bente\b/g, 'kamu'], [/\bnyang\b/g, 'yang'], [/\baje\b/g, 'aja'], [/\bgimane\b/g, 'gimana'], [/\bkenape\b/g, 'kenapa'], [/\bpegimane\b/g, 'gimana'],
 ];
 /** English is read only when the message has English in it. */
-const ENGLISH = /\b(?:how|what'?s|whats|my|spend|spent|spending|spendings|expenses?|balance|income|owes?|debt|yesterday|today|this (?:month|week)|last (?:month|week)|coffee|daily|free money|money left|budget \p{L}+ left)\b/u;
+const ENGLISH = /\b(?:how|where|what'?s|whats|my|spend|spent|spending|spendings|expenses?|balance|income|owes?|debt|yesterday|today|this (?:month|week)|last (?:month|week)|coffee|daily|free money|money left|budget \p{L}+ left)\b/u;
 const ENGLISH_LEFT = /\b(?:my|the|is|are|did|do|i|me|on|in|for|bro|please)\b/g;
-const SHORT: Record<string, string> = { brpa: 'berapa', berapaan: 'berapa', brapah: 'berapa', berapah: 'berapa', brpaan: 'berapa', mggu: 'minggu', mgu: 'minggu', ane: 'aku', aq: 'aku', gua: 'gue', w: 'aku' };
+const SHORT: Record<string, string> = { msh: 'masih', masi: 'masih', tlg: 'tolong', tolongin: 'tolong', brpa: 'berapa', berapaan: 'berapa', brapah: 'berapa', berapah: 'berapa', brpaan: 'berapa', mggu: 'minggu', mgu: 'minggu', ane: 'aku', aq: 'aku', gua: 'gue', w: 'aku', kluar: 'keluar', klwr: 'keluar', kmaren: 'kemarin', kmrin: 'kemarin', anggran: 'anggaran', bajet: 'budget', budjet: 'budget', bujet: 'budget', tabungn: 'tabungan' };
 /** "gopayku" → "gopay aku": money words with -ku/-mu. */
 const OWNED = 'saldo|gopay|jago|ovo|jenius|mandiri|bca|bri|bni|krom|tunai|cash|tabungan|utang|hutang|piutang|cicilan|pinjaman|anggaran|budget|hp|kos|wishlist|list|bebas|pakai|harian|darurat|incaran|keuangan|kredivo|tagihan|langganan|nganggur';
 const OWN = new RegExp(`\\b(${OWNED})(ku|mu)\\b`, 'g');
@@ -93,9 +94,42 @@ const LEAD = /^(?:(?:eh|ehh|halo|hallo|hai|hi|hello|permisi|oi|woi|min|admin|bot
 const ASKS = /\b(?:berapa|brp|apa|kapan|gimana|siapa|mana|seberapa|aja|saja|uang|duit|saldo|pengeluaran|pemasukan|anggaran|budget|utang|hutang|piutang|tabungan|cicilan|tagihan|langganan|nabung|total|sisa|rincian|breakdown|persen|persentase|porsi|progress|progres|skor|sehat|keuangan|hemat|transaksi|klaim|reimburse|jatah|isi|incaran|wishlist|darurat)\b|\?|\d/;
 const TAIL = /\s+(?:kak|kakak|min|bot|bro|sis|gan|bang)\s*([?!.]*)$/;
 
+/** 10.0 "can i afford a 2 million phone", "is it safe to buy a 1.5 million bag" → "aman nggak beli hp 2jt". */
+const AFFORD_EN = /^(?:hey\s+|hi\s+)?(?:can\s+i\s+afford|is\s+it\s+(?:safe|ok|okay|fine|wise)\s+to\s+buy|should\s+i\s+buy|could\s+i\s+buy)\s+(?:a\s+|an\s+|the\s+|this\s+)?(.+?)[?!.\s]*$/;
+const EN_ITEMS: [RegExp, string][] = [[/\b(?:phone|smartphone|cellphone)\b/, 'hp'], [/\bbag\b/, 'tas'], [/\bshoes\b/, 'sepatu'], [/\bwatch\b/, 'jam tangan'], [/\bmotorbike|motorcycle\b/, 'motor'], [/\bcar\b/, 'mobil'], [/\bbike\b/, 'sepeda'], [/\bfridge\b/, 'kulkas'], [/\bholiday|vacation|trip\b/, 'liburan']];
+function affordEnglish(base: string) {
+  const m = base.match(AFFORD_EN); if (!m) return null;
+  let rest = ` ${m[1]} `;
+  rest = rest.replace(/(\d+(?:[.,]\d+)?)\s*(?:million|mio|m)\b/g, (_x, n: string) => `${n.replace('.', ',')}jt`).replace(/(\d+(?:[.,]\d+)?)\s*(?:thousand|k)\b/g, (_x, n: string) => `${n.replace('.', ',')}rb`);
+  for (const [re, to] of EN_ITEMS) rest = rest.replace(re, to);
+  return `aman nggak beli ${rest.replace(/\b(?:for|worth|that\s+costs|costing|at|of)\b/g, ' ').replace(/\s{2,}/g, ' ').trim()}`;
+}
+/** 10.0 "pengeluaran paling boros apa ya", "kategori yg paling nyedot duit apa": the biggest spending. */
+const MOST_SPENT = /\bpaling\s+(?:boros|nyedot|menyedot|menguras|ngabisin|ngabisin\s+(?:duit|uang)|banyak\s+makan\s+(?:duit|uang)|bikin\s+(?:boncos|bokek))\b/;
 export function understand(input: string): string {
   const typed = input.trim(), base = lower(typed);
-  if (findAmounts(base).some(a => a.value > 0)) return typed;
+  const english = affordEnglish(base);
+  if (english) return english;
+  // "kategori paling boros" is answered per category further on; the rest asks for the biggest spending.
+  if (MOST_SPENT.test(base) && !/\b(?:kategori|hari\s+apa|hari\s+(?:apa\s+)?yang|tanggal|minggu\s+(?:apa|mana|ke)|bulan\s+(?:apa|mana)|jam|kapan)\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) {
+    const period = base.match(/\b(hari ini|kemarin|minggu ini|minggu lalu|bulan lalu|bulan kemarin|tahun ini)\b/)?.[1];
+    return `pengeluaran terbesar ${period || 'bulan ini'}`;
+  }
+  // "kategori yg paling nyedot duit apa": the category spent most on.
+  if (MOST_SPENT.test(base) && /\bkategori\b/.test(base) && !/\bkategori\s+paling\s+boros\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) {
+    const period = base.match(/\b(hari ini|kemarin|minggu ini|minggu lalu|bulan lalu|bulan kemarin|tahun ini)\b/)?.[1];
+    return `kategori paling boros ${period || 'bulan ini'}`;
+  }
+  // "sehari biasanya keluar duit brp": the average a day.
+  if (/\b(?:sehari|per\s*hari|perhari)\s+(?:(?:aku|gue|gw|w|saya|ku)\s+)?(?:biasanya\s+|rata[- ]?rata\s+)?(?:keluar|kluar|abis|habis|ngeluarin|ngabisin|belanja|pengeluaran)\b|\b(?:biasanya|rata[- ]?rata)\s+(?:sehari|per\s*hari)\s+(?:keluar|abis|habis|ngeluarin|belanja)\b/.test(base) && /\b(?:berapa|brp|brapa|brpa|berapaan)\b/.test(base) && !findAmounts(base).some(a => a.value > 0) && !/\b(?:boleh|bisa|aman|jatah|biar|supaya|agar|sampai|sampe)\b/.test(base))
+    return 'rata-rata pengeluaran per hari berapa';
+  // "boleh jajan brp hari ini": the daily allowance, not a purchase.
+  if (/\b(?:boleh|bisa|aman)\s+(?:jajan|belanja|keluar|ngeluarin|habisin|ngabisin|pakai|pake)\s+(?:berapa|brp|brapa|brpa)\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) return 'jatah harian berapa';
+  // "duit aye berape sekarang", "uang gw brp": how much is free to spend.
+  if (/^(?:(?:cek|kak|min|bro|sis)\s+)?(?:uang|duit|duwit|dhuwit|artos)(?:ku|\s+(?:aku|gue|gw|w|saya|aye|ane|abdi|ku))\s+(?:sekarang\s+|skrg\s+)?(?:berapa|brp|brapa|berape|piro|sabaraha|brpa)(?:\s+(?:sekarang|skrg|ya|sih|nih|deh|kak|min))*\s*\??$/.test(base))
+    return 'uang bebas berapa';
+  // "ganti jd 40rb": the change the edit rules read ("ganti jadi 40rb").
+  if (findAmounts(base).some(a => a.value > 0)) return typed.replace(/\b((?:ubah|ganti|edit|koreksi|benerin|bener)(?:in)?)\s+(?:jd|jdi)\b/gi, '$1 jadi');
   // Emoji say nothing to the rules; words of address go before anything else is read ("income last month kak").
   const plain = base.replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu, ' ').replace(/\s{2,}/g, ' ').trim();
   if (!/\p{L}|\d/u.test(plain)) return typed;
@@ -112,6 +146,8 @@ export function understand(input: string): string {
   for (const [re, to] of REGIONAL) s = s.replace(re, to);
   // Whole words only ("w" alone is "aku"; "w/" is not).
   s = s.replace(/(?<=^|\s)\p{L}+(?=$|[\s?!.,])/gu, w => SHORT[w] ?? w);
+  // 10.0 "cek budget makan masih aman gak": how much is left of that budget.
+  s = s.replace(/(?:\b(?:tolong|coba|bantu)\s+)?\b(?:cek\s+)?(?:budget|anggaran|bujet)\s+(\p{L}+)\s+(?:(?:aku|gue|gw|ku|saya)\s+)?(?:(?:masih|msh)\s+(?:aman|ada|sisa|cukup)|aman)\b(?:\s+(?:ga|gak|nggak|ngga|enggak|tidak|kah|ya|nih|sih|ngga sih|gak sih))*/gu, 'sisa anggaran $1 berapa');
   // -ku/-nya only in a question: "rian udah lunasin utangnya" (a record) keeps its "-nya".
   if (/\b(?:berapa\p{L}*|brp\p{L}*|brapa\p{L}*|brpa|apa|kapan|kpn|gimana|gmn|siapa|mana|seberapa|aja|saja|isinya|persentase|progress|progres|sisa|tinggal|masih|total|semua|semuanya|cek|dulu)\b|\?/u.test(s)) s = s.replace(OWN, '$1 aku').replace(NYA, '$1');
   s = s.replace(/\p{L}+/gu, corrected);

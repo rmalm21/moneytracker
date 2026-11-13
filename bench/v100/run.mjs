@@ -1,6 +1,6 @@
 /**
  * 10.0 Asisten chat 3.0 — 9.10 (bench/v100/baseline-v910, from `sh bench/v100/make-baseline.sh`) vs now.
- *   SET=dev|heldout node bench/v100/run.mjs [--first] [--fails] [--only=9.10|sekarang] [--fam=komentar]
+ *   SET=dev|heldout|gaul-dev|gaul-heldout node bench/v100/run.mjs [--first] [--fails] [--only=9.10|sekarang] [--fam=komentar]
  * --first writes FROZEN-<set>-first.md once (the held-out set is run that way, a single time, at the end).
  *
  * A `save` turn stands for the person tapping Simpan on the card just shown. 3.0 then says a comment
@@ -10,7 +10,8 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { v3Ctx } from '../v83/state.mjs';
 const SET = process.env.SET || 'dev', arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
-const cases = (await import(SET === 'heldout' ? './cases-heldout.mjs' : './cases-dev.mjs')).cases.filter(c => !arg('fam') || c.fam === arg('fam'));
+const FILES = { dev: './cases-dev.mjs', heldout: './cases-heldout.mjs', 'gaul-dev': './cases-gaul-dev.mjs', 'gaul-heldout': './cases-gaul-heldout.mjs' };
+const cases = (await import(FILES[SET] || FILES.dev)).cases.filter(c => !arg('fam') || c.fam === arg('fam'));
 const all = { '9.10': './baseline-v910/lib/chat/engine.ts', sekarang: '../../lib/chat/engine.ts' };
 const engines = {}; for (const [k, path] of Object.entries(all)) if (!arg('only') || arg('only') === k) engines[k] = await import(path);
 const { parseQuickPlan } = await import('../../lib/quick-plan.ts');
