@@ -45,7 +45,7 @@ export function TransactionForm({onDone,onCancel,preset,editing,background,onQui
  // Debt and receivable payments may carry a category; one left over from another type (e.g. income for a debt payment) is dropped.
  const staleCategory=(type==='debt_payment'||type==='receivable_payment')&&Boolean(categoryId)&&data.categories.find(c=>c.id===categoryId)?.type!==(type==='receivable_payment'?'income':'expense');
  /** Second line of the notification for a save: what, which category, which wallet(s). */
- /** 10.1 A new spending: "sehari seharusnya segini" from the budgets it counts toward (Pengaturan chat → Tampilkan jatah per hari). */
+ /** 10.1 A new spending: "hari ini sisa segini" from the budgets it counts toward (Pengaturan chat → Tampilkan jatah per hari). */
  function dailyNote(tx:LedgerTx){if(editing||tx.type!=='expense'||!dailyLineOn((account||user)?.uid))return '';const parts=tx.splits?.length?tx.splits.map(l=>({categoryId:l.categoryId,subcategoryId:l.subcategoryId,amount:l.amount,date:tx.date})):[{categoryId:tx.categoryId,subcategoryId:tx.subcategoryId,amount:tx.amount,date:tx.date}];return dailyForSpending(data,parts,dateInTimeZone(new Date(),profile?.timeZone),profile?.salaryCycleStartDay||24).map(dailyLine).join(' ');}
  function saveDetail(){const category=data.categories.find(c=>c.id===(subcategoryId||categoryId))?.name,from=data.wallets.find(w=>w.id===walletId)?.name,to=actions.destination?data.wallets.find(w=>w.id===destination)?.name:'';return [description.trim()||merchant.trim(),category,from&&to?`${from} → ${to}`:from].filter(Boolean).join(' · ')}
  const descriptionHints=useTypedSuggestions(user?.uid,'description',data.transactions),merchantHints=useTypedSuggestions(user?.uid,'merchant',data.transactions);

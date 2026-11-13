@@ -11,7 +11,7 @@ export type AskField = 'amount' | 'wallet' | 'to' | 'category' | 'date' | 'borro
 export type Inspection = { reading: Reading; ask?: { field: AskField; choices: string[] }; kind?: string; count?: number; /** 7.9: the person of the first entry ("dia" next time), the wallet named, the total of all entries. */ person?: string; walletId?: string; total?: number;
   /** 8.0: the category of a single entry (the same treat recorded again and again gets a tease). */ categoryId?: string; subcategoryId?: string;
   /** 10.0 A budget card that changes one already there (its name and limit now), not a new one. */ replaces?: { name: string; amount: number };
-  /** 10.1 Every spending in it (a category split counts each part), for the budgets' "sehari seharusnya" after saving. */ spent?: { categoryId?: string | null; subcategoryId?: string | null; amount: number; date?: string }[] };
+  /** 10.1 Every spending in it (a category split counts each part), for "hari ini sisa segini" from the budgets after saving. */ spent?: { categoryId?: string | null; subcategoryId?: string | null; amount: number; date?: string }[] };
 
 const COMMON = ['Makan & Minum', 'Transportasi', 'Belanja', 'Tagihan', 'Hiburan'];
 

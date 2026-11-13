@@ -2,9 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
-  { version: '10.1', date: '13 Nov 2026', title: 'Jatah per hari tiap habis mencatat', items: [
-    ['🎯', 'Habis mencatat pengeluaran lewat asisten chat, asisten langsung bilang “sehari seharusnya segini” dari anggaran kategorinya. Contohnya habis nyatet kopi: “Anggaran Makan & Minum sisa Rp388.500 buat 9 hari lagi, jadi sehari seharusnya ±Rp43.100.” Angkanya dihitung sama persis dengan “±…/hari” di menu Anggaran, dan ikut gaya bahasa pilihanmu.'],
-    ['⚡', 'Hal yang sama juga muncul di notifikasi setelah menyimpan lewat Catat otomatis dan form Tambah. Kalau anggarannya udah lewat batas, kamu diingatkan buat ngerem dulu.'],
+  { version: '10.1', date: '13 Nov 2026', title: 'Hari ini sisa berapa', items: [
+    ['🎯', 'Habis mencatat pengeluaran lewat asisten chat, asisten langsung bilang jatah hari ini dari anggaran kategorinya dan sisanya hari ini. Contohnya jatah Makan & Minum sehari ±Rp50.000, lalu kamu nyatet kopi 25rb: “Jatah Makan & Minum hari ini ±Rp50.000, udah kepake Rp25.000, jadi hari ini sisa Rp25.000 ya.” Jatahnya dihitung dari sisa anggaran dibagi sisa hari, sama seperti “±…/hari” di menu Anggaran, dan kalimatnya ikut gaya bahasa pilihanmu.'],
+    ['💡', 'Kalau angkanya udah nggak masuk akal, nggak dipaksain. Hari ini kelewat jatah? Dikasih tahu lewat berapa, plus jatah baru mulai besok. Anggarannya tinggal dikit (misalnya dibagi rata cuma ±Rp7.300 sehari padahal sekali isi bensin biasanya Rp18.500)? Asisten bilang sisanya kira-kira cukup buat berapa kali lagi. Udah habis atau jebol? Diingatkan buat ngerem dulu, atau naikin batasnya kalau memang kebutuhan.'],
+    ['⚡', 'Hal yang sama juga muncul di notifikasi setelah menyimpan lewat Catat otomatis dan form Tambah.'],
     ['🛠️', 'Kategori yang belum punya anggaran nggak dikasih angka apa-apa. Bisa dimatikan di Pengaturan chat → “Tampilkan jatah per hari”.'],
   ] },
   { version: '10.0', date: '13 Nov 2026', title: 'Asisten chat 3.0', items: [

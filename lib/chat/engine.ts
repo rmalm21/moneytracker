@@ -26,7 +26,7 @@ import { suggestCategory } from '../categorize.ts';
 import { readEveryday } from '../catat/everyday.ts';
 import { findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
 import type { Data, LedgerTx } from '../types';
-import { dailyForSpending, perDayAmount } from '../budget-daily.ts';
+import { dailyForSpending } from '../budget-daily.ts';
 import { calculate, calcText } from './calc.ts';
 import { clausesOf, readBreakdown, readDiscount, readDraftEdit, readHappened, withAmount, withCategory, withDate, withWallet } from './draft.ts';
 import { compareAnswer, readFaq } from './faq.ts';
@@ -660,9 +660,11 @@ export function commentOnSaved(planText: string, memory: ChatMemory, ctx: ChatCo
 }
 
 /**
- * 10.1 After a spending is saved: "sehari seharusnya segini" from each budget it counts toward (left after what is
- * already planned, over the days remaining, as the Anggaran menu works it out), in the chosen way of talking. Nothing
- * when no budget covers it, or when the person switched it off (Pengaturan chat → Tampilkan jatah per hari).
+ * 10.1 After a spending is saved: today's share of each budget it counts toward and what is left of it today ("jatah
+ * hari ini ±Rp50.000, udah kepake Rp25.000, jadi hari ini sisa Rp25.000 ya"), in the chosen way of talking. Where a
+ * share would not mean anything (today went past it, the budget is nearly or wholly used up) it says something sensible
+ * instead (lib/budget-daily.ts). Nothing when no budget covers it, or when the person switched it off (Pengaturan chat →
+ * Tampilkan jatah per hari).
  */
 export function dailyOnSaved(planText: string, ctx: ChatContext, opts: { daily?: boolean } = {}): string | null {
   if (opts.daily === false) return null;
@@ -675,21 +677,64 @@ export function dailyOnSaved(planText: string, ctx: ChatContext, opts: { daily?:
   if (!list.length) return null;
   const v = ctx.voice || 'santai';
   return list.map(d => {
-    const per = rp(perDayAmount(d.perDay)), left = rp(d.left), over = rp(d.over), name = d.name, days = d.days;
-    if (d.left <= 0) return vo(v, {
-      santai: `Anggaran ${name} ${d.over ? `udah lewat ${over}` : 'udah habis'}, jadi ${days} hari ke depan sebaiknya nggak nambah dulu.`,
-      sopan: `Anggaran ${name} ${d.over ? `sudah melewati batas sebesar ${over}` : 'sudah habis'}. Sebaiknya tidak menambah pengeluaran ini selama ${days} hari ke depan.`,
-      singkat: `${name}: ${d.over ? `lewat ${over}` : 'habis'}. Rem ${days} hari.`,
-      gaul: `Anggaran ${name} ${d.over ? `udah jebol ${over}` : 'udah abis'}, ${days} hari ke depan puasa dulu ya.`,
-      barbar: `${name} ${d.over ? `udah jebol ${over}` : 'udah ludes'}, bos. ${days} hari ke depan stop dulu.`,
-    });
-    return vo(v, {
-      santai: `Anggaran ${name} sisa ${left} buat ${days} hari lagi, jadi sehari seharusnya ±${per}.`,
-      sopan: `Sisa anggaran ${name} ${left} untuk ${days} hari, sehingga idealnya ±${per} per hari.`,
-      singkat: `${name}: ±${per}/hari (${days} hari lagi).`,
-      gaul: `Anggaran ${name} tinggal ${left} buat ${days} hari, jadi sehari jatah lo ±${per}.`,
-      barbar: `${name} sisa ${left} buat ${days} hari. Sehari maksimal ±${per}, jangan lebih, bos.`,
-    });
+    const n = d.name, even = rp(d.even), per = rp(d.perDay), spent = rp(d.spentToday), sisa = rp(d.todayLeft), left = rp(d.left), days = d.days, typical = rp(d.typical), tomorrow = rp(d.tomorrow), past = rp(d.spentToday - d.perDay), over = rp(d.over);
+    switch (d.state) {
+      // "Jatah hari ini ±Rp50.000, udah kepake Rp25.000, jadi hari ini sisa Rp25.000 ya."
+      case 'today': return d.todayLeft > 0 ? vo(v, {
+        santai: `Jatah ${n} hari ini ±${per}, udah kepake ${spent}, jadi hari ini sisa ${sisa} ya.`,
+        sopan: `Jatah harian ${n} hari ini ±${per}; sudah terpakai ${spent}, sehingga sisa hari ini ${sisa}.`,
+        singkat: `${n}: sisa hari ini ${sisa} (jatah ±${per}).`,
+        gaul: `Jatah ${n} lo hari ini ±${per}, udah kepake ${spent}, jadi sisa ${sisa} lagi ya.`,
+        barbar: `Jatah ${n} hari ini ±${per}, udah lo pake ${spent}. Sisa ${sisa}, jangan lewat, bos.`,
+      }) : vo(v, {
+        santai: `Jatah ${n} hari ini ±${per} udah pas kepake semua. Sisanya buat besok ya.`,
+        sopan: `Jatah harian ${n} hari ini ±${per} sudah terpakai seluruhnya.`,
+        singkat: `${n}: jatah hari ini (±${per}) habis.`,
+        gaul: `Jatah ${n} lo hari ini (±${per}) udah pas abis. Lanjut besok ya.`,
+        barbar: `Jatah ${n} hari ini (±${per}) udah ludes, bos. Tahan sampai besok.`,
+      });
+      // Past today's share: no minus, the share from tomorrow on instead.
+      case 'overToday': return days > 1 ? vo(v, {
+        santai: `Hari ini ${n} udah kepake ${spent}, lewat ${past} dari jatah harian ±${per}. Santai, mulai besok jatahnya jadi ±${tomorrow}/hari biar tetap aman sampai ${days - 1} hari lagi.`,
+        sopan: `Pengeluaran ${n} hari ini ${spent}, melewati jatah harian ±${per} sebesar ${past}. Mulai besok, jatahnya menjadi ±${tomorrow} per hari agar tetap aman.`,
+        singkat: `${n}: hari ini lewat ${past}. Besok ±${tomorrow}/hari.`,
+        gaul: `Hari ini ${n} lo udah ${spent}, lewat ${past} dari jatah ±${per}. Gapapa, besok jatahnya jadi ±${tomorrow}/hari ya.`,
+        barbar: `${n} hari ini udah ${spent}, lewat ${past}, bos. Besok jatah lo cuma ±${tomorrow}/hari.`,
+      }) : vo(v, {
+        santai: `Hari ini hari terakhir periode ${n}, sisa anggarannya ${left}.`,
+        sopan: `Hari ini hari terakhir periode ${n}; sisa anggaran ${left}.`,
+        singkat: `${n}: hari terakhir, sisa ${left}.`,
+        gaul: `Hari terakhir periode ${n} nih, sisa ${left}.`,
+        barbar: `Hari terakhir ${n}, sisa ${left}. Abisin dengan bijak, bos.`,
+      });
+      // Too little to share out a day: what is left and roughly how many more times it covers.
+      case 'tight': return d.times >= 1 ? vo(v, {
+        santai: `Anggaran ${n} tinggal ${left} buat ${days} hari. Kalau dibagi rata cuma ±${even}/hari, jadi nggak usah dipaksa harian: sisa ini kira-kira cukup ${d.times}× lagi (sekali biasanya ±${typical}). Pakai buat yang perlu aja ya.`,
+        sopan: `Sisa anggaran ${n} ${left} untuk ${days} hari. Jika dibagi rata hanya ±${even} per hari, jadi sebaiknya dianggap cukup untuk sekitar ${d.times} kali lagi (biasanya ±${typical} sekali). Gunakan untuk yang perlu saja.`,
+        singkat: `${n}: sisa ${left}, cukup ±${d.times}× lagi.`,
+        gaul: `Anggaran ${n} tinggal ${left} buat ${days} hari. Dibagi rata cuma ±${even}/hari, ya udah anggap aja cukup ${d.times}× lagi (biasanya ±${typical} sekali). Pake buat yang penting aja.`,
+        barbar: `${n} tinggal ${left} buat ${days} hari, bos. Cukup ${d.times}× lagi doang (biasanya ±${typical}). Yang penting-penting aja.`,
+      }) : d.typical > 0 ? vo(v, {
+        santai: `Anggaran ${n} tinggal ${left} buat ${days} hari, udah nggak cukup buat sekali lagi (biasanya ±${typical}). Mending rem dulu, atau naikin batasnya kalau memang kebutuhan.`,
+        sopan: `Sisa anggaran ${n} ${left} untuk ${days} hari, sudah tidak cukup untuk satu kali lagi (biasanya ±${typical}). Sebaiknya ditahan dulu, atau batasnya dinaikkan bila memang diperlukan.`,
+        singkat: `${n}: sisa ${left}, kurang buat sekali lagi.`,
+        gaul: `Anggaran ${n} tinggal ${left}, udah nggak nutup buat sekali lagi (biasanya ±${typical}). Rem dulu, atau naikin batasnya kalau emang perlu.`,
+        barbar: `${n} tinggal ${left}, sekali lagi aja nggak nutup, bos. Rem, atau naikin batasnya.`,
+      }) : vo(v, {
+        santai: `Anggaran ${n} tinggal ${left} buat ${days} hari. Simpan buat yang perlu aja ya.`,
+        sopan: `Sisa anggaran ${n} ${left} untuk ${days} hari. Gunakan untuk yang perlu saja.`,
+        singkat: `${n}: sisa ${left}, ${days} hari.`,
+        gaul: `Anggaran ${n} tinggal ${left} buat ${days} hari. Yang penting aja ya.`,
+        barbar: `${n} tinggal ${left}, bos. Yang penting aja.`,
+      });
+      case 'over': return vo(v, {
+        santai: `Anggaran ${n} ${d.over ? `udah lewat ${over}` : 'udah habis'}. Mending rem dulu ${days} hari ke depan, atau naikin batasnya kalau ini memang kebutuhan.`,
+        sopan: `Anggaran ${n} ${d.over ? `sudah melewati batas sebesar ${over}` : 'sudah habis'}. Sebaiknya ditahan dulu ${days} hari ke depan, atau batasnya dinaikkan bila memang diperlukan.`,
+        singkat: `${n}: ${d.over ? `lewat ${over}` : 'habis'}. Rem ${days} hari.`,
+        gaul: `Anggaran ${n} ${d.over ? `udah jebol ${over}` : 'udah abis'}. Rem dulu ${days} hari ke depan, atau naikin batasnya kalau emang butuh.`,
+        barbar: `${n} ${d.over ? `udah jebol ${over}` : 'udah ludes'}, bos. Stop dulu ${days} hari, atau naikin batasnya.`,
+      });
+    }
   }).join(' ');
 }
 

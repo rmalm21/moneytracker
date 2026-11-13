@@ -14,7 +14,7 @@ import { featureUsed } from './feature-tips-events';
 export type NoteKind = 'success' | 'error' | 'info' | 'warning' | 'progress';
 type Action = { label: string; run: () => void };
 /** `app`: a reminder from Dompet Ajaib itself, shown as a floating banner with the app logo (like a phone notification). */
-export type Note = { id: string; title: string; body?: string; /** 10.1 A line of its own under the body ("sehari seharusnya ±Rp…"), never cut short. */ extra?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean; /** 6.4: tapping the card opens what it is about. */ open?: () => void; /** 6.5: where the card leads, kept in the history so the bell panel opens it too. */ link?: Link };
+export type Note = { id: string; title: string; body?: string; /** 10.1 A line of its own under the body ("Jatah Makan & Minum hari ini ±Rp…, … sisa hari ini Rp…"), never cut short. */ extra?: string; kind: NoteKind; time: number; read?: boolean; action?: Action; app?: boolean; /** 6.4: tapping the card opens what it is about. */ open?: () => void; /** 6.5: where the card leads, kept in the history so the bell panel opens it too. */ link?: Link };
 export type Link = { view: string; focus?: string };
 type PushInput = { id?: string; title: string; body?: string; extra?: string; kind?: NoteKind; action?: Action; history?: boolean; app?: boolean; open?: () => void; link?: Link };
 /**

@@ -1712,7 +1712,7 @@ button.year-row:hover { background: color-mix(in srgb, var(--accent) 6%, var(--p
 .toast-text strong { font-size: .84rem; font-weight: 700; line-height: 1.3; }
 .toast-text small { color: var(--muted); font-size: .72rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 10.1 "Sehari seharusnya ±Rp…": its own line, shown whole (up to two lines). */
-.toast-text small.toast-extra { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--text); font-weight: 600; margin-top: 1px; }
+.toast-text small.toast-extra { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; color: var(--text); font-weight: 600; margin-top: 1px; }
 .toast-card.is-error .toast-text small, .toast-card.is-warning .toast-text small { white-space: normal; }
 .toast-action { margin-top: 4px; min-height: 26px; padding: 0 10px; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--paper); color: var(--accent); font-size: .74rem; }
 .toast-action:hover { background: var(--accent); color: var(--accent-on); }

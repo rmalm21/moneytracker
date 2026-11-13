@@ -24,7 +24,7 @@ export type ChatSettings = {
   /** The suggestion strip above the message box is open (it can be minimized). */ tray: boolean;
   /** The chat was opened once (the button stops glowing). */ seen: boolean;
   /** 10.0 A short remark after a record is saved (praise for sedekah, a nudge for the fifth jajan), when it fits. */ comments: boolean;
-  /** 10.1 After a spending is saved: "sehari seharusnya segini" from its budget (also in the note after Catat otomatis and the form). */ daily: boolean;
+  /** 10.1 After a spending is saved: today's share of its budget and what is left of it today (also in the note after Catat otomatis and the form). */ daily: boolean;
 };
 
 export const CHAT_STYLES: { key: ChatStyle; name: string; note: string }[] = [
