@@ -1,6 +1,6 @@
 /**
  * 10.3.1 Transactions without a subcategory. When a main category has subcategories and none was picked, every place that
- * makes or edits a transaction says so and offers them as quick picks (most used first); saving still works without one.
+ * makes or edits a transaction says so and offers them in a dropdown (most used first); saving still works without one.
  * The old ones are counted per category so the chart and Insight can point at them ("8 transaksi belum punya subkategori").
  */
 import { expenseAllocations } from './accounting.ts';

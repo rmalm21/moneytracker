@@ -3,7 +3,7 @@ export type Release = { version: string; date: string; title: string; items: [em
 
 export const releases: Release[] = [
   { version: '10.3.1', date: '14 Nov 2026', title: 'Subkategori lebih rapi', items: [
-    ['🗂️', 'Belum pilih subkategori? Sekarang dikasih tahu. Kalau kategorinya punya subkategori (misalnya Makan & Minum) tapi subkategorinya belum dipilih, Catat otomatis, chat, form Tambah/Ubah, Scan struk, dan Impor mutasi nunjukin “Belum ada subkategori” plus pilihan subkategorinya yang tinggal diketuk, yang paling sering kamu pakai duluan. Tetap bisa disimpan tanpa subkategori kok.'],
+    ['🗂️', 'Belum pilih subkategori? Sekarang dikasih tahu. Kalau kategorinya punya subkategori (misalnya Makan & Minum) tapi subkategorinya belum dipilih, Catat otomatis, chat, form Tambah/Ubah, Scan struk, dan Impor mutasi nunjukin “Subkategori belum dipilih” dengan dropdown subkategorinya, yang paling sering kamu pakai di urutan atas. Tetap bisa disimpan tanpa subkategori kok.'],
     ['🧾', 'Catatan lama juga kebantu: di Grafik Kategori ada “8 transaksi di Makan & Minum belum punya subkategori · Rapikan” yang langsung membuka transaksi-transaksi itu saja, dan Insight ikut mengingatkan kalau jumlahnya banyak. Ketuk transaksinya, pilih subkategorinya, beres.'],
     ['📊', 'Grafik Kategori lebih fokus: pilih satu subkategori, daftarnya diringkas jadi subkategori itu saja dan detailnya langsung di bawahnya. Mau lihat yang lain? Ketuk “Tampilkan subkategori lain”.'],
     ['🔄', 'Pindah uang antardompet tanpa kata “transfer” sekarang kebaca: “mandiri ke bri 14rb” atau “oper 50rb dari jago ke gopay” langsung jadi kartu transfer Mandiri → BRI. Pembaca kalimat yang menentukan mana dompet asal dan mana tujuannya.'],

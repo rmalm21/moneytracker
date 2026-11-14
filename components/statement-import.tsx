@@ -234,7 +234,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
             <div className="si-row-top">
               <RowCheck checked={picked.includes(r.id)} onChange={on => setPicked(list => on ? [...new Set([...list, r.id])] : list.filter(id => id !== r.id))} label={`Pilih ${r.name}`} />
               <button type="button" className="si-row-main" onClick={() => setEditing(editing === r.id ? '' : r.id)} aria-expanded={editing === r.id}>
-                <span><strong>{r.name}</strong><small>{formatDate(r.date)} · {describe(r)}{(r.purpose === 'expense' || r.purpose === 'income') && missingSubs(data.categories, data.transactions, r.categoryId, r.subcategoryId) ? <em className="si-nosub"> · belum ada subkategori</em> : null}{item.from === 'history' && (r.purpose === 'expense' || r.purpose === 'income') && edit.categoryId === undefined ? ' (dari catatanmu)' : ''}</small></span>
+                <span><strong>{r.name}</strong><small>{formatDate(r.date)} · {describe(r)}{(r.purpose === 'expense' || r.purpose === 'income') && missingSubs(data.categories, data.transactions, r.categoryId, r.subcategoryId) ? <em className="si-nosub"> · subkategori belum dipilih</em> : null}{item.from === 'history' && (r.purpose === 'expense' || r.purpose === 'income') && edit.categoryId === undefined ? ' (dari catatanmu)' : ''}</small></span>
                 <b className={dir === 'in' ? 'amount-positive' : ''}>{dir === 'in' ? '+' : ''}{rupiah(r.amount)}</b>
               </button>
               <span className="si-row-actions">
