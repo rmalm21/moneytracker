@@ -1,0 +1,14 @@
+## Asisten chat 3.5 — heldout (220 kasus × 2 akun)
+
+| | 10.1 |
+|---|---|
+| **Semua kasus** | 141/220 (64%) |
+| · 1 · Jawaban susulan | 19/38 (50%) |
+| · 2 · Koreksi kartu | 20/30 (67%) |
+| · 3 · Ubah setelah Simpan | 5/28 (18%) |
+| · 4 · Konteks panjang | 18/30 (60%) |
+| · 5 · Fitur: mencatat | 31/35 (89%) |
+| · 6 · Fitur: bertanya | 27/30 (90%) |
+| · 7 · Fitur: menu & cara | 21/29 (72%) |
+
+(9 dtk)

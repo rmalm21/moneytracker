@@ -31,7 +31,7 @@ export const MODULES: { view: string; label: string; words: RegExp }[] = [
   { view: 'receivables', label: 'Piutang', words: /\bpiutang\b|\bsiapa\s+(?:aja\s+|saja\s+)?yang\s+(?:masih\s+)?(?:utang|ngutang|hutang|minjem|pinjem|pinjam|belum\s+(?:bayar|balikin|lunas))|\b(?:utang|ngutang|hutang|minjem|pinjem|pinjam)\s+(?:ke|sama|ama)\s+(?:aku|gue|gw|saya)\b/ },
   { view: 'debts', label: 'Utang', words: /\b(?:utang|hutang|cicilan|pinjaman|paylater)\b/ },
   { view: 'funds', label: 'Tujuan dana', words: /\b(?:tujuan\s+dana|target(?:\s+tabungan)?|tabungan|dana\s+darurat|kantong)\b/ },
-  { view: 'recurring', label: 'Rutin', words: /\b(?:rutin|langganan|berulang|subscription|tagihan\s+bulanan)\b/ },
+  { view: 'recurring', label: 'Rutin', words: /\b(?:rutin|langganan|berulang|subscription|tagihan\s+bulanan)\b|\b(?:daftar|list|semua)\s+tagihan\b|\btagihan\s+(?:apa\s+aja|apa\s+saja|yang\s+(?:belum|mau|akan))\b/ },
   { view: 'calendar', label: 'Kalender Keuangan', words: /\bkalender\b/ },
   { view: 'forecast', label: 'Proyeksi', words: /\b(?:proyeksi|prediksi|forecast)\b/ },
   { view: 'analytics', label: 'Analisis', words: /\b(?:analisis|analisa|grafik|statistik|chart)\b/ },
@@ -44,15 +44,19 @@ export const MODULES: { view: string; label: string; words: RegExp }[] = [
   { view: 'settings', label: 'Pengaturan', words: /\b(?:pengaturan|setting(?:s|an)?|setelan|tema)\b/ },
   { view: 'help', label: 'Tanya Jawab', words: /\b(?:tanya\s+jawab|bantuan|faq|panduan)\b/ },
   { view: 'dashboard', label: 'Beranda', words: /\b(?:beranda|home|dashboard|halaman\s+(?:utama|depan))\b/ },
+  // 10.2 The Arena (streak, missions, mini games) lives on Beranda.
+  { view: 'dashboard', label: 'Arena Catat (di Beranda)', words: /\b(?:arena|streak|misi\s+harian|mini\s*game)\b/ },
 ];
 /** "buka anggaran", "ke menu dompet", "pindah ke laporan", "tunjukin wishlist", "menu kategori mana?" */
-const OPEN = /^(?:tolong\s+|coba\s+|mau\s+|pengen\s+|bisa\s+)?(?:buka(?:in|kan)?|bukain|ke|pergi\s+ke|pindah\s+ke|masuk\s+ke|balik\s+ke|kembali\s+ke|tampil(?:kan|in)|tunjuk(?:in|kan)|antar(?:in)?\s+ke|menu)\b|\b(?:menu|halaman)\s+\S+\s+(?:mana|di\s*mana|dimana)\b|\b(?:di\s*mana|dimana)\s+(?:menu|halaman)\b/;
+const OPEN = /^(?:tolong\s+|coba\s+|mau\s+|pengen\s+|pingin\s+|bisa\s+)?(?:buka(?:in|kan)?|bukain|ke|pergi\s+ke|pindah\s+ke|masuk\s+ke|balik\s+ke|kembali\s+ke|tampil(?:kan|in)|tunjuk(?:in|kan)|antar(?:in)?\s+ke|menu|liat(?:in)?|lihat(?:in)?|ngeliat|melihat)\b|\b(?:menu|halaman)\s+\S+\s+(?:mana|di\s*mana|dimana)\b|\b(?:di\s*mana|dimana)\s+(?:menu|halaman)\b/;
 /** "buka X" / "ke menu X": opening, not asking about it. */
 export const opensMenu = (t: string) => OPEN.test(t) && !ASK.test(t.replace(/\b(?:mana|di\s*mana|dimana)\b/g, ''));
 const ASK = /\b(?:berapa|apa\s+aja|apa\s+saja|siapa\s+(?:aja|saja)?|gimana|bagaimana|sampai\s+mana|udah\s+(?:berapa|sampai)|masih|sisa|daftar|list|kapan|mana\s+aja|progress|progres|ada\s+berapa|total|belum\s+(?:lunas|bayar|dikonfirmasi)|ada\s+(?:ga|gak|nggak|apa)|cukup|tahan)\b|\?$/;
 const ME = String.raw`(?:aku|gue|gw|saya|ku|mu)?`;
 
-export function readModule(t: string, data: ModuleData, today: string, v: Voice): ModuleAnswer | null {
+export function readModule(text: string, data: ModuleData, today: string, v: Voice): ModuleAnswer | null {
+  // 10.2 "daftar utangku", "wishlistmu": the menu word without its possessive ending.
+  const t = text.replace(/\b(utang|hutang|piutang|tagihan|wishlist|anggaran|budget|dompet|tabungan|cicilan|langganan|klaim|target|tujuan|pinjaman|rekening)(?:ku|mu|nya)\b/g, '$1');
   const target = MODULES.find(m => m.words.test(t));
   if (!target) return null;
   const go = { view: target.view, label: `Buka ${target.label}` };

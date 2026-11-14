@@ -12,7 +12,7 @@ import { readdirSync, writeFileSync } from 'node:fs';
 import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
-import { CHAT_CORPUS, augment } from '../lib/chat/corpus.ts';
+import { CHAT_CORPUS, CHAT_NONE, augment } from '../lib/chat/corpus.ts';
 import { generatedCorpus } from '../lib/chat/corpus-gen.ts';
 import { chatFeature } from '../lib/chat/feature.ts';
 
@@ -23,10 +23,21 @@ for (const f of readdirSync(bench).filter(f => /^(?:fixtures-heldout\d*|dialogs-
   for (const c of mod.cases || []) held.add(chatFeature(c.text));
   for (const d of mod.dialogs || []) for (const t of d.turns) if (t.text !== '#save') held.add(chatFeature(t.text));
 }
+// 10.2: and every later chat held-out set (v8.1 personality, v3 generated and hand-written, v4, Asisten 3.0, gaul, 3.5).
+const turnsOf = cases => cases.flatMap(c => (c.turns || []).map(t => t.say).filter(Boolean));
+const later = [
+  ...turnsOf((await import('../bench/v81/fixtures-heldout.mjs')).cases),
+  ...turnsOf((await import('../bench/v83/cases.mjs')).build('heldout')), ...turnsOf((await import('../bench/v83/fixtures-hand.mjs')).cases),
+  ...turnsOf((await import('../bench/v84/cases.mjs')).build('heldout')), ...turnsOf((await import('../bench/v84/fixtures-hand.mjs')).cases),
+  ...turnsOf((await import('../bench/v100/cases-heldout.mjs')).cases), ...turnsOf((await import('../bench/v100/cases-gaul-heldout.mjs')).cases),
+  ...turnsOf((await import('../bench/v102/cases-heldout.mjs')).cases),
+];
+for (const text of later) held.add(chatFeature(text));
 
 const generated = generatedCorpus(), seen = new Map(), docs = [];
 let hand = 0, made = 0, leaks = 0, clash = 0;
-for (const [intent, list] of Object.entries(CHAT_CORPUS)) {
+// 10.2 "None": what needs the conversation before it to mean anything (corpus.ts CHAT_NONE).
+for (const [intent, list] of [...Object.entries(CHAT_CORPUS), ['None', CHAT_NONE]]) {
   const all = [...list.map(s => [s, true]), ...(generated[intent] || []).map(s => [s, false])];
   for (const [s, written] of all) {
     if (written) hand++; else made++;

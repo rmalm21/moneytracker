@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Input, Select } from './fields';
 import { Emoji } from './emoji';
 import { AppIcon, brandForName, emojiLibrary, emojiOrFallback } from './visual-identity';
-import { groupOf, QUICK_GROUPS, QUICK_LABELS, type QuickContext, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
+import { groupOf, QUICK_GROUPS, QUICK_LABELS, recentEntries, type QuickContext, type QuickGroup, type QuickKind } from '@/lib/quick-entry';
 import { compositionReceipt } from '@/lib/catat/composition';
 import { aliasKey, learnFromChoice, learnFromSave, learnOverrides, personalize, readTeach, teach, TYPE_LABEL, type AliasType, type Contact, type PersonalAction, type PersonalAlias, type PersonalAsk, type PersonalInput, type PersonalPlan, type SavedFacts } from '@/lib/catat/personal';
 import { rememberSaved, sessionView } from '@/lib/catat/session';
@@ -191,13 +191,7 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   // The reference clock for "jam 1" follows the minute the sentence is being written.
   const typedMinute = text ? Math.floor(Date.now() / 60000) : 0;
   // V3.3 read-only financial context, bounded: the entries of the last 14 days (at most 200), open plans and schedules.
-  const recent = useMemo(() => {
-    const from = new Date(`${today}T12:00:00`); from.setDate(from.getDate() - 14);
-    const since = from.toLocaleDateString('en-CA');
-    const ms = (t: LedgerTx) => { const c = t.createdAt as { toMillis?: () => number; seconds?: number } | undefined; return c?.toMillis ? c.toMillis() : c?.seconds ? c.seconds * 1000 : undefined; };
-    return data.transactions.filter(t => t.date >= since).sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 200)
-      .map(t => ({ id: t.id, type: t.type, amount: t.amount, date: t.date, time: t.time, walletId: t.walletId, destinationWalletId: t.destinationWalletId, categoryId: t.categoryId, subcategoryId: t.subcategoryId, merchant: t.merchant, description: t.description, receivableId: t.receivableId, debtId: t.debtId, claimId: t.claimId, plannedId: t.plannedId, splitBillId: t.splitBillId, counterparty: t.counterparty, createdMs: ms(t) }));
-  }, [data.transactions, today]);
+  const recent = useMemo(() => recentEntries(data.transactions, today), [data.transactions, today]);
   // V3.4: Split Bill contacts (people known by name) and the Kamus Pribadi of this account only.
   const lexicon = profile?.personalLexicon;
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -494,7 +488,12 @@ function OperationCardView({ action, register, onSave, error: outerError = '' }:
     const uid = user!.uid;
     if (kind === 'tx_update') {
       const before = tx!, next: LedgerTx = { ...before };
-      for (const c of changes) { if (c.field === 'amount') next.amount = Number(c.after); if (c.field === 'walletId') next.walletId = String(c.after); if (c.field === 'date') next.date = String(c.after); }
+      for (const c of changes) {
+        if (c.field === 'amount') next.amount = Number(c.after); if (c.field === 'walletId') next.walletId = String(c.after); if (c.field === 'date') next.date = String(c.after);
+        // 10.2 A category picked in the chat ("masuk ke makan malam" after Simpan), or spending turned into income.
+        if (c.field === 'category') { next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; next.splits = []; }
+        if (c.field === 'type' && (c.after === 'income' || c.after === 'expense')) { next.type = c.after; next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; next.splits = []; }
+      }
       return { run: () => upsertTransaction(uid, next, before.id, { expect: { kind: 'transactions', id: before.id, amount: before.amount } }), pending: 'Mengubah transaksi…', success: 'Transaksi diubah.', detail: changes.map(c => c.label).join(' · '), failure: 'Transaksi belum diubah' };
     }
     if (kind === 'tx_delete') {

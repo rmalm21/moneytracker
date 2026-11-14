@@ -24,12 +24,15 @@ const NUMBER_GAME = /\b(?:main\s+)?tebak(?:-|\s)?(?:tebakan\s+)?angka\b/;
 const RANDOM = /\b(?:angka|nomor|number)\s+(?:acak|random)\b|\brandom\s+(?:angka|nomor|number)\b|\bacak\s+angka\b/;
 const CHOOSE = /\b(?:pilih(?:in|kan)?|bantu\s+pilih|mending|enakan|bagusan|lebih\s+(?:baik|enak|bagus)|which)\b/;
 
+// 10.2 "mainin game dong", "main yuk", "ada game apa": the games there are.
+const GAME_MENU = /\b(?:main(?:in)?|maen(?:in)?|mainan)\s+(?:game|gim|games|gem)\b|\b(?:game|gim|games)\s+(?:dong|yuk|yok|kuy|ayo|apa(?:\s+aja)?)\b|^(?:main|maen)\s+(?:yuk|yok|kuy|ayo|dong|apa)\b|\bayo\s+main\b|\bada\s+(?:game|gim|mainan)\b|\bbosen\s+main\b/;
 /** A game asked for, or a move in the one going on. */
 export function readGame(t: string, raw: string, v: Voice, turn: number, state?: GameState): GameReply | null {
   const seed = `${raw}|${turn}`;
   // A move in the game going on.
   if (state?.kind === 'suit') { const hand = t.match(HAND); if (hand) return playSuit(EN[hand[1]] || hand[1] as (typeof HANDS)[number], v, turn, seed); }
   if (state?.kind === 'angka') { const n = t.match(/^(?:angka\s+|nomor\s+|kalau\s+|mungkin\s+)?(\d{1,2})(?:\s*(?:\?|deh|kah|ya))?$/); if (n) return guessNumber(+n[1], state, v, turn); }
+  if (GAME_MENU.test(t) && !SUIT.test(t) && !NUMBER_GAME.test(t)) return { text: pv(v, { santai: ['Ayo main! Di sini bisa suit, tebak angka (1–10), atau lempar koin. Mini game seperti Tangkap Koin dan Cocok Cuan ada di Arena di Beranda. Mau yang mana?'], sopan: ['Tentu. Di sini tersedia suit, tebak angka (1–10), dan lempar koin. Mini game lainnya ada di Arena pada Beranda. Silakan pilih.'], gaul: ['Gas main! Ada suit, tebak angka, lempar koin. Mini game kayak Tangkap Koin sama Cocok Cuan ada di Arena di Beranda. Mau yang mana?'], singkat: ['Suit, tebak angka, atau lempar koin?'], barbar: ['Ayo main, anjir! Suit, tebak angka, lempar koin. Mini game lain di Arena di Beranda. Pilih!'] }, turn), chips: ['suit yuk', 'main tebak angka', 'lempar koin'] };
   if (SUIT.test(t)) {
     const hand = t.match(HAND);
     if (hand && !/^\s*(?:suit|suwit)\s*(?:yuk|ayo|dong|kuy)?\s*$/.test(t) && !/batu\s+gunting\s+kertas/.test(t)) return playSuit(EN[hand[1]] || hand[1] as (typeof HANDS)[number], v, turn, seed);

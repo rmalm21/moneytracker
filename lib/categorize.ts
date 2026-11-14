@@ -334,6 +334,10 @@ const INCOME_CUES: [RegExp, number][] = [
   [/\bmasuk\b(?!\s+(?:angin|kerja|kantor|sekolah|kuliah|kelas|rumah sakit|rs|tol|kos))/, 1.5],
   // 6.10: "uang kaget" is only ever received; pocket money "dari mama" came in; a prize was won.
   [/\buang kaget\b/, 3.5],
+  // 10.2 Said as what it is ("pemasukan 35rb ke mandiri"), and a wallet that grew ("35k nambah di mandiri", "saldo bri
+  // nambah 200rb", "nambah 50rb di gopay"): money in.
+  [/\b(pemasukan|pemasukkan|pendapatan|income)\b/, 3.5],
+  [/\b(?:nambah|bertambah|ketambahan)\b(?=.{0,24}\b(?:di|ke|masuk)\s+\S)|\bsaldo\s+\S+(?:\s+\S+)?\s+(?:nambah|bertambah|naik)\b/, 3.5],
   [/\b(?:uang|duit)\s+(?:saku|jajan|bulanan)\b.{0,16}\b(?:dari|dr)\b/, 3],
   [/\bmenang\s+(?:giveaway|ga|lomba|undian|kuis|quiz|doorprize|door prize|lotre|lottery|turnamen|kompetisi|hadiah|taruhan)\b/, 3.5],
 ];

@@ -15,7 +15,7 @@ export const CHAT_CORPUS: Record<ChatModelIntent, string[]> = {
     'makasi', 'makasiii', 'thankss', 'makasih kak', 'oke thanks', 'sip thank you', 'terima kasih asisten', 'mantap makasih', 'makasih udah bantu', 'makasih infonya', 'thanks infonya', 'oke deh makasih ya', 'terimakasih banyak', 'thank u'],
   help: ['bisa apa aja', 'kamu bisa apa', 'bantuan', 'help', 'cara pakai', 'gimana cara pakainya', 'fitur apa aja', 'apa aja yang bisa dilakukan', 'bisa bantu apa', 'tolong jelasin fiturnya', 'aku harus ngetik apa', 'ini gimana makenya', 'cara nyatet gimana', 'bisa ngapain aja', 'panduan', 'menu bantuan', 'gimana caranya', 'apa yang bisa kamu lakukan', 'kemampuanmu apa aja', 'bingung pakainya',
     'ajarin dong', 'gimana cara mulai', 'harus mulai dari mana', 'cara catat pengeluaran di chat', 'tutorial dong', 'kasih tau cara pakainya', 'aku ga ngerti cara pakainya', 'ini buat apa aja', 'apa yang bisa aku tanya', 'perintahnya apa aja', 'apa aja yang bisa aku ketik', 'cara tanya saldo gimana', 'cara bikin anggaran lewat chat', 'jelasin kemampuan kamu', 'bisa bantu apa aja sih kamu', 'fiturnya apa', 'aku baru pertama kali pakai', 'gimana cara kerjanya'],
-  about: ['kamu siapa', 'siapa kamu', 'kamu itu apa', 'ini apa', 'kamu robot ya', 'kamu ai ya', 'kamu manusia bukan', 'ini chat apa', 'asisten apa ini', 'kamu pakai internet ga', 'datanya dikirim ke mana', 'aman ga datanya', 'kamu chatgpt ya',
+  about: ['kamu ai', 'kamu robot', 'kamu manusia', 'kamu bot', 'kamu mesin', 'kamu admin', 'ini ai', 'ini robot', 'ini manusia', 'kamu orang', 'kamu ai kah', 'kamu robot bukan', 'kamu manusia atau ai', 'beneran ai', 'ai beneran', 'kamu siapa', 'siapa kamu', 'kamu itu apa', 'ini apa', 'kamu robot ya', 'kamu ai ya', 'kamu manusia bukan', 'ini chat apa', 'asisten apa ini', 'kamu pakai internet ga', 'datanya dikirim ke mana', 'aman ga datanya', 'kamu chatgpt ya',
     'kamu bot ya', 'yang jawab ini orang atau mesin', 'kamu dibuat siapa', 'apa kamu bisa baca data aku', 'data aku disimpan di mana', 'chat ini online atau offline', 'kamu butuh internet ga', 'privasi aku aman kan', 'ini pakai ai apa', 'kamu pintar ga', 'kamu belajar dari mana', 'kamu gemini ya', 'apakah percakapan ini direkam'],
   examples: ['contoh', 'kasih contoh', 'contohnya', 'template', 'minta contoh dong', 'contoh kalimat', 'ide kalimat', 'contoh catatan', 'kasih ide', 'template apa aja', 'liat contoh', 'contoh chat',
     'contoh dong', 'minta template', 'contoh pertanyaan', 'contoh perintah', 'kasih beberapa contoh', 'aku mau lihat contohnya', 'tunjukin contoh', 'contoh nyatet pengeluaran', 'daftar contoh', 'contoh yang bisa dicoba'],
@@ -51,7 +51,34 @@ export const CHAT_CORPUS: Record<ChatModelIntent, string[]> = {
   serious: ['serius dong', 'jangan bercanda', 'tolong serius', 'mode serius', 'udah becandanya', 'fokus dong', 'aku lagi serius', 'stop bercanda', 'jawab yang bener', 'seriusin', 'ini serius', 'yang serius ya', 'jangan main main', 'aku nanya serius', 'bisa serius ga', 'ga usah bercanda'],
   teach: ['ajari aku', 'ajarin kamu', 'aku mau ngajarin', 'boleh aku ajarin', 'sini aku ajarin', 'mau aku ajarin', 'aku kasih tau artinya', 'kalau gue bilang cekidot maksudnya ringkasan', 'inget ya tongpes itu artinya bokek', 'catat ya kanker artinya kantong kering', 'mulai sekarang mabok artinya pusing uang', 'tongpes itu artinya uang habis', 'ajarin kamu ya', 'aku ajarin kamu sesuatu', 'kamu harus belajar dari aku', 'kalau aku nulis gajah artinya gajian'],
   apology: ['maaf', 'maaf ya', 'maafin aku ya', 'maaf tadi kasar', 'sori ya', 'sorry tadi', 'maaf aku emosi tadi', 'maaf udah ngatain', 'duh maaf', 'aku minta maaf', 'maaf ngegas', 'maafkan aku', 'maaf ya tadi kesel', 'punten', 'maaf banget', 'sori ga maksud kasar', 'maaf udah marah marah', 'maaf ya bot', 'iya maaf deh', 'maaf kelepasan'],
+
+  // 10.2 Asisten 3.5: a fix to the card just shown or just saved, "what about …?" with nothing before it, how to use a
+  // feature, and asking to play (each also generated in lib/chat/corpus-gen.ts).
+  fix: ['eh salah', 'salah catat', 'ada yang salah', 'itu keliru', 'ralat', 'koreksi dong', 'revisi dikit', 'yang tadi salah', 'bukan gitu', 'bukan itu maksudku', 'kategorinya salah', 'dompetnya salah', 'nominalnya salah', 'tanggalnya salah',
+    'ganti kategorinya', 'ubah kategorinya', 'ganti dompetnya', 'ubah nominalnya', 'ganti tanggalnya', 'kategorinya makan malam', 'masuk ke makan malam', 'masukin ke transportasi', 'itu buat makan siang', 'itu jajan', 'harusnya belanja bulanan',
+    'pos hiburan', 'itu masuk tagihan', 'harusnya pake gopay', 'bayarnya pake bca', 'pakai dana', 'dari mandiri', 'itu kemarin', 'harusnya kemarin', 'itu hari senin', 'tanggal 3 harusnya', 'itu pemasukan', 'bukan pengeluaran', 'itu uang masuk',
+    'bukan keluar itu masuk', 'harusnya pengeluaran', 'kebalik itu masuk', 'eh bukan kopi tapi teh', 'namanya salah', 'tempatnya salah', 'salah kategori', 'salah dompet', 'salah tanggal', 'salah nominal', 'tolong benerin', 'benerin dong yang tadi',
+    'ubah yang barusan', 'edit yang tadi', 'ganti yang terakhir', 'yang terakhir salah kategori', 'kategori yang tadi diganti', 'pindahin ke kategori lain', 'itu harusnya sedekah', 'itu buat dinner', 'itu lunch', 'eh itu sarapan', 'masuk pos transport'],
+  followup: ['kalau bulan lalu', 'kalo minggu lalu', 'kalau kemarin', 'kalau tahun ini', 'kalau kopi', 'kalo bensin', 'kalau makan siang', 'kalau ojek', 'kalau jajan', 'kalo gopay', 'kalau yang bca', 'terus kalau bulan depan', 'nah kalau minggu ini',
+    'gimana kalau bulan lalu', 'kalau dibanding bulan lalu', 'yang bulan lalu', 'yang kemarin', 'kalau hari ini', 'kalo belanja', 'kalau hiburan', 'kalau transport', 'kalo listrik', 'kalau pulsa', 'kalau tagihan', 'kalau parkir',
+    'kurang berapa lagi', 'sisanya', 'totalnya', 'terus sisanya', 'yang lain', 'selain itu', 'terus yang lain gimana', 'kalau yang paling besar', 'kalau yang paling kecil', 'rata ratanya', 'kalau per hari', 'kalau per minggu'],
+  howto: ['cara bikin anggaran', 'gimana cara bikin budget', 'cara nambah dompet', 'cara tambah dompet baru', 'gimana cara hapus transaksi', 'cara edit transaksi', 'cara ubah kategori transaksi', 'cara bikin kategori baru', 'cara pasang pengingat',
+    'gimana nyalain notifikasi', 'cara scan struk', 'cara foto struk', 'cara impor mutasi bank', 'cara export data', 'cara backup data', 'cara ganti tema', 'cara ganti warna aplikasi', 'cara sembunyiin nominal', 'cara pasang pin', 'cara ganti pin',
+    'cara bikin tujuan dana', 'cara nambah wishlist', 'cara catat utang', 'cara catat piutang', 'cara pakai split bill', 'cara bagi tagihan bareng teman', 'cara bikin ruang bersama', 'cara undang pasangan', 'cara transfer antar dompet',
+    'cara catat tagihan rutin', 'cara atur tanggal gajian', 'cara hapus akun', 'cara ganti password', 'cara cocokkan saldo', 'cara lihat laporan', 'cara buka rekap', 'menu anggaran dimana', 'pengaturan dimana', 'tombol scan dimana',
+    'gimana caranya nyembunyiin saldo', 'mau bikin anggaran gimana', 'mau nambah dompet caranya gimana', 'ajarin pakai split bill', 'tutorial impor mutasi', 'langkah bikin tujuan dana', 'how to add wallet', 'how to set budget'],
+  game: ['main yuk', 'ayo main', 'main game yuk', 'ada game ga', 'bosen pengen main', 'mau main', 'yuk main suit', 'main tebak angka yuk', 'lempar koin dong', 'ajak main dong', 'temenin main', 'main game dong',
+    'pengen main game', 'kuy main', 'main bareng yuk', 'ada mainan ga', 'lets play', 'play a game', 'main suit dong', 'suit yuk', 'ayo suit', 'main lagi yuk', 'gabut ajak main'],
 };
+
+/**
+ * 10.2 Messages that mean nothing without the conversation before them ("boleh", "sama andi", "yang kedua"): trained as
+ * NLP.js's "None", so the model stays quiet on them and the rules (which know the conversation) or the plain "not
+ * understood" reply answer instead of a confident wrong guess.
+ */
+export const CHAT_NONE: string[] = ['boleh', 'boleh deh', 'boleh juga', 'iya', 'iya dong', 'iyain', 'oke', 'okee', 'ok', 'sip', 'siap', 'gas', 'gaskeun', 'lanjut', 'lanjutin', 'mau', 'mau dong', 'nggak', 'enggak', 'udah',
+  'belum', 'yang pertama', 'yang kedua', 'yang ketiga', 'dua', 'tiga', 'semua', 'semuanya', 'dua duanya', 'terserah', 'bebas', 'sama aja', 'hmm', 'hm', 'oh gitu', 'gitu ya', 'yaudah', 'yowes', 'nah', 'hah', 'loh', 'masa',
+  'yakin', 'bener', 'betul', 'oke deh', 'nanti aja']
 
 export { chatFeature } from './feature.ts';
 

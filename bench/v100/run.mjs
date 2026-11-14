@@ -13,7 +13,7 @@ const SET = process.env.SET || 'dev', arg = k => process.argv.find(a => a.starts
 const FILES = { dev: './cases-dev.mjs', heldout: './cases-heldout.mjs', 'gaul-dev': './cases-gaul-dev.mjs', 'gaul-heldout': './cases-gaul-heldout.mjs' };
 const cases = (await import(FILES[SET] || FILES.dev)).cases.filter(c => !arg('fam') || c.fam === arg('fam'));
 const all = { '9.10': './baseline-v910/lib/chat/engine.ts', sekarang: '../../lib/chat/engine.ts' };
-const engines = {}; for (const [k, path] of Object.entries(all)) if (!arg('only') || arg('only') === k) engines[k] = await import(path);
+const engines = {}; for (const [k, path] of Object.entries(all)) if (!arg('only') || arg('only') === k) engines[k] = { ...(await import(path)), classify: process.env.MODEL ? (await import(path.replace('engine.ts', 'model.ts'))).classifyChat : undefined };
 const { parseQuickPlan } = await import('../../lib/quick-plan.ts');
 const shown = r => !r ? '' : r.kind === 'say'
   ? [r.title, r.text, r.hero && `${r.hero.label} ${r.hero.value} ${r.hero.note || ''}`, ...(r.stats || []).map(s => `${s.label} ${s.value}`), ...(r.steps || []), ...(r.lines || []).map(l => `${l.label} ${l.value}`), ...(r.bars || []).map(b => `${b.label} ${b.value} ${b.note || ''}`), r.note].filter(Boolean).join(' ')
@@ -23,7 +23,8 @@ const re = x => x instanceof RegExp ? x : new RegExp(x, 'i');
 
 async function run(eng, c) {
   let memory = {}, reply = null, intent = '', said = '', comment;
-  const ctx = { ...v3Ctx, voice: c.voice };
+  // MODEL=1: each version with its own trained model, as in the app.
+  const ctx = { ...v3Ctx, voice: c.voice, ...(eng.classify ? { classify: eng.classify } : {}) };
   for (const turn of c.turns) {
     comment = undefined;
     if (turn.save) {

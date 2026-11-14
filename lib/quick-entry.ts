@@ -134,6 +134,19 @@ export type QuickContext = {
 /** A recent ledger entry as the V3.3 resolver sees it (no notes, no receipt). */
 export type RecentTx = Pick<LedgerTx, 'id' | 'type' | 'amount' | 'date' | 'walletId' | 'destinationWalletId' | 'categoryId' | 'subcategoryId' | 'merchant' | 'description'> & Partial<Pick<LedgerTx, 'time' | 'receivableId' | 'debtId' | 'claimId' | 'plannedId' | 'splitBillId' | 'counterparty'>> & { createdMs?: number };
 
+/**
+ * The bounded recent entries Catat otomatis and the chat read "yang tadi" / "transaksi terakhir" against: the last 14
+ * days, newest first, at most 200, each with when it was made. An entry still on its way to the server (its time not
+ * set yet) was made just now.
+ */
+export function recentEntries(transactions: LedgerTx[], today: string, nowMs = Date.now()): RecentTx[] {
+  const from = new Date(`${today}T00:00:00Z`); from.setUTCDate(from.getUTCDate() - 14);
+  const since = from.toISOString().slice(0, 10);
+  const ms = (t: LedgerTx) => { const c = t.createdAt as { toMillis?: () => number; seconds?: number } | null | undefined; return c?.toMillis ? c.toMillis() : c?.seconds ? c.seconds * 1000 : nowMs; };
+  return transactions.filter(t => t.date >= since).sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 200)
+    .map(t => ({ id: t.id, type: t.type, amount: t.amount, date: t.date, time: t.time, walletId: t.walletId, destinationWalletId: t.destinationWalletId, categoryId: t.categoryId, subcategoryId: t.subcategoryId, merchant: t.merchant, description: t.description, receivableId: t.receivableId, debtId: t.debtId, claimId: t.claimId, plannedId: t.plannedId, splitBillId: t.splitBillId, counterparty: t.counterparty, createdMs: ms(t) }));
+}
+
 const lower = (text: string) => text.toLocaleLowerCase('id-ID');
 /** Names people write in capitals or with their own spelling. */
 const NICE: Record<string, string> = { bca: 'BCA', bri: 'BRI', bni: 'BNI', bsi: 'BSI', btn: 'BTN', cimb: 'CIMB', ocbc: 'OCBC', uob: 'UOB', hsbc: 'HSBC', dbs: 'DBS', bjb: 'BJB', ovo: 'OVO', gopay: 'GoPay', shopeepay: 'ShopeePay', linkaja: 'LinkAja', seabank: 'SeaBank', rdn: 'RDN', kpr: 'KPR', stnk: 'STNK', pbb: 'PBB', bpjs: 'BPJS', pln: 'PLN', pdam: 'PDAM', krl: 'KRL', mrt: 'MRT', tv: 'TV', hp: 'HP', pc: 'PC', ps4: 'PS4', ps5: 'PS5', iphone: 'iPhone', ipad: 'iPad', macbook: 'MacBook', airpods: 'AirPods', thr: 'THR', ktp: 'KTP', dp: 'DP' };
@@ -376,7 +389,7 @@ const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|ta
 /** Cash in and out of a bank: tarik tunai (bank → cash), setor tunai (cash → bank). Not the fee ("biaya tarik tunai"). */
 const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil uang(?: di)? atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
 const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor|diklaim|diklaimkan|klaimkan|direimburse)\b/;
-const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b/;
+const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b|\b(?:udah|sudah|dah|baru)\s+(?:ganti|gantiin|bayar|bayarin|transfer|tf|reimburse)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung(?!\s+(?:gas|elpiji|lpg|oksigen))|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
 const FILL_WORDS = /\b(isi|tambah|nambah|masukin|masukkan|top ?up)\b/;
 const LEND_OUT = /\b((?:ngasi|kasi)h? (?:pinjem|pinjam|pinjaman|utang|hutang)|pinjemin|minjemin|pinjamin|minjamin|meminjamkan|minjemkan|talangin|nalangin|nalangi|talangi|bayarin|bayari|utangin|ngutangin|hutangin|ngehutangin|piutangin)\b/;
@@ -402,7 +415,7 @@ const REMIND = /\b(ingetin|ingatkan|ingetkan|ingatin|pengingat|reminder|remind|j
 const PLAN_WORDS = /\b(rencana|rencananya|berencana|planning)\b/;
 const BALANCE_WORDS = /\b(saldo|saldonya)\b/;
 const BALANCE_NOW = /\b(sekarang|skrg|skg|jadi|tinggal|sisa|update|perbarui|perbaharui|cocokkan|cocokin|sesuaikan|real|aktual|asli|sebenarnya|sebenernya|seharusnya|harusnya|terkini|ada)\b/;
-const BALANCE_MOVE = /\b(tambah|tambahin|isi|top ?up|topup|kurang|kurangi|potong|transfer|tf|kirim|narik|tarik|bayar|beli)\b/;
+const BALANCE_MOVE = /\b(tambah|tambahin|nambah|bertambah|isi|top ?up|topup|kurang|kurangi|berkurang|potong|transfer|tf|kirim|narik|tarik|bayar|beli)\b/;
 /** Buying or paying for something: "beli dompet baru" is spending, not a new wallet. */
 const BOUGHT = /\b(beli|bayar|byr|jajan|belanja|servis|service|ganti|benerin)\b/;
 const CREATE_WORDS = /\b(baru|buat|bikin|bikinin|tambah|tambahin|tambahkan|daftar|daftarin|pasang|set|namanya|bernama|nama)\b/g;
@@ -872,7 +885,7 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (group === 'debt') return debtKind();
     if (CLAIM_WORDS.test(text) || LEND_OUT.test(text) && /\bkantor\b/.test(text)) return claimKind();
     // "uang hotel bandung udah cair": an open claim named with a payout word.
-    if (claim && /\b(cair|dicairkan|diganti|reimburse)\b/.test(text)) return 'claim_payment';
+    if (claim && (/\b(cair|dicairkan|diganti|reimburse)\b/.test(text) || /\b(?:kantor|perusahaan|hrd|finance)\b.*\b(?:udah|sudah|dah|baru)\s+(?:ganti|gantiin|bayar|bayarin|transfer|tf|reimburse)\b/.test(text))) return 'claim_payment';
     // "dina transfer balik 30rb ke jago": a friend with an open Piutang who pays or transfers is paying it back, not a transfer.
     if (receivable && subject(receivable.words, PAY) && !LEND_OUT.test(text)) return 'receivable_payment';
     if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !/\b(biaya|admin|fee)\b/.test(text) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
@@ -881,6 +894,8 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     const toPerson = recipient?.cue === 'to' && !wallets.some(w => /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?)\s+$/.test(text.slice(0, w.at)));
     if (TRANSFER_WORDS.test(text) && !toPerson && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
+    // 10.2 "nyicil sepatu lari 100rb": paying bit by bit toward a wish-list item (no debt by that name) is saving for it.
+    if ((wish || fund) && !debt && /\b(?:nyicil|nyicilin|cicil|dicicil)\b/.test(text) && !DEBT_WORDS.test(text.replace(/\b(?:nyicil|nyicilin|cicil|dicicil)\b/g, ' '))) return targetKind();
     // "budi minjemin aku 300rb": somebody lent to me.
     if (LEND_OUT.test(text) && LENT_TO_ME.test(text)) return 'debt_new';
     if (LEND_OUT.test(text)) return 'receivable_new';

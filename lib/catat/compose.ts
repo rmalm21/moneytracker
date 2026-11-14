@@ -160,7 +160,7 @@ export function findCategory(phrase: string, categories: QuickContext['categorie
   if (sub) return { categoryId: sub.parentId!, subcategoryId: sub.id, label: `${categories.find(c => c.id === sub.parentId)?.name || ''} › ${sub.name}` };
   return null;
 }
-const CATEGORY_CMD = /(?<![\p{L}])(?:masuk(?:in|kan)?\s+(?:ke\s+)?(?:dalam\s+)?kategori|kategori(?:kan|nya)?(?:\s+ke)?|catat\s+sebagai|set\s+kategori|masukin\s+ke)\s+([\p{L}&›>\/ -]+?)\s*(?=$|[,;.]|\s(?:pake|pakai|via|lewat|di|kemarin|tadi|beli|buat|untuk)\b|\s\d)/iu;
+const CATEGORY_CMD = /(?<![\p{L}])(?:masuk(?:in|kan)?\s+(?:ke\s+)?(?:dalam\s+)?kategori|kategori(?:kan|nya)?(?:\s+ke)?|catat\s+sebagai|set\s+kategori|masukin\s+ke)\s+([\p{L}&›>\/ -]+?)\s*(?=$|[,;.]|\s(?:pake|pakai|via|lewat|di|kemarin|tadi|beli|buat|untuk|tanggal|tgl|semalam|lusa|jam|pukul)\b|\s(?:hari\s+(?:ini|senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)|(?:minggu|bulan)\s+lalu)\b|\s\d)/iu;
 
 /**
  * Finds the extra scopes of every clause and returns the core text for the grammar plus what was taken out.
@@ -175,7 +175,10 @@ export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | '
   let changed = false;
   for (const clause of clausesOf(text, ctx)) {
     let part = text.slice(clause.start, clause.end), plow = lower(part);
-    if (HANDS_OFF.test(plow) || !findAmounts(plow).length) { pieces.push({ text: part }); continue; }
+    // 10.2 "gaji 5jt kategori gaji › lembur", "netflix 65rb kategori langganan": a word of the relationship engines inside
+    // the category named is not one of them; such a sentence gets only its explicit category, nothing else is recomposed.
+    const handsOff = HANDS_OFF.test(plow.replace(CATEGORY_CMD, ' ')), onlyCategory = HANDS_OFF.test(plow) && !handsOff || handsOff && CATEGORY_CMD.test(plow) && /^(?:gaji|gajian|bonus|langganan)$/.test(plow.replace(CATEGORY_CMD, ' ').match(HANDS_OFF)?.[1] || '');
+    if (handsOff && !onlyCategory || !findAmounts(plow).length) { pieces.push({ text: part }); continue; }
     const slot: Omit<ComposedSlot, 'at'> = {};
     // Punctuation inside one event ("nongkrong 77k, di kongsi tiam, krom, beli …") separates roles, not events.
     const walletWords = ctx.wallets.map(w => lower(w.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -221,6 +224,7 @@ export function composeSlots(text: string, ctx: Pick<QuickContext, 'wallets' | '
       if (found) { slot.category = { ...found, text: cm[0].trim() }; cut(cm.index!, cm.index! + cm[0].length); trace.push(`kategori eksplisit “${cm[1].trim()}” → ${found.label}`); }
       else if (cm[1].trim().split(/\s+/).length <= 3) { slot.categoryMissing = cm[1].trim(); cut(cm.index!, cm.index! + cm[0].length); trace.push(`kategori “${cm[1].trim()}” belum ada → ditanyakan`); }
     }
+    if (onlyCategory) { if (Object.keys(slot).length) { changed = true; pieces.push({ text: part, slot }); } else pieces.push({ text: part }); continue; }
     // 2. Purpose ("buat meeting"); an activity there is the event's activity ("… buat nongkrong").
     const amountsIn = () => findAmounts(plow).map(a => a.index), walletsAt = () => walletsIn(plow, ctx.wallets).map(w => w.at);
     const dateAt = () => [...plow.matchAll(new RegExp(DATE_PHRASES.source, 'g'))].map(m => m.index ?? 0);

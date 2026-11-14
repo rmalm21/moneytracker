@@ -9,12 +9,13 @@ import { build, familyTitles } from './cases.mjs';
 const SET = process.env.SET || 'dev', arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
 const cases = (SET === 'hand' ? (await import('./fixtures-hand.mjs')).cases : build(SET)).filter(c => !arg('fam') || c.fam === arg('fam'));
 const all = { '8.2': './baseline-v82/lib/chat/engine.ts', sekarang: '../../lib/chat/engine.ts' };
-const engines = {}; for (const [k, path] of Object.entries(all)) if (!arg('only') || arg('only') === k) engines[k] = await import(path);
+const engines = {}; for (const [k, path] of Object.entries(all)) if (!arg('only') || arg('only') === k) engines[k] = { ...(await import(path)), classify: process.env.MODEL ? (await import(path.replace('engine.ts', 'model.ts'))).classifyChat : undefined };
 const { parseQuickPlan } = await import('../../lib/quick-plan.ts');
 const text = r => r.kind === 'say' ? [r.title, r.text, r.hero && `${r.hero.label} ${r.hero.value} ${r.hero.note || ''}`, ...(r.stats || []).map(s => `${s.label} ${s.value}`), ...(r.steps || []), ...(r.lines || []).map(l => `${l.label} ${l.value}`), ...(r.bars || []).map(b => `${b.label} ${b.value} ${b.note || ''}`), r.note].filter(Boolean).join(' · ') : `${r.intro || ''} ${r.text}`;
 async function run(eng, c) {
   let memory = {}, said = '', reply, intent;
-  const ctx = { ...v3Ctx, voice: c.voice };
+  // MODEL=1: each version with its own trained model, as in the app.
+  const ctx = { ...v3Ctx, voice: c.voice, ...(eng.classify ? { classify: eng.classify } : {}) };
   for (const turn of c.turns) {
     const r = await eng.chatReply(turn.say, memory, ctx); memory = r.memory; reply = r.reply; intent = r.intent;
     said = text(reply);

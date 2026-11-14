@@ -5,7 +5,9 @@
  */
 export type ChatModelIntent = 'greet' | 'thanks' | 'help' | 'about' | 'examples' | 'summary' | 'afford' | 'tips' | 'calc' | 'cancel' | 'undo' | 'record' | 'question' | 'style'
   | 'smalltalk' | 'mood' | 'budget' | 'payday' | 'goal'
-  | 'joke' | 'banter' | 'angry' | 'curhat' | 'serious' | 'teach' | 'apology';
+  | 'joke' | 'banter' | 'angry' | 'curhat' | 'serious' | 'teach' | 'apology'
+  /** 10.2 A fix to a card ("kategorinya makan malam"), "kalau bulan lalu?", how to use a feature, a game. */
+  | 'fix' | 'followup' | 'howto' | 'game';
 
 const SHORT: Record<string, string> = {
   gw: 'gue', gua: 'gue', gwe: 'gue', ak: 'aku', aq: 'aku', sy: 'saya', km: 'kamu', kmu: 'kamu', lu: 'lo', loe: 'lo', elu: 'lo', elo: 'lo',
@@ -29,6 +31,8 @@ const SHORT: Record<string, string> = {
   gaada: 'gak ada', gada: 'gak ada', kaga: 'gak', kgk: 'gak', jd: 'jadi', jdi: 'jadi', blg: 'bilang', ntar: 'nanti', nnti: 'nanti', bntr: 'bentar',
   krg: 'kurang', lbh: 'lebih', ttg: 'tentang', gimn: 'gimana', gmana: 'gimana', bgmn: 'gimana', dmn: 'di mana', kmn: 'ke mana', ane: 'aku', gwa: 'gue',
   mager: 'males', fulus: 'uang', simpen: 'simpan', kudu: 'harus',
+  // 10.2
+  malem: 'malam', mlm: 'malam', kategori2: 'kategori', ktgr: 'kategori', ktg: 'kategori', dompt: 'dompet', dmpt: 'dompet', tggl: 'tanggal',
   kpn: 'kapan', kapn: 'kapan', bnyk: 'banyak', byk: 'banyak', sebenernya: 'sebenarnya', sbnrnya: 'sebenarnya', tmpt: 'tempat', ngapain: 'ngapain',
 };
 
@@ -37,10 +41,13 @@ const word = (w: string) => { const short = w.replace(/(\p{L})\1{2,}/gu, '$1').r
 /** 7.8: the same shorthand written out for the chat rules (amounts and punctuation stay as typed). */
 export const normalizeWords = (text: string) => text.replace(/\p{L}+/gu, w => /^(?:w+k+)+w*k*$|^(?:h?a+h+)+a*$|^(?:h?e+h+)+e*$/.test(w) ? w : word(w));
 
-/** The words the model reads. */
+/**
+ * The words the model reads. 10.2: an amount and a number are read as made-up words ("qnominal", "qangka"), never as
+ * real ones: "tebak angka" and "ubah nominalnya" no longer pull every message with a number towards a game or a fix.
+ */
 export const chatFeature = (text: string) => text.toLocaleLowerCase('id-ID')
-  .replace(/(?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|k|jt|juta|m)\b/g, ' nominal ')
-  .replace(/\d[\d.,]*/g, ' angka ')
+  .replace(/(?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|k|jt|juta|m)\b/g, ' qnominal ')
+  .replace(/\d[\d.,]*/g, ' qangka ')
   .replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim()
   .split(' ').map(w => {
     if (/^(?:w+k+)+w*k*$/.test(w) && w.length > 2) return 'wkwk';

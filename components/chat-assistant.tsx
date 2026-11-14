@@ -14,6 +14,7 @@ import { ChatMark } from './chat-mark';
 import { QuickEntryBox } from './quick-entry';
 import { chatReply, commentOnSaved, dailyOnSaved, templatesFor, type ChatContext, type ChatMemory, type ChatReply, type SayCard, type TemplateGroup } from '@/lib/chat/engine';
 import { inspect } from '@/lib/chat/inspect';
+import { recentEntries } from '@/lib/quick-entry';
 import { suggestFor, type Suggestion, type SuggestIcon } from '@/lib/chat/suggest';
 import { VOICES } from '@/lib/chat/voice';
 import { CHAT_STYLES, DEFAULT_SETTINGS, KEEP_OPTIONS, PAGE, clearChat, learnPhrase, loadChat, loadSettings, page, saveChat, saveSettings, type ChatMessage, type ChatSettings, type ChatStatus, type ChatStyle } from '@/lib/chat/store';
@@ -80,7 +81,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
   const changeSettings = useCallback((patch: Partial<ChatSettings>) => setSettings(s => { const next = { ...s, ...patch }; if (user) saveSettings((account || user).uid, next); return next; }), [user, account]);
 
   const today = todayInTimeZone(profile?.timeZone);
-  const quick = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), ask: { transactions: data.transactions, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone]);
+  const quick = useMemo(() => ({ wallets: data.wallets, categories: data.categories, history: data.transactions, today, debts: data.debts, receivables: data.receivables, claims: data.claims, funds: data.funds, wishlist: data.wishlist, budgets: data.budgets, salaryDay: profile?.salaryCycleStartDay, now: timeInTimeZone(profile?.timeZone), plans: data.plannedTransactions, recurring: data.recurring, nowMs: Date.now(), recent: recentEntries(data.transactions, today), ask: { transactions: data.transactions, wallets: data.wallets, budgets: data.budgets } }), [data, today, profile?.salaryCycleStartDay, profile?.timeZone]);
   const templates = useMemo(() => templatesFor(data.wallets), [data.wallets]);
   const classify = useCallback(async (text: string) => (await import('@/lib/chat/model')).classifyChat(text), []);
   const chatCtx = useMemo<ChatContext>(() => ({ data, today, salaryDay: profile?.salaryCycleStartDay || 24, cycle: { start: cycle.start, end: cycle.end }, quick, inspect: text => inspect(text, quick), classify, name: (profile?.displayName || profile?.username || '').split(' ')[0], hour: dateInTimeZone(new Date(), profile?.timeZone).getHours(), voice: settings.voice, learned: settings.learned }), [data, today, profile, cycle.start, cycle.end, quick, classify, settings.voice, settings.learned]);
@@ -159,7 +160,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
   function saved(id: string, planText: string, summary: string) {
     featureUsed('chat_record');
     mark(id, 'saved', summary);
-    setMemory(m => m.plan?.text === planText ? { ...m, plan: { ...m.plan, status: 'saved' } } : m);
+    setMemory(m => m.plan?.text === planText ? { ...m, plan: { ...m.plan, status: 'saved' }, saves: [...(m.saves || []), planText].slice(-5) } : m);
     // 10.0 A short remark on what was just saved (praise for sedekah or nabung, a nudge for the fifth jajan or a budget
     // gone over), in the chosen style, when it fits and the person has not switched it off. The ledger as it was when Simpan
     // was tapped is read, so the record is counted once.

@@ -344,10 +344,12 @@ function recordCheck(text: string, r: QuickResult, ctx: QuickContext): { status:
   const names = debt ? [debt.name, debt.provider] : receivable ? [receivable.person] : claim ? [claim.name] : fund ? [fund.name] : wish ? [wish.name] : [];
   const label = debt?.name || receivable?.person || claim?.name || fund?.name || wish?.name || '';
   const words = [...new Set(names.flatMap(n => (n || '').toLocaleLowerCase('id-ID').split(/[^\p{L}\p{N}]+/u)).filter(w => w.length >= 3))];
-  const hits = words.filter(w => has(text, w)), specific = hits.filter(w => !GENERIC.has(w));
+  // 10.2 A short word of the name ("HP" in "Cicilan HP", "TV") said in the text counts as the name too.
+  const short = [...new Set(names.flatMap(n => (n || '').toLocaleLowerCase('id-ID').split(/[^\p{L}\p{N}]+/u)).filter(w => w.length === 2 && /^\p{L}+$/u.test(w)))];
+  const hits = [...words, ...short].filter(w => has(text, w)), specific = hits.filter(w => !GENERIC.has(w) && (w.length >= 3 || hits.some(h => h.length >= 3)));
   if (specific.length) return { status: 'verified', note: `“${specific.join(' ')}” cocok dengan ${label}` };
   const open = debt ? (ctx.debts || []).filter(d => d.outstandingAmount > 0).length : claim ? (ctx.claims || []).filter(c => c.remainingAmount > 0).length : receivable ? (ctx.receivables || []).filter(x => x.remainingAmount > 0).length : 2;
-  const leftover = leftoverWords(text, ctx, words);
+  const leftover = leftoverWords(text, ctx, [...words, ...short]);
   if (hits.length && leftover.length) return { status: 'missing', note: `Tidak ada catatan “${leftover.join(' ')}”; ${label} hanya mirip sebagian`, unlink: true, leftover };
   if (open === 1) return { status: 'likely', note: `satu-satunya yang masih terbuka: ${label}` };
   return { status: 'check', note: `${label} dipilih dari kata umum saja; pastikan benar` };
@@ -1078,9 +1080,11 @@ function addressBack(plan: QuickParseResult, shown: Map<string, string>, ctx: Qu
   return plan;
 }
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
-  const { text, shown } = addressedNames(input, ctx);
+  // 10.2 "beli kopi 2 @18rb": the count right before "@" is how many, read as "kopi 2x18rb" (the card shows what was typed).
+  const counted = input.replace(/(\p{L})\s+(\d{1,3})\s*@\s*(?:rp\.?\s*)?(\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)?)(?![\p{L}\d])/giu, '$1 $2x$3');
+  const { text, shown } = addressedNames(counted, ctx);
   const plan = settingAfterThing(parseQuickPlanAll(text, ctx, mode));
-  if (shown.size && plan.sourceText === text) plan.sourceText = input;
+  if (plan.sourceText === text && (shown.size || counted !== input)) plan.sourceText = input;
   return addressBack(plan, shown, ctx);
 }
 function parseQuickPlanAll(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
@@ -1717,7 +1721,7 @@ function commandPlan(sourceText: string, normalizedText: string, cmd: Command, c
     else if (cmd.candidates.length > 1) fields.link = { status: 'check', note: 'Transaksi yang mana?' };
     else { fields.link = { status: 'missing', note: 'Tidak ada transaksi yang cocok' }; warnings.push(cmd.why[0]); }
     if (amountChange) fields.amount = { status: amountChange.inferred ? 'check' : 'verified', note: amountChange.label };
-    for (const c of cmd.changes || []) if (c.field !== 'amount') fields[c.field === 'walletId' ? 'wallet' : 'date'] = { status: 'verified', note: c.label };
+    for (const c of cmd.changes || []) if (c.field !== 'amount') fields[c.field === 'walletId' ? 'wallet' : c.field === 'category' || c.field === 'type' ? 'category' : 'date'] = { status: 'verified', note: c.label };
   }
   if (kind === 'recurring_change') fields.link = { status: 'verified', note: cmd.target?.label || '' };
   const options: ActionCandidate['options'] = amountChange?.inferred ? { amount: [Number(amountChange.after), Number(amountChange.after) / 1000] } : {};

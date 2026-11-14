@@ -1,0 +1,17 @@
+## Asisten chat 3.5 — heldout (220 kasus × 2 akun, aturan + model terlatih masing-masing)
+
+| | sekarang |
+|---|---|
+| **Semua kasus** | 219/220 (100%) |
+| · 1 · Jawaban susulan | 38/38 (100%) |
+| · 2 · Koreksi kartu | 30/30 (100%) |
+| · 3 · Ubah setelah Simpan | 28/28 (100%) |
+| · 4 · Konteks panjang | 30/30 (100%) |
+| · 5 · Fitur: mencatat | 35/35 (100%) |
+| · 6 · Fitur: bertanya | 29/30 (97%) |
+| · 7 · Fitur: menu & cara | 29/29 (100%) |
+
+(25 dtk)
+
+### Gagal — sekarang (1)
+- hq25 [tanya] “bensin minggu ini”: [bench] tanpa /Rp/ — «bensin minggu ini berapa»   [asli] tanpa /Rp/ — «bensin minggu ini berapa» 

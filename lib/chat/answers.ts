@@ -461,13 +461,13 @@ export function debtPerson(d: { name: string; provider?: string }, people: strin
   if (KIN_OR_ADDRESS.test(who) || people.includes(low) || /^\p{Lu}\p{Ll}+$/u.test(who)) return low;
   return '';
 }
-const ABOUT_WORDS = new Set('dia doi dianya itu tuh ini yang yg udah sudah dah belum blm belom lunas bayar dibayar bayarnya dibalikin balikin dikembaliin kembaliin ngembaliin cair cairnya kapan berapa brp brapa tanggal tanggalnya tgl jatuh tempo temponya jatuhtemponya janji janjinya janjiin sisa sisanya lagi bulan buat untuk apa dulu nominal nominalnya jumlah jumlahnya totalnya ya sih dong kah gimana harus musti mesti kira kira2 kira-kira deh nih kok emang memang pinjem pinjam minjem minjam ngutang utang utangnya hutang hutangnya keperluan keperluannya ngapain dipake dipakai kelar beres lunasnya siapa orangnya namanya nya kali terakhir masih tadi aku gue gua saya ke sama piutang piutangnya cicilan cicilannya klaim klaimnya tagihan tagihannya'.split(' '));
+const ABOUT_WORDS = new Set('dia doi dianya itu tuh ini yang yg udah sudah dah belum blm belom lunas bayar dibayar bayarnya dibalikin balikin dikembaliin kembaliin ngembaliin cair cairnya kapan berapa brp brapa tanggal tanggalnya tgl jatuh tempo temponya jatuhtemponya janji janjinya janjiin sisa sisanya lagi bulan buat untuk apa dulu nominal nominalnya jumlah jumlahnya totalnya ya sih dong kah gimana harus musti mesti kira kira2 kira-kira deh nih kok emang memang pinjem pinjam minjem minjam ngutang utang utangnya hutang hutangnya keperluan keperluannya ngapain dipake dipakai kelar beres lunasnya siapa orangnya namanya nya kali terakhir masih tadi aku gue gua saya ke sama piutang piutangnya cicilan cicilannya klaim klaimnya tagihan tagihannya kurang kurangnya kekurangannya target targetnya tercapai kekumpul terkumpul kumpul progres progresnya progress persen sebulan perbulan bulanan harga harganya biaya biayanya bayarnya tagihannya deket dekat duluan mahal murah sekali tiap'.split(' '));
 /** 8.5 A word naming the kind of record: the question is about that record only when it is that kind ("piutangnya" after a debt is not). */
 const KIND_WORDS: Record<string, ItemRef['kind'][]> = { piutang: ['receivable'], piutangnya: ['receivable'], cicilan: ['debt', 'recurring'], cicilannya: ['debt', 'recurring'], klaim: ['claim'], klaimnya: ['claim'], tagihan: ['debt', 'recurring'], tagihannya: ['debt', 'recurring'] };
 const WHEN = /\b(?:kapan|tanggal\p{L}*|tgl|jatuh\s*tempo\p{L}*|tempo\p{L}*|deadline|janji\p{L}*)\b/u;
 const PAID = /\b(?:lunas\p{L}*|dibayar|bayar\p{L}*|balikin|dibalikin|kembaliin|dikembaliin|cair\p{L}*|kelar|beres)\b/u;
 const WHAT_FOR = /\b(?:buat|untuk)\s+apa\b|\bkeperluan\p{L}*|\bngapain\b|\bdipak[ea]i?\s+apa\b/u;
-const HOW_MUCH = /\b(?:berapa|brp|brapa|nominal\p{L}*|jumlah\p{L}*|total\p{L}*|sisa\p{L}*)\b/u;
+const HOW_MUCH = /\b(?:berapa|brp|brapa|nominal\p{L}*|jumlah\p{L}*|total\p{L}*|sisa\p{L}*|harga\p{L}*|biaya\p{L}*)\b/u;
 export function aboutItem(t: string, ref: ItemRef, ctx: AnswerCtx, v: Voice): Answer | null {
   const words = t.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(Boolean);
   if (!words.length || words.length > 8 || words.some(w => !ABOUT_WORDS.has(w) && !/^\d+$/.test(w))) return null;
@@ -516,7 +516,11 @@ export function aboutItem(t: string, ref: ItemRef, ctx: AnswerCtx, v: Voice): An
   if (ref.kind === 'fund') {
     const f = data.funds.find(x => x.id === ref.id); if (!f) return null;
     const left = Math.max(0, f.targetAmount - f.currentAmount), hero = { label: 'Terkumpul', value: rp(f.currentAmount), note: `dari ${rp(f.targetAmount)}`, tone: 'good' as const }, open = { view: 'funds', label: 'Buka Tujuan' };
+    if (/\btarget\p{L}*\b/u.test(t) && when) return { ...base, title: f.name, text: f.targetDate ? `Target ${f.name} ${dm(f.targetDate)} ${f.targetDate.slice(0, 4)} (${days(f.targetDate)}).` : `${f.name} belum punya target tanggal.`, hero, open };
     if (when) { const m = f.monthlyContribution > 0 && left > 0 ? Math.ceil(left / f.monthlyContribution) : 0; return { ...base, title: f.name, text: !left ? `${f.name} sudah tercapai!` : m ? `Dengan ${rp(f.monthlyContribution)}/bulan, tercapai sekitar ${monthYear(today, m)}.` : f.targetDate ? `Targetnya ${dm(f.targetDate)}; kurang ${rp(left)}.` : `Belum ada setoran rutin atau tanggal target. Kurang ${rp(left)}.`, hero, open }; }
+    // 10.2 "kurang berapa lagi?", "targetnya berapa?", "target tanggalnya kapan?": the gap, the goal, its date.
+    if (/\b(?:kurang|kurangnya|kekurangannya|sisa\p{L}*)\b/u.test(t)) return { ...base, title: f.name, text: left ? `${f.name} kurang ${rp(left)} lagi (terkumpul ${rp(f.currentAmount)} dari ${rp(f.targetAmount)}).` : `${f.name} sudah tercapai!`, hero, open };
+    if (/\btarget\p{L}*\b/u.test(t) && !when) return { ...base, title: f.name, text: `Target ${f.name} ${rp(f.targetAmount)}${f.targetDate ? `, sampai ${dm(f.targetDate)}` : ''}. Sekarang terkumpul ${rp(f.currentAmount)}.`, hero, open };
     if (much) return { ...base, title: f.name, text: `${f.name} terkumpul ${rp(f.currentAmount)} dari ${rp(f.targetAmount)}, kurang ${rp(left)}.`, hero, open };
     return null;
   }

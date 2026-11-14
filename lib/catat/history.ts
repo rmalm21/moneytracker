@@ -14,11 +14,13 @@
  * ledger (lib/firestore.ts) executes it after confirmation.
  */
 import { askMoney, type AskMeta } from './ask.ts';
+import { resolveCategory } from '../category-resolve.ts';
 import { DATE_PHRASES, findAmounts, knownPlaces, nameLike, readDate, walletsIn, type QuickContext, type RecentTx } from '../quick-entry.ts';
 
 export type OperationType = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL' | 'SETTLE' | 'PARTIAL_SETTLE' | 'TRANSFER' | 'SPLIT' | 'LINK' | 'UNLINK' | 'SCHEDULE' | 'RECUR' | 'STOP_RECURRING' | 'QUERY' | 'INSPECT' | 'CONFIRM';
 export type TargetRef = { kind: 'transaction' | 'receivable' | 'debt' | 'claim' | 'plan' | 'recurring'; id: string; label: string; amount?: number; date?: string; time?: string; score: number; evidence: string[] };
-export type FieldChange = { field: 'amount' | 'walletId' | 'date' | 'description'; before: string | number; after: string | number; label: string; inferred?: boolean };
+/** 10.2: `category` and `type` carry the category picked (`categoryId`/`subcategoryId`; null for none). */
+export type FieldChange = { field: 'amount' | 'walletId' | 'date' | 'description' | 'category' | 'type'; before: string | number; after: string | number; label: string; inferred?: boolean; categoryId?: string | null; subcategoryId?: string | null };
 /** V3.3: what an action does to existing state (stored on QuickResult.operation). */
 export type OperationInfo = {
   type: OperationType; target?: TargetRef; targets?: TargetRef[]; candidates?: TargetRef[]; changes?: FieldChange[];
@@ -95,21 +97,42 @@ export function resolveTransactions(phrase: string, ctx: QuickContext, amountHin
   return { best: best && !ambiguous ? best : undefined, candidates: ambiguous ? scored.filter(c => best.score - c.score < 1.5).slice(0, 3) : best ? [best] : [], ambiguous, trace };
 }
 
-/** "jadi 25k", "jadi pake gopay", "jadi kemarin": the new value of an entry, read against its current one. */
-function readChange(value: string, target: RecentTx | undefined, ctx: QuickContext): FieldChange | null {
-  const v = lower(value).trim();
+/**
+ * "jadi 25k", "jadi pake gopay", "jadi kemarin", 10.2 "jadi kategori makan malam", "jadi pemasukan", "jadi 30rb pake gopay
+ * kemarin": the new values of an entry, read against its current ones (several in one go).
+ */
+function readChanges(value: string, target: RecentTx | undefined, ctx: QuickContext): FieldChange[] {
+  let v = lower(value).trim();
+  const out: FieldChange[] = [];
+  const catName = (id?: string | null) => ctx.categories.find(c => c.id === id)?.name || '';
+  const before = target ? catName(target.subcategoryId) || catName(target.categoryId) || 'tanpa kategori' : '?';
+  // In or out: "pemasukan", "pengeluaran" (a category with it, or none).
+  const kind = v.match(/\b(pemasukan|uang masuk|income|pengeluaran|uang keluar|expense)\b/);
+  const to: 'income' | 'expense' | undefined = kind ? (/masuk|income|pemasukan/.test(kind[1]) ? 'income' : 'expense') : undefined;
+  if (kind) v = v.replace(kind[0], ' ');
+  // A category: "kategori makan malam", "kategorinya jajan".
+  const cat = v.match(/\bkategori(?:nya)?\s+(.+?)\s*$/);
+  let picked = cat ? resolveCategory(cat[1], ctx.categories, to || (target?.type === 'income' ? 'income' : 'expense')) : null;
+  if (cat) v = v.slice(0, cat.index);
+  const flow = to || picked?.type;
+  if (flow && target && flow !== target.type && (target.type === 'income' || target.type === 'expense')) {
+    if (picked && picked.type !== flow) picked = null;
+    out.push({ field: 'type', before: target.type, after: flow, label: `${target.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} → ${flow === 'income' ? 'Pemasukan' : 'Pengeluaran'}${picked ? ` · ${picked.name}` : ''}`, categoryId: picked?.categoryId ?? null, subcategoryId: picked?.subcategoryId ?? null });
+  } else if (picked) out.push({ field: 'category', before, after: picked.subcategoryId || picked.categoryId, label: `${before} → ${picked.name}`, categoryId: picked.categoryId, subcategoryId: picked.subcategoryId });
+  v = v.trim();
   const amount = findAmounts(v).find(a => a.marked || a.value >= 10);
   if (amount) {
     // "harusnya 25" for an entry of Rp20.000: the same scale as the entry (thousands), marked as read that way.
     const inferred = !amount.marked && amount.value < 1000 && (target?.amount || 0) >= 1000;
     const after = inferred ? amount.value * 1000 : amount.value;
-    return { field: 'amount', before: target?.amount ?? 0, after, label: `${target ? rupiah(target.amount) : '?'} → ${rupiah(after)}`, ...(inferred ? { inferred: true } : {}) };
+    out.push({ field: 'amount', before: target?.amount ?? 0, after, label: `${target ? rupiah(target.amount) : '?'} → ${rupiah(after)}`, ...(inferred ? { inferred: true } : {}) });
+    v = v.replace(amount.text, ' ');
   }
   const wallet = walletsIn(v, ctx.wallets)[0];
-  if (wallet) { const before = ctx.wallets.find(w => w.id === target?.walletId)?.name || '?'; return { field: 'walletId', before: target?.walletId || '', after: wallet.id, label: `${before} → ${wallet.name}` }; }
+  if (wallet) { const was = ctx.wallets.find(w => w.id === target?.walletId)?.name || '?'; out.push({ field: 'walletId', before: target?.walletId || '', after: wallet.id, label: `${was} → ${wallet.name}` }); v = v.replace(wallet.word, ' '); }
   const date = new RegExp(DATE_PHRASES.source).test(v) ? readDate(v, ctx.today) : null;
-  if (date?.date) return { field: 'date', before: target?.date || '', after: date.date, label: `${target ? dayLabel(target.date, ctx.today) : '?'} → ${dayLabel(date.date, ctx.today)}` };
-  return null;
+  if (date?.date) out.push({ field: 'date', before: target?.date || '', after: date.date, label: `${target ? dayLabel(target.date, ctx.today) : '?'} → ${dayLabel(date.date, ctx.today)}` });
+  return out;
 }
 
 const UPDATE_VERB = /^(?:tolong\s+)?(?:ubah|ganti|edit|koreksi|ralat|benerin|betulin|ubahin|gantiin)\s+(.+?)\s+(?:jadi|menjadi)\s+(.+)$/;
@@ -202,15 +225,16 @@ export function readCommand(text: string, ctx: QuickContext): Command | null {
   const found = resolveTransactions(phrase, ctx, hint, bulk);
   trace.push(`perintah ${type}: “${phrase.trim()}”${hint ? ` (nominal sekarang ${rupiah(hint)})` : ''}`, ...found.trace);
   const target = found.best, targetTx = target ? ctx.recent?.find(x => x.id === target.id) : undefined;
-  const change = type === 'UPDATE' ? readChange(value, targetTx, ctx) : null;
-  if (type === 'UPDATE' && !change) return null;
+  const changes = type === 'UPDATE' ? readChanges(value, targetTx, ctx) : [];
+  if (type === 'UPDATE' && !changes.length) return null;
+  const change = changes.find(c => c.field === 'amount') || changes[0];
   if (!found.candidates.length) {
-    return { type, candidates: [], ambiguous: false, ...(change ? { changes: [change] } : {}), why: [`Tidak ada transaksi terbaru yang cocok dengan “${phrase.trim()}”, jadi tidak ada yang diubah.`], trace };
+    return { type, candidates: [], ambiguous: false, ...(changes.length ? { changes } : {}), why: [`Tidak ada transaksi terbaru yang cocok dengan “${phrase.trim()}”, jadi tidak ada yang diubah.`], trace };
   }
   const why: string[] = [];
   if (bulk) why.push(`${found.candidates.length} transaksi cocok dengan “${phrase.trim()}”.`);
   else if (target) why.push(`${target.label} dipilih karena cocok dengan ${target.evidence.join(', ')}.`);
   else why.push(`Ada ${found.candidates.length} transaksi yang sama-sama cocok, jadi kamu yang memilih: tidak ada yang diubah sebelum itu.`);
   if (change?.inferred) why.push(`“${value.trim()}” dibaca ${rupiah(Number(change.after))} karena transaksinya ${rupiah(Number(change.before))}.`);
-  return { type, ...(target ? { target } : {}), ...(bulk ? { targets: found.candidates } : {}), candidates: found.candidates, ambiguous: found.ambiguous, ...(change ? { changes: [change] } : {}), why, trace };
+  return { type, ...(target ? { target } : {}), ...(bulk ? { targets: found.candidates } : {}), candidates: found.candidates, ambiguous: found.ambiguous, ...(changes.length ? { changes } : {}), why, trace };
 }
