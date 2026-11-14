@@ -490,6 +490,7 @@ function OperationCardView({ action, register, onSave, error: outerError = '' }:
       const before = tx!, next: LedgerTx = { ...before };
       for (const c of changes) {
         if (c.field === 'amount') next.amount = Number(c.after); if (c.field === 'walletId') next.walletId = String(c.after); if (c.field === 'date') next.date = String(c.after);
+        if (c.field === 'time') next.time = String(c.after);
         // 10.2 A category picked in the chat ("masuk ke makan malam" after Simpan), or spending turned into income.
         if (c.field === 'category') { next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; next.splits = []; }
         if (c.field === 'type' && (c.after === 'income' || c.after === 'expense')) { next.type = c.after; next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; next.splits = []; }

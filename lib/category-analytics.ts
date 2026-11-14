@@ -7,13 +7,23 @@ export const DEBT_GROUP = { id: 'debt-payment', name: 'Bayar utang', icon: '💳
 export function categoryBreakdown(items:LedgerTx[],categories:Category[]):CategorySlice[]{
  const lookup=new Map(categories.map(c=>[c.id,c]));const result=new Map<string,CategorySlice>();const seen=new Map<string,Set<string>>();
  for(const tx of items)for(const line of expenseAllocations(tx)){
-  const child=lookup.get(line.subcategoryId||line.categoryId||'');const selected=lookup.get(line.categoryId||'')||child;const parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
-  const debt=!parent&&tx.type==='debt_payment';
-  const id=parent?.id||(debt?DEBT_GROUP.id:'uncategorized');let row=result.get(id);if(!row){row=debt?{...DEBT_GROUP,amount:0,count:0,subcategories:[]}:{id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
+  const {id,parent,debt,sub}=expenseSpot(lookup,line,tx.type);let row=result.get(id);if(!row){row=debt?{...DEBT_GROUP,amount:0,count:0,subcategories:[]}:{id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
   row.amount+=line.amount;const txSet=seen.get(id)||new Set<string>();txSet.add(tx.id);seen.set(id,txSet);row.count=txSet.size;
-  const sub=child?.parentId===id?child:selected?.parentId===id?selected:null;if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=line.amount}
+  if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=line.amount}
  }
  return [...result.values()].map(row=>({...row,subcategories:row.subcategories.sort((a,b)=>b.amount-a.amount)})).sort((a,b)=>b.amount-a.amount);
+}
+/** Where one spending line goes on the charts: its main group (category, "Bayar utang" or "Tanpa kategori") and its subcategory. */
+function expenseSpot(lookup:Map<string,Category>,line:{categoryId?:string|null;subcategoryId?:string|null},txType:string){
+ const child=lookup.get(line.subcategoryId||line.categoryId||''),selected=lookup.get(line.categoryId||'')||child,parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
+ const debt=!parent&&txType==='debt_payment',id=parent?.id||(debt?DEBT_GROUP.id:'uncategorized');
+ return {id,parent,debt,sub:child?.parentId===id?child:selected?.parentId===id?selected:null};
+}
+/** Where one income goes on the charts: its main group (category, "Piutang diterima" or "Tanpa kategori") and its subcategory. */
+function incomeSpot(lookup:Map<string,Category>,tx:LedgerTx){
+ const child=lookup.get(tx.subcategoryId||tx.categoryId||''),selected=lookup.get(tx.categoryId||'')||child,parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
+ const repaid=!parent&&tx.type==='receivable_payment',id=parent?.id||(repaid?INCOME_REPAID_GROUP.id:'uncategorized');
+ return {id,parent,repaid,sub:child?.parentId===id?child:null};
 }
 /** Income by main category with its subcategories (same shape as spending, for the income chart). Repaid receivables without a category form their own group. */
 export const INCOME_REPAID_GROUP = { id: 'receivable-payment', name: 'Piutang diterima', icon: '🤝', color: '#7b5cff' };
@@ -21,13 +31,24 @@ export function incomeCategoryBreakdown(items:LedgerTx[],categories:Category[]):
  const lookup=new Map(categories.map(c=>[c.id,c]));const result=new Map<string,CategorySlice>();
  for(const tx of items){
   const amount=transactionIncome(tx);if(!amount)continue;
-  const child=lookup.get(tx.subcategoryId||tx.categoryId||''),selected=lookup.get(tx.categoryId||'')||child,parent=selected?.parentId?lookup.get(selected.parentId)||selected:selected;
-  const repaid=!parent&&tx.type==='receivable_payment',id=parent?.id||(repaid?INCOME_REPAID_GROUP.id:'uncategorized');
+  const {id,parent,repaid,sub}=incomeSpot(lookup,tx);
   let row=result.get(id);if(!row){row=repaid?{...INCOME_REPAID_GROUP,amount:0,count:0,subcategories:[]}:{id,name:parent?.name||'Tanpa kategori',amount:0,count:0,color:parent?.color,icon:parent?.icon,subcategories:[]};result.set(id,row)}
   row.amount+=amount;row.count++;
-  const sub=child?.parentId===id?child:null;if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=amount}
+  if(sub){let subRow=row.subcategories.find(v=>v.id===sub.id);if(!subRow){subRow={id:sub.id,name:sub.name,amount:0,color:sub.color,icon:sub.icon};row.subcategories.push(subRow)}subRow.amount+=amount}
  }
  return [...result.values()].map(row=>({...row,subcategories:row.subcategories.sort((a,b)=>b.amount-a.amount)})).sort((a,b)=>b.amount-a.amount);
+}
+/** 10.3 One part of the period's money on the category chart: the transaction, how much of it counts there, and its subcategory. */
+export type CategoryLine={tx:LedgerTx;amount:number;subId:string|null};
+/** 10.3 The parts behind each slice of the category chart (same placing as categoryBreakdown / incomeCategoryBreakdown), by main group id. */
+export function categoryLines(items:LedgerTx[],categories:Category[],kind:'expense'|'income'){
+ const lookup=new Map(categories.map(c=>[c.id,c])),result=new Map<string,CategoryLine[]>();
+ const add=(id:string,line:CategoryLine)=>{const list=result.get(id);if(list)list.push(line);else result.set(id,[line])};
+ for(const tx of items){
+  if(kind==='income'){const amount=transactionIncome(tx);if(!amount)continue;const {id,sub}=incomeSpot(lookup,tx);add(id,{tx,amount,subId:sub?.id||null});continue}
+  for(const line of expenseAllocations(tx)){const {id,sub}=expenseSpot(lookup,line,tx.type);add(id,{tx,amount:line.amount,subId:sub?.id||null})}
+ }
+ return result;
 }
 export function transactionsForCategory(items:LedgerTx[],categories:Category[],categoryId:string){
  if(!categoryId)return items;

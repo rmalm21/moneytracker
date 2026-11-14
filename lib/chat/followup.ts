@@ -16,6 +16,7 @@
  * chat rewrites the card's sentence, or proposes a change card for a saved record, and the person taps Simpan.
  */
 import { DATE_PHRASES, amountWords, findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
+import { findTimes } from '../catat/temporal.ts';
 import { resolveCategory, type CatPick, type Flow } from '../category-resolve.ts';
 export { resolveCategory, type CatPick, type Flow };
 
@@ -24,6 +25,8 @@ const lower = (s: string) => s.toLocaleLowerCase('id-ID');
 export type Fix = {
   category?: CatPick; type?: Flow; wallet?: { id: string; name: string }; date?: string; amount?: { text: string; value: number };
   name?: string; place?: string;
+  /** 10.3 A clock as said ("jam 2", "jam 7 malem", "pukul 14.30"). */
+  time?: string;
   /** "yang kopi tadi …": the record named, for a saved one. */
   ref?: string;
   /** A category asked for that the person does not have ("kategorinya hewan"). */
@@ -134,6 +137,14 @@ export function readFix(message: string, ctx: QuickContext, opts: { kind?: Flow;
     part = part.replace(/\s+bukan\s+[\p{L} ]+$/u, '').trim();
     if (/^bukan\s+[\p{L} ]+$/u.test(part)) continue;
     if (opts.asking === 'category' && NO_CATEGORY.test(part)) { fix.noCategory = true; continue; }
+    // 10.3 "jamnya salah": which part is wrong, said before the right clock.
+    if (/^(?:jam|waktu|pukul)(?:nya)?\s+(?:salah|keliru|ga\s+bener|kurang\s+tepat)$/.test(part)) { fix.cue = true; continue; }
+    // 10.3 A clock: "jam 2", "jamnya jam 7 malem", "sekitar pukul 14.30", "kemarin jam 8" (a day may come with it).
+    const clock = findTimes(part)[0];
+    if (clock) {
+      const around = `${part.slice(0, clock.start)} ${part.slice(clock.end)}`.replace(/\b(?:jam(?:nya)?|waktu(?:nya)?|pukul(?:nya)?|sekitar|kira\s*kira|kurang\s+lebih|itu|tadi|pas|di|deng|dong|ya|kok|harusnya)\b/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!around || isDate(around)) { fix.time = clock.raw; if (around) fix.date = around; continue; }
+    }
     // A day: "kemarin", "tanggal 12", "itu hari selasa", "tanggalnya kemaren".
     const day = part.replace(/^(?:(?:pada|pas|di)\s+)?(?:(?:tanggal(?:nya)?|tgl(?:nya)?|harinya|hari(?=\s+(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu))|jadi|ganti|ubah|itu|yang|yg)\s+)*/, '').replace(/\s+(?:deng|dong|kok|ya|harusnya)$/, '').trim();
     if (isDate(day) || /^\d{1,2}$/.test(day) && /\b(?:tanggal|tgl)\b/.test(part)) { fix.date = /^\d{1,2}$/.test(day) ? `tanggal ${day}` : day.replace(/^hari\s+(?=senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)/, ''); continue; }
@@ -167,7 +178,7 @@ export function readFix(message: string, ctx: QuickContext, opts: { kind?: Flow;
     if (opts.asking === 'category' || words.slice(0, start).some(w => CAT_LEADS.has(w))) { fix.unknownCategory = phrase; continue; }
     return null;
   }
-  const any = fix.askField || fix.category || fix.type || fix.wallet || fix.date || fix.amount || fix.name || fix.place || fix.unknownCategory || fix.noCategory || fix.list || fix.remove;
+  const any = fix.askField || fix.category || fix.type || fix.wallet || fix.date || fix.time || fix.amount || fix.name || fix.place || fix.unknownCategory || fix.noCategory || fix.list || fix.remove;
   return any ? fix : null;
 }
 

@@ -153,3 +153,45 @@ test('10.2 post-hoc: amounts in words, "oke, simpan", why this category, a date 
   assert.equal(readHowto('gimana ngapus transaksi', { tail: true })?.title, 'Mengubah atau menghapus transaksi');
   assert.equal(readHowto('cara catat utang', { tail: true })?.title, 'Mencatat utang dan membayar cicilan');
 });
+
+/** An account with the wallets as the reporter has them: one wallet named "GoPay / Jago". */
+async function reporterAccount() {
+  const { account } = await import('../bench/v102/state.mjs');
+  const { inspect } = await import('../lib/chat/inspect.ts');
+  const base = asli.data, like = base.wallets.find(w => w.id === 'jago');
+  const wallets = [['cash', 'Tunai', 'cash'], ['jenius', 'Jenius', 'bank'], ['gj', 'GoPay / Jago', 'ewallet'], ['krom', 'Krom', 'bank'], ['seabank', 'Seabank', 'bank'], ['mandiri', 'Mandiri', 'bank']].map(([id, name, type]) => ({ ...like, id, name, type }));
+  const acc = account('pelapor', { ...base, wallets });
+  acc.quick = { ...acc.quick, wallets, ask: { ...acc.quick.ask, wallets } };
+  acc.inspect = t => inspect(t, acc.quick);
+  return acc;
+}
+
+test('10.3 reported: "dari jenius ke jago" on a transfer card sets both wallets (a wallet named "GoPay / Jago")', async () => {
+  const acc = await reporterAccount();
+  for (const answer of ['dari jenius ke jago', 'jenius ke jago', 'ke jago dari jenius', 'jenius -> jago']) {
+    const r = await talk(acc, 'transfer 600rb', answer);
+    const [t] = card(acc, r.last.reply.text);
+    assert.equal(t.kind, 'transfer', answer); assert.equal(t.preset.walletId, 'jenius', answer); assert.equal(t.preset.destinationWalletId, 'gj', answer);
+  }
+  // A card that already had both: replaced.
+  const again = await talk(acc, 'transfer 600rb dari jenius ke krom', 'eh dari seabank ke gopay');
+  const [t2] = card(acc, again.last.reply.text);
+  assert.equal(t2.preset.walletId, 'seabank'); assert.equal(t2.preset.destinationWalletId, 'gj');
+  // The preview never names a wallet that was not chosen.
+  const { planMutation } = await import('../lib/catat/mutation.ts');
+  const open = parseQuickPlan('transfer 600rb', acc.quick).actions[0];
+  const moves = planMutation(open, acc.quick).moneyMovements.map(m => m.label).join(' | ');
+  assert.doesNotMatch(moves, /dompet utama/); assert.match(moves, /belum dipilih/);
+});
+
+test('10.3 reported: "jam 2" on a card, and a clock after Simpan', async () => {
+  const lunch = await talk(asli, 'makan siang 40,9k ayam geprek', 'makan siang', 'jam 2');
+  const [l] = card(asli, lunch.last.reply.text);
+  assert.equal(l.amount, 40900); assert.equal(l.preset.time, '14:00');
+  const evening = await talk(asli, 'kopi 20rb', 'kemarin jam 8');
+  const [e] = card(asli, evening.last.reply.text);
+  assert.equal(e.preset.date, '2026-10-14'); assert.equal(e.preset.time, '08:00');
+  const after = await talk(asli, 'kopi 20rb', '[simpan]', 'jamnya salah, harusnya jam 7 malem', '[simpan]');
+  const kopi = after.acc.data.transactions.find(t => String(t.id).startsWith('chat') && /kopi/i.test(t.description || ''));
+  assert.equal(kopi.time, '19:00');
+});

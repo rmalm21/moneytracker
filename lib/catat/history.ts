@@ -15,12 +15,13 @@
  */
 import { askMoney, type AskMeta } from './ask.ts';
 import { resolveCategory } from '../category-resolve.ts';
+import { clockNear, findTimes } from './temporal.ts';
 import { DATE_PHRASES, findAmounts, knownPlaces, nameLike, readDate, walletsIn, type QuickContext, type RecentTx } from '../quick-entry.ts';
 
 export type OperationType = 'CREATE' | 'UPDATE' | 'DELETE' | 'CANCEL' | 'SETTLE' | 'PARTIAL_SETTLE' | 'TRANSFER' | 'SPLIT' | 'LINK' | 'UNLINK' | 'SCHEDULE' | 'RECUR' | 'STOP_RECURRING' | 'QUERY' | 'INSPECT' | 'CONFIRM';
 export type TargetRef = { kind: 'transaction' | 'receivable' | 'debt' | 'claim' | 'plan' | 'recurring'; id: string; label: string; amount?: number; date?: string; time?: string; score: number; evidence: string[] };
 /** 10.2: `category` and `type` carry the category picked (`categoryId`/`subcategoryId`; null for none). */
-export type FieldChange = { field: 'amount' | 'walletId' | 'date' | 'description' | 'category' | 'type'; before: string | number; after: string | number; label: string; inferred?: boolean; categoryId?: string | null; subcategoryId?: string | null };
+export type FieldChange = { field: 'amount' | 'walletId' | 'date' | 'time' | 'description' | 'category' | 'type'; before: string | number; after: string | number; label: string; inferred?: boolean; categoryId?: string | null; subcategoryId?: string | null };
 /** V3.3: what an action does to existing state (stored on QuickResult.operation). */
 export type OperationInfo = {
   type: OperationType; target?: TargetRef; targets?: TargetRef[]; candidates?: TargetRef[]; changes?: FieldChange[];
@@ -119,6 +120,13 @@ function readChanges(value: string, target: RecentTx | undefined, ctx: QuickCont
     if (picked && picked.type !== flow) picked = null;
     out.push({ field: 'type', before: target.type, after: flow, label: `${target.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} → ${flow === 'income' ? 'Pemasukan' : 'Pengeluaran'}${picked ? ` · ${picked.name}` : ''}`, categoryId: picked?.categoryId ?? null, subcategoryId: picked?.subcategoryId ?? null });
   } else if (picked) out.push({ field: 'category', before, after: picked.subcategoryId || picked.categoryId, label: `${before} → ${picked.name}`, categoryId: picked.categoryId, subcategoryId: picked.subcategoryId });
+  // 10.3 A clock: "jam 2" (nearest to the record's own time), "jam 7 malem", "pukul 14.30"; read before amounts.
+  const clock = findTimes(v)[0];
+  if (clock) {
+    const after = clockNear(clock, target?.time || '12:00');
+    out.push({ field: 'time', before: target?.time || '', after, label: `${target?.time || '?'} → ${after}` });
+    v = `${v.slice(0, clock.start)} ${v.slice(clock.end)}`;
+  }
   v = v.trim();
   const amount = findAmounts(v).find(a => a.marked || a.value >= 10);
   if (amount) {

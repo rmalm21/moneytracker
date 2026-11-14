@@ -58,7 +58,8 @@ export function readNumberWords(text: string): { value: number; length: number }
 
 const MARKER = /(?:^|[^\p{L}\p{N}])(jam|jm|pukul|pkl|pk)(?=\s*(?:\d|set|setengah|setngah|setngh|stengah|stgh|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh|sebelas|nol))/gu;
 const HALF = /^(?:setengah|setngah|setngh|stengah|stgh|set)\s*(?=\S)/;
-const DAYPART = /^\s*(pagi|siang|sore|malam|subuh|dini hari)(?![\p{L}])/u;
+// 10.3 As typed: "malem", "mlm", "siang", "sore".
+const DAYPART = /^\s*(pagi|siang|sore|malam|malem|mlm|subuh|dini hari)(?![\p{L}])/u;
 const MONEY_AFTER = /^\s*(?:(?:k|rb|ribu|rbu|jt|juta|x|kali|orang|org|pcs|buah|porsi|gelas)(?![\p{L}])|%)/u;
 const valid = (h: number, m: number) => Number.isInteger(h) && Number.isInteger(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59;
 
@@ -70,7 +71,7 @@ function clockAt(text: string, at: number, marker: string, markerStart: number):
     if (!valid(is24 ? hour : hour % 12, minute) || (!is24 && (hour < 1 || hour > 12))) return null;
     let end = i;
     const dp = text.slice(end).match(DAYPART);
-    const daypart = dp ? (dp[1] === 'dini hari' ? 'subuh' : dp[1]) as TimeExpr['daypart'] : undefined;
+    const daypart = dp ? (dp[1] === 'dini hari' ? 'subuh' : dp[1] === 'malem' || dp[1] === 'mlm' ? 'malam' : dp[1]) as TimeExpr['daypart'] : undefined;
     if (dp) end += dp[0].length;
     return { start: markerStart, end, raw: text.slice(markerStart, end), hour, minute, is24, daypart, kind, marker };
   };
@@ -167,6 +168,17 @@ export function applyDaypart(hour: number, daypart: NonNullable<TimeExpr['daypar
     case 'sore': return h + 12;
     case 'malam': return h >= 5 ? h + 12 : h; // "jam 2 malam" is 02:00; "jam 12 malam" 00:00
   }
+}
+
+/**
+ * 10.3 The clock a change to a saved record means ("jam 2" for lunch at 15:03 → 14:00): the daypart when said, else the
+ * reading nearest to the record's own time ("HH:MM").
+ */
+export function clockNear(e: TimeExpr, near = '12:00'): string {
+  const [nh, nm] = near.split(':').map(Number), ref = (nh || 0) * 60 + (nm || 0);
+  const clocks = e.daypart ? [applyDaypart(e.hour, e.daypart) * 60 + e.minute] : e.is24 ? [e.hour * 60 + e.minute] : [(e.hour % 12) * 60 + e.minute, (e.hour % 12 + 12) * 60 + e.minute];
+  const best = clocks.reduce((a, b) => Math.abs(b - ref) < Math.abs(a - ref) ? b : a);
+  return `${String(Math.floor(best / 60)).padStart(2, '0')}:${String(best % 60).padStart(2, '0')}`;
 }
 
 export type ResolveContext = {

@@ -62,6 +62,7 @@ export function saveInto(acc, planText) {
           if (c.field === 'amount') next.amount = Number(c.after);
           if (c.field === 'walletId') next.walletId = String(c.after);
           if (c.field === 'date') next.date = String(c.after);
+          if (c.field === 'time') next.time = String(c.after);
           if (c.field === 'category') { next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; }
           if (c.field === 'type') { next.type = String(c.after); next.categoryId = c.categoryId ?? null; next.subcategoryId = c.subcategoryId ?? null; }
         }

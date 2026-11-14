@@ -27,6 +27,7 @@ import { readEveryday } from '../catat/everyday.ts';
 import { parseQuickPlan } from '../quick-plan.ts';
 import { readFix, type Fix } from './followup.ts';
 import { amountWords, findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
+import { findTimes } from '../catat/temporal.ts';
 import type { Data, LedgerTx } from '../types';
 import { dailyForSpending } from '../budget-daily.ts';
 import { calculate, calcText } from './calc.ts';
@@ -939,6 +940,14 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
         if (f.amount) { text = withAmount(text, f.amount.text, ctx.quick); did.push(V.editAmount(v, rp(f.amount.value))); }
         if (f.wallet) { text = withWallet(text, lower(f.wallet.name), ctx.quick); did.push(V.editWallet(v, f.wallet.name)); }
         if (f.date) { text = withDate(text, f.date); did.push(V.editDate(v, f.date)); }
+        if (f.time) {
+          // The clock said replaces the card's own ("jam 2" on lunch → 14:00, read by Catat otomatis with the rest).
+          const spans = findTimes(lower(text)).sort((a, b) => b.start - a.start);
+          for (const sp of spans) text = `${text.slice(0, sp.start).trimEnd()} ${text.slice(sp.end).trimStart()}`.trim();
+          text = `${text} ${f.time}`;
+          const at = parseQuickPlan(text, ctx.quick).actions[0]?.result.preset.time;
+          did.push(at ? `jamnya ${at.replace(':', '.')}` : `jamnya ${f.time}`);
+        }
         if (f.name) { text = rename(text, f.name); did.push(`namanya ${cap(f.name)}`); }
         if (f.place) { text = `${text.replace(/[.!]+$/, '')} di ${f.place}`; did.push(`tempatnya ${cap(f.place)}`); }
         if (!did.length || text === pending.text) return null;
@@ -946,7 +955,9 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
         return plan(text, { did: did.join(', '), intent: asking ? 'fill' : 'edit' });
       }
       // After Simpan: a change card for that record (or a delete), only when the message says it is a fix.
-      if (!f.cue || f.list || f.noCategory) return null;
+      // A clock alone right after Simpan ("jam 7 malem") can only be about the record just saved.
+      const clockOnly = Boolean(f.time) && !f.amount && !f.category && !f.wallet && !f.type && !f.remove;
+      if (!f.cue && !clockOnly || f.list || f.noCategory) return null;
       if (f.askField && !f.category && !f.wallet && !f.date && !f.amount) return talk('edit', vo(v, { santai: `Catatan tadi udah tersimpan. Mau diubah jadi apa ${f.askField === 'wallet' ? 'dompetnya' : f.askField === 'date' ? 'tanggalnya' : f.askField === 'category' ? 'kategorinya' : 'nominalnya'}? Bilang aja, misalnya “${f.askField === 'wallet' ? 'pake gopay' : f.askField === 'date' ? 'kemarin' : f.askField === 'category' ? 'masuk makan malam' : '30rb'}”.`, sopan: `Catatan tadi sudah tersimpan. ${f.askField === 'wallet' ? 'Dompet' : f.askField === 'date' ? 'Tanggal' : f.askField === 'category' ? 'Kategori' : 'Nominal'} yang benar apa?`, singkat: 'Jadi apa?', gaul: `Yang tadi udah kesimpen. Mau diganti jadi apa?` }));
       const savedTx = parseQuickPlan(target.text, ctx.quick).actions[0]?.result;
       const ref = f.ref ? (() => {
@@ -960,11 +971,12 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (f.amount) parts.push(f.amount.text);
       if (f.wallet) parts.push(`pakai ${lower(f.wallet.name)}`);
       if (f.date) parts.push(f.date);
+      if (f.time) parts.push(f.time);
       const want = f.category ? f.category.type : f.type;
       if (want && want !== (savedTx?.kind === 'income' ? 'income' : 'expense')) parts.push(want === 'income' ? 'pemasukan' : 'pengeluaran');
       if (f.category) parts.push(`kategori ${lower(f.category.name)}`);
       if (!parts.length) return null;
-      const said = [f.amount ? `nominalnya ${rp(f.amount.value)}` : '', f.wallet ? `dompetnya ${f.wallet.name}` : '', f.date ? `tanggalnya ${f.date}` : '', want && !f.category ? (want === 'income' ? 'jadi pemasukan' : 'jadi pengeluaran') : '', f.category ? `kategorinya ${f.category.name}` : ''].filter(Boolean).join(', ');
+      const said = [f.amount ? `nominalnya ${rp(f.amount.value)}` : '', f.wallet ? `dompetnya ${f.wallet.name}` : '', f.date ? `tanggalnya ${f.date}` : '', f.time ? `jamnya ${f.time}` : '', want && !f.category ? (want === 'income' ? 'jadi pemasukan' : 'jadi pengeluaran') : '', f.category ? `kategorinya ${f.category.name}` : ''].filter(Boolean).join(', ');
       return plan(`ubah ${ref} jadi ${parts.join(' ')}`, { intent: 'edit', intro: vo(v, { santai: `Catatan tadi udah tersimpan, jadi kusiapkan perubahannya: ${said}. Cek, lalu ketuk Simpan perubahan.`, sopan: `Catatan tadi sudah tersimpan. Berikut perubahannya: ${said}. Silakan periksa, lalu ketuk Simpan perubahan.`, singkat: `Ubah: ${said}.`, gaul: `Yang tadi udah kesimpen, jadi ini perubahannya: ${said}. Cek dulu, terus ketuk Simpan perubahan.` }) });
     }
     if (!t) return sayR('unknown', unknownReply(v, tpl));
@@ -1342,6 +1354,17 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     if (!money && /^(?:tolong\s+)?(?:simpan|simpen|save)(?:in|kan)?\b/.test(t)) {
       const left = pending ? clausesOf(pending.text).items.map(c => c.text).join(', ') : '';
       return talk('clarify', pending ? `Aku nggak menyimpan sendiri, supaya kamu bisa cek dulu. Ketuk Simpan di kartunya, ya. Isinya sekarang: ${left || pending.text}.` : 'Belum ada kartu yang menunggu disimpan. Tulis dulu yang mau dicatat, nanti kusiapkan kartunya.');
+    }
+    // 10.3 "dari jenius ke jago", "jenius ke jago" on a transfer card: both wallets at once, the one after "ke" being
+    // where the money goes; wallets the card already had are replaced.
+    if (pending && t.split(' ').length <= 8 && !findAmounts(t).some(a => a.value > 0)) {
+      const read = ctx.inspect(pending.text), ws = walletsIn(t, ctx.quick.wallets);
+      if (read.reading === 'record' && read.kind === 'transfer' && ws.length >= 2) {
+        const into = ws.find(w => /(?:\bke|\bkepada|\btujuan(?:nya)?|->|→)\s*$/.test(t.slice(0, w.at))) || ws[1];
+        const from = ws.find(w => w !== into)!;
+        const base = pending.text.replace(/\s+(?:dari|dr|ke)\s+(\S+(?:\s*\/\s*\S+)?)/g, (m, n) => walletsIn(lower(n), ctx.quick.wallets).length ? '' : m).trim();
+        return plan(`${base} dari ${from.word} ke ${into.word}`, { did: `dari ${from.name} ke ${into.name}`, intent: memory.asking ? 'fill' : 'edit' });
+      }
     }
     // 8.4 A transfer finished in the next message: "ke gopay" is where it goes, "dari jago" where it comes from.
     if (pending && t.split(' ').length <= 5 && TRANSFERISH.test(lower(pending.text))) {

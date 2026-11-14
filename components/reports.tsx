@@ -283,11 +283,11 @@ export function AnalyticsView({ navigate }: { navigate?: (key: string, focus?: s
             </AreaChart></ResponsiveContainer></div>
           </Section>
         </>}
-        {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint="Ketuk kategori untuk rincian subkategori">
-          {categories.length ? <CategoryDonut slices={categories} previous={prevCategories} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pengeluaran pada periode ini."/>}
+        {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pengeluaran per kategori" hint="Ketuk kategori untuk diperdalam per subkategori">
+          {categories.length ? <CategoryDonut slices={categories} previous={prevCategories} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`} items={pair.items} prevItems={pair.prevItems} categories={data.categories} range={pair.range} today={todayInTimeZone(profile?.timeZone)}/> : <Empty message="Belum ada pengeluaran pada periode ini."/>}
         </Section>}
         {tab === 'category' && <Section icon={<Layers3 size={18}/>} title="Pemasukan per kategori" hint="Termasuk piutang yang dibayar kembali">
-          {incomeSlices.length ? <CategoryDonut kind="income" slices={incomeSlices} previous={prevIncomeSlices} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`}/> : <Empty message="Belum ada pemasukan pada periode ini."/>}
+          {incomeSlices.length ? <CategoryDonut kind="income" slices={incomeSlices} previous={prevIncomeSlices} previousReady={pair.prevReady} navigate={go} basis={pair.basis} rangeFocus={`@${pair.range.start}..${pair.range.end}`} items={pair.items} prevItems={pair.prevItems} categories={data.categories} range={pair.range} today={todayInTimeZone(profile?.timeZone)}/> : <Empty message="Belum ada pemasukan pada periode ini."/>}
         </Section>}
         {tab === 'pattern' && <>
           <div className="report-two">

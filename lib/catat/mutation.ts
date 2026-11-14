@@ -28,9 +28,10 @@ const rupiah = (n: number) => `Rp${Math.abs(n).toLocaleString('id-ID')}`;
 export function planMutation(a: ActionCandidate, ctx: QuickContext, all: ActionCandidate[] = []): FinancialMutationPlan {
   const r = a.result, op = r.operation, amount = r.amount || 0;
   const wallet = r.preset.walletId || '', to = r.preset.destinationWalletId || '';
-  const name = (id: string) => ctx.wallets.find(w => w.id === id)?.name || 'dompet utama';
+  // 10.3 A transfer has no main wallet to fall back on: a side not chosen yet is said so.
+  const name = (id: string, none = 'dompet utama') => ctx.wallets.find(w => w.id === id)?.name || none;
   const plan: FinancialMutationPlan = { actionId: a.id, operationType: op?.type || (r.kind === 'query' ? 'QUERY' : r.kind === 'transfer' ? 'TRANSFER' : r.kind === 'plan_new' ? 'SCHEDULE' : r.kind === 'recurring_new' ? 'RECUR' : 'CREATE'), moneyMovements: [], relationshipChanges: [], creates: [], updates: [], deletes: [], schedules: [], recurringChanges: [], warnings: [], confirmations: [], complex: false };
-  const move = (walletId: string, delta: number, label: string) => { if (delta) plan.moneyMovements.push({ walletId, delta, label: `${name(walletId)} ${delta < 0 ? '−' : '+'}${rupiah(delta)}${label ? ` · ${label}` : ''}` }); };
+  const move = (walletId: string, delta: number, label: string, none?: string) => { if (delta) plan.moneyMovements.push({ walletId, delta, label: `${name(walletId, none)} ${delta < 0 ? '−' : '+'}${rupiah(delta)}${label ? ` · ${label}` : ''}` }); };
   const settle = (kind: RelationshipChange['kind'], noun: string) => {
     const linked = op?.linkAction ? all.find(x => x.id === op.linkAction) : undefined;
     const before = op?.remainingBefore ?? (linked ? linked.result.amount : undefined);
@@ -55,7 +56,7 @@ export function planMutation(a: ActionCandidate, ctx: QuickContext, all: ActionC
       break;
     }
     case 'income': move(wallet, amount, ''); if (r.preset.plannedId) plan.updates.push(`${op?.target?.label || 'Rencana'} → selesai`); break;
-    case 'transfer': { const fee = r.preset.transferFee || 0; move(wallet, -(amount + fee), fee ? `termasuk biaya admin ${rupiah(fee)}` : ''); move(to, amount, ''); break; }
+    case 'transfer': { const fee = r.preset.transferFee || 0; move(wallet, -(amount + fee), fee ? `termasuk biaya admin ${rupiah(fee)}` : '', 'dompet asal (belum dipilih)'); move(to, amount, '', 'dompet tujuan (belum dipilih)'); break; }
     case 'receivable_new': if (wallet) move(wallet, -amount, ''); plan.relationshipChanges.push({ kind: 'receivable', label: `Piutang ${r.person || '?'}${r.purpose ? ` · ${r.purpose}` : ''}`, before: 0, after: amount, status: 'new' }); break;
     case 'debt_new': if (wallet) move(wallet, amount, ''); plan.relationshipChanges.push({ kind: 'debt', label: `Utang ke ${r.person || '?'}`, before: 0, after: amount, status: 'new' }); break;
     case 'claim_new': move(wallet, -amount, ''); plan.relationshipChanges.push({ kind: 'claim', label: `Klaim ${r.name || ''}`.trim(), before: 0, after: amount, status: 'new' }); break;
