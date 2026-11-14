@@ -15,6 +15,8 @@ import type { LedgerTx, Recurring } from '@/lib/types';
 import { rupiah } from '@/lib/accounting';
 import { formatDate } from '@/lib/period';
 import { featureUsed } from './feature-tips-events';
+import { SubcategoryHint } from './subcategory-hint';
+import { missingSubs } from '@/lib/subcategory-hint';
 
 /** Import rows the person skipped in Perlu dikonfirmasi, kept on this device so importing the file again leaves them out. */
 const SKIPPED_KEY = (uid: string) => `dompet-ajaib:import-skipped:${uid}`;
@@ -232,7 +234,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
             <div className="si-row-top">
               <RowCheck checked={picked.includes(r.id)} onChange={on => setPicked(list => on ? [...new Set([...list, r.id])] : list.filter(id => id !== r.id))} label={`Pilih ${r.name}`} />
               <button type="button" className="si-row-main" onClick={() => setEditing(editing === r.id ? '' : r.id)} aria-expanded={editing === r.id}>
-                <span><strong>{r.name}</strong><small>{formatDate(r.date)} · {describe(r)}{item.from === 'history' && (r.purpose === 'expense' || r.purpose === 'income') && edit.categoryId === undefined ? ' (dari catatanmu)' : ''}</small></span>
+                <span><strong>{r.name}</strong><small>{formatDate(r.date)} · {describe(r)}{(r.purpose === 'expense' || r.purpose === 'income') && missingSubs(data.categories, data.transactions, r.categoryId, r.subcategoryId) ? <em className="si-nosub"> · belum ada subkategori</em> : null}{item.from === 'history' && (r.purpose === 'expense' || r.purpose === 'income') && edit.categoryId === undefined ? ' (dari catatanmu)' : ''}</small></span>
                 <b className={dir === 'in' ? 'amount-positive' : ''}>{dir === 'in' ? '+' : ''}{rupiah(r.amount)}</b>
               </button>
               <span className="si-row-actions">
@@ -255,6 +257,7 @@ export function StatementImport({ onDone, openTx }: { onDone: (message: string) 
                 setEdits(all => { const next = { ...all, [r.id]: { ...all[r.id], ...patch } }; for (const o of same) next[o.id] = { ...all[o.id], ...patch, sameAs: r.id }; return next; });
                 setApplied(same.length ? { id: r.id, n: same.length } : null);
               }}><option value="">Pilih kategori</option>{categoryOptions(data.categories, [r.purpose])}</Select></Field>}
+              {(r.purpose === 'expense' || r.purpose === 'income') && <SubcategoryHint category={data.categories.find(c => c.id === r.categoryId)} subs={missingSubs(data.categories, data.transactions, r.categoryId, r.subcategoryId)} onPick={id => change(r.id, { categoryId: r.categoryId, subcategoryId: id })}/>}
               {applied?.id === r.id && <small className="si-applied">Juga dipakai untuk {applied.n} baris lain dari tempat yang sama di file ini.</small>}
               {r.purpose === 'transfer' && <Field label={dir === 'out' ? 'Ke dompet' : 'Dari dompet'}><Select value={(dir === 'out' ? r.destinationWalletId : r.walletId) || ''} onChange={e => change(r.id, { otherWalletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{emojiOrFallback(w.icon, '👛')} {w.name}</option>)}</Select></Field>}
               {r.purpose === 'debt_payment' && (openDebts.length ? <Field label="Utang yang dibayar"><Select value={r.debtId || ''} onChange={e => change(r.id, { debtId: e.target.value })}><option value="">Pilih utang</option>{openDebts.map(d => <option key={d.id} value={d.id}>{d.name} · sisa {rupiah(d.outstandingAmount)}</option>)}</Select></Field> : <small className="si-problem">Belum ada catatan utang yang belum lunas. Simpan sebagai draft dulu, atau pilih jenis lain.</small>)}

@@ -24,6 +24,8 @@ import { priorityLabels, wishColors } from '@/lib/wishlist';
 import { walletActions, walletAllows } from '@/lib/wallet-capabilities';
 import type { Budget, Category, Fund, LedgerTx, Recurring, Wallet } from '@/lib/types';
 import { featureUsed } from './feature-tips-events';
+import { SubcategoryHint } from './subcategory-hint';
+import { missingSubs } from '@/lib/subcategory-hint';
 
 /**
  * "Catat otomatis": type a sentence and see at once what will happen. Transactions ("beli pocari 8rb di alfa",
@@ -167,7 +169,7 @@ function iconFor(name: string) {
   return words.length ? emojiLibrary.flatMap(group => group.items).find(([, keys]) => words.some(word => keys.split(' ').some(key => key.startsWith(word))))?.[0] : undefined;
 }
 /** Only the fields the text or the person changed; everything else comes from the sentence. */
-type Edit = { time?: string; amount?: number; /** V3.4: the place, corrected by hand (feeds the Kamus Pribadi quietly). */ merchant?: string; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
+type Edit = { time?: string; amount?: number; /** 10.3.1 A subcategory picked from "Belum ada subkategori". */ subcategoryId?: string; /** V3.4: the place, corrected by hand (feeds the Kamus Pribadi quietly). */ merchant?: string; destinationId?: string; person?: string; name?: string; description?: string; walletId?: string; linkId?: string; categoryId?: string; cycleType?: Budget['cycleType']; date?: string; walletType?: Wallet['type']; categoryType?: Category['type']; parentId?: string; scheduleMode?: Recurring['mode']; frequency?: Recurring['frequency']; flow?: 'expense' | 'income'; committed?: boolean; /** Budget: the subcategories it covers (none = all of the main category). */ subIds?: string[] };
 
 /** What one card saves when it is confirmed, built only when the person presses save. */
 type SaveJob = { /** V3.3: `linked` is the id of the record made by the action this one waits for (`after`). */ run: (linked?: string) => Promise<unknown>; after?: string; id?: string; pending: string; success: string; detail?: string; failure: string; /** 10.1 The spending it saves, for "hari ini sisa segini" from the budgets in the note after saving. */ spent?: SpentEntry[]; retry?: { label: string; run: () => void }; navigate?: { key: string; target?: string } };
@@ -570,7 +572,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   const date = edit.date ?? result.date ?? today;
   const time = edit.time ?? result.preset.time ?? '';
   const walletName = (id?: string | null) => data.wallets.find(w => w.id === id)?.name || '';
-  const category = data.categories.find(c => c.id === (result.preset.subcategoryId || result.preset.categoryId));
+  const category = data.categories.find(c => c.id === (edit.subcategoryId || result.preset.subcategoryId || result.preset.categoryId));
   // V4: one purchase on several categories ("separuh buat traktir"), kept in step with a changed amount.
   const splitLines = kind === 'expense' && (result.preset.splits?.length || 0) > 1 ? fitLines(result.preset.splits!, amount) : undefined;
   // V4: a shared spending someone else paid ("rina yang bayar"): no wallet of yours is used.
@@ -662,6 +664,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     const base: Partial<LedgerTx> = { ...result.preset, amount, walletId: walletId || undefined, origin: 'quick', ...(edit.date ? { date: edit.date } : {}), ...(time ? { time } : {}), ...(edit.merchant !== undefined ? { merchant: edit.merchant.trim() } : {}) };
     if (kind === 'transfer' && destination) base.destinationWalletId = destination;
     if (result.preset.splits?.length) base.splits = splitLines || [];
+    if (edit.subcategoryId && !splitLines) base.subcategoryId = edit.subcategoryId;
     if (kind === 'debt_payment') base.debtId = linkId; if (kind === 'receivable_payment') base.receivableId = linkId; if (kind === 'claim_payment') base.claimId = linkId;
     if (kind === 'target') { base.fundId = linkId; if (destination) base.destinationWalletId = destination; }
     return base;
@@ -746,7 +749,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
         // V4: paid by someone else → your share is an expense without a wallet and a debt to them.
         if (split) {
           const sp = split;
-          run = () => import('@/lib/split-bill-store').then(m => m.saveSplitBill(uid, { title: description || category?.name || 'Split bill', merchant: result.preset.merchant || '', date, time: tx.time || '', payer: payerOther ? 'other' : 'me', payerId: payerOther ? payerOther.id : sp.participants.find(p => p.isMe)?.id || '', walletId: payerOther ? '' : walletId, transactionId: '', categoryId: result.preset.categoryId || null, subcategoryId: result.preset.subcategoryId || null, total: amount, method: sp.method || 'equal', participants: sp.participants.map(p => ({ id: p.id, name: p.name, ...(p.isMe ? { isMe: true } : {}), ...(sp.method === 'amount' ? { amount: sp.shares[p.id] || 0 } : {}) })), items: [], extras: [], payments: [], notes: '' }, { newId: opId }));
+          run = () => import('@/lib/split-bill-store').then(m => m.saveSplitBill(uid, { title: description || category?.name || 'Split bill', merchant: result.preset.merchant || '', date, time: tx.time || '', payer: payerOther ? 'other' : 'me', payerId: payerOther ? payerOther.id : sp.participants.find(p => p.isMe)?.id || '', walletId: payerOther ? '' : walletId, transactionId: '', categoryId: result.preset.categoryId || null, subcategoryId: edit.subcategoryId || result.preset.subcategoryId || null, total: amount, method: sp.method || 'equal', participants: sp.participants.map(p => ({ id: p.id, name: p.name, ...(p.isMe ? { isMe: true } : {}), ...(sp.method === 'amount' ? { amount: sp.shares[p.id] || 0 } : {}) })), items: [], extras: [], payments: [], notes: '' }, { newId: opId }));
           detail = `${sp.method === 'amount' ? 'Bagian sendiri-sendiri' : 'Bagi rata'} ${sp.participants.length} orang · ${payerOther ? `${payerOther.name} yang bayar` : walletName(walletId)}`; success = `Split bill ${money} tersimpan.`;
           break;
         }
@@ -929,9 +932,13 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
     ...impact.updates.map(u => ({ key: `u${u}`, text: u, tone: 'rel' })), ...impact.schedules.map(u => ({ key: `s${u}`, text: u, tone: 'plan' })),
   ] : [];
   const impactBlock = impactLines.length > 0 && <div className="qp-impact" aria-label="Yang berubah"><small>Yang berubah</small>{impactLines.map(l => <span key={l.key} className={`qp-impact-line is-${l.tone}`}>{l.text}</span>)}</div>;
+  // 10.3.1 A main category with subcategories and none chosen: said, with the subcategories to pick (saving still works).
+  const subHint = (kind === 'expense' || kind === 'income') && !splitLines && !edit.subcategoryId ? missingSubs(data.categories, data.transactions, result.preset.categoryId, result.preset.subcategoryId) : null;
+  const subHintBlock = subHint && <SubcategoryHint category={category} subs={subHint} compact={layout === 'row'} onPick={id => change({ subcategoryId: id })}/>;
   const body = <>
     {(facts.length > 0 || whyButton) && <div className="qp-facts">{facts}{whyButton}</div>}
     {impactBlock}
+    {subHintBlock}
     {askBlock}
     {flagList}
     {picks.length > 0 && <div className="qp-pick-row">{picks}</div>}
@@ -941,7 +948,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
   </>;
 
   if (layout === 'row') {
-    const cat = data.categories.find(c => c.id === (result.budget ? result.budget.subcategoryIds[0] || result.budget.categoryId : result.preset.subcategoryId || result.preset.categoryId));
+    const cat = data.categories.find(c => c.id === (result.budget ? result.budget.subcategoryIds[0] || result.budget.categoryId : edit.subcategoryId || result.preset.subcategoryId || result.preset.categoryId));
     const detail = kind === 'budget' ? (result.budget?.id ? 'ubah nominal' : 'anggaran baru') : kind === 'transfer' ? `${walletName(walletId) || 'Dari?'} → ${walletName(destination) || 'Ke?'}` : kind === 'note_new' ? `${heading} · ${dayText(date)}` : textual ? heading : [kind === 'expense' || kind === 'income' ? description !== cat?.name ? description || result.preset.merchant : '' : description || result.preset.merchant || name, walletName(walletId) && `${walletName(walletId)}${walletIsDefault ? ' (bawaan)' : ''}`, date && date !== today ? dayText(date) : ''].filter(Boolean).join(' · ');
     const attention = !skipped && Boolean(missing || flags.length || ask);
     // V3.3: a balance that changes shows in the row itself ("Piutang Atuy Rp12.000 → Rp7.000").
@@ -961,6 +968,7 @@ function QuickCardView({ action, layout, register, onSave, onOpenForm, onSwitchM
       {(expanded || attention) && !skipped && <div className="qb-body">
         <small className="qb-source">“{action.text}”</small>
         {impactBlock}
+        {subHintBlock}
         {/* The row already says what it is and the first thing to fix; the body only adds what to do about it. */}
         {ask && answers.length > 0 && <div className="qp-ask"><span className="qp-picks">{answers.map(([key, label, pick]) => <button type="button" key={key} className="sb-chip" onClick={pick}>{label}</button>)}</span></div>}
         {flags.length > (ask ? 0 : 1) && <div className="qp-flags">{flags.slice(ask ? 0 : 1).map(([key, f]) => <small key={key} className={`qp-flag is-${f.status}`}><b>{statusIcon[f.status]} {FIELD_STATUS[f.status]}</b> · {FIELD_LABELS[key]}{f.note ? `: ${f.note}` : ''}</small>)}</div>}

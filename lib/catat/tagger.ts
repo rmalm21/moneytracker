@@ -16,7 +16,8 @@
 export type TagName = 'O' | 'AMT' | 'WAL' | 'WTO' | 'ITEM' | 'PLACE' | 'DATE' | 'PERSON';
 /** Weights: tags, and per feature the weight of each tag (scaled integers, sparse: [tag, weight, tag, weight, …]). */
 export type TaggerModel = { tags: TagName[]; scale: number; w: Record<string, number[]> };
-export type Token = { text: string; low: string; start: number; end: number };
+/** comma: the word is followed by a comma ("gan, kopi 20rb"). */
+export type Token = { text: string; low: string; start: number; end: number; comma?: boolean };
 /** margin: how far the tag is ahead of the next best; wallet: how far "a wallet" (paid from or sent to) is ahead of "not a wallet". */
 export type Tagged = Token & { tag: TagName; margin: number; wallet: number };
 
@@ -26,7 +27,7 @@ export function tokens(text: string): Token[] {
   const out: Token[] = [];
   for (const m of text.matchAll(/[^\s,;:!?()"“”]+/g)) {
     const raw = m[0].replace(/[.]+$/, ''); if (!raw) continue;
-    out.push({ text: raw, low: raw.toLocaleLowerCase('id-ID'), start: m.index!, end: m.index! + raw.length });
+    out.push({ text: raw, low: raw.toLocaleLowerCase('id-ID'), start: m.index!, end: m.index! + raw.length, comma: text[m.index! + m[0].length] === ',' });
   }
   return out;
 }
@@ -78,11 +79,21 @@ export function features(toks: Token[], i: number, words: Map<string, string>, p
   const w = toks[i].low, at = (k: number) => toks[i + k]?.low ?? (k < 0 ? '<s>' : '</s>');
   const near = closeness(w, words), sh = shape(w), fromEnd = Math.min(toks.length - 1 - i, 3);
   const p1 = at(-1), n1 = at(1);
+  const walletish = (t: Token) => { const c = closeness(t.low, words); return c === 'exact' || c === 'one'; };
+  const before = toks.slice(0, i).some(walletish), after = toks.slice(i + 1).some(walletish);
+  // "… ke <wallet>" later on: a move between wallets is being said (an unknown first word is then its verb, not a thing).
+  const moveLater = toks.some((t, k) => k > i && t.low === 'ke' && toks[k + 1] && walletish(toks[k + 1]));
   return [
     'b', `w=${w}`, `p3=${w.slice(0, 3)}`, `s3=${w.slice(-3)}`, `s2=${w.slice(-2)}`, `sh=${sh}`, `near=${near}`,
     `p1=${p1}`, `n1=${n1}`, `p2=${at(-2)}`, `n2=${at(2)}`, `p1sh=${shape(p1)}`, `n1sh=${shape(n1)}`,
     `first=${i === 0}`, `end=${fromEnd}`, `prev=${prev}`, `prev+near=${prev}|${near}`, `p1+near=${p1}|${near}`,
     `near+end=${near}|${fromEnd}`, `near+first=${near}|${i === 0}`, `n1+near=${n1}|${near}`, `p1near=${closeness(p1, words)}`, `n1near=${closeness(n1, words)}`,
+    // 10.3.1 A comma after a word ("gan, kopi 20rb") and around it; the word's shape next to its neighbours'.
+    `cm=${!!toks[i].comma}`, `pcm=${!!toks[i - 1]?.comma}`, `cm+first=${!!toks[i].comma}|${i === 0}`, `sh+n1sh=${sh}|${shape(n1)}`, `p1sh+sh=${shape(p1)}|${sh}`, `prev+n1sh=${prev}|${shape(n1)}`,
+    // Another wallet before or after this word: "ke jago" is where a transfer goes when money leaves another wallet first,
+    // and the wallet money comes into otherwise ("gaji 5jt ke jago").
+    `wb=${before}`, `wa=${after}`, `p1+wb=${p1}|${before}`, `near+wb+wa=${near}|${before}|${after}`, `prev+wb=${prev}|${before}`,
+    `mv=${moveLater}`, `mv+first=${moveLater}|${i === 0}`, `mv+n1sh=${moveLater}|${shape(n1)}`, `mv+sh=${moveLater}|${sh}`,
   ];
 }
 

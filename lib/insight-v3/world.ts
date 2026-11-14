@@ -8,7 +8,7 @@
  *   and the Insight V2.5 context (cycles, baselines, data quality).
  * If a number exists in one of those, the world takes it from there; it never recalculates it another way.
  */
-import { metrics, transactionExpense, transactionIncome } from '../accounting.ts';
+import { expenseAllocations, metrics, transactionExpense, transactionIncome } from '../accounting.ts';
 import type { AdvisorInput } from '../advisor.ts';
 import { availableMoney, committedAmount, safeDaily, upcomingEvents, type UpcomingEvent } from '../finance-control.ts';
 import { forecast } from '../forecast.ts';
@@ -34,7 +34,7 @@ export type FinancialWorld = {
   obligations: { debtOutstanding: number; claimsOutstanding: number; receivablesOutstanding: number; upcoming: UpcomingEvent[] };
   targets: { id: string; name: string; target: number; current: number; perMonth: number; monthsLeft: number | null; status: string; emergency: boolean }[];
   wealth: { assets: number; netWorth: number; invested: number; interest: { gross: number; tax: number; net: number; days: number; trend: number[] } };
-  dataQuality: { category: number; merchant: number; time: number; receipt: number; spendingCount: number };
+  dataQuality: { category: number; merchant: number; time: number; receipt: number; spendingCount: number; /** 10.3.1 Of the spending in a category that has subcategories, the share with one (null: none such). */ sub: number | null };
   profile: Pick<Profile, 'monthlySalary' | 'salaryCycleStartDay' | 'salaryIncomeCategoryId'>;
 };
 
@@ -66,6 +66,9 @@ export function buildWorld(input: AdvisorInput, ctx: InsightContext, profile: Pa
   const recentInterest = interestTx.filter(tx => tx.date >= addDays(today, -30));
   const spend = cur.lines.filter(l => l.tx.type === 'expense'), spendTx = [...new Map(spend.map(l => [l.tx.id, l.tx])).values()];
   const share = (pick: (tx: typeof spendTx[number]) => boolean) => spendTx.length ? spendTx.filter(pick).length / spendTx.length : 1;
+  const hasSubs = new Set(data.categories.filter(c => c.parentId && !c.isArchived).map(c => c.parentId!));
+  const subbable = spendTx.filter(tx => expenseAllocations(tx).some(l => l.categoryId && hasSubs.has(l.categoryId)));
+  const subShare = subbable.length ? 1 - subbable.filter(tx => expenseAllocations(tx).some(l => l.categoryId && hasSubs.has(l.categoryId) && !l.subcategoryId)).length / subbable.length : null;
   return {
     asOf: today,
     currentCycle: { start: cur.start, end: cur.end, elapsed: cur.elapsed, total: cur.total, daysLeft: cur.daysLeft, income: cur.income, expense: cur.expense },
@@ -88,7 +91,7 @@ export function buildWorld(input: AdvisorInput, ctx: InsightContext, profile: Pa
       assets: stat.assets, netWorth: stat.netWorth, invested: sum(data.wallets.filter(w => !w.isArchived && (w.group === 'investment' || w.type === 'investment')).map(w => Math.max(0, w.cachedBalance))),
       interest: { gross: sum(recentInterest.map(tx => tx.interest!.grossMicro)) / 1e6, tax: sum(recentInterest.map(tx => tx.interest!.taxMicro)) / 1e6, net: sum(recentInterest.map(tx => tx.amount)), days: 30, trend: [...ctx.baseline.map(c => sum(interestTx.filter(tx => inRange(tx.date, c)).map(tx => tx.amount))), sum(interestTx.filter(tx => inRange(tx.date, cur)).map(tx => tx.amount))] },
     },
-    dataQuality: { category: 1 - ctx.quality.uncategorizedCurrent, merchant: share(tx => Boolean(tx.merchant?.trim())), time: share(tx => /^\d{2}:\d{2}/.test(tx.time || '')), receipt: share(tx => Boolean(tx.receipt?.items?.length)), spendingCount: spendTx.length },
+    dataQuality: { category: 1 - ctx.quality.uncategorizedCurrent, merchant: share(tx => Boolean(tx.merchant?.trim())), time: share(tx => /^\d{2}:\d{2}/.test(tx.time || '')), receipt: share(tx => Boolean(tx.receipt?.items?.length)), spendingCount: spendTx.length, sub: subShare },
     profile: fullProfile,
   };
 }

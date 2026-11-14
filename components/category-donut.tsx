@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Emoji } from './emoji';
-import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, FolderTree } from 'lucide-react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { Delta } from './delta';
 import { emojiOrFallback } from './visual-identity';
@@ -19,8 +19,10 @@ const NONE = '__none';
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${rupiah(Math.abs(value))}`;
 /** Groups that are not a category of their own: what "Lihat transaksi" opens for them, if anything. */
+const REAL = (id: string) => !['other', 'uncategorized', 'debt-payment', 'receivable-payment'].includes(id);
 const linkFor = (id: string, kind: 'expense' | 'income', parent?: string): string =>
-  id === NONE ? (parent ? linkFor(parent, kind) : '') : id === 'other' ? '' : id === 'debt-payment' ? 'type:debt_payment' : id === 'receivable-payment' ? 'type:receivable_payment'
+  // 10.3.1 "Tanpa subkategori" of a real category opens just those (to give them one), not the whole category.
+  id === NONE ? (parent ? REAL(parent) ? `nosub:${parent}` : linkFor(parent, kind) : '') : id === 'other' ? '' : id === 'debt-payment' ? 'type:debt_payment' : id === 'receivable-payment' ? 'type:receivable_payment'
     : id === 'uncategorized' ? (kind === 'income' ? '' : 'category:uncategorized') : `category:${id}`;
 
 /**
@@ -35,6 +37,9 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
 }) {
   const good = kind === 'income' ? 'up' : 'down';
   const [path, setPath] = useState<{ cat: string | null; sub: string | null }>({ cat: null, sub: null });
+  // 10.3.1 With one subcategory chosen the others fold away, so its detail sits right under it ("tampilkan semua" opens them).
+  const [showAll, setShowAll] = useState(false);
+  const legend = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const total = slices.reduce((sum, slice) => sum + slice.amount, 0);
   const lines = useMemo(() => categoryLines(items, categories, kind), [items, categories, kind]);
@@ -90,7 +95,18 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
     .map((s, i) => ({ ...s, pct: catAmount ? s.amount / catAmount : 0, fill: s.id === NONE ? 'var(--line-strong)' : s.color || `var(--chart-${i % 6 + 1})` }));
   const prevOfSub = (id: string) => prevBySub.get(id === NONE ? null : id) || 0;
   const sub = path.sub ? subs.find(s => s.id === path.sub) : undefined;
-  const pick = (id: string) => isOther ? go(id) : subList.length ? setPath(current => ({ cat, sub: current.sub === id ? null : id })) : undefined;
+  const pick = (id: string) => {
+    if (isOther) return go(id);
+    if (!subList.length) return;
+    setShowAll(false);
+    setPath(current => ({ cat, sub: current.sub === id ? null : id }));
+    // The list folds up around the chosen row: keep it (and its detail just below) in view.
+    requestAnimationFrame(() => { const el = legend.current; if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  };
+  const folded = Boolean(sub) && !showAll && !isOther, rowsShown = folded ? subs.filter(r => r.id === sub!.id) : subs;
+  // 10.3.1 Old records in a category with subcategories but without one: counted, with a way to give them one.
+  const hasSubs = !isOther && REAL(cat) && categories.some(c => c.parentId === cat && !c.isArchived);
+  const looseCount = hasSubs ? new Set(catParts.filter(line => line.subId === null).map(line => line.tx.id)).size : 0;
 
   // What stands out inside the category.
   const notes: string[] = [];
@@ -117,9 +133,9 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
       <Ring key={cat} rows={subs} selected={sub?.id || null} onPick={pick} center={sub
         ? <><span className="donut-center-icon" aria-hidden="true"><Emoji e={emojiOrFallback(sub.icon || catIcon)}/></span><small>{sub.name}</small><strong>{rupiah(sub.amount)}</strong><em>{percent(sub.pct)} dari {catName}</em></>
         : <><span className="donut-center-icon" aria-hidden="true"><Emoji e={emojiOrFallback(catIcon)}/></span><small>{catName}</small><strong>{rupiah(catAmount)}</strong><em>{total ? percent(catAmount / total) : '0%'} dari total</em></>}/>
-      <div className="donut-legend">
-        <small className="drill-legend-head">{isOther ? `${subs.length} kategori kecil · ketuk untuk diperdalam` : subList.length ? `${subList.length} subkategori · ketuk untuk detail` : 'Belum ada subkategori di kategori ini.'}</small>
-        {(isOther || subList.length > 0) && subs.map(row => <div key={row.id} className={`donut-row ${sub?.id === row.id ? 'is-selected' : ''} ${sub && sub.id !== row.id ? 'is-faded' : ''}`}>
+      <div className="donut-legend" ref={legend}>
+        <small className="drill-legend-head">{isOther ? `${subs.length} kategori kecil · ketuk untuk diperdalam` : !subList.length ? hasSubs ? 'Periode ini belum ada yang masuk ke subkategorinya.' : 'Belum ada subkategori di kategori ini.' : folded ? `Fokus ke ${sub!.name} · ketuk lagi untuk semua subkategori` : `${subList.length} subkategori · ketuk untuk detail`}</small>
+        {(isOther || subList.length > 0) && rowsShown.map(row => <div key={row.id} className={`donut-row ${sub?.id === row.id ? 'is-selected' : ''} ${sub && sub.id !== row.id ? 'is-faded' : ''}`}>
           <button type="button" className={`donut-row-main ${isOther ? 'has-chevron' : ''}`} aria-pressed={isOther ? undefined : sub?.id === row.id} onClick={() => pick(row.id)}>
             <span className="donut-dot" style={{ background: row.fill }}/>
             <span className="donut-name">{row.icon && <span aria-hidden="true"><Emoji e={emojiOrFallback(row.icon)}/> </span>}{row.name}</span>
@@ -128,6 +144,10 @@ export function CategoryDonut({ slices, previous, previousReady, navigate, basis
             <span className="donut-bar" aria-hidden="true"><i style={{ width: `${Math.max(2, row.pct * 100)}%`, background: row.fill }}/></span>
           </button>
         </div>)}
+        {looseCount > 0 && (!sub || sub.id === NONE) && <div className="drill-nosub" role="note"><span><FolderTree size={14} aria-hidden="true"/> {looseCount} transaksi di {catName} belum punya subkategori.</span><button type="button" className="link-button" onClick={() => navigate('transactions', `nosub:${cat}${rangeFocus}`)}>Rapikan <ArrowRight size={14}/></button></div>}
+        {sub && !isOther && subs.length > 1 && <button type="button" className="drill-more" aria-expanded={showAll} onClick={() => setShowAll(v => !v)}>
+          {showAll ? <><ChevronUp size={15} aria-hidden="true"/> Ringkas, fokus ke {sub.name}</> : <><ChevronDown size={15} aria-hidden="true"/> Tampilkan {subs.length - 1} subkategori lain</>}
+        </button>}
       </div>
     </div>
     <Detail key={`${cat}/${sub?.id || ''}`} kind={kind} parts={focusParts} prevParts={focusPrev} previousReady={previousReady} basis={basis} range={range} today={today} navigate={navigate} rangeFocus={rangeFocus}

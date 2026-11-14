@@ -1,0 +1,25 @@
+## 10.3.1 — transfer & kata seru, heldout (600 kasus × 2 akun)
+
+| | 10.3 |
+|---|---|
+| **Semua kasus** | 397/600 (66.2%) |
+| · Antardompet tanpa kata kerja / kata kerja baru | 16/120 (13.3%) |
+| · Kata seru di sekitar catatan | 21/120 (17.5%) |
+| · Tempat yang belum dikenal (jebakan) | 120/120 (100.0%) |
+| · Barang yang belum dikenal (jebakan) | 120/120 (100.0%) |
+| · Dua catatan, dua dompet (jebakan) | 120/120 (100.0%) |
+
+**Per bagian** (kasus yang memeriksa bagian itu, benar di dua akun)
+
+| | 10.3 |
+|---|---|
+| kind | 496/600 (82.7%) |
+| total | 600/600 (100.0%) |
+| wallet | 600/600 (100.0%) |
+| to | 16/120 (13.3%) |
+| cat | 209/240 (87.1%) |
+| item | 209/240 (87.1%) |
+| place | 120/120 (100.0%) |
+| clean | 269/360 (74.7%) |
+| count | 120/120 (100.0%) |
+

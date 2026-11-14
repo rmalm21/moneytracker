@@ -15,6 +15,7 @@ import { LEX } from '../bench/v103/gen.mjs';
 import { cases as handDev } from '../bench/v103/hand-dev.mjs';
 import { cases as handHeld } from '../bench/v103/hand-heldout.mjs';
 import { editDistance } from '../lib/catat/tagger.ts';
+import { SPECIAL } from '../bench/v1031/gen.mjs';
 
 export function random(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const pick = (rnd, list) => list[Math.floor(rnd() * list.length)];
@@ -34,10 +35,14 @@ const INCOME = ['gaji', 'bonus', 'hasil jualan', 'hasil ngojek', 'fee', 'honor',
 const PEOPLE = ['andi', 'budi', 'citra', 'dewi', 'eko', 'fajar', 'gita', 'hana', 'indra', 'joko', 'kiki', 'lina', 'mira', 'nanda', 'putri', 'reza', 'sinta', 'tono', 'umar', 'wati', 'zaki', 'ibu', 'adek', 'kakak', 'pacar', 'temen'];
 const DATES = ['kemarin', 'kmrn', 'tadi', 'tadi pagi', 'tadi siang', 'tadi sore', 'tadi malam', 'semalam', 'barusan', 'pagi ini', 'hari ini', 'senin', 'selasa', 'kamis', 'jumat', 'sabtu', 'tgl 3', 'tgl 20', '2 hari lalu', '4 hari lalu', 'kemarin sore', 'kemarin malam'];
 const LEADS = ['pake', 'pakai', 'via', 'lewat', 'dari', 'bayar pake', 'pakai saldo', 'pake saldo', 'debit', 'tf', 'dibayar pake'];
-const FILLERS = ['eh', 'btw', 'tadi', 'barusan', 'gue', 'aku', 'saya', 'gw', 'wah', 'aduh', 'yah', 'oke', 'nah', 'jadi', 'tolong catat', 'catat', 'catet'];
-const TAILS = ['ya', 'yaa', 'dong', 'wkwk', 'wkwkwk', 'hahaha', 'huhu', 'mantap', 'sip', 'aja', 'kak', 'min', 'tolong', 'pls'];
+const FILLERS = ['eh', 'btw', 'tadi', 'barusan', 'gue', 'aku', 'saya', 'gw', 'wah', 'aduh', 'yah', 'oke', 'nah', 'jadi', 'tolong catat', 'catat', 'catet', 'bang', 'kak', 'mas', 'mbak', 'say', 'beb', 'cuk', 'anjir', 'waduh', 'hmm', 'yaudah', 'fyi', 'anyway', 'plis', 'lho', 'loh', 'wkwk', 'haha', 'alhamdulillah', 'ya ampun', 'omg', 'sumpah', 'parah', 'gila', 'oalah', 'ih', 'seriusan', 'asik'];
+const TAILS = ['ya', 'yaa', 'dong', 'wkwk', 'wkwkwk', 'hahaha', 'huhu', 'sip', 'aja', 'kak', 'min', 'tolong', 'pls', 'lho', 'loh', 'yah', 'dah', 'udah', 'ok', 'oke', 'siap', 'thanks', 'makasih', 'tq', 'bang', 'beb'];
 const BUY = ['beli', 'bayar', 'jajan', 'abis', 'habis', 'keluar', 'belanja', 'pesen', 'order', 'checkout', 'isi'];
-const TVERB = ['transfer', 'tf', 'pindahin', 'top up', 'topup', 'isi saldo', 'narik', 'tarik', 'nabung'];
+const TVERB = ['transfer', 'tf', 'trf', 'pindahin', 'top up', 'topup', 'isi saldo', 'narik', 'tarik', 'nabung', 'kirimin', 'mutasiin', 'transferin', 'tf in', 'pindah buku'];
+/** Kinds of place; a made-up name after them is a place the app has never heard of. */
+const PLACE_HEADS = ['kedai', 'warkop', 'depot', 'toko', 'resto', 'kopitiam', 'rumah makan', 'kantin', 'lapak', 'gerai'];
+/** A made-up word ("kulong", "basir"): stands for things, slang and names the tagger has never seen, so it learns the place a word sits in, not the word. */
+function madeUp(rnd) { const C = 'bcdgjklmnprstwy', V = 'aiueo'; let w = ''; for (let i = 0, n = 2 + Math.floor(rnd() * 2); i < n; i++) w += C[Math.floor(rnd() * C.length)] + V[Math.floor(rnd() * V.length)]; return rnd() < 0.5 ? w + pick(rnd, ['ng', 'k', 'r', 't', 's', 'l', 'h']) : w; }
 const NUMWORDS = [['sepuluh ribu', 10000], ['lima puluh ribu', 50000], ['sejuta', 1000000], ['seribu', 1000], ['dua ribu', 2000], ['enam puluh ribu', 60000]];
 const SLANG = [['ceban', 10000], ['goceng', 5000], ['gocap', 50000], ['seceng', 1000], ['gopek', 500], ['sejuta', 1000000]];
 
@@ -69,7 +74,11 @@ function sentence(rnd, account) {
   const item = () => { const r = rnd(); return r < 0.12 ? pick(rnd, ENGLISH) : r < 0.2 ? pick(rnd, LOOKALIKE) : pick(rnd, ITEMS); };
   const lead = () => rnd() < 0.55 ? [[pick(rnd, LEADS), 'O']] : [];
   const opt = (p, x) => rnd() < p ? x : [];
-  const W = [wal(), 'WAL'], A = [amount(rnd), 'AMT'], I = [item(), 'ITEM'], D = [pick(rnd, DATES), 'DATE'], P = [pick(rnd, PLACES), 'PLACE'], F = [pick(rnd, FILLERS), 'O'], T = [pick(rnd, TAILS), 'O'];
+  const place = () => { const r = rnd(); return r < 0.55 ? pick(rnd, PLACES) : r < 0.85 ? `${pick(rnd, PLACE_HEADS)} ${madeUp(rnd)}${rnd() < 0.4 ? ' ' + madeUp(rnd) : ''}` : madeUp(rnd); };
+  const filler = () => rnd() < 0.25 ? madeUp(rnd) : pick(rnd, FILLERS);
+  // Things the app has never heard of, of one word or two ("cimol keju", "basreng pedas").
+  const odd = () => { const r = rnd(); return r < 0.45 ? madeUp(rnd) : r < 0.7 ? `${madeUp(rnd)} ${madeUp(rnd)}` : r < 0.85 ? `${madeUp(rnd)} ${pick(rnd, ITEMS).split(' ')[0]}` : `${pick(rnd, ITEMS).split(' ')[0]} ${madeUp(rnd)}`; };
+  const W = [wal(), 'WAL'], A = [amount(rnd), 'AMT'], I = [rnd() < 0.2 ? odd() : item(), 'ITEM'], D = [pick(rnd, DATES), 'DATE'], P = [place(), 'PLACE'], F = [filler(), 'O'], T = [rnd() < 0.3 ? madeUp(rnd) : pick(rnd, TAILS), 'O'];
   const r = rnd();
   let s;
   if (r < 0.42) {           // spending, any order
@@ -79,13 +88,19 @@ function sentence(rnd, account) {
     ];
     s = [...opt(0.2, [F]), ...pick(rnd, shapes), ...opt(0.2, [T])];
   } else if (r < 0.55) {    // with a place
-    const shapes = [[I, ['di', 'O'], P, A, ...lead(), W], [P, I, A, W], [P, A, ...lead(), W], [[pick(rnd, BUY), 'O'], I, ['di', 'O'], P, A, ...lead(), W], [W, P, A], [I, A, ['di', 'O'], P, ...lead(), W], [P, W, A]];
+    const shapes = [[I, ['di', 'O'], P, A, ...lead(), W], [P, I, A, W], [P, A, ...lead(), W], [[pick(rnd, BUY), 'O'], I, ['di', 'O'], P, A, ...lead(), W], [W, P, A], [I, A, ['di', 'O'], P, ...lead(), W], [P, W, A], [I, A, P, ...lead(), W], [I, A, P, W]];
     s = [...opt(0.15, [F]), ...pick(rnd, shapes), ...opt(0.15, [T])];
-  } else if (r < 0.66) {    // between own wallets
+  } else if (r < 0.66) {    // between own wallets: the pieces in any sensible order, with any verb or none
     let to = wal(); const from = W[0]; while (mainWord(to) === mainWord(from)) to = wal();
-    const O = [to, 'WTO'], V = [pick(rnd, TVERB), 'O'];
-    const shapes = [[V, A, ['dari', 'O'], W, ['ke', 'O'], O], [V, A, W, ['ke', 'O'], O], [W, ['ke', 'O'], O, A], [V, O, A, ['dari', 'O'], W], [V, O, A, ...lead(), W], [A, ['dari', 'O'], W, ['ke', 'O'], O], [V, ['dari', 'O'], W, ['ke', 'O'], O, A], [V, ['ke', 'O'], O, A, ['dari', 'O'], W]];
-    s = [...opt(0.1, [F]), ...pick(rnd, shapes), ...opt(0.1, [T])];
+    const O = [to, 'WTO'], V = [rnd() < 0.3 ? madeUp(rnd) : pick(rnd, TVERB), 'O'];
+    if (rnd() < 0.15) { s = [V, O, A, ...lead(), W]; }           // "isi gopay 50rb pake jago": where it goes first
+    else {
+      const src = rnd() < 0.55 ? [['dari', 'O'], W] : [W], dst = [['ke', 'O'], O];
+      // Without "dari" the wallet it leaves comes before "ke …"; the amount goes anywhere.
+      const pieces = src.length === 2 && rnd() < 0.5 ? [dst, src] : [src, dst];
+      const at = Math.floor(rnd() * 3); pieces.splice(at, 0, [A]);
+      s = [...(rnd() < 0.6 ? [V] : []), ...pieces.flat()];
+    }
   } else if (r < 0.76) {    // money in
     const S = [pick(rnd, INCOME), 'ITEM'];
     const shapes = [[S, A, ['masuk', 'O'], W], [S, A, ['ke', 'O'], W], [['dapet', 'O'], S, A, ['di', 'O'], W], [W, ['masuk', 'O'], S, A], [S, ['masuk', 'O'], W, A], [['terima', 'O'], S, A, W], [S, A, W]];
@@ -101,8 +116,14 @@ function sentence(rnd, account) {
     const L = [pick(rnd, LOOKALIKE), 'ITEM'];
     s = pick(rnd, [[I, A], [A, I], [[pick(rnd, BUY), 'O'], I, A], [I, A, D], [I, ['di', 'O'], P, A], [D, I, A], [L, A], [L, A, ...lead(), W], [L, A, W], [A, L], [L, ['di', 'O'], P, A]]);
   }
+  // Slang anywhere between the pieces (now and then), and a comma after a piece now and then.
+  if (rnd() < 0.3) s.splice(Math.floor(rnd() * (s.length + 1)), 0, F);
+  if (rnd() < 0.2) s.push(T);
   const out = [];
-  for (const [text, tag] of s) for (const w of words(text)) out.push([w, tag]);
+  s.forEach(([text, tag], k) => {
+    const ws = words(text);
+    ws.forEach((w, j) => out.push([w, tag, j === ws.length - 1 && k < s.length - 1 && (tag === 'O' && k === 0 ? rnd() < 0.5 : rnd() < 0.06)]));
+  });
   return out;
 }
 
@@ -118,6 +139,9 @@ export function forbidden() {
   for (const list of [LEX.dev.typos, LEX.heldout.typos]) Object.values(list).flat().forEach(w => out.add(w));
   for (const c of [...handDev, ...handHeld]) for (const w of [c.want.clean || [], ...(c.want.records || []).map(r => r.clean || [])].flat()) if (!wallets.has(w) && /^\p{L}{3,}$/u.test(w) && [...wallets].some(x => editDistance(w, x) <= 2)) out.add(w);
   for (const w of ['transprot', 'jajann', 'trasnportasi', 'bensinn', 'mkn']) out.add(w);
+  // 10.3.1: the special words of both sides of bench/v1031 (verbs, slang, place names, odd things), dev included, so
+  // dev measures words the tagger never saw too.
+  for (const w of [...SPECIAL.dev, ...SPECIAL.heldout]) out.add(w);
   return out;
 }
 

@@ -30,7 +30,7 @@ function placeOf(id: string): { domain: Domain; deepDive: DeepDive } {
   if (/^(receivable|split-owed)$/.test(id)) return { domain: 'receivable', deepDive: 'duty' };
   if (/^(weekend|night|payday|odd-|repeat-|fixed)/.test(id)) return { domain: 'behavior', deepDive: 'habits' };
   if (/^(tight|shrink)-/.test(id)) return { domain: 'budget', deepDive: 'spending' };
-  if (id === 'uncategorized') return { domain: 'data', deepDive: 'spending' };
+  if (id === 'uncategorized' || id === 'nosub') return { domain: 'data', deepDive: 'spending' };
   return { domain: 'spending', deepDive: 'spending' };
 }
 export function findingToSignal(f: Finding, advice: Pick<Advice, 'cyclesUsed' | 'enoughHistory'>, today: string): InsightSignal {
@@ -62,6 +62,7 @@ export function bridgeAdvisor(advice: Advice, signals: InsightSignal[], today: s
     if (f.saving && target.tone !== 'positive') target.evidence = [...target.evidence, { label: 'Saran Insight', value: f.title, note: `hemat ±Rp${f.saving.toLocaleString('id-ID')}/bln` }];
   }
   const seen = new Set<string>();
-  const adapted = advice.actions.filter(f => !linked.has(f.id) && !seen.has(f.id) && seen.add(f.id)).map(f => findingToSignal(f, advice, today));
+  // 10.3.1 Records without a subcategory: a data-tidiness card of its own (with "Rapikan"), not only inside Arus uang.
+  const adapted = [...advice.actions, ...advice.alerts.filter(f => f.id === 'nosub')].filter(f => !linked.has(f.id) && !seen.has(f.id) && seen.add(f.id)).map(f => findingToSignal(f, advice, today));
   return { adapted, linked };
 }

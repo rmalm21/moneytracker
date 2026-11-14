@@ -1457,6 +1457,9 @@ details[open] > :not(summary) { animation: view-in .16s ease-out; }
 .drill-crumbs button { border: 0; background: none; padding: 4px 2px; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
 .drill-crumbs b { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
 .drill-legend-head { color: var(--muted); font-size: .74rem; font-weight: 700; padding: 0 10px 2px; }
+.drill-more { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin: 2px 6px 0; padding: 6px 12px; border: 1px dashed var(--line); border-radius: 99px; background: transparent; color: var(--accent); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.drill-more:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.donut-legend { scroll-margin-top: 76px; }
 .drill-detail { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, var(--drill) 9%, var(--paper)), var(--paper) 120px); animation: view-in .18s ease-out; min-width: 0; }
 .drill-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .drill-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; font-size: 1.2rem; background: color-mix(in srgb, var(--drill) 18%, var(--paper)); }
@@ -10588,3 +10591,16 @@ body[style*="pointer-events: none"] .heads-up-stack, body[style*="pointer-events
 /* The live app is not painted under it (it is still laid out and loads as usual): painting both made the data arrive about
    1.5 s later on a slow phone. */
 html.home-shot-on body > .app-layout, html.home-shot-on body > .pet-dock { visibility: hidden; }
+/* 10.3.1 Belum ada subkategori: a nudge with quick picks (components/subcategory-hint.tsx). */
+.sub-hint { display: grid; gap: 6px; padding: 8px 10px; border: 1px dashed var(--warn-line); border-radius: 12px; background: var(--warn-soft); }
+.sub-hint-q { display: flex; align-items: flex-start; gap: 6px; font-size: .8rem; font-weight: 600; color: var(--warn-ink); overflow-wrap: anywhere; }
+.sub-hint-q svg { flex: none; margin-top: 2px; }
+.sub-hint .qp-picks .sb-chip { background: var(--paper); }
+.sub-hint-more { color: var(--muted); font-size: .72rem; font-weight: 600; }
+.sub-hint.is-compact { padding: 6px 8px; gap: 5px; }
+.sub-hint.is-compact .sub-hint-q { font-size: .76rem; }
+.si-nosub { font-style: normal; color: var(--warn-ink); font-weight: 700; }
+.drill-nosub { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--warn-line); border-radius: 12px; background: var(--warn-soft); color: var(--warn-ink); font-size: .8rem; font-weight: 600; }
+.drill-nosub > span { display: inline-flex; align-items: flex-start; gap: 6px; }
+.drill-nosub > span svg { flex: none; margin-top: 2px; }
+.drill-nosub .link-button { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }

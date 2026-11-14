@@ -5,6 +5,8 @@ import { useApp } from './app-provider';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { CategoryAccordion } from './category-accordion';
+import { SubcategoryHint } from './subcategory-hint';
+import { missingSubs } from '@/lib/subcategory-hint';
 import { Field, Input, Money, Select } from './fields';
 import { ReceiptCorners, ReceiptSource, type Upright } from './receipt-source';
 import { ReceiptCamera, liveCameraAvailable } from './receipt-camera';
@@ -438,7 +440,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
         <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Dari' : 'Tempat'}</span><div className="rs-line-control"><Input value={draft.merchant} maxLength={80} onChange={e => patch({ merchant: e.target.value })} placeholder="Nama toko atau tempat"/>{intel?.merchant.raw && intel.merchant.raw !== draft.merchant && <small>Terbaca “{intel.merchant.raw}”</small>}</div></div>
         {!split && <>
         <div className="rs-line"><span className="rs-line-label">{draft.type === 'income' ? 'Masuk ke' : 'Dompet'}</span><div className="rs-line-control"><Select required value={draft.walletId} onChange={e => patch({ walletId: e.target.value })}><option value="">Pilih dompet</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></div></div>
-        {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <div className="rs-line"><span className="rs-line-label">Kategori</span><div className="rs-line-control"><CategoryAccordion type={draft.type} compact value={{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null }} onChange={value => patch({ categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/></div></div>}
+        {!(draft.type === 'expense' && draft.bySplit && purchase.length > 1) && <div className="rs-line"><span className="rs-line-label">Kategori</span><div className="rs-line-control"><CategoryAccordion type={draft.type} compact value={{ categoryId: draft.categoryId, subcategoryId: draft.subcategoryId || null }} onChange={value => patch({ categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/><SubcategoryHint category={data.categories.find(c => c.id === draft.categoryId)} subs={missingSubs(data.categories, data.transactions, draft.categoryId, draft.subcategoryId)} onPick={id => patch({ subcategoryId: id })}/></div></div>}
         <div className="rs-line"><span className="rs-line-label">Keterangan</span><div className="rs-line-control"><Input value={draft.description} maxLength={120} onChange={e => patch({ description: e.target.value })} placeholder="Opsional"/></div></div>
         <div className="rs-line"><span className="rs-line-label">Catatan</span><div className="rs-line-control"><Input value={draft.notes} maxLength={300} onChange={e => patch({ notes: e.target.value })} placeholder="Opsional"/></div></div>
         </>}
@@ -467,6 +469,7 @@ export function ReceiptScan({ open, onOpenChange, startType = 'expense', backgro
             {status === 'check' && item.source !== undefined && (intel?.items[item.source]?.amount.alternatives.length || 0) > 0 && <div className="rs-alts"><small className="muted">Kemungkinan lain:</small>{intel!.items[item.source!].amount.alternatives.map(v => <button type="button" key={v} className="sb-chip" onClick={() => useValue(field, v)}>{rupiah(v)}</button>)}<button type="button" className="sb-chip" onClick={() => settle(`item:${item.source}`)}><Check size={12}/> Sudah benar</button></div>}
             {reread?.field === field && <RereadPanel reread={reread} onUse={value => useValue(field, value)} onClose={() => setReread(null)}/>}
             {draft.type === 'expense' && !split && <CategoryAccordion type="expense" compact label={`Kategori ${item.name || 'item'}`} placeholder="Kategori item" value={{ categoryId: item.categoryId, subcategoryId: item.subcategoryId || null }} onChange={value => patchItem(item.key, { categoryId: value.categoryId, subcategoryId: value.subcategoryId || '' })}/>}
+            {draft.type === 'expense' && !split && item.categoryId && <SubcategoryHint compact category={data.categories.find(c => c.id === item.categoryId)} subs={missingSubs(data.categories, data.transactions, item.categoryId, item.subcategoryId)} onPick={id => patchItem(item.key, { subcategoryId: id })}/>}
           </div>}
         </li>; })}</ul>
         {!allItems && draft.items.length > 8 && <button type="button" className="link-button rs-more-items" onClick={() => setAllItems(true)}>Lihat {draft.items.length - draft.items.filter((item, i) => i < 5 || itemStatus(item) === 'check').length} item lainnya</button>}

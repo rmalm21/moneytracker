@@ -35,6 +35,7 @@ import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
 import { repairWallets, taggerReady } from './catat/tagger.ts';
+import { chatterWords, onlyFiller, readRoles, transferSentence, withoutChatter, withoutWords } from './catat/roles.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { compileLanguagePack, curatedReading, normalizeGeneral, NAY_WORD, type Normalization } from './catat/language.ts';
 import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
@@ -1086,9 +1087,73 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   // 10.3 A wallet typed wrong ("nasgor 18rb mandri"): the pembaca kalimat says when a word is a wallet (lib/catat/tagger.ts).
   const counted = repairWallets(countedRaw, ctx.wallets.filter(w => !w.isArchived).map(w => w.name), taggerReady()).text;
   const { text, shown } = addressedNames(counted, ctx);
-  const plan = settingAfterThing(parseQuickPlanAll(text, ctx, mode));
+  let plan = settingAfterThing(parseQuickPlanAll(text, ctx, mode));
+  // 10.3.1 What the pembaca kalimat adds where the word lists stop: transfers said another way, slang out of names.
+  const names = ctx.wallets.filter(w => !w.isArchived).map(w => w.name), roles = mode === 'auto' || mode === 'transfer' || mode === 'expense' ? readRoles(counted, names) : null;
+  if (roles) plan = withRoles(plan, roles, names, text, ctx, mode);
   if (plan.sourceText === text && (shown.size || counted !== input)) plan.sourceText = input;
   return addressBack(plan, shown, ctx);
+}
+/** 10.3.1 Words the person has used in their own records (descriptions, places, people): never taken for slang. */
+const OWN_WORDS = new WeakMap<object, Set<string>>();
+function ownWords(ctx: QuickContext) {
+  const hit = OWN_WORDS.get(ctx.history); if (hit) return hit;
+  const out = new Set<string>();
+  for (const t of ctx.history) for (const w of `${t.description || ''} ${t.merchant || ''}`.toLocaleLowerCase('id-ID').split(/[^\p{L}]+/u)) if (w.length >= 2) out.add(w);
+  for (const c of ctx.categories) for (const w of c.name.toLocaleLowerCase('id-ID').split(/[^\p{L}]+/u)) if (w.length >= 2) out.add(w);
+  OWN_WORDS.set(ctx.history, out);
+  return out;
+}
+/** 10.3.1 The pembaca kalimat's second opinion on a reading (lib/catat/roles.ts). */
+function withRoles(plan: QuickParseResult, roles: NonNullable<ReturnType<typeof readRoles>>, names: string[], text: string, ctx: QuickContext, mode: QuickGroup | QuickKind): QuickParseResult {
+  const only = plan.actions.length === 1 ? plan.actions[0].result : null;
+  // A move between two own wallets said without a word the rules know ("mandiri ke bri 14rb").
+  if (mode !== 'expense' && (!plan.actions.length || only && (only.kind === 'expense' || only.kind === 'income') && !only.preset.destinationWalletId)) {
+    const sentence = transferSentence(roles, names);
+    if (sentence) {
+      const moved = settingAfterThing(parseQuickPlanAll(sentence, ctx, mode)), r = moved.actions.length === 1 ? moved.actions[0].result : null;
+      if (r && r.kind === 'transfer' && r.preset.walletId && r.preset.destinationWalletId) return { ...moved, sourceText: text, trace: [...moved.trace, `pembaca kalimat: transfer (“${sentence}”)`] };
+    }
+  }
+  // Slang that ended up in a name or a place ("Celana · Cuy", "Gan · Parkir"): read again without it, when that reading
+  // says the same records (kinds and amounts); otherwise the name just loses it at its edges.
+  const chatter = chatterWords(roles, names, ownWords(ctx));
+  if (!chatter.size) return plan;
+  // The slang may go, the thing may not: a name that would be left with only "bayarnya", "pake" or nothing keeps its word
+  // ("110ribu bayarnya krom celana" is Celana, even where the word after the wallet looks like chatter to the tagger).
+  const label = (a: QuickParseResult['actions'][number]) => `${a.result.preset?.description || ''} ${a.result.preset?.merchant || ''}`;
+  const named = (q: QuickParseResult) => q.actions.flatMap(a => `${a.result.preset?.description || ''} ${a.result.preset?.merchant || ''}`.toLocaleLowerCase('id-ID').split(/[^\p{L}]+/u));
+  // Everything but the name and the place must read the same without the slang (kind, amount, wallets, date, person,
+  // category, the debt or receivable it pays); a category may only be gained.
+  const same = (q: QuickParseResult, base = plan) => q.actions.length === base.actions.length && q.actions.every((a, i) => {
+    const r = a.result, b = base.actions[i].result, p = r.preset || {}, o = b.preset || {};
+    return r.kind === b.kind && r.amount === b.amount && (r.date || '') === (b.date || '') && (r.person || '') === (b.person || '') && (p.walletId || '') === (o.walletId || '') && (p.destinationWalletId || '') === (o.destinationWalletId || '')
+      && (p.debtId || '') === (o.debtId || '') && (p.receivableId || '') === (o.receivableId || '') && (!o.categoryId || p.categoryId === o.categoryId && (p.subcategoryId || '') === (o.subcategoryId || ''))
+      && (!onlyFiller(label(a)) || onlyFiller(label(base.actions[i])));
+  });
+  // Taking one word out can let another one slip into the name ("… astaga pake mandiri xixi"): again, up to three times.
+  const leaked = new Set<string>();
+  let best: QuickParseResult | null = null;
+  for (let round = 0, current = plan; round < 3; round++) {
+    const more = named(current).filter(w => chatter.has(w) && !leaked.has(w));
+    if (!more.length) break;
+    more.forEach(w => leaked.add(w));
+    const again = settingAfterThing(parseQuickPlanAll(withoutWords(text, leaked), ctx, mode));
+    if (!again.actions.length || !same(again)) break;
+    best = current = again;
+  }
+  if (best) return { ...best, sourceText: text, trace: [...best.trace, `pembaca kalimat: dibaca ulang tanpa kata seru (${[...leaked].join(', ')})`] };
+  let changed = false;
+  const actions = plan.actions.map(a => {
+    const p = a.result.preset; if (!p) return a;
+    const trimmed = p.description ? withoutChatter(p.description, chatter) : p.description;
+    const description = trimmed && !onlyFiller(trimmed) ? trimmed : p.description;
+    const merchant = p.merchant ? withoutChatter(p.merchant, chatter) : p.merchant;
+    if (description === p.description && merchant === p.merchant) return a;
+    changed = true;
+    return { ...a, result: { ...a.result, preset: { ...p, description, merchant } } };
+  });
+  return changed ? { ...plan, actions, trace: [...plan.trace, `pembaca kalimat: kata seru keluar dari nama (${[...chatter].join(', ')})`] } : plan;
 }
 function parseQuickPlanAll(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   const raw = input.trim().replace(SAID_FIRST, '');

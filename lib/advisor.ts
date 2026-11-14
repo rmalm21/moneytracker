@@ -5,6 +5,7 @@
 import { budgetCurrent, budgetIconCategoryId, budgetMonthly, budgetSpent, budgetSubcategories, budgetWindow, countedBudgets, salaryCycle, transactionExpense } from './accounting.ts';
 import { categoryBreakdown } from './category-analytics.ts';
 import { savingsPlan } from './savings.ts';
+import { withoutSubs } from './subcategory-hint.ts';
 import { resolveInsightProfile, riskLabels, type InsightProfile } from './insight-profile.ts';
 import { allocation, blendedRange, blendedReturn, equitySectors, futureValue, INFLATION, rangeText, realValueIdle, type PlanItem } from './invest-plan.ts';
 import { walletGroup } from './wallet-groups.ts';
@@ -360,6 +361,12 @@ export function analyzeFinances(input: AdvisorInput): Advice {
   // Spending without a category can't be judged as a need or a want: ask to categorise it instead of guessing.
   const uncategorized = currentSlices.get('uncategorized')?.amount || 0, uncategorizedAvg = mean(perCycle.map(map => map.get('uncategorized')?.amount || 0));
   if (uncategorized >= 100_000 || avgExpense && uncategorizedAvg >= avgExpense * .05) alerts.push({ id: 'uncategorized', tone: 'info', stat: { label: 'Tanpa kategori', value: shortRp(uncategorized || uncategorizedAvg), note: uncategorized ? 'siklus ini' : 'rata-rata per siklus' }, title: 'Ada pengeluaran tanpa kategori', detail: `Pengeluaran tanpa kategori tidak ikut dinilai sebagai kebutuhan atau keinginan, jadi sarannya kurang tepat. ==Beri kategori== pada transaksinya.`, target: { view: 'transactions', focus: `category:uncategorized@${uncategorized ? `${current.start}..${current.end}` : span}` } });
+  // 10.3.1 Records in a category that has subcategories but without one: the per-subcategory reports miss them.
+  const noSub = withoutSubs(currentItems, categories), noSubCount = sum(noSub.map(g => g.count));
+  if (noSub.length && (noSubCount >= 3 || noSub[0].amount >= 100_000)) {
+    const top = noSub[0], others = noSub.slice(1, 3).map(g => `${g.category.name} ${g.count}×`).join(', ');
+    alerts.push({ id: 'nosub', tone: 'info', stat: { label: 'Tanpa subkategori', value: `${noSubCount}×`, note: 'siklus ini' }, title: `${noSubCount} transaksi belum punya subkategori`, detail: `Paling banyak di **${top.category.name}** (${top.count}×, ${rp(top.amount)})${others ? `, lalu ${others}` : ''}. Laporan per subkategori jadi kurang lengkap. ==Rapikan== dengan memilih subkategorinya di tiap transaksi.`, target: { view: 'transactions', focus: `nosub:${top.category.id}@${current.start}..${current.end}` } });
+  }
   for (const tx of currentItems) {
     const spend = transactionExpense(tx); if (spend < 100_000) continue;
     const peers = cycleItems.flat().filter(o => o.categoryId === tx.categoryId && transactionExpense(o) > 0).map(transactionExpense);

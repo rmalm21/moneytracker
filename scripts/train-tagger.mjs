@@ -11,15 +11,15 @@ import { features, walletWords, tagTokens, repairWallets } from '../lib/catat/ta
 const arg = (k, d) => Number(process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1] || d);
 const TAGS = ['O', 'AMT', 'WAL', 'WTO', 'ITEM', 'PLACE', 'DATE', 'PERSON'];
 const T = TAGS.length, ix = Object.fromEntries(TAGS.map((t, i) => [t, i]));
-const N = arg('sentences', 40000), EPOCHS = arg('epochs', 6), SCALE = 100, PRUNE = arg('prune', 5);
+const N = arg('sentences', 40000), EPOCHS = arg('epochs', 6), SCALE = 100, PRUNE = arg('prune', 5), MIN_SEEN = arg('min-seen', 5);
 
 const train = makeCorpus(11, N), test = makeCorpus(99, 4000);
 const forbiddenCount = assertClean([...train.sentences, ...test.sentences]);
-const toks = s => s.tokens.map(([w]) => ({ text: w, low: w, start: 0, end: 0 }));
+const toks = s => s.tokens.map(([w, , comma]) => ({ text: w, low: w, start: 0, end: 0, comma: Boolean(comma) }));
 console.log(`korpus: ${train.sentences.length} kalimat latih, ${test.sentences.length} kalimat uji sendiri · ${forbiddenCount} kata uji tersembunyi & salah ketik benchmark dijauhkan (dibuang: ${train.dropped + test.dropped})`);
 
 // Averaged perceptron (weights, their running totals and when each was last changed).
-const W = new Map(), U = new Map(), stamp = new Map();
+const W = new Map(), U = new Map(), stamp = new Map(), seen = new Map();
 let clock = 1;
 const row = (map, f) => { let r = map.get(f); if (!r) { r = new Float64Array(T); map.set(f, r); } return r; };
 function update(feats, gold, guess) {
@@ -45,6 +45,7 @@ for (let epoch = 1; epoch <= EPOCHS; epoch++) {
     let prev = '<s>';
     for (let i = 0; i < tk.length; i++) {
       const feats = features(tk, i, words, prev), gold = ix[s.tokens[i][1]], guess = predict(feats);
+      if (epoch === 1) for (const f of feats) seen.set(f, (seen.get(f) || 0) + 1);
       if (guess !== gold) update(feats, gold, guess); else right++;
       all++; clock++;
       prev = TAGS[guess];
@@ -55,6 +56,8 @@ for (let epoch = 1; epoch <= EPOCHS; epoch++) {
 // Averages, rounded and pruned to what matters.
 const model = { tags: TAGS, scale: SCALE, w: {} };
 for (const [f, w] of W) {
+  // A feature seen only a few times (a made-up word's spelling) says nothing about new sentences: dropped.
+  if ((seen.get(f) || 0) < MIN_SEEN) continue;
   const u = U.get(f), last = stamp.get(f) || clock, out = [];
   for (let k = 0; k < T; k++) { const avg = (u[k] + (clock - last) * w[k]) / clock, v = Math.round(avg * SCALE); if (Math.abs(v) >= PRUNE) out.push(k, v); }
   if (out.length) model.w[f] = out;
@@ -76,6 +79,9 @@ for (const s of test.sentences) {
   for (const f of fixed.fixed) { const k = s.tokens.findIndex(([w]) => w === f.from); if (k >= 0 && !['WAL', 'WTO'].includes(s.tokens[k][1])) fixWrong++; }
   for (const [w, tag] of s.tokens) if (['krim', 'krem', 'kram', 'jaga', 'mandi', 'tuna', 'neon', 'blue', 'jagung', 'kroket'].includes(w)) { lookAll++; if (fixed.fixed.some(f => f.from === w)) lookFalse++; void tag; }
 }
+const confusion = {};
+for (const s of test.sentences) { const got = tagTokens(model, toks(s), s.account); s.tokens.forEach(([w, gold], i) => { if ((gold === 'WTO' || got[i].tag === 'WTO') && gold !== got[i].tag) { const k = `${gold}→${got[i].tag}`; (confusion[k] ||= []).push(s.tokens.map(([x], j) => j === i ? `[${x}]` : x).join(' ')); } }); }
+if (process.argv.includes('--why')) for (const [k, v] of Object.entries(confusion)) console.log(k, v.length, '·', v.slice(0, 6).join(' | '));
 const f1 = t => { const { tp, fp, fn } = per[t]; return tp ? (2 * tp / (2 * tp + fp + fn) * 100).toFixed(1) : '0.0'; };
 console.log(`\nuji sendiri: ${(right / all * 100).toFixed(2)}% kata benar · F1 ${TAGS.map(t => `${t} ${f1(t)}`).join(' · ')}`);
 console.log(`dompet salah ketik dikenali sebagai dompet: ${slipHit}/${slipAll} · kata mirip dompet (krim, krem, kram, jaga, mandi, tuna, neon, blue…) ikut diubah: ${lookFalse}/${lookAll} · perbaikan yang salah sasaran: ${fixWrong}`);

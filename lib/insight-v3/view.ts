@@ -223,5 +223,5 @@ export function cycleView(r: InsightV3Report) {
 export function dataView(r: InsightV3Report) {
   const d = r.world.dataQuality;
   const headline = d.category >= .95 && d.merchant >= .6 ? 'Data cukup lengkap' : d.category < .85 ? 'Data kategori masih terbatas' : 'Data cukup, sebagian bisa dilengkapi';
-  return { headline, rows: [['Berkategori', d.category], ['Ada nama tempat', d.merchant], ['Ada jam', d.time], ['Dari struk', d.receipt]] as [string, number][], receiptLine: d.receipt < .1 ? 'Riwayat struk belum cukup untuk harga barang.' : '', count: d.spendingCount };
+  return { headline, rows: [['Berkategori', d.category], ...(d.sub != null ? [['Ada subkategori', d.sub]] : []), ['Ada nama tempat', d.merchant], ['Ada jam', d.time], ['Dari struk', d.receipt]] as [string, number][], receiptLine: d.receipt < .1 ? 'Riwayat struk belum cukup untuk harga barang.' : '', count: d.spendingCount };
 }
