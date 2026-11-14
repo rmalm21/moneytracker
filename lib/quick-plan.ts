@@ -34,6 +34,7 @@ import { suggestCategory } from './categorize.ts';
 import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
 import { findTimes, resolveTime, type TimeExpr, type TemporalResolution } from './catat/temporal.ts';
+import { repairWallets, taggerReady } from './catat/tagger.ts';
 import type { EntityNode, RejectedCandidate } from './catat/entities.ts';
 import { compileLanguagePack, curatedReading, normalizeGeneral, NAY_WORD, type Normalization } from './catat/language.ts';
 import { composeSlots, slotNotes, type ComposedSlot } from './catat/compose.ts';
@@ -1081,7 +1082,9 @@ function addressBack(plan: QuickParseResult, shown: Map<string, string>, ctx: Qu
 }
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
   // 10.2 "beli kopi 2 @18rb": the count right before "@" is how many, read as "kopi 2x18rb" (the card shows what was typed).
-  const counted = input.replace(/(\p{L})\s+(\d{1,3})\s*@\s*(?:rp\.?\s*)?(\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)?)(?![\p{L}\d])/giu, '$1 $2x$3');
+  const countedRaw = input.replace(/(\p{L})\s+(\d{1,3})\s*@\s*(?:rp\.?\s*)?(\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)?)(?![\p{L}\d])/giu, '$1 $2x$3');
+  // 10.3 A wallet typed wrong ("nasgor 18rb mandri"): the pembaca kalimat says when a word is a wallet (lib/catat/tagger.ts).
+  const counted = repairWallets(countedRaw, ctx.wallets.filter(w => !w.isArchived).map(w => w.name), taggerReady()).text;
   const { text, shown } = addressedNames(counted, ctx);
   const plan = settingAfterThing(parseQuickPlanAll(text, ctx, mode));
   if (plan.sourceText === text && (shown.size || counted !== input)) plan.sourceText = input;

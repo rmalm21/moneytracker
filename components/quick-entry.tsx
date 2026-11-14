@@ -223,13 +223,14 @@ export function QuickEntryBox({ onOpenForm, onDone, onNavigate, autoFocus = fals
   const personal = useMemo<PersonalInput>(() => ({ lexicon, contacts, session, choose }), [lexicon, contacts, session, choose]);
   const grammarPlan = useMemo(() => typed.trim() ? personalize(typed, ctx, mode, personal).plan : null, [typed, mode, ctx, personal]);
   // Catat otomatis V3: the grammar reading shows at once; NLP.js (loaded only when this box is used, all on the device)
-  // then gives its second opinion and the consensus replaces the plan a moment later, for the same text only.
+  // then gives its second opinion and the consensus replaces the plan a moment later, for the same text only. 10.3: the
+  // pembaca kalimat (wallets typed wrong) is loaded with it, so the second reading always has it.
   const [refined, setRefined] = useState<{ key: string; plan: QuickParseResult } | null>(null);
   const planKey = `${mode}\u0000${typed}\u0000${JSON.stringify(choose)}\u0000${sessionTick}`;
   useEffect(() => {
     if (!typed.trim()) return;
     let live = true;
-    const timer = setTimeout(() => { void import('@/lib/catat/v3').then(m => m.parseQuickPlanV3(typed, ctx, mode, personal)).then(p => { if (live) setRefined({ key: planKey, plan: p }); }).catch(error => console.warn('Catat otomatis: pendapat kedua (NLP.js) tidak tersedia, hasil tata bahasa dipakai.', error)); }, 180);
+    const timer = setTimeout(() => { void Promise.all([import('@/lib/catat/v3'), import('@/lib/catat/tagger').then(t => t.loadTagger())]).then(([m]) => m.parseQuickPlanV3(typed, ctx, mode, personal)).then(p => { if (live) setRefined({ key: planKey, plan: p }); }).catch(error => console.warn('Catat otomatis: pendapat kedua (NLP.js) tidak tersedia, hasil tata bahasa dipakai.', error)); }, 180);
     return () => { live = false; clearTimeout(timer); };
   }, [typed, mode, ctx, planKey, personal]);
   const plan = (refined?.key === planKey ? refined.plan : grammarPlan) as PersonalPlan | null;

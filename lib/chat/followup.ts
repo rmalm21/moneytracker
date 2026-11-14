@@ -17,7 +17,7 @@
  */
 import { DATE_PHRASES, amountWords, findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
 import { findTimes } from '../catat/temporal.ts';
-import { resolveCategory, type CatPick, type Flow } from '../category-resolve.ts';
+import { fuzzyCategory, resolveCategory, type CatPick, type Flow } from '../category-resolve.ts';
 export { resolveCategory, type CatPick, type Flow };
 
 const lower = (s: string) => s.toLocaleLowerCase('id-ID');
@@ -175,7 +175,12 @@ export function readFix(message: string, ctx: QuickContext, opts: { kind?: Flow;
     if (!phrase || CAT_WORDS.has(phrase)) continue;
     const c = resolveCategory(phrase, ctx.categories, kind);
     if (c) { fix.category = c; if (lead) fix.cue = true; continue; }
-    if (opts.asking === 'category' || words.slice(0, start).some(w => CAT_LEADS.has(w))) { fix.unknownCategory = phrase; continue; }
+    if (opts.asking === 'category' || words.slice(0, start).some(w => CAT_LEADS.has(w))) {
+      // 10.3 Named with a slip ("masuk transprot"): the category it is closest to.
+      const near = fuzzyCategory(phrase, ctx.categories, kind);
+      if (near) { fix.category = near; fix.cue = true; continue; }
+      fix.unknownCategory = phrase; continue;
+    }
     return null;
   }
   const any = fix.askField || fix.category || fix.type || fix.wallet || fix.date || fix.time || fix.amount || fix.name || fix.place || fix.unknownCategory || fix.noCategory || fix.list || fix.remove;

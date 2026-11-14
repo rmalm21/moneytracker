@@ -28,6 +28,7 @@ import { parseQuickPlan } from '../quick-plan.ts';
 import { readFix, type Fix } from './followup.ts';
 import { amountWords, findAmounts, walletsIn, type QuickContext } from '../quick-entry.ts';
 import { findTimes } from '../catat/temporal.ts';
+import { repairWallets, taggerReady } from '../catat/tagger.ts';
 import type { Data, LedgerTx } from '../types';
 import { dailyForSpending } from '../budget-daily.ts';
 import { calculate, calcText } from './calc.ts';
@@ -755,6 +756,8 @@ export function dailyOnSaved(planText: string, ctx: ChatContext, opts: { daily?:
 export async function chatReply(input: string, memory: ChatMemory, ctx: ChatContext, depth = 0): Promise<ChatResult> {
   // Learned phrases are kept as typed (`typed`); the rules read the shorthand written out (`t`: "km bs" → "kamu bisa").
   // 8.3 Read first: words of address, English and regional words, misspelled money words (lib/chat/understand.ts).
+  // 10.3 A wallet typed wrong ("pake jagoo", "eh dompetnya gopey"): written right before anything reads it (lib/catat/tagger.ts).
+  if (depth === 0) input = repairWallets(input, ctx.quick.wallets.filter(w => !w.isArchived).map(w => w.name), taggerReady()).text;
   const raw = depth === 0 ? understand(trimSurface(input)) : input.trim(), typed = clean(raw), t = normalizeWords(typed), v: Voice = ctx.voice || 'santai', tpl = templatesFor(ctx.quick.wallets);
   // What lasts one reply only: the field asked, the offer made, the explanation, the phrase being taught.
   const mem: ChatMemory = { ...memory, asking: undefined, offer: undefined, explain: undefined, teaching: undefined, pendingQ: undefined, people: undefined, unitAsk: undefined, riddle: undefined, userRiddle: undefined, game: undefined, saving: undefined, item: undefined, start: undefined, about: undefined, list: undefined, kasbon: undefined, goal: undefined };

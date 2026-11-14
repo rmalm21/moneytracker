@@ -2,6 +2,14 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.3', date: '14 Nov 2026', title: 'Asisten chat 4.0', items: [
+    ['📊', 'Grafik Kategori bisa diperdalam. Ketuk satu kategori (misalnya Makan & Minum), donatnya berubah jadi subkategorinya, lengkap dengan detail: total dan perbandingan dengan periode lalu, porsinya, berapa kali transaksi, rata-rata sekali transaksi, rata-rata per hari, tren per hari atau minggu, nama atau tempat yang paling sering muncul, transaksi terbesar, subkategori yang paling naik dan turun, hari paling sering, dan perkiraan sampai akhir periode. Ketuk subkategori (misalnya Pesan Antar) untuk detail yang sama khusus subkategori itu, lalu “Lihat transaksi” langsung terfilter. Ada di Beranda dan Laporan, untuk Pengeluaran dan Pemasukan.'],
+    ['🤖', 'Asisten punya pembaca kalimat baru: model kecil kedua yang dilatih khusus untuk mengenali bagian kalimat (nominal, dompet, barang, tempat, waktu, orang). Hasilnya, dompet yang salah ketik tetap kebaca: “nasgor 18rb mandri”, “pake jagoo”, “eh dompetnya gopey”. Tapi kata yang cuma mirip nggak ikut diubah, jadi “es krim” tetap es krim walau kamu punya dompet Krom. Dilatih dari kalimat buatan aplikasi sendiri, berjalan di HP-mu.'],
+    ['🎯', 'Kategori yang salah ketik di chat juga dipahami: “masuk transprot” jadi Transportasi, “kategorinya jajann” jadi Jajan.'],
+    ['🔄', 'Kartu transfer di chat bisa dijawab sekaligus: “dari jenius ke jago”, “jenius ke jago”, atau “ke jago dari jenius”. Pratinjaunya nggak lagi menulis “dompet utama”.'],
+    ['✏️', 'Jam bisa disusulkan: “makan siang 40rb” lalu “jam 2” jadi pukul 14.00. Udah keburu Simpan? Bilang “jamnya salah, harusnya jam 7 malem”.'],
+    ['🛠️', '“Lihat transaksi” dari grafik kategori pemasukan sekarang membuka transaksi pemasukannya. Semuanya tetap jalan di HP-mu, tanpa AI di internet dan tanpa unggahan; tiap kartu tetap nunggu kamu ketuk Simpan.'],
+  ] },
   { version: '10.2', date: '13 Nov 2026', title: 'Asisten chat 3.5', items: [
     ['🎯', 'Jawab pertanyaan asisten pakai bahasa biasa. Ditanya “Masuk kategori apa?”, cukup bilang “masuk ke makan malam”, “itu buat dinner”, “kategorinya transport”, atau “pos hiburan”, kategorinya langsung kepasang. Kalau nama kategorinya belum ada, asisten kasih pilihan kategori yang kamu punya.'],
     ['🔄', '“pemasukan”, “itu uang masuk”, atau “bukan keluar, masuk” sekarang mengubah jenis catatannya, bukan lagi jadi kategori “Pemasukan Lainnya”. “35k nambah di mandiri” juga langsung dicatat sebagai uang masuk ke Mandiri.'],

@@ -94,7 +94,7 @@ export function ChatLauncher({ openTx, navigate, startOpen = false, startTab = '
     // 9.9.2 The model is warmed once the panel has slid in: loading it is heavy enough to make the opening stutter. A
     // message sent before that loads it on the spot, as before.
     const warm = window.setTimeout(() => {
-      const run = () => { void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {}); };
+      const run = () => { void import('@/lib/chat/model').then(m => m.loadChatModel()).catch(() => {}); void import('@/lib/catat/tagger').then(m => m.loadTagger()).catch(() => {}); };
       const idle = (window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
       if (idle) idle(run, { timeout: 1500 }); else run();
     }, 400);

@@ -1,0 +1,34 @@
+## Asisten chat 4.0 — kalimat bebas, heldout (1760 kasus × 2 akun)
+
+| | 10.2 |
+|---|---|
+| **Semua kasus** | 1295/1760 (73.6%) |
+| · Urutan bebas | 139/140 (99.3%) |
+| · Tanpa kata sambung | 128/140 (91.4%) |
+| · Dompet salah ketik | 0/140 (0.0%) |
+| · Nominal macam-macam | 127/140 (90.7%) |
+| · Tempat | 129/140 (92.1%) |
+| · Waktu | 140/140 (100.0%) |
+| · Uang masuk | 140/140 (100.0%) |
+| · Antardompet | 47/140 (33.6%) |
+| · Gaul & Inggris | 20/140 (14.3%) |
+| · Dua catatan sekaligus | 140/140 (100.0%) |
+| · Ada orang lain | 140/140 (100.0%) |
+| · Susulan di chat (salah ketik) | 80/140 (57.1%) |
+| · Tulisan tangan | 65/80 (81.3%) |
+
+**Per bagian** (kasus yang memeriksa bagian itu, benar di dua akun)
+
+| | 10.2 |
+|---|---|
+| kind | 1448/1619 (89.4%) |
+| total | 1759/1760 (99.9%) |
+| wallet | 1100/1245 (88.4%) |
+| to | 50/145 (34.5%) |
+| date | 250/250 (100.0%) |
+| cat | 1271/1299 (97.8%) |
+| item | 847/850 (99.6%) |
+| place | 286/286 (100.0%) |
+| clean | 620/862 (71.9%) |
+| count | 142/142 (100.0%) |
+

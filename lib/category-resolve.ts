@@ -4,6 +4,7 @@
  * saved record: "ubah kopi tadi jadi kategori jajan"). Only the person's own categories are ever picked.
  */
 import { suggestCategory } from './categorize.ts';
+import { editDistance } from './catat/tagger.ts';
 import type { Category } from './types';
 
 const lower = (s: string) => s.toLocaleLowerCase('id-ID');
@@ -64,6 +65,31 @@ export function resolveCategory(phrase: string, categories: Cat[], prefer: Flow 
   // One letter off a name of five letters or more ("kesehatn", "pendidkan").
   const typo = live.filter(c => { const n = norm(c.name); return n.length >= 5 && !VAGUE.has(n) && oneOff(n, whole); }).sort((a, b) => rank(a) - rank(b));
   return typo.length ? pick(typo[0]) : null;
+}
+/**
+ * 10.3 A category named with a slip or two, when the sentence is plainly naming one ("masuk transprot", "kategorinya
+ * jajann", "mkn siang"): one slip off a name (two on a long name), or off the start of a long name ("transprot" →
+ * Transportasi). Only when one category is clearly closest; never a vague name.
+ */
+export function fuzzyCategory(phrase: string, categories: Cat[], prefer: Flow = 'expense'): CatPick | null {
+  const p = norm(spell(lower(phrase)));
+  if (p.length < 4) return null;
+  const live = categories.filter(c => !c.isArchived && (c.type === 'expense' || c.type === 'income'));
+  const scored = live.flatMap(c => {
+    const n = norm(c.name);
+    if (n.length < 4 || VAGUE.has(n)) return [];
+    const whole = editDistance(p, n, 3), allowed = n.length >= 8 && p.length >= 7 ? 2 : 1;
+    const start = p.length >= 6 && p.length < n.length && p.length >= n.length * 0.6 ? editDistance(p, n.slice(0, p.length), 2) : 9;
+    const d = Math.min(whole <= allowed ? whole : 9, start <= 1 ? start + 0.5 : 9);
+    // How much of the name was typed: "transprot" is most of "Transportasi", less of "Transport Kerja".
+    const cover = Math.round(Math.min(1, p.length / n.length) * 100);
+    return d < 9 ? [{ c, d, kind: c.type === prefer ? 0 : 1, cover, r: c.parentId ? 0 : 1 }] : [];
+  }).sort((a, b) => a.kind - b.kind || a.d - b.d || b.cover - a.cover || a.r - b.r);
+  // The record's own kind first (a spending is not moved to an income category over a slip); a tie is not guessed.
+  const [first, next] = scored;
+  if (!first || next && next.kind === first.kind && next.d === first.d && next.cover === first.cover && next.r === first.r) return null;
+  const c = scored[0].c, parent = c.parentId ? live.find(x => x.id === c.parentId) : undefined;
+  return { categoryId: parent ? parent.id : c.id, subcategoryId: parent ? c.id : null, name: c.name, type: c.type as Flow };
 }
 function oneOff(a: string, b: string) {
   if (Math.abs(a.length - b.length) > 1 || a === b) return false;
