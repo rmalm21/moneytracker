@@ -24,9 +24,9 @@ import { walletAllows } from '@/lib/wallet-capabilities';
 import { PeriodSelector, usePeriodTransactions } from './period-selector';
 import { dateInTimeZone, formatDate, localDate, periodLabel, resolvePeriodRange, todayInTimeZone, type DateRange, type PeriodPreset } from '@/lib/period';
 import { archiveOrDelete, createClaim, createDebt, saveRecord, editOpeningRecord, deleteOpeningRecord, rejectClaim, setOpeningWallet, subscribeRelatedTransactions, updateLinked, loadAllTransactions } from '@/lib/firestore';
-import { moneyGroup, moneyIn, moneyOut, newestFirst, rupiah, transactionExpense } from '@/lib/accounting';
+import { moneyIn, moneyOut, newestFirst, rupiah } from '@/lib/accounting';
 import { savingsPlan, savingsStatusText } from '@/lib/savings';
-import { lacksSub } from '@/lib/subcategory-hint';
+import { matchesFocus, readFocus } from '@/lib/tx-focus';
 import type { Claim, Debt, Fund, LedgerTx } from '@/lib/types';
 import { FeatureTips, useTipTry } from './feature-tips';
 type Props={notify:(text:string)=>void;openTx:(preset?:Partial<LedgerTx>,editing?:LedgerTx)=>void;revision?:number};
@@ -45,8 +45,9 @@ const fundTones=['var(--accent)','#7a5bc9','#3a78d6','#2f9e6e','#d4568a','#c98a1
 export function TransactionsView({notify,openTx,revision,focus:rawFocus,navigate}:Props&{focus?:string;navigate?:(view:string,focus?:string)=>void}){useTipTry({trans_transfer:()=>openTx({type:'transfer'})});
  const {data,user,profile}=useApp();
  // Links from Beranda look like `type:expense@2026-08-27..2026-09-26`: a filter plus the period that was shown.
- const [focus,focusRange]=(rawFocus||'').split('@'),[focusStart,focusEnd]=(focusRange||'').split('..');const linkedRange=focusStart&&focusEnd&&focusStart<focusEnd?{start:focusStart,end:focusEnd}:undefined;const [panel,setPanel]=useState<'period'|'filter'|null>(null);const searchRef=useRef<HTMLInputElement>(null);
- const [search,setSearch]=useState(()=>focus?.startsWith('search:')?focus.slice(7):''),[query,setQuery]=useState(()=>focus?.startsWith('search:')?focus.slice(7):''),[type,setType]=useState(()=>focus?.startsWith('type:')?focus.slice(5):focus?.startsWith('category:')||focus?.startsWith('nosub:')?(()=>{const c=data.categories.find(x=>x.id===focus.slice(focus.indexOf(':')+1));const main=c?.parentId?data.categories.find(x=>x.id===c.parentId)||c:c;return main?.type==='income'?'income':'expense'})():'all'),[walletFilter,setWalletFilter]=useState(()=>focus?.startsWith('wallet:')?focus.slice(7):''),[categoryFilter,setCategoryFilter]=useState(()=>focus?.startsWith('category:')?focus.slice(9):''),/* 10.3.1 "Rapikan": transactions in a category without a subcategory. */[noSub,setNoSub]=useState(()=>focus?.startsWith('nosub:')?focus.slice(6):''),[txIds,setTxIds]=useState<string[]>(()=>focus?.startsWith('tx:')?focus.slice(3).split(',').filter(Boolean):[]),[sort,setSort]=useState<'newest'|'oldest'|'highest'>('newest');
+ // 10.3.2 The focus is read the same way as the list that opens in place over other pages (lib/tx-focus.ts).
+ const [initial]=useState(()=>readFocus(rawFocus,data.categories));const linkedRange=initial.range;const [panel,setPanel]=useState<'period'|'filter'|null>(null);const searchRef=useRef<HTMLInputElement>(null);
+ const [search,setSearch]=useState(initial.search),[query,setQuery]=useState(initial.search),[type,setType]=useState(initial.type),[walletFilter,setWalletFilter]=useState(initial.walletId),[categoryFilter,setCategoryFilter]=useState(initial.categoryId),/* 10.3.1 "Rapikan": transactions in a category without a subcategory. */[noSub,setNoSub]=useState(initial.noSub),[txIds,setTxIds]=useState<string[]>(initial.txIds),[sort,setSort]=useState<'newest'|'oldest'|'highest'>('newest');
  useEffect(()=>{const timer=setTimeout(()=>setQuery(search.trim().toLocaleLowerCase('id-ID')),250);return()=>clearTimeout(timer)},[search]);
  useEffect(()=>{const key=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(event.key==='/'&&!target?.closest('input,textarea,[contenteditable="true"],[role="dialog"]')){event.preventDefault();searchRef.current?.focus()}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[]);
  const [period,setPeriod]=useState<PeriodPreset>(linkedRange?'custom':'salary_cycle');
@@ -59,18 +60,8 @@ export function TransactionsView({notify,openTx,revision,focus:rawFocus,navigate
  const complete=all?.uid===user?.uid?all?.items||null:null;
  useEffect(()=>{if(all&&user&&all.uid===user.uid){const uid=user.uid;void loadAllTransactions(uid).then(items=>setAll({uid,items})).catch(e=>setError(e.message));}},[revision]);
  const source=allHistory?(complete||[]):history.items;
- const filtered=useMemo(()=>source.filter(t=>{
-  // Keluar / Masuk / Transfer follow the money (bayar utang is money out, piutang kembali and uang pinjaman are money in); other kinds match exactly.
-  if(type!=='all'&&(type==='expense'?moneyGroup(t.type)!=='out':type==='income'?moneyGroup(t.type)!=='in':type==='transfer'?moneyGroup(t.type)!=='move':t.type!==type))return false;
-  // `tx:` links (from Insight) show exactly the transactions a card was built from.
-  if(txIds.length&&!txIds.includes(t.id))return false;
-  if(walletFilter&&t.walletId!==walletFilter&&t.destinationWalletId!==walletFilter)return false;
-  if(noSub&&!lacksSub(t,noSub))return false;
-  if(categoryFilter==='uncategorized'?(transactionExpense(t)<=0||Boolean(t.categoryId)||(t.splits||[]).some(line=>line.categoryId)):categoryFilter&&!([t.categoryId,t.subcategoryId,t.transferFeeCategoryId,...(t.splits||[]).flatMap(line=>[line.categoryId,line.subcategoryId])].some(id=>id===categoryFilter||data.categories.find(c=>c.id===id)?.parentId===categoryFilter)))return false;
-  const categoryNames=[t.categoryId,t.subcategoryId,t.transferFeeCategoryId,...(t.splits||[]).flatMap(line=>[line.categoryId,line.subcategoryId])].map(id=>data.categories.find(c=>c.id===id)?.name||'');
-  const text=[t.description,t.merchant,t.notes,t.amount,t.tags?.join(' ')||'',(t.walletId?walletLabel(data.wallets.find(w=>w.id===t.walletId)):''),(t.destinationWalletId?walletLabel(data.wallets.find(w=>w.id===t.destinationWalletId)):undefined),...categoryNames].join(' ').toLocaleLowerCase('id-ID');
-  return text.includes(query);
- }).sort((a,b)=>sort==='highest'?b.amount-a.amount||newestFirst(a,b):sort==='oldest'?newestFirst(b,a):newestFirst(a,b)),[data.categories,data.wallets,source,query,type,walletFilter,categoryFilter,noSub,txIds,sort]);
+ const filtered=useMemo(()=>source.filter(t=>matchesFocus(t,{type,walletId:walletFilter,categoryId:categoryFilter,noSub,txIds,query},data.categories,data.wallets))
+  .sort((a,b)=>sort==='highest'?b.amount-a.amount||newestFirst(a,b):sort==='oldest'?newestFirst(b,a):newestFirst(a,b)),[data.categories,data.wallets,source,query,type,walletFilter,categoryFilter,noSub,txIds,sort]);
  useEffect(()=>setLimit(PAGE),[query,type,walletFilter,categoryFilter,noSub,txIds,sort,allHistory,period,custom?.start,custom?.end]);
  // 8.5 The first screenful of rows is drawn first; the rest of the page follows as a low-priority update a tap can interrupt.
  const [firstPaint,setFirstPaint]=useState(true);

@@ -2,6 +2,11 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.3.2', date: '15 Nov 2026', title: 'Daftar transaksi di tempat', items: [
+    ['🧾', 'Nggak perlu bolak-balik ke menu Transaksi lagi. “Lihat transaksi” di Grafik Kategori, “Rapikan”, kartu Insight, Laporan, Anggaran, detail dompet, sampai “Lihat transaksinya” di chat dan Catat otomatis sekarang membuka daftarnya langsung di atas halaman yang sedang kamu buka. Ada jumlah transaksinya, total masuk dan keluar, lalu tinggal tutup untuk kembali.'],
+    ['✏️', 'Ketuk transaksi di daftar itu untuk mengubahnya. Setelah disimpan, daftarnya muncul lagi, jadi merapikan subkategori satu per satu jadi cepat: yang sudah beres langsung hilang dari daftar “tanpa subkategori”.'],
+    ['🧭', 'Butuh cari, filter lain, atau unduh CSV? Ketuk “Buka di Transaksi” di bawah daftarnya. Menu Transaksi sendiri tetap seperti biasa.'],
+  ] },
   { version: '10.3.1', date: '14 Nov 2026', title: 'Subkategori lebih rapi', items: [
     ['🗂️', 'Belum pilih subkategori? Sekarang dikasih tahu. Kalau kategorinya punya subkategori (misalnya Makan & Minum) tapi subkategorinya belum dipilih, Catat otomatis, chat, form Tambah/Ubah, Scan struk, dan Impor mutasi nunjukin “Subkategori belum dipilih” dengan dropdown subkategorinya, yang paling sering kamu pakai di urutan atas. Tetap bisa disimpan tanpa subkategori kok.'],
     ['🧾', 'Catatan lama juga kebantu: di Grafik Kategori ada “8 transaksi di Makan & Minum belum punya subkategori · Rapikan” yang langsung membuka transaksi-transaksi itu saja, dan Insight ikut mengingatkan kalau jumlahnya banyak. Ketuk transaksinya, pilih subkategorinya, beres.'],

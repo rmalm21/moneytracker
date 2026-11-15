@@ -10605,3 +10605,13 @@ html.home-shot-on body > .app-layout, html.home-shot-on body > .pet-dock { visib
 .drill-nosub > span { display: inline-flex; align-items: flex-start; gap: 6px; }
 .drill-nosub > span svg { flex: none; margin-top: 2px; }
 .drill-nosub .link-button { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
+/* 10.3.2 Transactions behind a link, opened in place (components/tx-sheet.tsx). */
+.tx-sheet-head { display: grid; gap: 6px; margin-bottom: 10px; }
+.tx-sheet-head > small { color: var(--muted); font-weight: 600; }
+.tx-sheet-head > small b { color: var(--ink); }
+.tx-sheet-sum { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .86rem; color: var(--muted); font-weight: 600; }
+.tx-sheet-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.tx-sheet-tip { margin: 0; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); color: var(--ink); font-size: .8rem; font-weight: 600; }
+.tx-sheet-loading { color: var(--muted); font-weight: 600; }
+.tx-sheet-foot { display: flex; justify-content: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.tx-sheet-foot .link-button { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
