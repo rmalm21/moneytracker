@@ -207,8 +207,21 @@ service cloud.firestore {
           && request.resource.data.at == request.time;
         allow delete: if memberOf(spaceId) && (request.auth.uid == uid || space(spaceId).data.memberIds == [request.auth.uid]);
       }
+      // 10.3.3 Perisai bareng: the space's own perisai for api bareng (one doc), moved on by any member's app.
+      match /fire/{docId} {
+        allow read: if memberOf(spaceId);
+        allow create, update: if memberOf(spaceId) && docId == 'state'
+          && request.resource.data.keys().hasOnly(['shields', 'frozen', 'shieldDay', 'checked', 'run', 'since', 'best', 'lostDay', 'lostRun', 'at', 'by'])
+          && request.resource.data.shields is int && request.resource.data.shields >= 0 && request.resource.data.shields <= 2
+          && request.resource.data.frozen is list && request.resource.data.frozen.size() <= 62
+          && request.resource.data.run is int && request.resource.data.run >= 0
+          && request.resource.data.best is int && request.resource.data.lostRun is int
+          && request.resource.data.shieldDay is string && request.resource.data.checked is string && request.resource.data.since is string && request.resource.data.lostDay is string
+          && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time;
+        allow delete: if memberOf(spaceId) && space(spaceId).data.memberIds == [request.auth.uid];
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads', 'streak']);
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads', 'streak', 'fire']);
       }
     }
     // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which

@@ -28,7 +28,7 @@ const steps: Step[] = [
     visual: <div className="htp-v htp-lencana">{(['perunggu', 'perak', 'emas', 'legenda'] as const).map((t, i) => <span key={t} className={`htp-medal tier-${t}`} style={{ '--i': i } as React.CSSProperties}><Emoji e={['🎯', '📸', '🏆', '🚀'][i]}/></span>)}</div> },
   { key: 'game', title: 'Main mini game', text: <>Tiap hari ada <b>Putar Roda</b> (setelah api nyala) dan <b>Gosok Berhadiah</b> (setelah 3 misi tuntas). Masih pengin main? Ada <b>Tangkap Koin</b>, <b>Cocok Cuan</b>, dan <b>Belanja Bijak</b>. XP tiap game dibatasi per hari.</>,
     visual: <div className="htp-v htp-game"><span className="htp-wheel"><Emoji e="🎡"/></span><span className="htp-coin-rain">{['🪙', '💵', '🎟️', '🛒'].map((e, i) => <i key={e} style={{ '--i': i } as React.CSSProperties}><Emoji e={e}/></i>)}</span></div> },
-  { key: 'bareng', title: 'Api bareng', text: <>Di Ruang Bersama, api bareng nyala kalau <b>semua anggota</b> mencatat atau cek-in di ruang itu hari itu. Telat? <b>Colek</b> temanmu lewat grup!</>,
+  { key: 'bareng', title: 'Api bareng', text: <>Di Ruang Bersama, api bareng nyala kalau <b>semua anggota</b> mencatat atau cek-in di ruang itu hari itu. Ada yang lupa sehari? <b>Perisai bareng</b> (1 tiap 7 hari nyala bareng) yang jaga. Telat? <b>Colek</b> temanmu lewat grup!</>,
     visual: <div className="htp-v htp-bareng"><span className="htp-l"><Flame tier={2} size={54}/></span><span className="htp-big"><Flame tier={4} size={96}/></span><span className="htp-r"><Flame tier={2} size={54}/></span></div> },
 ];
 

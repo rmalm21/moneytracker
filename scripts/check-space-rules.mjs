@@ -142,6 +142,21 @@ await expect('Ana mengisi hari api Budi', false, () => setDoc(fire(A, B.uid), { 
 await expect('hari api terlalu banyak', false, () => setDoc(fire(A, A.uid), { days: Array.from({ length: 63 }, (_, i) => `d${i}`), name: 'ana', at: serverTimestamp() }));
 await expect('isian api tak dikenal', false, () => setDoc(fire(A, A.uid), { days: [], name: 'ana', at: serverTimestamp(), xp: 999 }));
 await expect('bukan anggota melihat api bareng', false, () => getDocs(collection(C.db, 'spaces', S, 'streak')));
+// 10.3.3 Perisai bareng: one doc for the space, moved on by any member.
+const shield = (who, id = 'state') => doc(who.db, 'spaces', S, 'fire', id);
+const fireState = (who, extra = {}) => ({ shields: 1, frozen: ['2026-11-07'], shieldDay: '', checked: '2026-11-08', run: 5, since: '2026-11-03', best: 5, lostDay: '', lostRun: 0, at: serverTimestamp(), by: who.uid, ...extra });
+await expect('Budi menyimpan perisai bareng', true, () => setDoc(shield(B), fireState(B)));
+await expect('Ana memperbarui perisai bareng', true, () => setDoc(shield(A), fireState(A, { shields: 2, run: 6 })));
+await expect('Ana melihat perisai bareng', true, () => getDoc(shield(A)));
+await expect('perisai bareng lebih dari 2', false, () => setDoc(shield(A), fireState(A, { shields: 3 })));
+await expect('perisai bareng atas nama orang lain', false, () => setDoc(shield(A), fireState(A, { by: B.uid })));
+await expect('perisai bareng dengan waktu dari HP', false, () => setDoc(shield(A), fireState(A, { at: new Date(2030, 0, 1) })));
+await expect('perisai bareng dengan isian tak dikenal', false, () => setDoc(shield(A), fireState(A, { xp: 999 })));
+await expect('hari tertutup perisai terlalu banyak', false, () => setDoc(shield(A), fireState(A, { frozen: Array.from({ length: 63 }, (_, i) => `d${i}`) })));
+await expect('dokumen perisai bareng lain', false, () => setDoc(shield(A, 'lain'), fireState(A)));
+await expect('bukan anggota melihat perisai bareng', false, () => getDoc(shield(C)));
+await expect('bukan anggota mengubah perisai bareng', false, () => setDoc(shield(C), fireState(C)));
+await expect('Budi menghapus perisai bareng (masih ada anggota lain)', false, () => deleteDoc(shield(B)));
 await expect('Budi kirim pesan lagi', true, () => setDoc(msg(B, 'm6'), { by: B.uid, byName: 'budi', at: serverTimestamp(), kind: 'text', text: 'oke' }));
 
 console.log('\nMaksimal 5 anggota');
@@ -167,6 +182,7 @@ await expect('Ana (anggota terakhir) keluar tanpa menghapus', false, () => updat
 await expect('Ana (anggota terakhir) menghapus pesan Budi', true, () => deleteDoc(msg(A, 'm6')));
 await expect('Ana (anggota terakhir) menghapus tanda baca Budi', true, () => deleteDoc(readDoc(A, B.uid)));
 await expect('Ana (anggota terakhir) menghapus api Budi', true, () => deleteDoc(fire(A, B.uid)));
+await expect('Ana (anggota terakhir) menghapus perisai bareng', true, () => deleteDoc(shield(A)));
 await expect('Ana menghapus balasannya', true, () => deleteDoc(msg(A, 'm7')));
 await expect('Ana menghapus isi ruang', true, async () => { for (const id of ['t1', 't2']) await deleteDoc(tx(A, id)); await deleteDoc(doc(A.db, 'spaces', S, 'activity', 'a1')); await deleteDoc(doc(A.db, 'spaces', S, 'messages', 'm5')); });
 await expect('Ana (anggota terakhir) menghapus ruang', true, () => deleteDoc(sref(A)));

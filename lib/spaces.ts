@@ -149,7 +149,7 @@ export async function deleteSpace(account: Account, space: Space, onProgress?: (
   if (space.memberIds.length !== 1 || space.memberIds[0] !== account.uid) throw Error('Ruang hanya bisa dihapus oleh anggota terakhir. Anggota lain perlu keluar dulu.');
   // All kinds of records are looked up at once and deleted in parallel batches (one by one took many seconds).
   let done = 0;
-  const kinds = [...names, 'deletions', 'activity', 'requests', 'settlements', 'messages', 'reads', 'streak'];
+  const kinds = [...names, 'deletions', 'activity', 'requests', 'settlements', 'messages', 'reads', 'streak', 'fire'];
   const clear = async (name: string) => {
     for (;;) {
       const snap = await getDocs(query(collection(database(), 'spaces', space.id, name), limit(450)));

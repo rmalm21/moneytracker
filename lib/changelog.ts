@@ -2,6 +2,13 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.3.3', date: '19 Nov 2026', title: 'Perisai bareng', items: [
+    ['🛡️', 'Api bareng di Ruang Bersama sekarang punya perisai sendiri, namanya Perisai bareng. Tiap ruang mulai dengan 1 perisai, dan tiap 7 hari nyala bareng dapat 1 lagi (maksimal 2). Kalau ada anggota yang lupa sehari, perisainya otomatis dipakai dan api bareng tetap nyala. Lupa 2 hari butuh 2 perisai.'],
+    ['🔥', 'Api bareng yang padam belakangan ini bisa pulih: waktu pertama kali dibuka di versi ini, hari-hari yang bolong dalam 60 hari terakhir dicek ulang dan ditutup perisai kalau perisainya cukup. Semua anggota dikasih tahu “Api bareng dipulihkan!”.'],
+    ['🧾', 'Kartu Api bareng nunjukin perisai yang tersisa dan hari yang baru diselamatkan perisai. Pengingat malam juga nyebut sisa perisai bareng.'],
+    ['🧭', 'Api bareng sekarang nggak mentok di 60 hari, dan anggota yang baru gabung nggak bikin api yang lagi nyala jadi padam (cukup ikut nyalain mulai hari itu). Hari kemarin baru dinilai mulai jam 3 pagi, jadi anggota di WITA atau WIT nggak ketinggalan.'],
+    ['🛠️', 'Perisai bareng terpisah dari Perisai Api Pribadi: perisai pribadimu nggak kepakai buat ruang, dan sebaliknya. Semuanya tetap tanpa unggahan; yang disimpan cuma hitungan perisai dan hari nyala ruang itu.'],
+  ] },
   { version: '10.3.2', date: '15 Nov 2026', title: 'Daftar transaksi di tempat', items: [
     ['🧾', 'Nggak perlu bolak-balik ke menu Transaksi lagi. “Lihat transaksi” di Grafik Kategori, “Rapikan”, kartu Insight, Laporan, Anggaran, detail dompet, sampai “Lihat transaksinya” di chat dan Catat otomatis sekarang membuka daftarnya langsung di atas halaman yang sedang kamu buka. Ada jumlah transaksinya, total masuk dan keluar, lalu tinggal tutup untuk kembali.'],
     ['✏️', 'Ketuk transaksi di daftar itu untuk mengubahnya. Setelah disimpan, daftarnya muncul lagi, jadi merapikan subkategori satu per satu jadi cepat: yang sudah beres langsung hilang dari daftar “tanpa subkategori”.'],

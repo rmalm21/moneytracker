@@ -8,13 +8,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../app-provider';
 import { useNotify } from '../notifications';
 import { transactionExpense } from '@/lib/accounting';
-import { addDays, advance, arcadeResult, BADGES, challengeProgress, coinResult, scratchCard, localDay, mondayOf, sharedStreak, spaceDays, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
+import { addDays, advance, arcadeResult, BADGES, challengeProgress, coinResult, daysBetween, scratchCard, localDay, mondayOf, sameSpaceFire, SPACE_GRACE_HOURS, spaceDays, spaceFireView, spinWheel, streakOf, weekCtx, type GameState, type Habits, type Observation, type WeekRaw } from '@/lib/game';
 import { dateInTimeZone, todayInTimeZone } from '@/lib/period';
 import { dateFormat } from '@/lib/intl-cache';
 import { isOffline } from '@/lib/offline';
 import { sameData } from '@/lib/same-data';
 import type { LedgerTx } from '@/lib/types';
-import { cacheShared, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameOnTop, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, takePendingCheckin, useGame, visitedToday } from './game-store';
+import { cacheShared, cacheSpaceFire, cacheState, celebrate, gameNow, markVisited, onceToday, saveGameOnTop, saveSpaceFire, setGame, setGameActions, shareFire, subscribeGameState, subscribeSharedFire, subscribeSpaceFire, takePendingCheckin, useGame, visitedToday } from './game-store';
 import { play } from '@/lib/game-sound';
 import { openGroup } from '@/lib/space-chat';
 
@@ -62,7 +62,7 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
     const hourOf = (ms: number) => Number(dateFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(new Date(ms)));
     const o: Observation = {
       today, hour, seed: uid, root, recordedToday: todays.length, checkin: checkinWanted.current,
-      shared: Math.max(0, ...spacesRef.current.map(sp => { const m = gameNow().shared[sp.id]; return m ? sharedStreak(m, sp.memberIds, today).current : 0; })),
+      shared: Math.max(0, ...spacesRef.current.map(sp => { const m = gameNow().shared[sp.id]; return m ? spaceFireView(gameNow().spaceFire[sp.id] ?? null, m, sp.memberIds, today, hour).current : 0; })),
       mission: {
         categorized: flows.every(t => Boolean(t.categoryId || t.splits?.some(l => l.categoryId))),
         withNotes: todays.some(t => Boolean(t.notes?.trim())), quick: todays.some(t => t.origin === 'quick'), scan: todays.some(t => t.origin === 'scan'),
@@ -173,7 +173,11 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
   const spaceIds = spaces.map(s => s.id).join('|');
   useEffect(() => {
     if (!uid || !spaces.length) return;
-    const stops = spaces.map(s => subscribeSharedFire(s.id, members => { cacheShared(s.id, uid, members); setGame(g => ({ shared: { ...g.shared, [s.id]: members } })); }));
+    const stops = spaces.flatMap(s => [
+      subscribeSharedFire(s.id, members => { cacheShared(s.id, uid, members); setGame(g => ({ shared: { ...g.shared, [s.id]: members } })); }),
+      // 10.3.3 The space's perisai bareng.
+      subscribeSpaceFire(s.id, state => { cacheSpaceFire(s.id, uid, state); setGame(g => ({ spaceFire: { ...g.spaceFire, [s.id]: state } })); }),
+    ]);
     return () => stops.forEach(stop => stop());
   }, [uid, spaceIds]); // eslint-disable-line react-hooks/exhaustive-deps
   // Evening: a flame about to go out (yours, or a space's), said once a day in the bell. Milestones of api bareng.
@@ -188,15 +192,45 @@ export function GameKeeper({ navigate }: { navigate: (view: string, focus?: stri
       }
       for (const s of spaces) {
         const members = g.shared[s.id]; if (!members) continue;
-        const sh = sharedStreak(members, s.memberIds, today);
+        const sh = spaceFireView(g.spaceFire[s.id] ?? null, members, s.memberIds, today, hour);
         if (hour >= 19 && sh.atRisk && onceToday(`dompet-ajaib:arena-warned:${uid}:${s.id}`, today)) {
           const waiting = sh.members.filter(m => !m.litToday).map(m => m.id === uid ? 'kamu' : s.members[m.id]?.name || 'anggota');
-          push({ title: `Api bareng ${s.name} hampir padam 🔥 ${sh.current} hari`, body: `Belum nyala: ${waiting.join(', ')}.`, kind: 'info', history: true, open: () => openGroup() });
+          push({ title: `Api bareng ${s.name} hampir padam 🔥 ${sh.current} hari`, body: `Belum nyala: ${waiting.join(', ')}.${sh.shields ? ` Perisai bareng tinggal ${sh.shields}.` : ' Perisai bareng lagi kosong.'}`, kind: 'info', history: true, open: () => openGroup() });
         }
         if (sh.litToday) for (const b of BADGES) if (sh.current === b.days && onceToday(`dompet-ajaib:arena-shared:${s.id}:${b.days}`, today)) celebrate([{ kind: 'shared-badge', days: b.days, name: b.name, space: s.name }]);
       }
+      spaceTick();
     };
     check(); const t = window.setInterval(check, 60_000); return () => window.clearInterval(t);
   }, [uid, spaceIds, push]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 10.3.3 Each space's perisai bareng, as soon as its members' days and its saved state are in: moved on and saved by
+  // whichever member's app sees it first (in one transaction from what the server holds, so it is never done twice;
+  // tried once per change), and told once on each member's phone: a day it covered lately, one it earned.
+  const fireTried = useRef<Record<string, string>>({});
+  function spaceTick() {
+    if (!uid) return;
+    const g = gameNow(), now = dateInTimeZone(new Date(), tz), today = todayInTimeZone(tz), hour = now.getHours();
+    for (const s of spacesRef.current) {
+      const members = g.shared[s.id], stored = g.spaceFire[s.id];
+      if (!members || stored === undefined || s.memberIds.length < 2) continue;
+      const sh = spaceFireView(stored, members, s.memberIds, today, hour);
+      const seenKey = `dompet-ajaib:space-fire-seen:${uid}:${s.id}`;
+      let seen = { saved: '', earned: '' }; try { seen = { ...seen, ...JSON.parse(localStorage.getItem(seenKey) || '{}') }; } catch { /* first time */ }
+      const fresh = sh.saved.filter(d => d > seen.saved && daysBetween(d, today) <= 7), earned = sh.state.shieldDay;
+      if (fresh.length) celebrate([{ kind: 'shared-shield', mode: 'used', space: s.name, streak: sh.current, days: fresh, shields: sh.shields, today }]);
+      if (earned > seen.earned && daysBetween(earned, today) <= 1 && sh.current > 0) celebrate([{ kind: 'shared-shield', mode: 'earned', space: s.name, streak: sh.current, days: [], shields: sh.shields, today }]);
+      const next = { saved: [seen.saved, ...sh.saved].sort().pop() || '', earned: [seen.earned, earned].sort().pop() || '' };
+      if (next.saved !== seen.saved || next.earned !== seen.earned) try { localStorage.setItem(seenKey, JSON.stringify(next)); } catch { /* told again next time */ }
+      if (isOffline() || (stored && sameSpaceFire(stored, sh.state))) continue;
+      const sig = `${today}|${hour < SPACE_GRACE_HOURS}|${JSON.stringify(sh.state)}`;
+      if (fireTried.current[s.id] === sig) continue;
+      fireTried.current[s.id] = sig;
+      // What the server held may be a moment behind this phone (a check-in still on its way): then again next time.
+      void saveSpaceFire(s.id, s.memberIds, uid, today, hour).then(saved => { if (!sameSpaceFire(saved, sh.state) && fireTried.current[s.id] === sig) delete fireTried.current[s.id]; }).catch(() => {});
+    }
+  }
+  const fireNow = useGame().spaceFire;
+  useEffect(() => { spaceTick(); }, [sharedNow, fireNow, spaceIds]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

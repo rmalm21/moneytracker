@@ -3,15 +3,16 @@
  * 9.4 Api bareng on a Ruang Bersama's Beranda: the space's flame lights when every member is lit in this space that
  * day. 9.5: lit here means recorded in this space, or tapped "Hari ini aman" here (that one lights only this space's
  * flame, not their Pribadi one). Shows who is lit today, and "Colek" for someone who is not yet (opens the group with
- * a message ready; you send it).
+ * a message ready; you send it). 10.3.3: the space's own Perisai bareng (one every 7 days lit together, at most 2) keeps
+ * the flame going when someone forgets a day; shown here, with the day it saved lately.
  */
 import { useApp } from '../app-provider';
 import { Emoji } from '../emoji';
 import { Flame } from './flame';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { arenaMini, cachedShared, gameActions, setArenaMini, useGame } from './game-store';
+import { arenaMini, cachedShared, cachedSpaceFire, gameActions, setArenaMini, useGame } from './game-store';
 import { CheckinButton } from './arena';
-import { flameOf, nextFlame, sharedStreak } from '@/lib/game';
+import { addDays, daysBetween, flameOf, MAX_SHIELDS, nextFlame, spaceFireView } from '@/lib/game';
 import { openGroup } from '@/lib/space-chat';
 import { todayInTimeZone } from '@/lib/period';
 import { play } from '@/lib/game-sound';
@@ -24,7 +25,12 @@ export function SpaceFire() {
   const today = g.today || todayInTimeZone(personalProfile?.timeZone);
   // 9.6 The last seen on this device until the live one arrives.
   const members = g.shared[space.id] || cachedShared(space.id, account.uid) || {};
-  const sh = sharedStreak(members, space.memberIds, today), f = flameOf(sh.current), nf = nextFlame(sh.current);
+  const stored = g.spaceFire[space.id] !== undefined ? g.spaceFire[space.id] : cachedSpaceFire(space.id, account.uid);
+  const sh = spaceFireView(stored, members, space.memberIds, today, g.hour), f = flameOf(sh.current), nf = nextFlame(sh.current);
+  // The latest day the perisai covered in this run, while it is fresh (a week).
+  const lastSaved = sh.saved[sh.saved.length - 1], savedNote = lastSaved && daysBetween(lastSaved, today) <= 7
+    ? lastSaved === addDays(today, -1) ? 'Kemarin diselamatkan perisai' : `Diselamatkan perisai ${new Date(`${lastSaved}T12:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}` : '';
+  const shields = <span className="arena-shields" title="Perisai bareng" aria-label={`Perisai bareng ${sh.shields} dari ${MAX_SHIELDS}`}>{Array.from({ length: MAX_SHIELDS }, (_, i) => <span key={i} className={i < sh.shields ? 'on' : ''}><Emoji e="🛡️"/></span>)}<small>Perisai bareng</small></span>;
   const mineLit = (members[account.uid] || []).includes(today);
   const checkin = () => gameActions().checkinSpace(space.id);
   const waiting = sh.members.filter(m => !m.litToday);
@@ -33,7 +39,7 @@ export function SpaceFire() {
     <span className="arena-bg" aria-hidden="true"/>
     <div className="arena-mini-main is-static">
       <span className="arena-flame"><Flame tier={sh.current ? f.tier : 0} size={40} dim={!sh.litToday && sh.current > 0}/></span>
-      <span className="arena-mini-text"><b>{sh.current} hari <span>· Api bareng</span></b><small>{sh.litToday ? 'Semua sudah nyala ✓' : `Belum: ${waiting.map(m => m.id === account.uid ? 'kamu' : first(space.members[m.id]?.name || 'anggota')).join(', ')}`}</small></span>
+      <span className="arena-mini-text"><b>{sh.current} hari <span>· Api bareng · <Emoji e="🛡️"/>{sh.shields}</span></b><small>{sh.litToday ? 'Semua sudah nyala ✓' : `Belum: ${waiting.map(m => m.id === account.uid ? 'kamu' : first(space.members[m.id]?.name || 'anggota')).join(', ')}`}</small></span>
       <span className="arena-mini-dots" aria-hidden="true">{sh.members.map(m => <i key={m.id} className={m.litToday ? 'on' : ''}>{m.litToday ? <Emoji e="🔥"/> : (space.members[m.id]?.name || '?')[0].toUpperCase()}</i>)}</span>
     </div>
     {!mineLit && <CheckinButton compact short onConfirm={checkin}/>}
@@ -59,6 +65,7 @@ export function SpaceFire() {
         {!m.litToday && me && !mineLit && <CheckinButton compact short onConfirm={checkin}/>}
       </li>;
     })}</ul>
-    <small className="sf-note">Api bareng dihitung dari catatan dan cek-in di ruang ini. Cek-in di sini cuma buat api bareng, bukan api Pribadi.</small>
+    <div className="sf-foot">{shields}{savedNote && <span className="sf-saved"><Emoji e="🛡️"/> {savedNote}</span>}</div>
+    <small className="sf-note">Api bareng dihitung dari catatan dan cek-in di ruang ini (cek-in di sini cuma buat api bareng, bukan api Pribadi). Tiap 7 hari nyala bareng, ruang ini dapat 1 perisai bareng (maks {MAX_SHIELDS}) yang otomatis menjaga api kalau ada yang lupa sehari.</small>
   </section>;
 }

@@ -522,6 +522,99 @@ export function sharedStreak(memberDays: Record<string, string[]>, memberIds: st
   for (let i = 0; i < 4000 && all(d); i++) { current++; d = prevDay(d); }
   return { current, litToday, atRisk: !litToday && current > 0, members: memberIds.map((id, i) => ({ id, litToday: sets[i].has(today) })) };
 }
+// ——— 10.3.3 Perisai bareng: the space's own perisai for api bareng ———
+/**
+ * A space keeps its own perisai (not a member's Pribadi one): one to start with, one more every 7 days lit together (at
+ * most 2). When a day goes by without everyone lit, a perisai covers it and the flame keeps going (a covered day keeps
+ * the run but does not add to it, like Perisai Api). Several missed days need that many perisai, otherwise the flame
+ * goes out. Saved once for the whole space (spaces/{id}/fire/state); any member's app moves it on, day by day, from
+ * what the members published. The run is kept here too, so it is not limited to the 60 days each member keeps, and a
+ * member who joins later does not put out a flame that was already going.
+ */
+export type SpaceFire = {
+  shields: number;
+  /** Missed days a perisai covered (kept 60). */ frozen: string[];
+  /** The day the last perisai was earned (one per day at most). */ shieldDay: string;
+  /** Every day up to this one has been looked at. */ checked: string;
+  /** Lit days in the run that ends on `checked` (0: no run), and the day it started. */ run: number; since: string;
+  best: number; lostDay: string; lostRun: number;
+};
+export const SPACE_START_SHIELDS = 1;
+export const emptySpaceFire = (): SpaceFire => ({ shields: SPACE_START_SHIELDS, frozen: [], shieldDay: '', checked: '', run: 0, since: '', best: 0, lostDay: '', lostRun: 0 });
+export type SpaceFireEvent = { kind: 'shield-used'; days: string[]; streak: number } | { kind: 'shield-earned'; shields: number; day: string } | { kind: 'broken'; was: number; day: string };
+const isDay = (d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+/** A saved state read back (fields missing or wrong in an older or damaged copy fall back to a fresh one). */
+export function readSpaceFire(raw: unknown): SpaceFire | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<Record<keyof SpaceFire, unknown>>, e = emptySpaceFire();
+  const int = (v: unknown, d: number) => typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : d;
+  const day = (v: unknown) => isDay(v) ? v : '';
+  return { shields: Math.min(MAX_SHIELDS, int(r.shields, e.shields)), frozen: Array.isArray(r.frozen) ? keep(r.frozen.filter(isDay), 60) : [], shieldDay: day(r.shieldDay), checked: day(r.checked), run: int(r.run, 0), since: day(r.since), best: int(r.best, 0), lostDay: day(r.lostDay), lostRun: int(r.lostRun, 0) };
+}
+
+/** 10.3.3 A day is judged for api bareng only from 03:00 the next morning (the phone's time): members can be in other
+ * time zones (WIB, WITA, WIT), so the day must be over for everyone before a perisai is spent or the flame goes out. */
+export const SPACE_GRACE_HOURS = 3;
+/**
+ * Moves a space's perisai bareng on to `today`: each day after the last one looked at, up to the last one that is over
+ * (yesterday, or the day before until 03:00), is lit together, covered by a perisai, or the end of the run. The days
+ * after it (today, and yesterday early in the morning) only count while everyone is lit, and may bring the 7th-day
+ * perisai then; they are judged for good later. The first time, the members' days (the last 60) are gone through from
+ * the start, so a flame that went out over a day or two lately comes back when the perisai cover it.
+ */
+export function advanceSpaceFire(previous: SpaceFire | null, memberDays: Record<string, string[]>, memberIds: string[], today: string, hour = 12): { state: SpaceFire; events: SpaceFireEvent[]; pending: number } {
+  const s: SpaceFire = previous ? { ...previous, frozen: [...previous.frozen] } : emptySpaceFire();
+  const events: SpaceFireEvent[] = [];
+  if (memberIds.length < 2) return { state: s, events, pending: 0 };
+  const until = addDays(today, hour < SPACE_GRACE_HOURS ? -2 : -1);
+  const sets = memberIds.map(id => new Set((memberDays[id] || []).filter(isDay)));
+  const all = (d: string) => sets.every(x => x.has(d)), ice = new Set(s.frozen);
+  const earn = (n: number, day: string) => {
+    if (n % 7 === 0 && s.shieldDay < day) { s.shieldDay = day; if (s.shields < MAX_SHIELDS) { s.shields++; events.push({ kind: 'shield-earned', shields: s.shields, day }); } }
+  };
+  if (!s.checked || s.checked < until) {
+    // Where to start: the day after the last one looked at, or (the first time) the first day everyone could have been lit.
+    let d = s.checked ? addDays(s.checked, 1) : sets.reduce((from, x) => { const first = [...x].sort()[0] || '9999-12-31'; return first > from ? first : from; }, '');
+    if (daysBetween(d, until) > 400) d = addDays(until, -400);
+    while (d <= until) {
+      if (all(d)) { if (!s.run) s.since = d; s.run++; s.best = Math.max(s.best, s.run); earn(s.run, d); d = addDays(d, 1); continue; }
+      if (ice.has(d)) { d = addDays(d, 1); continue; }
+      // A gap: the days missed from here on. A perisai for each, or the run ends.
+      const gap: string[] = [];
+      for (let e = d; e <= until && !all(e) && !ice.has(e); e = addDays(e, 1)) gap.push(e);
+      if (s.run > 0 && gap.length <= s.shields) {
+        s.shields -= gap.length; gap.forEach(x => ice.add(x)); s.frozen = keep([...s.frozen, ...gap], 60);
+        events.push({ kind: 'shield-used', days: gap, streak: s.run });
+      } else {
+        if (s.run > 0) { s.lostRun = s.run; s.lostDay = gap[0]; events.push({ kind: 'broken', was: s.run, day: gap[0] }); }
+        s.run = 0; s.since = '';
+      }
+      d = addDays(gap[gap.length - 1], 1);
+    }
+    s.checked = until;
+  }
+  // The days not judged yet count while everyone is lit, one after another.
+  let pending = 0;
+  for (let d = addDays(s.checked, 1); d <= today && all(d); d = addDays(d, 1)) { pending++; earn(s.run + pending, d); }
+  return { state: s, events, pending };
+}
+/** Two states the same (to save only when something changed). */
+export const sameSpaceFire = (a: SpaceFire | null, b: SpaceFire | null) => Boolean(a && b) && JSON.stringify(readSpaceFire(a)) === JSON.stringify(readSpaceFire(b));
+
+/** What the api bareng card shows: the flame with its perisai, who is lit today, and the days the perisai covered in
+ * this run. Works from the saved state moved on to now (the same result on every member's phone). */
+export function spaceFireView(saved: SpaceFire | null, memberDays: Record<string, string[]>, memberIds: string[], today: string, hour = 12) {
+  const { state, events, pending } = advanceSpaceFire(saved, memberDays, memberIds, today, hour);
+  const sets = memberIds.map(id => new Set(memberDays[id] || []));
+  const litToday = sets.length > 1 && sets.every(x => x.has(today));
+  const current = state.run + pending;
+  return {
+    current, litToday, atRisk: !litToday && current > 0, shields: state.shields,
+    saved: state.run ? state.frozen.filter(d => d >= state.since) : [],
+    members: memberIds.map((id, i) => ({ id, litToday: sets[i].has(today) })), state, events,
+  };
+}
+
 /** The days a member shares with their spaces: lit or saved, the last 60. (Up to 9.4; see spaceDays.) */
 export const sharedDays = (s: Pick<GameState, 'days' | 'frozen'>) => keep([...s.days, ...s.frozen], 60);
 /** 9.5 A member's days in one space: what they had there, plus the days they recorded there and check-ins tapped

@@ -10,7 +10,7 @@ import { Emoji } from '../emoji';
 import { Flame } from './flame';
 import { confetti } from './confetti';
 import { nextCelebration, useGame, type Celebration } from './game-store';
-import { BADGES, flameOf, levelOf, nextFlame, streakTier, TIERS, titleOfLevel, type Tier } from '@/lib/game';
+import { addDays, BADGES, flameOf, levelOf, MAX_SHIELDS, nextFlame, streakTier, TIERS, titleOfLevel, type Tier } from '@/lib/game';
 import { play } from '@/lib/game-sound';
 
 const FIRE = ['#ff7a1a', '#ffc24b', '#ff4d1a', '#fff2b3', '#ff4d6d'];
@@ -59,7 +59,7 @@ export function Celebrations() {
     else if (k === 'badge') { play('badge'); confetti({ count: 200, colors: TIER_COLORS[streakTier(item.days)] }); }
     else if (k === 'challenge' || k === 'shared-badge') { play('badge'); confetti({ count: 200, colors: k === 'challenge' ? undefined : FIRE }); }
     else if (k === 'missions-all') { play('badge'); confetti({ count: 140 }); }
-    else if (k === 'shield-earned' || k === 'shield-used') play('shield');
+    else if (k === 'shield-earned' || k === 'shield-used' || k === 'shared-shield') play('shield');
     else if (k === 'welcome') { play('welcome'); confetti({ count: 160, colors: FIRE }); }
     else if (k === 'shield-full') play('mission');
     else if (k === 'broken') play('broken');
@@ -116,6 +116,16 @@ function BigCard({ item, xp }: { item: Celebration; xp: number }) {
       title = items.length === 1 ? items[0].name : `${items.length} lencana sekaligus!`;
       body = items.length === 1 ? <p>{items[0].desc}</p> : <ul className="cel-ach">{items.map(x => <li key={x.id} className={`tier-${x.tier}`}><Emoji e={x.emoji}/><span><b>{x.name}</b><small>{TIERS[x.tier].name} · {x.desc}</small></span></li>)}</ul>;
       reward = `+${sum} XP`; tone = toneOf(top); button = 'Keren!'; break;
+    }
+    case 'shared-shield': {
+      // 10.3.3 Perisai bareng: covered a day yesterday (saved), an older one (the flame came back), or earned.
+      const back = item.mode === 'used' && item.days[item.days.length - 1] < addDays(item.today, -1);
+      const when = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      visual = <span className={`cel-emoji ${item.mode === 'used' ? 'is-shake' : ''}`}><Emoji e="🛡️"/></span>; kicker = `Api bareng ${item.space}`; tone = 'ice';
+      if (item.mode === 'earned') { title = 'Dapat Perisai bareng!'; body = <p>7 hari nyala bareng, ruang ini sekarang punya <b>{item.shields}/{MAX_SHIELDS} perisai</b>. Kalau ada yang lupa sehari, perisai bareng otomatis menjaga apinya.</p>; button = 'Mantap!'; }
+      else if (back) { title = 'Api bareng dipulihkan!'; body = <p>Hari yang bolong ({item.days.map(when).join(', ')}) ditutup perisai bareng. Sekarang <b>{item.streak} hari</b> nyala bareng lagi.</p>; button = 'Asik!'; }
+      else { title = 'Perisai bareng menyelamatkan api!'; body = <p>{item.days.length > 1 ? `${item.days.length} hari` : 'Kemarin'} ada yang belum nyala, tapi api bareng <b>{item.streak} hari</b> tetap aman. Yuk nyalain bareng hari ini!</p>; button = 'Siap!'; }
+      break;
     }
     case 'shared-badge': visual = <Flame tier={flameOf(item.days).tier} size={140}/>; kicker = `Api bareng ${item.space}`; title = `${item.days} hari nyala bareng!`; body = <p>Lencana bareng: <b>{item.name}</b>. Semua anggota mencatat {item.days} hari berturut-turut.</p>; tone = 'gold'; break;
     default: return null;

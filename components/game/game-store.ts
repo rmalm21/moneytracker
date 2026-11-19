@@ -8,20 +8,23 @@ import { collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, t
 import { db } from '@/lib/firebase';
 import { isOffline } from '@/lib/offline';
 import { changedFields, sameData } from '@/lib/same-data';
-import type { ArcadeId, GameEvent, GameState } from '@/lib/game';
+import { advanceSpaceFire, readSpaceFire, sameSpaceFire, type ArcadeId, type GameEvent, type GameState, type SpaceFire } from '@/lib/game';
 
 export type MiniGameId = 'spin' | 'coin' | 'match' | 'shop' | 'scratch';
-export type Celebration = GameEvent | { kind: 'shared-badge'; days: number; name: string; space: string } | { kind: 'note'; title: string; text: string };
+export type Celebration = GameEvent | { kind: 'shared-badge'; days: number; name: string; space: string } | { kind: 'note'; title: string; text: string }
+  /** 10.3.3 Perisai bareng: covered a missed day (`days`; older than yesterday: the flame came back), or earned. */
+  | { kind: 'shared-shield'; mode: 'used' | 'earned'; space: string; streak: number; days: string[]; shields: number; today: string };
 type Store = {
   state: GameState | null; ready: boolean;
   /** 9.9.2 The game shown is the account's copy from the server (not only this phone's older copy). */ confirmed: boolean;
   /** Each space's members' lit days (space id → uid → days). */ shared: Record<string, Record<string, string[]>>;
+  /** 10.3.3 Each space's perisai bareng as saved (null: not saved yet; missing: not loaded yet). */ spaceFire: Record<string, SpaceFire | null>;
   queue: Celebration[];
   /** What the Beranda card shows next to the time (refreshed every minute). */ today: string; hour: number;
   /** This week's challenge, how far it is (worked out by the keeper from the records). */ challengeView: { value: number; won: boolean; lost: boolean } | null;
   /** 9.6 The mini game open on screen (9.7: Cocok Cuan, Belanja Bijak, Gosok Berhadiah too). */ minigame: MiniGameId | null;
 };
-let store: Store = { state: null, ready: false, confirmed: false, shared: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
+let store: Store = { state: null, ready: false, confirmed: false, shared: {}, spaceFire: {}, queue: [], today: '', hour: 12, challengeView: null, minigame: null };
 const listeners = new Set<() => void>();
 export function setGame(patch: Partial<Store> | ((s: Store) => Partial<Store>)) {
   store = { ...store, ...(typeof patch === 'function' ? patch(store) : patch) };
@@ -60,6 +63,9 @@ export function cacheState(uid: string, state: GameState | null) { if (!state) r
 const FIRE_CACHE = (spaceId: string, uid: string) => `dompet-ajaib:fire-cache:${spaceId}:${uid}`;
 export function cachedShared(spaceId: string, uid: string): Record<string, string[]> | null { try { const t = localStorage.getItem(FIRE_CACHE(spaceId, uid)); return t ? JSON.parse(t) : null; } catch { return null; } }
 export function cacheShared(spaceId: string, uid: string, members: Record<string, string[]>) { try { localStorage.setItem(FIRE_CACHE(spaceId, uid), JSON.stringify(members)); } catch { /* only a head start */ } }
+const SPACE_FIRE_CACHE = (spaceId: string, uid: string) => `dompet-ajaib:space-fire-cache:${spaceId}:${uid}`;
+export function cachedSpaceFire(spaceId: string, uid: string): SpaceFire | null { try { const t = localStorage.getItem(SPACE_FIRE_CACHE(spaceId, uid)); return t ? readSpaceFire(JSON.parse(t)) : null; } catch { return null; } }
+export function cacheSpaceFire(spaceId: string, uid: string, state: SpaceFire | null) { try { if (state) localStorage.setItem(SPACE_FIRE_CACHE(spaceId, uid), JSON.stringify(state)); } catch { /* only a head start */ } }
 /** "Hari ini aman" tapped before the keeper has started (it loads a moment after the first screen). */
 let pendingCheckin = false;
 export const takePendingCheckin = () => { const p = pendingCheckin; pendingCheckin = false; return p; };
@@ -129,4 +135,28 @@ export function subscribeSharedFire(spaceId: string, onValue: (members: Record<s
 }
 export async function shareFire(spaceId: string, uid: string, name: string, days: string[]) {
   await setDoc(doc(database(), 'spaces', spaceId, 'streak', uid), { days, name: name.slice(0, 60), at: serverTimestamp(), v: 2 });
+}
+
+// ——— 10.3.3 Perisai bareng ———
+const spaceFireRef = (spaceId: string) => doc(database(), 'spaces', spaceId, 'fire', 'state');
+/** A space's perisai bareng as saved (null when it has not been saved yet). */
+export function subscribeSpaceFire(spaceId: string, onValue: (state: SpaceFire | null) => void): Unsubscribe {
+  return onSnapshot(spaceFireRef(spaceId), snap => onValue(snap.exists() ? readSpaceFire(snap.data()) : null), () => {});
+}
+/**
+ * Moves a space's perisai bareng on to `today` and saves it, from what the server holds right now (the saved state and
+ * every member's days, read in one transaction), so two members' phones never spend a perisai twice or work from an
+ * old copy. Online only; nothing is written when nothing changed. Resolves with the state that is now saved.
+ */
+export async function saveSpaceFire(spaceId: string, memberIds: string[], uid: string, today: string, hour: number): Promise<SpaceFire | null> {
+  if (isOffline() || memberIds.length < 2) return null;
+  return runTransaction(database(), async trx => {
+    const ref = spaceFireRef(spaceId), snap = await trx.get(ref);
+    const docs = await Promise.all(memberIds.map(id => trx.get(doc(database(), 'spaces', spaceId, 'streak', id))));
+    const members = Object.fromEntries(docs.map((d, i) => [memberIds[i], d.exists() && d.data().v === 2 ? (d.data().days as string[]) || [] : []]));
+    const saved = snap.exists() ? readSpaceFire(snap.data()) : null;
+    const next = advanceSpaceFire(saved, members, memberIds, today, hour).state;
+    if (!sameSpaceFire(saved, next)) trx.set(ref, { ...next, at: serverTimestamp(), by: uid });
+    return next;
+  });
 }
