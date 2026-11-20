@@ -22,12 +22,14 @@ let observer: MutationObserver | null = null;
 export type HideLevel = 'ketat' | 'beranda';
 let level: HideLevel = 'ketat';
 
-/** "Beranda & Dompet": the dashboard, the Dompet menu, and dialogs opened from them (not the chat or notifications). */
-const HOME = '.home-dash, [data-view="wallets"]';
-const viewBehind = () => document.querySelector('main[data-view]')?.getAttribute('data-view') || '';
-const openedFromHome = (el: Element) => !!el.closest('[role="dialog"]') && !el.closest('.chat-panel, .notification-dialog') && ['dashboard', 'wallets'].includes(viewBehind());
+/** "Beranda & Dompet": the Beranda page, the Dompet page, and the windows of the Dompet menu (a wallet, its pockets,
+ * its balance: `hideWith="wallets"` in components/ui/dialog.tsx), wherever those are opened. 10.4.1: every other window
+ * (Catat/Ubah transaksi, a list of transactions, Rekap, notifications, the chat) shows its amounts wherever it is opened;
+ * before, a window opened while Beranda or Dompet was behind it was hidden and the same window opened from another menu
+ * was not. */
+const HOME = '.home-dash, main[data-view="wallets"], [data-hide-with="wallets"]';
 /** Whether this level hides the amounts in a place: "Super ketat" hides every amount. */
-const hides = (el: Element) => level === 'ketat' || !!el.closest(HOME) || openedFromHome(el);
+const hides = (el: Element) => level === 'ketat' || !!el.closest(HOME);
 /** Amounts written without "Rp": chart axes, chat messages, and what Catat otomatis read from a sentence. */
 const bareZone = (el: Element) => !!el.closest('.recharts-wrapper, .recharts-surface, #recharts_measurement_span, .cm-bubble, .gc-bubble, .gc-asked, .chat-chip, .quick-preview');
 function maskFor(value: string, parent: Element) {
@@ -67,6 +69,22 @@ function maskTree(root: Node) {
   if (ATTRS.some(name => el.hasAttribute(name))) maskAttrs(el);
   el.querySelectorAll('[title], [aria-label]').forEach(maskAttrs);
 }
+/** 10.4.1 The page behind changed (main's data-view: Beranda → Transaksi, Dompet → Beranda): what stays on screen
+ * across the switch is hidden or shown again for the new page, not left as it was on the old one. */
+function refreshTree(root: Element) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    const record = masked.get(node), parent = node.parentElement;
+    if (record && node.nodeValue === record.shown && parent && !hides(parent)) { masked.delete(node); node.nodeValue = record.original; }
+    else maskNode(node);
+  }
+  for (const [el, saved] of maskedAttrs) {
+    if (!el.isConnected || !root.contains(el) || hides(el)) continue;
+    for (const [name, { original, shown }] of Object.entries(saved)) if (el.getAttribute(name) === shown) el.setAttribute(name, original);
+    maskedAttrs.delete(el);
+  }
+  root.querySelectorAll('[title], [aria-label]').forEach(maskAttrs);
+}
 function forgetRemoved() {
   if (masked.size > 4000) for (const node of masked.keys()) if (!node.isConnected) masked.delete(node);
   if (maskedAttrs.size > 2000) for (const el of maskedAttrs.keys()) if (!el.isConnected) maskedAttrs.delete(el);
@@ -80,12 +98,12 @@ function startMasking(chosen: HideLevel) {
   observer = new MutationObserver(records => {
     for (const record of records) {
       if (record.type === 'characterData') maskNode(record.target as Text);
-      else if (record.type === 'attributes') maskAttrs(record.target as Element);
+      else if (record.type === 'attributes') { if (record.attributeName === 'data-view') { if (level !== 'ketat') refreshTree(record.target as Element); } else maskAttrs(record.target as Element); }
       else record.addedNodes.forEach(maskTree);
     }
     forgetRemoved();
   });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: [...ATTRS, 'data-view'] });
 }
 function stopMasking() {
   observer?.disconnect(); observer = null;

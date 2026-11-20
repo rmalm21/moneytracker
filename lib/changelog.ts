@@ -2,6 +2,10 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.4.1', date: '20 Nov 2026', title: 'Sembunyikan nominal lebih konsisten', items: [
+    ['🛡️', 'Tingkat Beranda & Dompet sekarang konsisten: yang disamarkan cuma halaman Beranda, menu Dompet, dan jendela dompet (detail dompet, kantong, pisahkan isi, bunga saldo, cocokkan saldo). Jendela lain, misalnya Catat transaksi, Ubah transaksi, daftar transaksi, dan Rekap, selalu menampilkan nominal dari mana pun dibuka. Dulu jendela yang sama tersamar kalau dibuka dari Beranda, tapi kelihatan kalau dibuka dari menu lain.'],
+    ['🔁', 'Pindah menu langsung ikut menyesuaikan: nominal yang masih ada di layar disamarkan atau ditampilkan lagi sesuai halaman barunya.'],
+  ] },
   { version: '10.4', date: '20 Nov 2026', title: 'Asisten chat 4.5', items: [
     ['🌐', 'Asisten chat sekarang ngerti bahasa Inggris: “spent 25k on coffee yesterday with gopay”, “salary 8m received in jago”, “where can i see my budget”, sampai “how are you”. Nominal kayak 1.5m dan 120k juga kebaca benar.'],
     ['💰', 'Nominal yang ditulis pakai kata atau bahasa gaul kebaca: “satu koma lima juta”, “tujuh puluh lima ribu”, “sejeti”, “IDR 45.000”. Nomor HP setelah “hp” atau “wa” nggak lagi dikira nominal.'],

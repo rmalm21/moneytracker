@@ -26,7 +26,7 @@ export function WalletDeleteDialog({ wallet, onClose }: { wallet: Wallet | null;
     track(deleteWalletForever(user.uid, wallet, data, profile), { pending: `Menghapus ${wallet.name}…`, success: plan.kept ? `${wallet.name} dihapus. ${plan.kept} transaksinya tetap tersimpan.` : `${wallet.name} dihapus.`, failure: `${wallet.name} belum terhapus` });
   };
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-    <DialogContent title={`Hapus ${wallet.name}?`}>
+    <DialogContent hideWith="wallets" title={`Hapus ${wallet.name}?`}>
       <div className="wallet-delete">
         <div className="wallet-delete-head" style={identityStyle(wallet.color)}><span className="wallet-row-icon"><AppIcon icon={wallet.icon}/></span><span><strong>{wallet.name}</strong><small>Saldo {rupiah(wallet.cachedBalance)}{plan.kept ? ` · ${plan.kept} transaksi` : ''}</small></span></div>
         {blocked ? <div className="wallet-delete-block" role="alert">

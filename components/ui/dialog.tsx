@@ -47,8 +47,10 @@ function useKeyboardLift(content:React.RefObject<HTMLDivElement|null>){
  },[content]);
 }
 
-export function DialogContent({title,children,className='',onCloseAutoFocus}:{title:string;children:React.ReactNode;className?:string;onCloseAutoFocus?:(event:Event)=>void}){
+/** 10.4.1 `hideWith="wallets"`: a window of the Dompet menu (a wallet, its pockets, its balance). At "Beranda & Dompet"
+ * its amounts are hidden wherever it is opened; every other window shows them, wherever it is opened. */
+export function DialogContent({title,children,className='',onCloseAutoFocus,hideWith}:{title:string;children:React.ReactNode;className?:string;onCloseAutoFocus?:(event:Event)=>void;hideWith?:'wallets'}){
  const sheet=useSheetDrag();
  useKeyboardLift(sheet.content);
- return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`} onCloseAutoFocus={onCloseAutoFocus}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
+ return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`} onCloseAutoFocus={onCloseAutoFocus} data-hide-with={hideWith}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
 }

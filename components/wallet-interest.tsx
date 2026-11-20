@@ -88,7 +88,7 @@ export function InterestSheet({ wallet, open, onOpenChange, notify }: { wallet: 
       onOpenChange(false);
     } catch (e) { setError((e as Error).message || 'Gagal menyimpan.'); } finally { setSaving(false); }
   }
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent title="Bunga saldo" className="interest-dialog">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent hideWith="wallets" title="Bunga saldo" className="interest-dialog">
     <div className="form-stack is-compact">
       {current?.enabled && <InterestSummary wallet={wallet} state={state} notify={notify}/>}
       <button type="button" role="switch" aria-checked={enabled} className={`ip-switch ${enabled ? 'on' : ''}`} onClick={() => setEnabled(!enabled)}><span><strong>Bunga otomatis</strong><small>{enabled ? 'Dihitung dari saldo akhir tiap hari' : current && !current.enabled ? 'Mati · riwayat bunga tetap ada' : 'Saldo bertambah sendiri dari bunga'}</small></span><i aria-hidden="true"/></button>

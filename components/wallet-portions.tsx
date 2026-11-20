@@ -79,7 +79,7 @@ function PortionEditor({ wallet, portion, onClose }: { wallet: Wallet; portion: 
     save([...others, { id, name: name.trim(), kind, base, ...(note.trim() ? { note: note.trim() } : {}) }], old ? `${name.trim()} diperbarui.` : `${name.trim()} dipisahkan dari uangmu.`);
   }
   return <Dialog open={Boolean(portion)} onOpenChange={open => { if (!open) onClose(); }}>
-    <DialogContent title={old ? `Ubah ${old.name}` : `Pisahkan isi ${wallet.name}`}>
+    <DialogContent hideWith="wallets" title={old ? `Ubah ${old.name}` : `Pisahkan isi ${wallet.name}`}>
       <form className="form-stack" onSubmit={submit}>
         <p className="muted portion-intro">Saldo {wallet.name} tetap {rupiah(wallet.cachedBalance)}. Bagian ini menandai uang yang bukan untuk kamu pakai.</p>
         <Field label="Nama bagian"><Input value={name} onChange={e => setName(e.target.value)} maxLength={40} placeholder="Contoh: Dana bisnis" autoFocus/></Field>

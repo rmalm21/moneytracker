@@ -103,7 +103,7 @@ export function PocketSheet({ open, onOpenChange, start = { mode: 'list' } }: { 
   }
 
   const grand = kantong.reduce((n, k) => n + k.currentAmount, 0);
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent title={mode === 'form' ? (editing ? `Ubah kantong` : 'Kantong baru') : 'Kantong'} className="pocket-dialog">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent hideWith="wallets" title={mode === 'form' ? (editing ? `Ubah kantong` : 'Kantong baru') : 'Kantong'} className="pocket-dialog">
     {mode === 'list' && <>
       <div className="pocket-head"><small>Total di kantong</small><strong>{rupiah(grand)}</strong><span>{kantong.length ? `${kantong.length} kantong · saldonya mengikuti dompet di dalamnya` : 'Belum ada kantong'}</span></div>
       <div className="pocket-list">{kantong.map((k, i) => { const members = kantongWallets(k, data.wallets); const pct = k.targetAmount ? Math.min(1, k.currentAmount / k.targetAmount) : 0; return <article key={k.id} className="pocket-card" style={{ '--pocket': colors[i % colors.length] } as CSSProperties}>

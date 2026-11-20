@@ -41,7 +41,7 @@ function PrivacyToggle(){
 /** What the eye button hides: every amount, or Beranda & Dompet (8.4: "Angka penting saja" removed). Kept on this device. */
 function HideLevelChoice(){
  const [value,setValue]=useState<HideLevel>('ketat');useEffect(()=>{setValue(readHideLevel());},[]);
- const options:[HideLevel,string,React.ReactNode,string][]=[['ketat','Super ketat',<>Saldo Rp••••• · Makan Rp•••••</>,'Semua nominal di semua layar, termasuk grafik, chat, dan notifikasi.'],['beranda','Beranda & Dompet',<>Dompet Rp••••• · Laporan Rp45.000</>,'Nominal di Beranda dan menu Dompet, termasuk jendela yang dibuka dari sana. Menu lain tetap terlihat.']];
+ const options:[HideLevel,string,React.ReactNode,string][]=[['ketat','Super ketat',<>Saldo Rp••••• · Makan Rp•••••</>,'Semua nominal di semua layar, termasuk grafik, chat, dan notifikasi.'],['beranda','Beranda & Dompet',<>Dompet Rp••••• · Laporan Rp45.000</>,'Nominal di Beranda dan menu Dompet, termasuk jendela dompet & kantong. Menu dan jendela lain tetap terlihat, dari mana pun dibuka.']];
  return <><h4>Yang disembunyikan</h4><div className="font-choices hide-level-choices" role="radiogroup" aria-label="Yang disembunyikan">{options.map(([key,label,sample,hint])=><button type="button" role="radio" key={key} aria-checked={value===key} className={value===key?'active':''} onClick={()=>{setValue(key);setHideLevel(key)}}><span className="font-choice-top"><strong>{label}</strong>{value===key&&<Check size={15}/>}</span><span className="font-choice-sample" data-keep-amounts>{sample}</span><small>{hint}</small></button>)}</div></>;
 }
 
