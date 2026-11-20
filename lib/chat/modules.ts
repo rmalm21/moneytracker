@@ -54,7 +54,12 @@ export const opensMenu = (t: string) => OPEN.test(t) && !ASK.test(t.replace(/\b(
 const ASK = /\b(?:berapa|apa\s+aja|apa\s+saja|siapa\s+(?:aja|saja)?|gimana|bagaimana|sampai\s+mana|udah\s+(?:berapa|sampai)|masih|sisa|daftar|list|kapan|mana\s+aja|progress|progres|ada\s+berapa|total|belum\s+(?:lunas|bayar|dikonfirmasi)|ada\s+(?:ga|gak|nggak|apa)|cukup|tahan)\b|\?$/;
 const ME = String.raw`(?:aku|gue|gw|saya|ku|mu)?`;
 
-export function readModule(text: string, data: ModuleData, today: string, v: Voice): ModuleAnswer | null {
+/** 10.4 A menu named on its own, in a few words ("tagihan rutin", "klaim kantor", "tujuan dana aku mana"): opening it. */
+// 10.4 …nor a feeling about it ("kantong kering bgt nih": a state or "banget" is talk, not a menu name), nor a check
+// ("cek semua budget", "saldo semua dompet": the answer, not the menu).
+const BARE_NOT = /\d|\b(?:beli|bayar|catat|catet|hapus|apus|ubah|ganti|edit|bikin|buat|tambah|nambah|isi|lunas\p{L}*|kenapa|kok|cara|caranya|gimana|bagaimana|kering|kosong|jebol|habis|abis|bokek|banget|bgt|parah|cek|saldo|sisa|total|jumlah)\b/u;
+const isBare = (t: string) => !BARE_NOT.test(t) && t.replace(/\b(?:mana|dimana|di\s+mana|dmn|ku|aku|gue|gw|saya|dong|ya|aja|deh|nih|sih|menu|halaman|page)\b/g, ' ').trim().split(/\s+/).filter(Boolean).length <= 3;
+export function readModule(text: string, data: ModuleData, today: string, v: Voice, opts: { bare?: boolean } = {}): ModuleAnswer | null {
   // 10.2 "daftar utangku", "wishlistmu": the menu word without its possessive ending.
   const t = text.replace(/\b(utang|hutang|piutang|tagihan|wishlist|anggaran|budget|dompet|tabungan|cicilan|langganan|klaim|target|tujuan|pinjaman|rekening)(?:ku|mu|nya)\b/g, '$1');
   const target = MODULES.find(m => m.words.test(t));
@@ -62,6 +67,7 @@ export function readModule(text: string, data: ModuleData, today: string, v: Voi
   const go = { view: target.view, label: `Buka ${target.label}` };
   // Opening a menu.
   if (OPEN.test(t) && !ASK.test(t.replace(/\b(?:mana|di\s*mana|dimana)\b/g, ''))) return { title: target.label, text: say(v, `Siap, ini menu ${target.label}. Ketuk tombolnya buat buka.`, `Baik, silakan ketuk tombol di bawah untuk membuka menu ${target.label}.`, `Gas, ini menu ${target.label}. Pencet tombolnya ya.`, `Menu ${target.label}:`), open: go };
+  if (opts.bare && !ASK.test(t) && isBare(t)) return { title: target.label, text: say(v, `Siap, ini menu ${target.label}. Ketuk tombolnya buat buka.`, `Baik, silakan ketuk tombol di bawah untuk membuka menu ${target.label}.`, `Nih menu ${target.label}, tinggal ketuk.`, `Menu ${target.label}.`), open: go };
   // "tagihan bulan depan", "ada draf?": asking already, without a question word.
   if (!ASK.test(t) && !/^ada\b/.test(t) && target.view !== 'upcoming') return null;
   const answer = answerFor(target.view, t, data, today, v);

@@ -34,7 +34,13 @@ const SHORT: Record<string, string> = {
   // 10.2
   malem: 'malam', mlm: 'malam', kategori2: 'kategori', ktgr: 'kategori', ktg: 'kategori', dompt: 'dompet', dmpt: 'dompet', tggl: 'tanggal',
   kpn: 'kapan', kapn: 'kapan', bnyk: 'banyak', byk: 'banyak', sebenernya: 'sebenarnya', sbnrnya: 'sebenarnya', tmpt: 'tempat', ngapain: 'ngapain',
+  // 10.4
+  ksh: 'kasih', kasi: 'kasih', hrs: 'harus', srius: 'serius', serius2: 'serius', becanda: 'bercanda', bcanda: 'bercanda', anggrn: 'anggaran',
+  msh: 'masih', hlo: 'halo', hallo: 'halo', mkasih: 'makasih', makasii: 'makasih', tlg: 'tolong',
 };
+/** 10.4 English words of person, for the model only (the rules read English themselves): "thank you", "how are you" and
+ * "you are useless" no longer all lean on "you" towards thanks. */
+const EN_PERSON: Record<string, string> = { you: 'kamu', u: 'kamu', i: 'aku', im: 'aku', me: 'aku', my: 'aku', thank: 'makasih' };
 
 /** A word with stretched letters shortened and everyday shorthand written out ("pagiii" → "pagi", "kpn" → "kapan"). */
 const word = (w: string) => { const short = w.replace(/(\p{L})\1{2,}/gu, '$1').replace(/([^aeiou\s])\1+$/u, '$1'); return SHORT[short] || short; };
@@ -46,6 +52,8 @@ export const normalizeWords = (text: string) => text.replace(/\p{L}+/gu, w => /^
  * real ones: "tebak angka" and "ubah nominalnya" no longer pull every message with a number towards a game or a fix.
  */
 export const chatFeature = (text: string) => text.toLocaleLowerCase('id-ID')
+  // 10.4 A word doubled with "2" ("tebak2an", "rata2", "halo2") read as the word twice, not as a number.
+  .replace(/(\p{L}{2,})2(?!\d|\s*(?:rb|ribu|k|jt|juta|m)\b)(\p{L}*)/gu, '$1 $1$2')
   .replace(/(?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|k|jt|juta|m)\b/g, ' qnominal ')
   .replace(/\d[\d.,]*/g, ' qangka ')
   .replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim()
@@ -54,5 +62,5 @@ export const chatFeature = (text: string) => text.toLocaleLowerCase('id-ID')
     if (/^(?:h?a+h+)+a*$|^(?:ha){2,}h?$/.test(w)) return 'haha';
     if (/^(?:h?e+h+)+e*$/.test(w)) return 'hehe';
     // "pagiii" → "pagi", "kakk" → "kak", "dongg" → "dong" (doubled vowels inside words stay: "maaf", "saat").
-    return word(w);
+    return EN_PERSON[w] || word(w);
   }).join(' ');

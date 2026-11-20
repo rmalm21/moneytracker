@@ -43,6 +43,8 @@ const REGIONAL: [RegExp, string][] = [
 ];
 /** English is read only when the message has English in it. */
 const ENGLISH = /\b(?:how|where|what'?s|whats|my|spend|spent|spending|spendings|expenses?|balance|income|owes?|debt|yesterday|today|this (?:month|week)|last (?:month|week)|coffee|daily|free money|money left|budget \p{L}+ left)\b/u;
+/** 10.4 …and only about money: "how are you", "is my budget ok" and "i feel so sad today" are chit-chat for the model. */
+const ENGLISH_MONEY = /\b(?:spend|spent|spending|spendings|expenses?|balance|income|owes?|owe|debt|coffee|food|daily|free money|money (?:left|go|gone|went|going)|budget \p{L}+ left|how (?:much|many))\b/u;
 const ENGLISH_LEFT = /\b(?:my|the|is|are|did|do|i|me|on|in|for|bro|please)\b/g;
 const SHORT: Record<string, string> = { msh: 'masih', masi: 'masih', tlg: 'tolong', tolongin: 'tolong', brpa: 'berapa', berapaan: 'berapa', brapah: 'berapa', berapah: 'berapa', brpaan: 'berapa', mggu: 'minggu', mgu: 'minggu', ane: 'aku', aq: 'aku', gua: 'gue', w: 'aku', kluar: 'keluar', klwr: 'keluar', kmaren: 'kemarin', kmrin: 'kemarin', anggran: 'anggaran', bajet: 'budget', budjet: 'budget', bujet: 'budget', tabungn: 'tabungan' };
 /** "gopayku" → "gopay aku": money words with -ku/-mu. */
@@ -104,12 +106,69 @@ function affordEnglish(base: string) {
   for (const [re, to] of EN_ITEMS) rest = rest.replace(re, to);
   return `aman nggak beli ${rest.replace(/\b(?:for|worth|that\s+costs|costing|at|of)\b/g, ' ').replace(/\s{2,}/g, ' ').trim()}`;
 }
+/**
+ * 10.4 A record written in English ("spent 25k on coffee yesterday with gopay", "got paid 8m to bca", "bought a shirt for
+ * 85k, paid with jenius"), said again in the Indonesian Catat otomatis reads: "m" is a million here (not a miliar), the
+ * day in words, the wallet after "with / using / from / on", where income lands, and the everyday things people buy.
+ */
+const WALLET_WORD = '(?:gopay|ovo|dana|shopeepay|linkaja|jago|jenius|mandiri|bca|bri|bni|bsi|btn|cimb|krom|seabank|blu|permata|danamon|cash|tunai)';
+const EN_RECORD = /\b(?:spent|spend|paid|pay|bought|buy|cost|costs|got paid|salary|received|payday|yesterday|today|tonight|ago|using|with|from|into|for|on)\b/;
+const EN_STRONG = /\b(?:spent|paid|bought|cost me|got paid|salary|received|payday|yesterday|today|this morning|last night|days? ago|last (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|using|with|for|on)\b/;
+const EN_DAYS: [RegExp, string][] = [
+  [/\bthis morning\b/g, 'tadi pagi'], [/\bthis afternoon\b/g, 'tadi siang'], [/\blast night\b/g, 'semalam'], [/\byesterday\b/g, 'kemarin'], [/\btoday\b/g, 'hari ini'],
+  [/\b(?:a|one) day ago\b/g, '1 hari lalu'], [/\b(\d{1,2}) days? ago\b/g, '$1 hari lalu'], [/\b(?:a|one) week ago\b|\blast week\b/g, 'minggu lalu'],
+  [/\b(?:last|on|this past)\s+sunday\b|\bsunday\b/g, 'hari minggu'], [/\b(?:last|on|this past)\s+(monday|tuesday|wednesday|thursday|friday|saturday)\b/g, '$1'],
+  [/\bmonday\b/g, 'senin'], [/\btuesday\b/g, 'selasa'], [/\bwednesday\b/g, 'rabu'], [/\bthursday\b/g, 'kamis'], [/\bfriday\b/g, 'jumat'], [/\bsaturday\b/g, 'sabtu'],
+];
+/** Everyday things bought, in English → the words Catat otomatis knows. */
+const EN_THINGS: [RegExp, string][] = [
+  [/\bbreakfast\b/g, 'sarapan'], [/\blunch\b/g, 'makan siang'], [/\bdinner\b/g, 'makan malam'], [/\b(?:coffee|latte|cappuccino)\b/g, 'kopi'], [/\b(?:snacks?|snacking)\b/g, 'jajan'],
+  [/\bgroceries\b/g, 'belanja dapur'], [/\b(?:gas|petrol|fuel|gasoline)\b/g, 'bensin'], [/\bparking\b/g, 'parkir'], [/\btolls?\b/g, 'tol'], [/\b(?:taxi|cab)\b/g, 'taksi'],
+  [/\b(?:medicine|meds|pharmacy|drugstore)\b/g, 'obat'], [/\b(?:shirt|t-shirt|tshirt|clothes)\b/g, 'baju'], [/\bshoes\b/g, 'sepatu'], [/\brent\b/g, 'sewa kos'],
+  [/\belectricity\b/g, 'listrik'], [/\b(?:phone credit|top-?up credit)\b/g, 'pulsa'], [/\bmovies?\b/g, 'nonton'], [/\bhaircut\b/g, 'potong rambut'], [/\bbooks?\b/g, 'buku'],
+];
+function englishRecord(base: string): string | null {
+  if (!/\d/.test(base) || !EN_RECORD.test(base) || !EN_STRONG.test(base)) return null;
+  let s = ` ${base} `;
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*(?:m|mio|million)\b/g, (_x, n: string) => ` ${n.replace('.', ',')}jt `).replace(/(\d+(?:[.,]\d+)?)\s*(?:k|thousand)\b/g, (_x, n: string) => ` ${n.replace('.', ',')}rb `);
+  for (const [re, to] of EN_DAYS) s = s.replace(re, to);
+  // Where it was paid from, where income landed.
+  s = s.replace(new RegExp(`\\b(?:received\\s+)?(?:landed|came|went)?\\s*(?:in|into|to)\\s+(?:my\\s+)?(${WALLET_WORD})\\b`, 'g'), (m: string, w: string) => /\b(?:paid|spent|bought)\b/.test(s) && !/\b(?:salary|got paid|payday|received)\b/.test(s) ? ` ke ${w} ` : ` masuk ke ${w} `);
+  s = s.replace(new RegExp(`\\b(?:paid\\s+)?(?:with|using|via|from|on|through|thru|by)\\s+(?:my\\s+)?(${WALLET_WORD})\\b`, 'g'), ' pakai $1 ');
+  s = s.replace(/\b(?:received my salary|got paid|payday!?|salary)\b/g, ' gaji ').replace(/\breceived\b/g, ' terima ');
+  for (const [re, to] of EN_THINGS) s = s.replace(re, to);
+  s = s.replace(/\b(?:spent|paid|bought|cost me|costs|cost)\b/g, ' ').replace(/\b(?:for|on)\b/g, ' buat ').replace(/\b(?:i|my|me|a|an|the|just|some|it|was|of)\b/g, ' ');
+  s = s.replace(/!+|,(?!\d)/g, ' ').replace(/\s{2,}/g, ' ').trim().replace(/^buat\s+/, '');
+  // "120rb buat kopi kemarin" → "kopi 120rb kemarin"; "jajan buat 35rb" → "jajan 35rb".
+  s = s.replace(/\bbuat\s+(?=\d)/g, '');
+  s = s.replace(/^(\d+(?:,\d+)?(?:rb|jt))\s+buat\s+(.+?)(?=\s+(?:kemarin|hari ini|tadi|semalam|\d+ hari lalu|minggu lalu|senin|selasa|rabu|kamis|jumat|sabtu|hari minggu|pakai|masuk)\b|$)/, '$2 $1');
+  return s && s !== base ? s : null;
+}
+
+/** 10.4 "where can i see my budget", "show my wallets", "open settings", "take me to my report": that menu. */
+const EN_MENU_ASK = /^(?:(?:hey|hi|please)\s+)?(?:where\s+(?:can|do)\s+i\s+(?:see|find|check|open|view)|show(?:\s+me)?|open|take\s+me\s+to|go\s+to|how\s+(?:do|can)\s+i\s+(?:check|see|open|view)|i\s+want\s+to\s+see|let\s+me\s+see|bring\s+up)\s+(?:my\s+|the\s+|all\s+(?:my\s+)?)?(.+?)[?.!\s]*$/;
+const EN_MENUS: [RegExp, string][] = [
+  [/\b(?:spending\s+)?(?:reports?|summary|recap)\b/, 'laporan'], [/\bbudgets?\b/, 'anggaran'], [/\b(?:wallets?|accounts?)\b/, 'dompet'], [/\bsettings?\b|\bpreferences\b/, 'pengaturan'],
+  [/\b(?:transactions?|history|records?)\b/, 'transaksi'], [/\bdebts?\b|\bloans?\b/, 'utang'], [/\bwho\s+owes\s+me\b|\breceivables?\b/, 'piutang'], [/\b(?:savings?\s+)?goals?\b|\bsavings\b/, 'tujuan dana'],
+  [/\bwish\s*list\b/, 'wishlist'], [/\bcategor(?:y|ies)\b/, 'kategori'], [/\b(?:subscriptions?|recurring|bills?)\b/, 'langganan'], [/\bcalendar\b/, 'kalender'], [/\binsights?\b/, 'insight'],
+  [/\b(?:charts?|analytics|statistics|stats)\b/, 'analisis'], [/\bhelp\b|\bfaq\b/, 'bantuan'], [/\bsplit\s*bills?\b/, 'split bill'], [/\bclaims?\b|\breimburse\p{L}*/u, 'klaim'],
+];
+function englishMenu(base: string): string | null {
+  const m = base.match(EN_MENU_ASK); if (!m) return null;
+  const hit = EN_MENUS.find(([re]) => re.test(m[1]));
+  return hit ? `buka ${hit[1]}` : null;
+}
+
 /** 10.0 "pengeluaran paling boros apa ya", "kategori yg paling nyedot duit apa": the biggest spending. */
 const MOST_SPENT = /\bpaling\s+(?:boros|nyedot|menyedot|menguras|ngabisin|ngabisin\s+(?:duit|uang)|banyak\s+makan\s+(?:duit|uang)|bikin\s+(?:boncos|bokek))\b/;
 export function understand(input: string): string {
   const typed = input.trim(), base = lower(typed);
   const english = affordEnglish(base);
   if (english) return english;
+  const record = englishRecord(base);
+  if (record) return record;
+  const menu = englishMenu(base);
+  if (menu) return menu;
   // "kategori paling boros" is answered per category further on; the rest asks for the biggest spending.
   if (MOST_SPENT.test(base) && !/\b(?:kategori|hari\s+apa|hari\s+(?:apa\s+)?yang|tanggal|minggu\s+(?:apa|mana|ke)|bulan\s+(?:apa|mana)|jam|kapan)\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) {
     const period = base.match(/\b(hari ini|kemarin|minggu ini|minggu lalu|bulan lalu|bulan kemarin|tahun ini)\b/)?.[1];
@@ -137,7 +196,7 @@ export function understand(input: string): string {
   const untailed = s.trim().replace(TAIL, '$1').trim(), bare = untailed.replace(LEAD, '').trim();
   if (untailed.split(' ').length >= 2) s = ` ${untailed} `;
   if (bare && bare !== s.trim() && ASKS.test(bare)) s = ` ${bare} `;
-  if (ENGLISH.test(s)) {
+  if (ENGLISH.test(s) && ENGLISH_MONEY.test(s)) {
     // A message in English without an amount is a question ("my gopay balance", "spending yesterday").
     for (const [re, to] of ENGLISH_PHRASES) s = s.replace(re, to);
     s = s.replace(ENGLISH_LEFT, ' ');

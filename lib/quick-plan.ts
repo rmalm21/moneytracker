@@ -287,7 +287,9 @@ export function applyCorrections(input: string, ctx: QuickContext) {
 
 /* ------------------------------------------------------------------ Clauses */
 
-const CONNECT = 'lalu|terus|kemudian|habis itu|abis itu|abis tu|habis tu|setelah itu|sama|dan|tapi|sedangkan|plus|\\+';
+// 10.4 "minggu lalu", "2 hari yang lalu", "bulan lalu": a time ago, not "then".
+const LALU = "lalu(?<!\\b(?:minggu|pekan|bulan|bln|tahun|thn|hari|yang|yg)\\s+lalu)";
+const CONNECT = `${LALU}|terus|kemudian|habis itu|abis itu|abis tu|habis tu|setelah itu|sama|dan|tapi|sedangkan|plus|\\+`;
 const BOUNDARY = new RegExp(`\\s*(?:\\n|;|,(?!\\d)|\\.(?=\\s))\\s*(?:(?:${CONNECT}|trus|trs|tp)\\s+)?|\\s+(?:${CONNECT}|trus|trs|tp)\\s+`, 'gi');
 /** 6.9: what a game top-up buys (spending, never a transfer between wallets). */
 const GAME_TOPUP = /\b(game|games|diamond|diamonds|dm|ml|mlbb|mobile legends?|free ?fire|ff|pubg|uc|steam|genshin|valorant|valo|roblox|robux|codm|google play|play ?store|voucher game|battle pass)\b/;

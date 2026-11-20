@@ -13,7 +13,7 @@ import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
 import { CHAT_CORPUS, CHAT_NONE, augment } from '../lib/chat/corpus.ts';
-import { generatedCorpus } from '../lib/chat/corpus-gen.ts';
+import { generatedCorpus, generatedCorpus104 } from '../lib/chat/corpus-gen.ts';
 import { chatFeature } from '../lib/chat/feature.ts';
 
 // Held-out messages (single and in conversations) never reach training.
@@ -31,10 +31,26 @@ const later = [
   ...turnsOf((await import('../bench/v84/cases.mjs')).build('heldout')), ...turnsOf((await import('../bench/v84/fixtures-hand.mjs')).cases),
   ...turnsOf((await import('../bench/v100/cases-heldout.mjs')).cases), ...turnsOf((await import('../bench/v100/cases-gaul-heldout.mjs')).cases),
   ...turnsOf((await import('../bench/v102/cases-heldout.mjs')).cases),
+  // 10.4: Asisten 4.0 (v103 generated + hand-written, v1031) and Asisten 4.5 (v104).
+  ...(await import('../bench/v103/gen.mjs')).build('heldout').map(c => c.text).filter(Boolean), ...turnsOf((await import('../bench/v103/gen.mjs')).build('heldout')),
+  ...(await import('../bench/v103/hand-heldout.mjs')).cases.map(c => c.text).filter(Boolean), ...turnsOf((await import('../bench/v103/hand-heldout.mjs')).cases),
+  ...(await import('../bench/v1031/gen.mjs')).build('heldout').map(c => c.text).filter(Boolean), ...turnsOf((await import('../bench/v1031/gen.mjs')).build('heldout')),
+  ...turnsOf((await import('../bench/v104/gen.mjs')).build('heldout')),
 ];
 for (const text of later) held.add(chatFeature(text));
 
+// 10.4 The sentences written for 4.5 (corpus-gen.ts generatedCorpus104) never use a word that only the 4.5 held-out
+// set has: not in its dev set, and not in the corpus written before it. The build stops if one does.
+const v104 = await import('../bench/v104/gen.mjs');
+const tokensOf = split => new Set(v104.build(split).flatMap(c => c.turns.flatMap(t => t.say ? chatFeature(t.say).split(' ') : [])));
+const before = new Set([...Object.values(CHAT_CORPUS).flat(), ...CHAT_NONE, ...Object.values(generatedCorpus()).flat()].flatMap(x => chatFeature(x).split(' ')));
+const devWords = tokensOf('dev'), forbidden = new Set([...tokensOf('heldout')].filter(w => w && !devWords.has(w) && !before.has(w)));
+const corpus104 = generatedCorpus104();
+const dirty = Object.values(corpus104).flat().flatMap(x => augment(x)).filter(x => chatFeature(x).split(' ').some(w => forbidden.has(w)));
+if (dirty.length) { console.error(`10.4 sentences with held-out-only words (${dirty.length}), not built:\n${[...new Set(dirty)].slice(0, 20).join('\n')}`); process.exit(1); }
+
 const generated = generatedCorpus(), seen = new Map(), docs = [];
+for (const [intent, list] of Object.entries(corpus104)) generated[intent] = [...(generated[intent] || []), ...list];
 let hand = 0, made = 0, leaks = 0, clash = 0;
 // 10.2 "None": what needs the conversation before it to mean anything (corpus.ts CHAT_NONE).
 for (const [intent, list] of [...Object.entries(CHAT_CORPUS), ['None', CHAT_NONE]]) {

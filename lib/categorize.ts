@@ -464,12 +464,33 @@ export function suggestCategory(input: { text: string; item: string; merchant?: 
   if (guess) return guess;
   // 6.10: nothing read, but a word is one letter away from a word the reader knows ("bakzo" → bakso, "martabk" →
   // martabak): read again with that word. Only as a last resort, so a word that reads already never changes.
-  const fixes = typoFixes(input.text);
-  if (!fixes.length) return null;
-  let text = input.text, item = input.item;
-  for (const [raw, word] of fixes) { const re = new RegExp(`(^|[^\\p{L}])${escapeRe(raw)}(?![\\p{L}])`, 'gu'); text = text.replace(re, `$1${word}`); item = item.replace(re, `$1${word}`); }
-  const again = guessCategory({ ...input, text, item }, ctx);
-  return again ? { ...again, why: fixes.map(([raw, word]) => `“${raw}” dibaca “${word}”`).join(', ') } : null;
+  // 10.4 Then a word written without its vowels ("kpi" → kopi, "bnsn" → bensin, "obt" → obat).
+  for (const fixes of [typoFixes(input.text), shorthandFixes(input.text)]) {
+    if (!fixes.length) continue;
+    let text = input.text, item = input.item;
+    for (const [raw, word] of fixes) { const re = new RegExp(`(^|[^\\p{L}])${escapeRe(raw)}(?![\\p{L}])`, 'gu'); text = text.replace(re, `$1${word}`); item = item.replace(re, `$1${word}`); }
+    const again = guessCategory({ ...input, text, item }, ctx);
+    if (again) return { ...again, why: fixes.map(([raw, word]) => `“${raw}” dibaca “${word}”`).join(', ') };
+  }
+  return null;
+}
+
+/** 10.4 A word's first letter and its consonants ("kopi" → "kp", "bensin" → "bnsn"). */
+const skeleton = (w: string) => w[0] + w.slice(1).replace(/[aiueo]/g, '');
+let skeletons: Map<string, string[]> | null = null;
+/** Unknown short words (3–6 letters, at most one vowel after the first letter) that are the letters, in order, of exactly
+ * one known word with the same consonants. */
+function shorthandFixes(text: string): [string, string][] {
+  const { known } = knownByLetter();
+  if (!skeletons) { skeletons = new Map(); for (const w of known) if (w.length >= 4 && /^\p{Ll}+$/u.test(w)) { const k = skeleton(w); (skeletons.get(k) || skeletons.set(k, []).get(k)!).push(w); } }
+  const inOrder = (raw: string, w: string) => { let i = 0; for (const c of w) if (c === raw[i]) i++; return i === raw.length; };
+  const out: [string, string][] = [];
+  for (const raw of new Set(text.match(/\p{L}{3,6}/gu) || [])) {
+    if (known.has(raw) || (raw.slice(1).match(/[aiueo]/g) || []).length > 1 || skeleton(raw).length < 2) continue;
+    const near = (skeletons.get(skeleton(raw)) || []).filter(w => w.length > raw.length && inOrder(raw, w));
+    if (near.length === 1) out.push([raw, near[0]]);
+  }
+  return out;
 }
 
 let typoTargets: { known: Set<string>; byLetter: Map<string, string[]> } | null = null;

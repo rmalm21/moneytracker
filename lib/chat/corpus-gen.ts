@@ -155,3 +155,94 @@ export function generatedCorpus(): Record<string, string[]> {
   }
   return out;
 }
+
+/**
+ * 10.4 Asisten 4.5: chit-chat in English, shorthand and slang, which the rules leave to the model. Kept apart from the
+ * grammars above so scripts/build-chat-model.mjs can check it: none of these sentences may use a word that only the
+ * held-out test (bench/v104, heldout) has, and the build stops if one does.
+ */
+const E = { tail: ['', 'dong', 'sih', 'pls', 'bot', 'kak', 'min', 'ya'], who: ['bot', 'buddy', 'bro', 'kak', 'min', ''] };
+const G104: Partial<Record<ChatModelIntent, Grammar>> = {
+  greet: { take: 120, slots: { hi: ['hello', 'hi', 'hey', 'hiya', 'yo', 'good morning', 'good afternoon', 'morning', 'hlo', 'hallo', 'halo halo', 'hai hai', 'pagi pagi', 'helo'], to: ['', 'bot', 'there', 'kak', 'min', 'buddy', 'bro', 'sis', 'semua'], end: ['', 'ada orang ga', 'ada orang', 'lagi online ga', 'nice to meet you'] }, patterns: ['{hi} {to}', '{hi} {to} {end}', '{hi} {end}'] },
+  thanks: { take: 120, slots: { th: ['thank you', 'thanks', 'thank u', 'ty', 'tysm', 'appreciate it', 'much appreciated', 'cheers', 'mksh', 'makasi', 'mkasih', 'nuhun', 'matur nuwun', 'hatur nuhun', 'makasih loh'], to: ['', 'so much', 'bot', 'buddy', 'kak', 'bnyk', 'pisan', 'for the help', 'for helping', 'banget', 'ya bot'] }, patterns: ['{th} {to}', '{th}', 'oke {th}', 'sip {th} {to}'] },
+  help: { take: 160, slots: {
+    q: ['what can you do', 'what can i do here', 'what do you do', 'how do i use this', 'how to use this app', 'how to use you', 'what features are there', 'what features do you have', 'help me', 'help please', 'show me what you can do', 'what are the commands', 'what should i type', 'what can i ask', 'km bs apa aj', 'km bs ngapain', 'gw hrs ketik apa', 'aku hrs ngetik apa', 'fitur km apa aj', 'cara make app ini', 'bot ini bs apa', 'km bs bantu apa aj', 'gw bs nanya apa aj', 'perintahnya apa aj', 'ini app buat apa'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  about: { take: 160, slots: {
+    q: ['are you a real person', 'are you human', 'are you real', 'are you an ai', 'are you a bot', 'who are you', 'who made you', 'who built you', 'what are you', 'is this ai', 'is my data safe', 'is my data private', 'do you store my data', 'where is my data stored', 'do you use chatgpt', 'are you chatgpt', 'are you online', 'km siapa sih', 'km tuh apa', 'km manusia', 'km ai ya', 'km beneran robot', 'data gw aman ga', 'dataku disimpen dmn', 'km pake chatgpt', 'km asli manusia', 'ini chatbot ya', 'km dibikin siapa'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  summary: { take: 160, slots: {
+    q: ['how are my finances', 'how is my money', 'how are my finances this month', 'give me a summary', 'summary please', 'show me a summary', 'recap please', 'recap this month', 'financial summary', 'money summary', 'my finances', 'finance recap', 'gmn kondisi keuanganku', 'kondisi keuangan gw', 'rekapin duit gw', 'rangkum keuangan gw', 'ringkasan keuangan', 'kondisi duit gw', 'duit gw aman ga bln ini', 'keuanganku aman ga', 'rekap duit bln ini', 'gmn duit gw bln ini'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  budget: { take: 140, slots: {
+    q: ['is my budget ok', 'is my budget okay', 'budget status', 'how is my budget', 'which budget is almost gone', 'which budget is almost used up', 'show my budget', 'over budget or not', 'budget gw aman ga', 'anggrn ku gmn', 'anggaranku gmn', 'anggaran gw jebol ga', 'sisa budget brp', 'budget gw gmn', 'anggaran msh aman', 'budget yg mau abis apa'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  payday: { take: 140, slots: {
+    q: ['when is payday', 'when is my payday', 'how many days until payday', 'how many days until salary', 'days until payday', 'when will my salary come', 'payday countdown', 'is payday soon', 'brp hr lg gajian', 'gajian msh lama ga', 'gajian kpn sih', 'gajian tgl brp', 'gaji masuk kpn', 'brp hari lg gajian', 'gajian msh brp hari'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  tips: { take: 160, slots: {
+    q: ['any tips to save money', 'tips to save money', 'how to save money', 'how do i stop overspending', 'how to stop overspending', 'how to be frugal', 'money tips', 'budgeting tips', 'help me save money', 'how to manage my salary', 'how to save extra money', 'gmn biar irit', 'gmn caranya biar irit', 'ksh trik ngatur gaji', 'tips ngirit', 'cara biar ga boros', 'saran ngatur duit', 'trik nabung', 'ksh tips hemat', 'cara ngatur gaji biar cukup'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  mood: { take: 160, slots: {
+    q: ['im broke', 'im so broke', 'broke again', 'stressed about money', 'so stressed about money', 'money is tight', 'my wallet is empty', 'cant afford anything', 'im poor', 'money problems', 'duit gw abis bgt', 'duit abis', 'kantong kering bgt', 'lg bokek bgt', 'dompet kosong', 'tongpes bgt nih', 'uang tinggal dikit', 'gw bokek', 'kere bgt', 'bokek parah nih'],
+    tail: ['', 'nih', 'huft', 'deh', 'bgt', 'help'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  curhat: { take: 180, slots: {
+    q: ['i feel so sad today', 'i feel sad', 'im sad', 'feeling down', 'feeling lonely', 'my boss yelled at me', 'my boss is mad at me', 'i just broke up', 'my boyfriend dumped me', 'im stressed with my job', 'i feel lonely', 'i want to cry', 'lg galau parah', 'abis putus sm pacar', 'abis diputusin', 'lg sedih bgt', 'galau bgt nih', 'pengen nangis', 'kerjaan bikin stres', 'abis dimarahin bos', 'lg stres bgt', 'patah hati nih'],
+    tail: ['', 'nih', 'huft', 'bot', 'kak', 'bgt'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  joke: { take: 140, slots: {
+    q: ['tell me a joke', 'tell a joke', 'make me laugh', 'joke please', 'a joke please', 'cheer me up', 'jokes', 'dad joke', 'ksh jokes', 'ksh pantun', 'pantun duit', 'pantun lucu', 'jokes receh', 'ksh tebakan', 'ceritain jokes', 'bikin gw ketawa'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  banter: { take: 120, slots: {
+    q: ['lmao', 'lmfao', 'rofl', 'haha so funny', 'so funny', 'funny', 'hilarious', 'haha nice one', 'nice one', 'wkwkwk garing bgt', 'garing bgt', 'receh lu', 'receh bgt lu', 'jayus bgt', 'wkwk kocak', 'xixi', 'ngakak bgt'],
+    tail: ['', 'wkwk', 'haha', 'bot', 'lu'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  angry: { take: 140, slots: {
+    q: ['you are useless', 'you suck', 'this app sucks', 'useless bot', 'dumb bot', 'you are dumb', 'idiot bot', 'so annoying', 'this is annoying', 'bot goblok', 'lemot bgt sih lu', 'bego bgt lu', 'nyebelin bgt lu', 'tolol bgt sih', 'oon bgt sih bot', 'salah mulu lu'],
+    tail: ['', 'bgt', 'sih', 'anjir', 'dah'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  apology: { take: 110, slots: {
+    q: ['sorry about that', 'sorry', 'so sorry', 'my bad', 'oops sorry', 'forgive me', 'sorry for being rude', 'maap ya td', 'maafin gw ya', 'maafin gw', 'maap td kasar', 'maap bgt', 'maafin ya bot', 'sorry ya bot'],
+    tail: ['', 'bot', 'buddy', 'kak', 'ya'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  smalltalk: { take: 140, slots: {
+    q: ['how are you', 'how are you doing', 'how is it going', 'what are you doing', 'what are you up to', 'did you eat', 'have you eaten', 'lg ngapain km', 'km lg apa', 'udh makan blm', 'udh makan blm km', 'gimana kabarnya', 'kabar km gmn', 'km lg ngapain', 'udh bangun blm', 'lg apa nih'],
+    tail: E.tail,
+  }, patterns: ['{q}', '{q} {tail}'] },
+  goal: { take: 160, slots: {
+    q: ['i want to save for a car', 'i want to buy a house', 'i want to buy a house next year', 'i want to save up', 'help me save for a trip', 'i want to save for school', 'planning to buy a car', 'i want an emergency fund', 'i want to buy a motorbike', 'pgn nabung bwt nikah', 'mau ngumpulin duit bwt umroh', 'pgn nabung bwt motor', 'mau nabung bwt liburan', 'pgn punya rumah', 'mau nabung bwt hp baru', 'target nabung bwt kuliah'],
+    tail: ['', 'gimana', 'bisa ga', 'tolong', 'caranya'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  game: { take: 120, slots: {
+    q: ['lets play a game', 'lets play', 'play a game', 'play rock paper scissors', 'rock paper scissors', 'guess the number', 'play guess the number', 'main yuk gabut', 'tebak2an angka yuk', 'ayo main tebak angka', 'main game dong', 'gabut main yuk', 'main tebak2an'],
+    tail: ['', 'yuk', 'bot', 'ayo', 'dong'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  serious: { take: 110, slots: {
+    q: ['be serious please', 'be serious', 'seriously', 'stop joking', 'stop kidding', 'enough jokes', 'srius dong', 'srius', 'ga usah becanda deh', 'jgn becanda', 'jangan becanda mulu', 'serius napa', 'stop bercanda'],
+    tail: ['', 'bot', 'dong', 'deh', 'ya'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  examples: { take: 80, slots: { q: ['give me examples', 'examples please', 'show me examples', 'sample sentences', 'what can i type', 'ksh contoh', 'contoh dong', 'contoh kalimatnya apa', 'contoh nyatet gmn'], tail: E.tail }, patterns: ['{q}', '{q} {tail}'] },
+};
+
+/** The 10.4 sentences of every intent (same sampling as generatedCorpus, its own seeds). */
+export function generatedCorpus104(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  let seed = 104;
+  for (const [intent, g] of Object.entries(G104)) {
+    const rnd = random(seed++);
+    const shuffle = (list: string[]) => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list; };
+    const lists = g!.patterns.map(p => shuffle([...new Set(expand(p, g!.slots))]));
+    const picked = new Set<string>();
+    for (let round = 0; picked.size < g!.take && lists.some(l => l.length > round); round++) for (const l of lists) { if (picked.size >= g!.take) break; if (l[round]) picked.add(l[round]); }
+    out[intent] = [...picked];
+  }
+  return out;
+}

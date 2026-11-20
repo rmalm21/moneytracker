@@ -12,7 +12,7 @@ const STOP = new Set('udah sudah dimana mana gmana dmn bisa bisakah kah ganti ub
 /** Everyday words → the words Tanya Jawab uses. */
 const SAME: Record<string, string[]> = {
   nyembunyiin: ['sembunyi', 'sensor'], sembunyiin: ['sembunyi', 'sensor'], menyembunyikan: ['sembunyi', 'sensor'], sensor: ['sembunyi', 'sensor'],
-  backup: ['cadang', 'backup'], cadang: ['cadang'], mencadangkan: ['cadang'], ekspor: ['ekspor', 'cadang'], export: ['ekspor', 'cadang'],
+  backup: ['cadang', 'backup'], cadang: ['cadang'], mencadangkan: ['cadang'], ekspor: ['ekspor', 'csv'], export: ['ekspor', 'csv'], download: ['unduh', 'csv'], unduh: ['unduh'], excel: ['excel', 'csv'], csv: ['csv'],
   ngapus: ['hapus', 'menghapus'], nambah: ['tambah', 'menambah', 'membuat', 'baru'], tambah: ['tambah', 'menambah', 'membuat', 'baru'], kesimpen: ['tersimpan'], kesimpan: ['tersimpan'],
   edit: ['ubah', 'mengubah'], ngedit: ['ubah', 'mengubah'], ubah: ['ubah', 'mengubah'], benerin: ['ubah', 'mengubah'], koreksi: ['ubah', 'koreksi'], hapus: ['hapus', 'menghapus'], apus: ['hapus', 'menghapus'],
   isi: ['isi', 'mengisi', 'setor'], tujuan: ['tujuan'], target: ['tujuan', 'target'], pengingat: ['pengingat'], ingetin: ['pengingat'], reminder: ['pengingat'], gaya: ['gaya'], bahasa: ['bahasa', 'gaya'],
@@ -32,6 +32,7 @@ const VERBS: [RegExp, RegExp][] = [
   [/\b(?:atur|ngatur|mengatur|setting)\b/, /^mengatur\b/], [/\b(?:geser|menggeser)\b/, /^menggeser\b/], [/\b(?:sembunyiin|nyembunyiin|menyembunyikan)\b/, /^menyembunyikan\b|^nominal\b/],
   [/\b(?:ganti|ubah|ngubah|edit|ngedit|benerin|koreksi|mengubah)\b/, /^mengubah\b/], [/\b(?:hapus|apus|ngapus|menghapus)\b/, /^(?:menghapus|mengubah atau menghapus)\b/],
   [/\b(?:pasang|masang|kunci|ngunci)\b/, /^(?:mengunci|memasang)\b/], [/\b(?:bagi|split)\b/, /^membagi\b/], [/\b(?:tambah|nambah|menambah)\b/, /^menambah\b/], [/\b(?:backup|cadang|mencadangkan)\b/, /^mencadangkan\b/],
+  [/\b(?:export|ekspor|unduh|download|downloadin)\b/, /^mengunduh\b/],
 ];
 type Entry = { item: HelpItem; q: string; keys: string; a: string };
 let entries: Entry[] | null = null;
@@ -83,6 +84,7 @@ export function readHowto(t: string, opts: { tail?: boolean } = {}): HowtoAnswer
   if (!best || best.score < 2) return null;
   const { item } = best.e;
   // A button to the menu: the entry's own, else the menu the question names ("anggaran" → Anggaran).
-  const menu = item.go ? { view: item.go.view, label: item.go.label } : (() => { const m = MODULES.find(x => x.words.test(t)); return m ? { view: m.view, label: `Buka ${m.label}` } : undefined; })();
+  // 10.4 An answer that sends the person to Pengaturan gets a button to it.
+  const menu = item.go ? { view: item.go.view, label: item.go.label } : (() => { const m = MODULES.find(x => x.words.test(t)); return m ? { view: m.view, label: `Buka ${m.label}` } : /\bPengaturan\b/.test(item.a) ? { view: 'settings', label: 'Buka Pengaturan' } : undefined; })();
   return { title: plain(item.q), text: lead(item.a), ...(item.steps?.length ? { steps: item.steps.map(plain).slice(0, 6) } : {}), ...(menu ? { open: menu } : {}) };
 }

@@ -69,7 +69,7 @@ const PURPOSE = /(?<![\p{L}])(buat|untuk|utk|bwt)\s+/iu;
 /** 6.9: words that only say money went out ("keluar 50rb buat bensin"). */
 const SPENT = new Set('keluar habis abis kepake kepakai ngabisin ngehabisin bayar byr beli spend spent total tadi td barusan kemarin kemaren aku gue gw saya'.split(' '));
 const STOP_WORD = /^(di|@|at|buat|untuk|utk|bwt|pake|pakai|via|lewat|kategori|masuk|masukin|catat|terus|trus|lalu|kemudian|abis|habis|kemarin|kemaren|tadi|besok|lusa|barusan|jam)$/i;
-const BOUNDARY = /(?<![\p{L}])(terus|trus|lalu|kemudian|abis itu|habis itu|setelah itu)(?![\p{L}])/iu;
+const BOUNDARY = /(?<![\p{L}])(terus|trus|lalu(?<!\b(?:minggu|pekan|bulan|bln|tahun|thn|hari|yang|yg)\s+lalu)|kemudian|abis itu|habis itu|setelah itu)(?![\p{L}])/iu;
 const ITEM_SPLIT = /\s*(?:,|(?<![\p{L}])(?:dan|sama|ama|plus|and)(?![\p{L}])|&|\+)\s*/iu;
 const FUNCTION = new Set('yang yg dan sama ama dengan dgn bareng di ke dari aku gue gw saya kita dia doi kamu ini itu tadi juga aja doang lagi udah sudah buat untuk pake pakai via lewat terus trus lalu nya sih dong deh nih'.split(' '));
 const PEOPLE_WORDS = new Set('aku gue gw saya kita kami dia doi kamu lu lo elu temen teman pacar ayang istri suami keluarga anak ortu'.split(' '));
@@ -103,7 +103,7 @@ type Clause = { start: number; end: number };
 function clausesOf(text: string, ctx: Pick<QuickContext, 'wallets'>): Clause[] {
   const cuts: number[] = [];
   const low = lower(text);
-  for (const m of low.matchAll(/;|(?<![\p{L}])(?:terus|trus|lalu|kemudian|abis itu|habis itu|setelah itu)(?![\p{L}])/gu)) cuts.push(m.index!);
+  for (const m of low.matchAll(/;|(?<![\p{L}])(?:terus|trus|lalu(?<!\b(?:minggu|pekan|bulan|bln|tahun|thn|hari|yang|yg)\s+lalu)|kemudian|abis itu|habis itu|setelah itu)(?![\p{L}])/gu)) cuts.push(m.index!);
   for (const m of low.matchAll(/,/g)) {
     const next = low.slice(m.index! + 1).split(/[,;]/)[0];
     if (moneyIn(next).length) cuts.push(m.index!);

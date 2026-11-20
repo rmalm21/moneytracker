@@ -177,8 +177,13 @@ const SCALES: Record<string, number> = { ribu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, 
 const NUMBER_RUN = new RegExp(`(?<![\\p{L}\\p{N}])((?:(?:${[...Object.keys(NUM_WORDS), 'puluh', 'belas', 'ratus', 'setengah', ...Object.keys(SCALES)].sort((a, b) => b.length - a.length).join('|')}|\\d+(?:[.,]\\d+)?)\\s*)+)(?![\\p{L}\\p{N}])`, 'gu');
 /** Words read as names in the sentence being parsed ("Ceban Cafe"): never money slang. Set by the plan reader. */
 export const amountGuard: { words: Set<string> } = { words: new Set() };
+/** 10.4 "satu koma lima juta", "dua koma lima jt": a whole number and one decimal said in words. */
+const DIGIT_WORD = '(nol|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|\\d)';
+const KOMA = new RegExp(`\\b(nol|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh|\\d{1,3})\\s+koma\\s+${DIGIT_WORD}(?=\\s*(?:juta|jt|ribu|rb|miliar|milyar)\\b)`, 'g');
+const digitOf = (w: string) => /^\d+$/.test(w) ? w : String(NUM_WORDS[w]);
 export function amountWords(text: string) {
   let out = text.replace(new RegExp(`\\b(${Object.keys(SLANG).join('|')})\\b`, 'g'), word => amountGuard.words.has(word) ? word : `${SLANG[word]}`);
+  out = out.replace(KOMA, (_m, whole: string, dec: string) => `${digitOf(whole)},${digitOf(dec)}`);
   out = out.replace(NUMBER_RUN, (run: string) => {
     const tokens = run.trim().split(/\s+/);
     // Only runs with a number word; plain "1,5 juta" is read later as it is.
@@ -219,6 +224,10 @@ export const SALARY_WHEN = /\b(?:(?:pas|saat|waktu|habis|abis|setelah|sesudah|nu
 const STAY = /\b(hotel|nginep|menginap|inap|penginapan|sewa|kamar|villa|vila|homestay|kos|kost|airbnb|per\s*malam|\d+\s*malam)\b/;
 export const DATE_PHRASES = new RegExp([
   SALARY_WHEN.source,
+  // 10.4 One date, said in two parts: "minggu lalu hari rabu", "kamis minggu kemarin", "tanggal 10 kemarin".
+  `\\b(?:minggu|pekan)\\s+(?:lalu|kemarin|kmrn)\\s+(?:hari\\s+)?(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu)\\b`,
+  `\\b(?:hari\\s+)?(?:senin|selasa|rabu|kamis|jumat|jum'at|sabtu)\\s+(?:minggu|pekan)\\s+(?:lalu|kemarin|kmrn)\\b`,
+  `\\b(?:tgl|tanggal)\\s*\\d{1,2}\\s+(?:kemarin|kmrn|kmarin)\\b`,
   `\\b(?:mulai\\s+)?(?:(?:tiap|setiap|saban)\\s+)?(?:(?:tgl|tanggal)\\s*)?\\d{1,2}\\s+${MONTH}(?:\\s+\\d{4})?\\b`,
   `\\b(?:mulai\\s+)?(?:(?:tiap|setiap|saban|per)\\s+)?(?:tgl|tanggal)\\s*\\d{1,2}\\b`,
   `\\b(?:(?:bulan|bln|sebelum|sampai|hingga|pada)\\s+)?${MONTH_FULL}(?:\\s+\\d{4})?\\b`,
@@ -255,8 +264,13 @@ export function readDate(text: string, today: string, future = false, end = fals
   }
   if (/\bhari ini\b/.test(text)) return when(base, 'hari ini');
   if (/\bkemarin lusa\b/.test(text)) return when(plus(-2), 'kemarin lusa');
-  // "senin kemarin" is last Monday, read with the weekdays below.
-  if (/\b(kemarin|kmrn|kmarin)\b/.test(text) && !/\b(minggu|pekan|bulan|senin|selasa|rabu|kamis|jumat|jum'at|sabtu) kemarin\b/.test(text)) return when(plus(-1), 'kemarin');
+  // 10.4 A weekday of last week: "minggu lalu hari rabu", "rabu minggu kemarin", "pekan lalu kamis".
+  if ((r = text.match(/\b(?:minggu|pekan)\s+(?:lalu|kemarin|kmrn)\s+(?:hari\s+)?(senin|selasa|rabu|kamis|jumat|jum'at|sabtu)\b|\b(?:hari\s+)?(senin|selasa|rabu|kamis|jumat|jum'at|sabtu)\s+(?:minggu|pekan)\s+(?:lalu|kemarin|kmrn)\b/))) {
+    const name = r[1] || r[2], monday = plus(-((base.getDay() + 6) % 7) - 7);
+    return when(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + (WEEKDAYS[name] + 6) % 7, 12), `${name} minggu lalu`);
+  }
+  // "senin kemarin" is last Monday, read with the weekdays below; "tanggal 10 kemarin" is the 10th that just went by.
+  if (/\b(kemarin|kmrn|kmarin)\b/.test(text) && !/\b(minggu|pekan|bulan|senin|selasa|rabu|kamis|jumat|jum'at|sabtu) kemarin\b/.test(text) && !/\b(?:tgl|tanggal)\s*\d{1,2}\s+(?:kemarin|kmrn|kmarin)\b/.test(text)) return when(plus(-1), 'kemarin');
   // "semalam ngopi" is last night; "hotel semalam", "nginep semalam", "2 malam" is one night's stay (no date).
   if (/\bsemalam\b/.test(text) && !STAY.test(text)) return when(plus(-1), 'semalam');
   if (/\b(besok|besuk|bsk)\b/.test(text)) return when(plus(1), 'besok');
@@ -358,7 +372,9 @@ function scheduleOf(text: string, today: string, loose = false): { frequency: Re
   return { frequency, date: start, anchorDay: Number(start.slice(8, 10)), label: frequency === 'weekly' ? 'tiap minggu' : frequency === 'yearly' ? 'tiap tahun' : 'tiap bulan' };
 }
 
-const NOT_MONEY_BEFORE = /\b(?:jam|pukul|pkl|meja|kamar|lantai|lt|no|nomor|nomer|nmr|rek|rekening|norek|kode|gate|kursi|umur|usia|ke|nik|hp|wa|telp|telepon|km|kilo|seat|blok|gang|rt|rw)\.?\s*$/;
+const NOT_MONEY_BEFORE = /\b(?:jam|pukul|pkl|meja|kamar|lantai|lt|no|nomor|nomer|nmr|rek|rekening|norek|kode|gate|kursi|umur|usia|ke|nik|km|kilo|seat|blok|gang|rt|rw)\.?\s*$/;
+/** 10.4 "hp 0812…", "wa 62812…" is a phone number; "cicilan hp 300000" is money. */
+const PHONE_BEFORE = /\b(?:hp|wa|telp|telepon|tlp)\.?\s*$/, PHONE = /^(?:\+?62|0)\d{7,}$|^\d{9,}$/;
 export type Amount = { value: number; text: string; index: number; marked: boolean; monthly: boolean };
 const COUNTS = `(?:hari|minggu|pekan|bulan|bln|tahun|thn|x|kali|jam|menit|orang|org|pcs|buah|porsi|bungkus|botol|gelas|kg|gram|gr|liter|ltr|lt|lembar|persen|${MONTH})`;
 /** Every amount in the text, leaving out dates ("tgl 5", "17 agustus", "2027"), counts ("3 hari", "2 porsi") and model numbers ("ps5"). */
@@ -372,7 +388,7 @@ export function findAmounts(text: string): Amount[] {
     const marked = Boolean(m[2]) || /rp/.test(m[0]);
     if (/\b(tgl|tanggal)\s*$/.test(before)) continue;
     // A clock time, a table, a room or an account number is not money ("jam 7", "meja 12", "kamar 205", "rekening 1234567890").
-    if (!marked && (NOT_MONEY_BEFORE.test(before) || /^\d{10,}$/.test(m[1]))) continue;
+    if (!marked && (NOT_MONEY_BEFORE.test(before) || PHONE_BEFORE.test(before) && PHONE.test(m[1].replace(/[.,]/g, '')) || /^\d{10,}$/.test(m[1]))) continue;
     if (!marked && (/\p{L}$/u.test(before) || new RegExp(`^\\s*(?:${COUNTS}\\b|%)`).test(after))) continue;
     if (!marked && /^(19|20)\d{2}$/.test(m[1]) && new RegExp(`(?:${MONTH}|tahun|thn|th)\\s*$`).test(before)) continue;
     const value = readAmount(m[1], m[2]);
@@ -893,6 +909,8 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     // "transfer 100k dari jago ke budi": Budi is a person, not a wallet → money paid to someone (spending), not a transfer.
     const toPerson = recipient?.cue === 'to' && !wallets.some(w => /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?)\s+$/.test(text.slice(0, w.at)));
     if (TRANSFER_WORDS.test(text) && !toPerson && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
+    // 10.4 "nabung 500rb ke jenius", "sisihin 300rb ke rekening bri": saving into a wallet (no goal named) moves the money there.
+    if (SAVE_WORDS.test(text) && !fund && !wish && wallets.some(w => /\b(?:ke|masuk(?: ke)?|di)(?:\s+(?:rekening|rek|dompet|akun))?\s+$/.test(text.slice(0, w.at)))) return 'transfer';
     if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
     // 10.2 "nyicil sepatu lari 100rb": paying bit by bit toward a wish-list item (no debt by that name) is saving for it.
     if ((wish || fund) && !debt && /\b(?:nyicil|nyicilin|cicil|dicicil)\b/.test(text) && !DEBT_WORDS.test(text.replace(/\b(?:nyicil|nyicilin|cicil|dicicil)\b/g, ' '))) return targetKind();

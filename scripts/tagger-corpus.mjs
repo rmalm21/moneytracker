@@ -46,6 +46,18 @@ function madeUp(rnd) { const C = 'bcdgjklmnprstwy', V = 'aiueo'; let w = ''; for
 const NUMWORDS = [['sepuluh ribu', 10000], ['lima puluh ribu', 50000], ['sejuta', 1000000], ['seribu', 1000], ['dua ribu', 2000], ['enam puluh ribu', 60000]];
 const SLANG = [['ceban', 10000], ['goceng', 5000], ['gocap', 50000], ['seceng', 1000], ['gopek', 500], ['sejuta', 1000000]];
 
+// ── 10.4 (Asisten 4.5): English records, amounts in words, short wallet leads ─────
+// Checked by assert104 below: none of these words may be one only the 4.5 held-out set (bench/v104) has.
+const EN_ITEMS = ['lunch', 'dinner', 'coffee', 'groceries', 'gas', 'parking', 'medicine', 'tea', 'juice', 'burger', 'pizza', 'noodles', 'rice', 'cake', 'books', 'shoes', 'haircut', 'laundry', 'movie tickets', 'electricity'];
+const EN_VERBS = ['spent', 'paid', 'buy', 'pay'];
+const EN_FOR = ['on', 'for'];
+const EN_LEADS = ['with', 'using', 'via', 'paid with', 'by'];
+const EN_DATES = ['yesterday', 'today', 'this morning', 'last night', 'tonight', 'last monday', 'last friday', 'last tuesday'];
+const EN_INCOME = ['salary', 'bonus', 'refund', 'cashback', 'freelance fee', 'allowance'];
+const EN_IN = ['received in', 'to', 'in', 'masuk'];
+const NUMWORDS104 = ['satu koma lima juta', 'dua koma lima juta', 'dua puluh lima ribu', 'tiga puluh ribu', 'seratus ribu', 'dua ratus ribu', 'tiga ratus ribu', 'lima belas ribu', 'tujuh puluh lima ribu', 'sembilan ribu', 'delapan puluh ribu', 'seratus lima puluh ribu', 'dua juta', 'tiga juta'];
+const LEADS104 = ['pk', 'pke', 'pkai', 'pakek', 'lewat', 'pake saldo'];
+
 function amount(rnd) {
   const r = rnd();
   if (r < 0.1) return pick(rnd, NUMWORDS)[0];
@@ -127,6 +139,29 @@ function sentence(rnd, account) {
   return out;
 }
 
+/** 10.4 One more sentence, of the kinds 10.4 adds: in English, with an amount in words, or after a short wallet lead
+ * ("pk", "pke", "pakek"). Made apart from the 10.3 sentences (makeCorpus `extra`), so those stay exactly as they were. */
+function sentence104(rnd, account) {
+  const wal = () => { const name = pick(rnd, account); const w = mainWord(name); return rnd() < 0.3 ? slip(rnd, w) : pick(rnd, [w, w, name.toLocaleLowerCase('id-ID')]); };
+  const W = [wal(), 'WAL'], kind = rnd();
+  const A = [kind < 0.3 ? pick(rnd, NUMWORDS104) : amount(rnd), 'AMT'];
+  let s;
+  if (kind < 0.3) {          // an amount in words, in the usual shapes
+    const I = [pick(rnd, ITEMS), 'ITEM'], L = [pick(rnd, LEADS), 'O'];
+    s = pick(rnd, [[I, A, L, W], [I, A], [A, ['buat', 'O'], I], [['beli', 'O'], I, A, L, W], [A, I, W], [I, A, W]]);
+  } else if (kind < 0.55) {  // a short lead
+    const I = [pick(rnd, ITEMS), 'ITEM'], L = [pick(rnd, LEADS104), 'O'], D = [pick(rnd, DATES), 'DATE'];
+    s = pick(rnd, [[I, A, L, W], [I, A, D, L, W], [L, W, I, A], [D, I, A, L, W], [['beli', 'O'], I, A, L, W]]);
+  } else {                   // English
+    const EI = [pick(rnd, EN_ITEMS), 'ITEM'], ED = [pick(rnd, EN_DATES), 'DATE'], EL = [pick(rnd, EN_LEADS), 'O'], V = [pick(rnd, EN_VERBS), 'O'], FOR = [pick(rnd, EN_FOR), 'O'];
+    const IN = [pick(rnd, EN_INCOME), 'ITEM'], TO = [pick(rnd, EN_IN), 'O'];
+    s = pick(rnd, [[V, A, FOR, EI, ED, EL, W], [V, A, FOR, EI, EL, W], [EI, A, ED, EL, W], [EI, A, EL, W], [V, FOR, EI, A, EL, W], [EI, A, EL, W, ED], [IN, A, TO, W], [IN, A, ED, TO, W], [V, A, FOR, EI]]);
+  }
+  const out = [];
+  s.forEach(([text, tag]) => words(text).forEach(w => out.push([w, tag, false])));
+  return out;
+}
+
 /** The words the corpus must not use (see the top of this file). */
 export function forbidden() {
   const walk = (x, out) => { if (typeof x === 'string') words(x).forEach(w => out.add(w)); else if (typeof x === 'function') walk(x(7), out); else if (Array.isArray(x)) x.forEach(v => walk(v, out)); else if (x && typeof x === 'object') Object.entries(x).forEach(([k, v]) => { walk(k, out); walk(v, out); }); return out; };
@@ -145,8 +180,20 @@ export function forbidden() {
   return out;
 }
 
+/** 10.4 The words only the 4.5 held-out set has (not its dev set, not the lists written before 10.4): the 10.4 lists above
+ * must not use one (the build stops if they do). */
+export async function assert104() {
+  const { build } = await import('../bench/v104/gen.mjs');
+  const said = split => new Set(build(split).flatMap(c => c.turns.flatMap(t => t.say ? words(t.say) : [])));
+  const before = new Set([ITEMS, LOOKALIKE, ENGLISH, PLACES, INCOME, PEOPLE, DATES, LEADS, FILLERS, TAILS, BUY, TVERB, PLACE_HEADS, NUMWORDS.map(n => n[0]), SLANG.map(n => n[0])].flat().flatMap(words));
+  const dev = said('dev'), only = new Set([...said('heldout')].filter(w => !dev.has(w) && !before.has(w) && !/^\d[\d.,]*(?:rb|ribu|k|jt|juta|m)?$/.test(w)));
+  const used = [EN_ITEMS, EN_VERBS, EN_FOR, EN_LEADS, EN_DATES, EN_INCOME, EN_IN, NUMWORDS104, LEADS104].flat().flatMap(words).filter(w => only.has(w));
+  if (used.length) throw new Error(`Daftar 10.4 memuat kata yang cuma ada di uji tersembunyi 4.5: ${[...new Set(used)].join(', ')}`);
+  return only.size;
+}
+
 /** `n` sentences, each with the account (wallet names) it was written for. */
-export function makeCorpus(seed, n) {
+export function makeCorpus(seed, n, extra = 0) {
   const rnd = random(seed), bad = forbidden(), out = [];
   let dropped = 0; const why = {};
   while (out.length < n) {
@@ -157,6 +204,15 @@ export function makeCorpus(seed, n) {
     const s = sentence(rnd, account);
     if (s.some(([w]) => bad.has(w))) { dropped++; for (const [w] of s) if (bad.has(w)) why[w] = (why[w] || 0) + 1; continue; }
     out.push({ account, tokens: s });
+  }
+  // 10.4 The extra sentences, from their own random numbers (the ones above stay as 10.3 made them).
+  const rnd104 = random(seed + 104);
+  for (let k = 0; k < extra;) {
+    const size = 3 + Math.floor(rnd104() * 5), account = [];
+    while (account.length < size) { const w = pick(rnd104, WALLET_POOL); if (!account.some(a => mainWord(a) === mainWord(w))) account.push(w); }
+    const s = sentence104(rnd104, account);
+    if (s.some(([w]) => bad.has(w))) { dropped++; continue; }
+    out.push({ account, tokens: s }); k++;
   }
   return { sentences: out, dropped, why };
 }

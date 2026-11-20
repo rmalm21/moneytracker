@@ -94,7 +94,7 @@ export function readPeriod(text: string, today: string, salaryDay = 24): Period 
     const wd = r[1] === 'ahad' ? 0 : WEEKDAYS.indexOf(r[1].replace("'", '')), monday = addDays(today, -((D(today).getUTCDay() + 6) % 7) - 7);
     return one(addDays(monday, (wd + 6) % 7), r[0]);
   }
-  if ((r = t.match(/\b(?:hari\s+(senin|selasa|rabu|kamis|jum'?at|sabtu|minggu|ahad)|(senin|selasa|rabu|kamis|jum'?at|sabtu|ahad))\s+(?:kemarin|kemaren|kmrn|lalu)\b/))) {
+  if ((r = t.match(/\b(?:(?<!\b(?:per|tiap|setiap|sehari|rata2?)\s+)hari\s+(senin|selasa|rabu|kamis|jum'?at|sabtu|minggu|ahad)|(senin|selasa|rabu|kamis|jum'?at|sabtu|ahad))\s+(?:kemarin|kemaren|kmrn|lalu)\b/))) {
     const name = (r[1] || r[2]).replace("'", ''), wd = name === 'ahad' ? 0 : WEEKDAYS.indexOf(name);
     const back = (D(today).getUTCDay() - wd + 7) % 7 || 7;
     return one(addDays(today, -back), r[0]);
@@ -142,13 +142,13 @@ export const looksLikeQuestion = (text: string) => /^\s*(?:berapa|brp|brapa|kapa
 const QUESTION = /\b(?:berapa|brp|brapa|kapan|gimana|bagaimana|apakah|apa|mana)\b|\?\s*$/;
 /** 7.4: a sentence askMoney may answer (so the whole ledger is worth reading before it does). */
 export const mayAsk = (text: string) => { const t = lower(text.trim()); return (QUESTION.test(t) || LEAD.test(t)) && !findAmounts(t).some(a => a.marked); };
-const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata-?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b|^(?:total\s+)?(?:pengeluaran|pemasukan)\p{L}*\s+(?:bulan|minggu|pekan|siklus|periode|tahun|hari\s+ini|kemarin)\b/u;
+const LEAD = /^(?:sisa\s+(?:semua\s+)?(?:anggaran|budget|bujet|saldo)|saldo\b|total\s+(?:pengeluaran|pemasukan|saldo|uang|duit)|rata[-\s]?rata|rata2|rerata|kategori\s+(?:paling|ter)\p{L}*)|\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat))\b|^(?:pengeluaran|pemasukan)\p{L}*\b.*\b(?:terbesar|tergede|termahal|paling)\b|^(?:total\s+)?(?:pengeluaran|pemasukan)\p{L}*\s+(?:bulan|minggu|pekan|siklus|periode|tahun|hari\s+ini|kemarin)\b/u;
 const SPEND_CUE = /\b(?:pengeluaran\p{L}*|keluar|keluarin|ngeluarin|ngabisin|habisin|abisin|habis|abis|kepake|kepakai|terpakai|belanja|bayar|beli|jajan|boros|spend|spending|biaya|ongkos)\b/u;
 function intentOf(t: string): Exclude<AskIntent, 'owed'> {
   if (/\b(?:dibanding(?:kan|in)?|banding(?:in)?|vs|versus|lebih\s+(?:boros|hemat|banyak|sedikit|gede|besar|kecil))\b/.test(t)) return 'compare';
   if (/\bkapan\b/.test(t)) return 'last';
   if (/\b(?:berapa|brp|brapa)\s*(?:kali|x)\b/.test(t)) return 'count';
-  if (/\b(?:rata-?rata|rata2|rerata)\b/.test(t)) return 'average';
+  if (/\b(?:rata[-\s]?rata|rata2|rerata)\b/.test(t)) return 'average';
   if (/\b(?:anggaran|budget|bujet)\b/.test(t)) return 'budget';
   if (/\b(?:terbesar|tergede|termahal|paling\s+(?:gede|besar|boros|mahal|banyak))\b/.test(t)) return 'top';
   if (/\b(?:saldo|isi\s+dompet)\b|\b(?:uang|duit)(?:ku|\s+ku)?\s+(?:di|yang\s+ada)\b|\btotal\s+(?:uang|duit)\b/.test(t) && !SPEND_CUE.test(t)) return 'balance';

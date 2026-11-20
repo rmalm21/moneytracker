@@ -5,7 +5,7 @@
  * Prints how well it tags sentences it was not trained on (a separate set from the same generator, another seed).
  */
 import { writeFileSync } from 'node:fs';
-import { assertClean, makeCorpus, random } from './tagger-corpus.mjs';
+import { assert104, assertClean, makeCorpus, random } from './tagger-corpus.mjs';
 import { features, walletWords, tagTokens, repairWallets } from '../lib/catat/tagger.ts';
 
 const arg = (k, d) => Number(process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1] || d);
@@ -13,9 +13,13 @@ const TAGS = ['O', 'AMT', 'WAL', 'WTO', 'ITEM', 'PLACE', 'DATE', 'PERSON'];
 const T = TAGS.length, ix = Object.fromEntries(TAGS.map((t, i) => [t, i]));
 const N = arg('sentences', 40000), EPOCHS = arg('epochs', 6), SCALE = 100, PRUNE = arg('prune', 5), MIN_SEEN = arg('min-seen', 5);
 
-const train = makeCorpus(11, N), test = makeCorpus(99, 4000);
+const only104 = await assert104();
+// 10.4: the 10.3 sentences as they were, and 6000 more of the kinds 10.4 adds (tagger-corpus.mjs sentence104).
+const EXTRA = arg('extra', 6000);
+const train = makeCorpus(11, N, EXTRA), test = makeCorpus(99, 4000, 600);
 const forbiddenCount = assertClean([...train.sentences, ...test.sentences]);
 const toks = s => s.tokens.map(([w, , comma]) => ({ text: w, low: w, start: 0, end: 0, comma: Boolean(comma) }));
+console.log(`10.4: ${only104} kata yang cuma ada di uji tersembunyi 4.5 tidak dipakai daftar 10.4.`);
 console.log(`korpus: ${train.sentences.length} kalimat latih, ${test.sentences.length} kalimat uji sendiri · ${forbiddenCount} kata uji tersembunyi & salah ketik benchmark dijauhkan (dibuang: ${train.dropped + test.dropped})`);
 
 // Averaged perceptron (weights, their running totals and when each was last changed).
