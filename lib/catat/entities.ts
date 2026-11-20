@@ -52,7 +52,7 @@ const NOT_PLACE = new Set(`bungkus bks porsi pcs biji buah butir liter ltr kg ki
   pagi siang sore malam malem subuh tadi td kemarin kemaren besok lusa barusan
   aku gue gw saya kita kami dia doi temen teman sendiri berdua bertiga patungan traktir traktiran nitip titip titipan
   doang aja saja semua semuanya total lunas kembalian kurang lebih sisa dp diskon promo murah mahal enak banget bgt lagi juga udah sudah belum deh dong ya nih sih kok nya an
-  ralat salah eh maksudnya bukan nggak ngga gak ga enggak no
+  ralat salah eh maksudnya bukan nggak ngga gak ga enggak no ding deng
   satu dua tiga empat lima enam tujuh delapan sembilan sepuluh se satuan per each perbiji perporsi seporsi sebungkus sebiji segelas sebotol sepiring`.split(/\s+/).filter(Boolean));
 
 export type BoundaryInput = {

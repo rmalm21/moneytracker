@@ -171,7 +171,7 @@ function readAmount(raw: string, unit = '') {
  * "dua puluh lima ribu" → 25000, "satu setengah juta" / "1 setengah juta" → 1500000, "sejuta setengah" → 1500000,
  * "setengah juta" → 500000, "goceng" → 5000, "ceban" → 10000, "gocap" → 50000, "cepek" → 100000.
  */
-const SLANG: Record<string, number> = { gopek: 500, seceng: 1000, noceng: 2000, goceng: 5000, ceban: 10000, noban: 20000, goban: 50000, gocap: 50000, cepek: 100000, sejutaan: 1000000 };
+const SLANG: Record<string, number> = { gopek: 500, seceng: 1000, noceng: 2000, goceng: 5000, ceban: 10000, noban: 20000, goban: 50000, gocap: 50000, cepek: 100000, sejutaan: 1000000, sejeti: 1000000, sejt: 1000000 };
 const NUM_WORDS: Record<string, number> = { nol: 0, satu: 1, se: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10, sebelas: 11, seratus: 100, seribu: 1000, sejuta: 1000000 };
 const SCALES: Record<string, number> = { ribu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, jt: 1e6, miliar: 1e9, milyar: 1e9, m: 1e9 };
 const NUMBER_RUN = new RegExp(`(?<![\\p{L}\\p{N}])((?:(?:${[...Object.keys(NUM_WORDS), 'puluh', 'belas', 'ratus', 'setengah', ...Object.keys(SCALES)].sort((a, b) => b.length - a.length).join('|')}|\\d+(?:[.,]\\d+)?)\\s*)+)(?![\\p{L}\\p{N}])`, 'gu');
@@ -183,6 +183,8 @@ const KOMA = new RegExp(`\\b(nol|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sem
 const digitOf = (w: string) => /^\d+$/.test(w) ? w : String(NUM_WORDS[w]);
 export function amountWords(text: string) {
   let out = text.replace(new RegExp(`\\b(${Object.keys(SLANG).join('|')})\\b`, 'g'), word => amountGuard.words.has(word) ? word : `${SLANG[word]}`);
+  // 10.4 (post-hoc) "IDR 45.000" is "Rp 45.000".
+  out = out.replace(/\bidr\.?\s*(?=\d)/gi, 'rp ');
   out = out.replace(KOMA, (_m, whole: string, dec: string) => `${digitOf(whole)},${digitOf(dec)}`);
   out = out.replace(NUMBER_RUN, (run: string) => {
     const tokens = run.trim().split(/\s+/);
@@ -444,7 +446,7 @@ const PLAN_FILLERS = /\b(rencana|rencananya|berencana|planning|ingetin|ingatkan|
 /** Words that are never somebody's name. */
 /** Honorifics: skipped before a name ("kak tio" → Tio), the person themselves when alone ("ke ibu" → Ibu). */
 const HONORIFIC = new Set(['kak', 'kaka', 'mas', 'mbak', 'mba', 'bang', 'abang', 'pak', 'bapak', 'bu', 'ibu', 'om', 'tante', 'bro', 'sis', 'dek', 'adek', 'teh', 'aa', 'neng', 'cak', 'ning', 'mama', 'papa', 'mamah', 'papah', 'ayah', 'bunda', 'nenek', 'kakek', 'paman', 'bibi']);
-const NOT_A_NAME = new Set([...HONORIFIC, 'pagi', 'siang', 'sore', 'malam', 'aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli', 'ribu', 'rb', 'juta', 'jt', 'rupiah', 'perak', 'sejuta', 'setengah', 'ceban', 'goceng', 'gocap', 'cepek', 'gopek']);
+const NOT_A_NAME = new Set([...HONORIFIC, 'pagi', 'siang', 'sore', 'malam', 'aku', 'gue', 'gw', 'saya', 'dia', 'kantor', 'kasih', 'ngasih', 'kasi', 'dari', 'ke', 'sama', 'ama', 'sm', 'buat', 'untuk', 'utk', 'di', 'pakai', 'pake', 'via', 'kemarin', 'kmrn', 'tadi', 'hari', 'ini', 'lalu', 'uang', 'duit', 'dulu', 'ya', 'nih', 'dong', 'lagi', 'yang', 'yg', 'dan', 'rp', 'tgl', 'tanggal', 'utang', 'hutang', 'pinjam', 'pinjaman', 'bayar', 'cicilan', 'makan', 'minum', 'beli', 'ribu', 'rb', 'juta', 'jt', 'rupiah', 'perak', 'sejuta', 'setengah', 'ceban', 'goceng', 'gocap', 'cepek', 'gopek', 'sejeti']);
 
 /** Common short names of places. */
 const PLACES: Record<string, string> = { alfa: 'Alfamart', alfamart: 'Alfamart', alfamidi: 'Alfamidi', indo: 'Indomaret', indomaret: 'Indomaret', sbux: 'Starbucks', starbuck: 'Starbucks', starbucks: 'Starbucks', kfc: 'KFC', mcd: "McDonald's", mekdi: "McDonald's", hokben: 'HokBen', janjiw: 'Janji Jiwa', kenangan: 'Kopi Kenangan', tokped: 'Tokopedia', tokopedia: 'Tokopedia', shopee: 'Shopee', grab: 'Grab', gojek: 'Gojek', pertamina: 'Pertamina', spbu: 'SPBU', superindo: 'Superindo', hypermart: 'Hypermart', transmart: 'Transmart' };
@@ -834,6 +836,13 @@ function walletTypeOf(text: string): Wallet['type'] {
 }
 
 /** `mode`: 'auto', a kind group picked on a chip (Utang, Anggaran…), or an exact kind (e.g. 'receivable_payment'). */
+/** 10.4 (post-hoc) The part of a story that has the amount ("duh ribet bgt, abis meeting langsung cabut, sempet beli soto
+ * 27rb pk jenius" → "sempet beli soto 27rb pk jenius"), when the text is in several parts. */
+function amountPart(text: string) {
+  const parts = text.split(/\s*[,;]\s*|\s+(?:terus|trus|abis itu|habis itu|langsung)\s+/).map(x => x.trim()).filter(Boolean);
+  return parts.length > 1 ? parts.find(x => findAmounts(amountWords(x)).some(a => a.value > 0)) : undefined;
+}
+
 export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickResult | null {
   const group = mode as QuickGroup;
   const text = amountWords(lower(input.trim()).replace(/\s+/g, ' '));
@@ -1079,8 +1088,9 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
 
   // Wallets: "dari bca ke gopay" for transfers; otherwise the wallet that was named.
   if (flow === 'transfer') {
-    // Each wallet's role comes from the word before it: "dari" = out of it; "ke", "masuk", "top up", "isi" = into it.
-    const role = (w: typeof wallets[number]) => { const before = text.slice(0, w.at); return /\b(dari|dr|pakai|pake|via|lewat)\s+$/.test(before) ? 'from' : /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?|tambah saldo)\s+$/.test(before) ? 'to' : ''; };
+    // Each wallet's role comes from the word before it: "dari" = out of it; "ke", "masuk", "top up", "isi" = into it
+    // (10.4, post-hoc: also "ke rekening mandiri", "masuk dompet gopay").
+    const role = (w: typeof wallets[number]) => { const before = text.slice(0, w.at); return /\b(dari|dr|pakai|pake|via|lewat)\s+$/.test(before) ? 'from' : /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?|tambah saldo)(?:\s+(?:rekening|rek|dompet|akun|saldo))?\s+$/.test(before) ? 'to' : ''; };
     const cash = ctx.wallets.find(w => !w.isArchived && (w.type === 'cash' || /tunai|cash/i.test(w.name)));
     let source = wallets.find(w => role(w) === 'from'), target = wallets.find(w => role(w) === 'to' && w.id !== source?.id);
     const loose = wallets.filter(w => w !== source && w !== target && w.id !== cash?.id);
@@ -1188,6 +1198,20 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     const words = food.split(' ').filter(w => /\p{L}{2,}/u.test(w));
     if (food !== rest.replace(/\s+/g, ' ').trim() && words.length && !words.every(w => COMPANY.has(w))) rest = ` ${food} `;
   }
+  // 10.4 (post-hoc) In a story, what was bought is in the part with the amount: the words of the other parts ("ribet",
+  // "meeting", "cabut") are not its name.
+  if (flow === 'expense' || flow === 'income') {
+    const own = amountPart(text);
+    if (own) {
+      const ownWords = new Set(own.split(/[^\p{L}\p{N}&'’-]+/u).filter(Boolean));
+      const kept = rest.split(/\s+/).filter(w => w && (ownWords.has(w) || w === '&')).join(' ').replace(/^(?:&\s*)+|(?:\s*&)+$/g, '').trim();
+      if (/\p{L}{2,}/u.test(kept)) rest = ` ${kept} `;
+    }
+    // …nor a laugh, "sempet" / "ujung-ujungnya", or a comma left at the end of a word ("Makan Siang Klien,").
+    const cleaned = rest.replace(/(?<=\p{L})[,;.!?]+(?=\s|$)/gu, ' ').replace(/(?:^|\s)(?:(?:w+k+)+w*k*|(?:h?a+h+){2,}a*|(?:h?e+h+){2,}e*|xixi+)(?=\s|$)/g, ' ')
+      .replace(/\b(?:sempet|sempat|ujung2nya|ujung-ujungnya|ujungnya|ujung ujungnya|ding|deng)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    if (/\p{L}{2,}/u.test(cleaned)) rest = cleaned;
+  }
   const item = rest;
 
   if (flow === 'expense' || flow === 'income') {
@@ -1215,9 +1239,14 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
   // Category (spending and income only; debts/receivables use their own groups unless picked later): read from the context,
   // the person's habits and a category named in the text (lib/categorize.ts).
   if (flow === 'expense' || flow === 'income') {
-    const guess = suggestCategory({ text, item, merchant: preset.merchant, amount, type: flow }, ctx);
+    // 10.4 (post-hoc) A story in several parts ("abis meeting langsung cabut, sempet beli soto 27rb"): the part with the
+    // amount says what was bought; words from the other parts ("meeting", "anak kos sebelah") only when it says nothing.
+    const own = amountPart(text);
+    const ownGuess = own ? suggestCategory({ text: own, item, merchant: preset.merchant, amount, type: flow }, ctx) : null;
+    const said = ownGuess ? own! : text;
+    const guess = ownGuess || suggestCategory({ text, item, merchant: preset.merchant, amount, type: flow }, ctx);
     if (guess) { preset.categoryId = guess.categoryId; preset.subcategoryId = guess.subcategoryId; if (guess.why) result.why = guess.why; }
-    const scene = flow === 'expense' ? sceneCategory(text, item, ctx.categories.filter(c => !c.isArchived), ctx.history || [], guess) : null;
+    const scene = flow === 'expense' ? sceneCategory(said, item, ctx.categories.filter(c => !c.isArchived), ctx.history || [], guess) : null;
     if (scene) { preset.categoryId = scene.categoryId; preset.subcategoryId = scene.subcategoryId; result.why = scene.why; }
     const chosen = ctx.categories.find(c => c.id === (preset.subcategoryId || preset.categoryId));
     if (chosen) understood.push(chosen.name);

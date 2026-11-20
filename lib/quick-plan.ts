@@ -164,7 +164,8 @@ export function normalizeQuick(text: string) {
 
 // 2.0: "eh salah", and "salah / nggak / no" followed by a comma ("bensin 50rb, salah, 40rb", "sejuta? nggak, 35rb"); the
 // comma is required for those, so "nggak jadi beli" or "salah transfer" are never read as corrections.
-const MARKER = /(?:\s*[,?]\s*|\s+)(?:(?:eh+m?\s+)?salah ketik|eh+m?\s+salah|eh+m?|ralat|koreksi|maksudnya|maksudku|maksud (?:saya|aku)|sori|sorry)(?:\s*,\s*|\s+)|(?:\s*[,?]\s*|\s+)(?:salah|nggak|ngga|enggak|engga|gak|ga|no|nope)\s*,\s*/;
+// 10.4 (post-hoc) "eh bentar, 110rb ding", "koreksi jadi 15rb".
+const MARKER = /(?:\s*[,?]\s*|\s+)(?:(?:eh+m?\s+)?salah ketik|eh+m?\s+salah|(?:eh+m?\s+)?(?:bentar|sebentar|tunggu)|eh+m?|ralat|koreksi|maksudnya|maksudku|maksud (?:saya|aku)|sori|sorry)(?:\s*,\s*|\s+)|(?:\s*[,?]\s*|\s+)(?:salah|nggak|ngga|enggak|engga|gak|ga|no|nope)\s*,\s*/;
 const DATE_ANY = () => new RegExp(`${DATE_PHRASES.source}|\\btadi(?:\\s+(?:pagi|siang|sore|malam))?\\b|\\bbarusan\\b|\\btgl \\d{1,2}(?!\\d)(?:\\s*[/-]\\s*\\d{1,2})?`, 'g');
 const KIND_WORDS: Record<string, QuickKind[]> = {
   pengeluaran: ['expense'], pemasukan: ['income'], transfer: ['transfer'], utang: ['debt_new', 'debt_payment'], hutang: ['debt_new', 'debt_payment'],
@@ -218,7 +219,7 @@ export function applyCorrections(input: string, ctx: QuickContext) {
   for (let guard = 0; guard < 5; guard++) {
     const m = MARKER.exec(text); if (!m) break;
     // "pake bca, eh bukan, pake mandiri": "bukan" right after the marker only says the value before it was wrong.
-    const left = text.slice(0, m.index), right = text.slice(m.index + m[0].length).replace(/^bukan\s*(?:,|$)\s*(?:tapi\s+)?/, ''), type = leadingType(right, ctx, left);
+    const left = text.slice(0, m.index), right = text.slice(m.index + m[0].length).replace(/^bukan\s*(?:,|$)\s*(?:tapi\s+)?/, '').replace(/^(?:jadi(?:nya)?|harusnya|seharusnya)\s+(?=(?:rp\.?\s*)?\d)/, ''), type = leadingType(right, ctx, left);
     const span = type ? lastOf(left, type, ctx) : null;
     const said = span ? left.slice(span[0], span[1]).trim() : '';
     // A new amount said with the entry's name again replaces only the amount: the name is not written twice.

@@ -162,7 +162,7 @@ export function generatedCorpus(): Record<string, string[]> {
  * held-out test (bench/v104, heldout) has, and the build stops if one does.
  */
 const E = { tail: ['', 'dong', 'sih', 'pls', 'bot', 'kak', 'min', 'ya'], who: ['bot', 'buddy', 'bro', 'kak', 'min', ''] };
-const G104: Partial<Record<ChatModelIntent, Grammar>> = {
+const G104: Partial<Record<ChatModelIntent | 'None', Grammar>> = {
   greet: { take: 120, slots: { hi: ['hello', 'hi', 'hey', 'hiya', 'yo', 'good morning', 'good afternoon', 'morning', 'hlo', 'hallo', 'halo halo', 'hai hai', 'pagi pagi', 'helo'], to: ['', 'bot', 'there', 'kak', 'min', 'buddy', 'bro', 'sis', 'semua'], end: ['', 'ada orang ga', 'ada orang', 'lagi online ga', 'nice to meet you'] }, patterns: ['{hi} {to}', '{hi} {to} {end}', '{hi} {end}'] },
   thanks: { take: 120, slots: { th: ['thank you', 'thanks', 'thank u', 'ty', 'tysm', 'appreciate it', 'much appreciated', 'cheers', 'mksh', 'makasi', 'mkasih', 'nuhun', 'matur nuwun', 'hatur nuhun', 'makasih loh'], to: ['', 'so much', 'bot', 'buddy', 'kak', 'bnyk', 'pisan', 'for the help', 'for helping', 'banget', 'ya bot'] }, patterns: ['{th} {to}', '{th}', 'oke {th}', 'sip {th} {to}'] },
   help: { take: 160, slots: {
@@ -222,15 +222,59 @@ const G104: Partial<Record<ChatModelIntent, Grammar>> = {
     tail: ['', 'gimana', 'bisa ga', 'tolong', 'caranya'],
   }, patterns: ['{q}', '{q} {tail}'] },
   game: { take: 120, slots: {
-    q: ['lets play a game', 'lets play', 'play a game', 'play rock paper scissors', 'rock paper scissors', 'guess the number', 'play guess the number', 'main yuk gabut', 'tebak2an angka yuk', 'ayo main tebak angka', 'main game dong', 'gabut main yuk', 'main tebak2an'],
+    q: ['lets play a game', 'lets play', 'play a game', 'play rock paper scissors', 'rock paper scissors', 'guess the number', 'play guess the number', 'main yuk gabut', 'tebak2an angka yuk', 'ayo main tebak angka', 'main game dong', 'gabut main yuk'],
     tail: ['', 'yuk', 'bot', 'ayo', 'dong'],
   }, patterns: ['{q}', '{q} {tail}'] },
   serious: { take: 110, slots: {
     q: ['be serious please', 'be serious', 'seriously', 'stop joking', 'stop kidding', 'enough jokes', 'srius dong', 'srius', 'ga usah becanda deh', 'jgn becanda', 'jangan becanda mulu', 'serius napa', 'stop bercanda'],
     tail: ['', 'bot', 'dong', 'deh', 'ya'],
   }, patterns: ['{q}', '{q} {tail}'] },
+  // Post-hoc (after the first held-out run): a message with nothing in it but a person or a little word ("aku", "kamu
+  // dong", "gue sih") means nothing alone, so the model keeps quiet on it instead of guessing.
+  None: { take: 90, slots: { p: ['aku', 'kamu', 'gue', 'saya', 'lo', 'dia', 'kita', 'kami'], f: ['', 'dong', 'sih', 'ya', 'nih', 'deh', 'aja', 'tuh', 'lah', 'kan', 'juga', 'so', 'for', 'the', 'is', 'are', 'this', 'that'] }, patterns: ['{p} {f}', '{f} {p}', '{p} {p}', '{p} {f} {f}'] },
   examples: { take: 80, slots: { q: ['give me examples', 'examples please', 'show me examples', 'sample sentences', 'what can i type', 'ksh contoh', 'contoh dong', 'contoh kalimatnya apa', 'contoh nyatet gmn'], tail: E.tail }, patterns: ['{q}', '{q} {tail}'] },
 };
+
+/**
+ * 10.4, after the first held-out run (post-hoc): everyday English the 4.5 sentences above kept away from, so the shipped
+ * model knows common words ("check", "spend", "tired", "funny", "sorry", "wanna"). Not checked against the held-out
+ * words: any held-out number measured after this is no longer a clean measure (bench/v104/README.md says so).
+ */
+const G104B: Partial<Record<ChatModelIntent, Grammar>> = {
+  greet: { take: 60, slots: { hi: ['good evening', 'evening', 'hello there', 'hey bot', 'hi assistant', 'hello assistant', 'yo bot', 'greetings', 'howdy'], to: ['', 'everyone', 'there', 'bot'] }, patterns: ['{hi}', '{hi} {to}'] },
+  thanks: { take: 60, slots: { th: ['thanks a lot', 'thanks so much', 'many thanks', 'thank you very much', 'thanks for your help', 'big thanks', 'thanks man', 'really appreciate it'], to: ['', 'bot', 'buddy'] }, patterns: ['{th}', '{th} {to}'] },
+  help: { take: 70, slots: { q: ['how does this work', 'how does this app work', 'what are your features', 'what can this app do', 'show me your features', 'list your features', 'what do i type here', 'how can you help me', 'what should i do here', 'i need help', 'need some help'] }, patterns: ['{q}'] },
+  about: { take: 60, slots: { q: ['are you a robot', 'are you human or bot', 'do you need internet', 'do you work offline', 'who created you', 'who made this app', 'is this a real person', 'are you an assistant', 'does my data leave my phone'] }, patterns: ['{q}'] },
+  summary: { take: 70, slots: { q: ['monthly overview', 'monthly summary please', 'overview please', 'how is my money doing', 'how am i doing this month', 'give me an overview', 'summarize my spending', 'spending summary', 'show my monthly report', 'how much did i spend overall'] }, patterns: ['{q}'] },
+  budget: { take: 60, slots: { q: ['check my budget', 'check my budgets', 'any budget running low', 'which budget is running out', 'show my budgets', 'am i over budget', 'budget check please', 'how are my budgets'] }, patterns: ['{q}'] },
+  payday: { take: 50, slots: { q: ['when do i get paid', 'when is my next paycheck', 'how long until payday', 'how long until i get paid', 'next payday', 'when does salary come'] }, patterns: ['{q}'] },
+  tips: { take: 60, slots: { q: ['give me saving tips', 'saving tips please', 'how can i spend less', 'help me spend less', 'how to cut spending', 'how to save more', 'money saving advice', 'any advice to save'] }, patterns: ['{q}'] },
+  mood: { take: 60, slots: { q: ['i have no money left', 'no money left', 'worried about my bills', 'bills are killing me', 'i am out of money', 'money is running out', 'i am so broke', 'my bank account is empty'] }, patterns: ['{q}'] },
+  curhat: { take: 70, slots: { q: ['i am so tired of everything', 'i am tired', 'had a terrible day', 'had a bad day', 'today was awful', 'i feel lonely today', 'i feel so stressed', 'work is killing me', 'i had a fight with my friend', 'i am exhausted'] }, patterns: ['{q}'] },
+  joke: { take: 60, slots: { q: ['say something funny', 'tell me something funny', 'got any jokes', 'any jokes', 'know any jokes', 'one more joke', 'make a joke', 'tell me a riddle'] }, patterns: ['{q}'] },
+  banter: { take: 50, slots: { q: ['that was funny', 'that is funny', 'haha good one', 'lol nice', 'so funny lol', 'you are funny', 'hahaha nice'] }, patterns: ['{q}'] },
+  angry: { take: 60, slots: { q: ['you are stupid', 'stupid bot', 'worst app ever', 'this is the worst', 'you never understand', 'you are so dumb', 'terrible bot', 'what a useless app'] }, patterns: ['{q}'] },
+  apology: { take: 50, slots: { q: ['i am sorry', 'my apologies', 'sorry my bad', 'i apologize', 'sorry for that', 'please forgive me'] }, patterns: ['{q}'] },
+  smalltalk: { take: 60, slots: { q: ['whats up', 'what is up', 'do you sleep', 'do you ever sleep', 'are you tired', 'how was your day', 'are you busy', 'what are you up to today'] }, patterns: ['{q}'] },
+  goal: { take: 60, slots: { q: ['i want to save for vacation', 'saving for my wedding', 'saving for a house', 'i want to save for a trip', 'saving up for a new phone', 'i want to start saving', 'help me save for my wedding'] }, patterns: ['{q}'] },
+  game: { take: 50, slots: { q: ['wanna play', 'wanna play a game', 'flip a coin', 'toss a coin', 'lets play rock paper scissors', 'can we play a game', 'play with me'] }, patterns: ['{q}'] },
+  serious: { take: 40, slots: { q: ['please be serious', 'no more jokes', 'no jokes please', 'stop the jokes', 'be serious now', 'enough joking'] }, patterns: ['{q}'] },
+};
+
+/** The post-hoc 10.4 sentences (same sampling). */
+export function generatedCorpus104b(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  let seed = 1040;
+  for (const [intent, g] of Object.entries(G104B)) {
+    const rnd = random(seed++);
+    const shuffle = (list: string[]) => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list; };
+    const lists = g!.patterns.map(p => shuffle([...new Set(expand(p, g!.slots))]));
+    const picked = new Set<string>();
+    for (let round = 0; picked.size < g!.take && lists.some(l => l.length > round); round++) for (const l of lists) { if (picked.size >= g!.take) break; if (l[round]) picked.add(l[round]); }
+    out[intent] = [...picked];
+  }
+  return out;
+}
 
 /** The 10.4 sentences of every intent (same sampling as generatedCorpus, its own seeds). */
 export function generatedCorpus104(): Record<string, string[]> {

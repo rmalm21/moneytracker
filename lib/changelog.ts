@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.4', date: '20 Nov 2026', title: 'Asisten chat 4.5', items: [
+    ['🌐', 'Asisten chat sekarang ngerti bahasa Inggris: “spent 25k on coffee yesterday with gopay”, “salary 8m received in jago”, “where can i see my budget”, sampai “how are you”. Nominal kayak 1.5m dan 120k juga kebaca benar.'],
+    ['💰', 'Nominal yang ditulis pakai kata atau bahasa gaul kebaca: “satu koma lima juta”, “tujuh puluh lima ribu”, “sejeti”, “IDR 45.000”. Nomor HP setelah “hp” atau “wa” nggak lagi dikira nominal.'],
+    ['🧾', 'Ada angka tapi bukan pengeluaranmu? Harga yang cuma kamu lihat, belanjaan teman, “nggak jadi beli”, “worth it ga”, atau “budget 80rb dapet kamera ga” dijawab langsung, nggak jadi kartu catatan. Kalau ternyata kamu yang bayar, tinggal bilang “boleh”.'],
+    ['❓', 'Tanya catatan makin luas: rata-rata per hari (“bensin per harinya rata2 brp”), “total bayar pk jago bulan kemarin”, “kpn terakhir ngopi”, “transaksi paling mahal pekan lalu”. Lalu bisa disusul “berapa kali?”, “rata-ratanya?”, “kalau gopay?”, atau “trs kemaren gmn”.'],
+    ['✏️', 'Koreksi lebih gampang: “eh harusnya pk mandiri”, “nominalnya salah, 15rb”, “tanggalnya kemarin”, bahkan di pesan yang sama: “soto 35rb eh bentar, 30rb ding” langsung jadi 30rb.'],
+    ['📝', 'Cerita panjang kebaca: “duh hari ini ribet, abis meeting langsung cabut, sempet beli soto 27rb pk jenius” jadi Soto di Makan & Minum, bukan kategori kerja. Tanggal kayak “rabu minggu lalu” atau “tgl 3 kemarin”, dan singkatan kayak “kpi”, “bnsn”, “ngopi2” juga dimengerti.'],
+    ['🤖', 'Otak chat dilatih ulang besar-besaran: model maksud kalimat belajar dari 33 ribu kalimat (termasuk bahasa Inggris dan singkatan) dan jauh lebih jarang salah yakin, pembaca kalimat dapat 6 ribu kalimat latihan baru. Semuanya tetap jalan di HP-mu, tanpa internet dan tanpa unggahan.'],
+    ['🧭', 'Menu dan cara pakai: “cara export ke excel”, “jadwal tagihan”, “ganti tema”, “show my wallets” langsung nunjukin menunya. Ada panduan baru: Mengunduh transaksi ke Excel (CSV).'],
+  ] },
   { version: '10.3.3', date: '19 Nov 2026', title: 'Perisai bareng', items: [
     ['🛡️', 'Api bareng di Ruang Bersama sekarang punya perisai sendiri, namanya Perisai bareng. Tiap ruang mulai dengan 1 perisai, dan tiap 7 hari nyala bareng dapat 1 lagi (maksimal 2). Kalau ada anggota yang lupa sehari, perisainya otomatis dipakai dan api bareng tetap nyala. Lupa 2 hari butuh 2 perisai.'],
     ['🔥', 'Api bareng yang padam belakangan ini bisa pulih: waktu pertama kali dibuka di versi ini, hari-hari yang bolong dalam 60 hari terakhir dicek ulang dan ditutup perisai kalau perisainya cukup. Semua anggota dikasih tahu “Api bareng dipulihkan!”.'],

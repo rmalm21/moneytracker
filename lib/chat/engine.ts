@@ -213,7 +213,8 @@ const THANKS = /^(?:(?:iya|ya|oke|ok|sip|nah|wah|wih|mantap)\s+)?(?:makasih+|mak
 const ACK = /^(?:ok(?:e|ay|ey)?|okk+|si+p+|siap|mantap|mantab|mantep|mantul|gokil|jos+|cakep|top|good|nice|keren|baik|oke deh|okedeh|ya|iya|yoi|noted|wkwk+|haha+|hehe+|hihi|👍|🙏|(?:baik|aman|sehat|lumayan|alhamdulillah|biasa)(?:\s+(?:kok|aja|banget|bgt|baik|alhamdulillah|sih))*|so far so good|fine)(?:\s+(?:bro|sis|bos|boss|kak|min|gan|bang|cuy|coy|bestie|bes|beb|lur|sob|bray|banget|bgt|deh|dong|nih|ya))*$/;
 const HELP = /^(?:bantuan|help|tolong|menu|fitur|panduan|cara ?pakai|caranya)$|\b(?:bisa apa(?: aja| saja)?|bisa ngapain|ngapain aja|bisa bantu apa|apa (?:aja|saja) yang bisa|fitur(?:nya|mu)? apa|apa (?:aja|saja) fitur(?:nya|mu)?|cara (?:pakai|make|makenya|pakainya|menggunakan)(?! \p{L}+ (?:\d|rp)))\b/u;
 // 8.2: "ini apa" only about the app itself ("catatan minggu ini apa saja" is a question about records).
-const ABOUT = /\b(?:kamu siapa|siapa kamu|kamu itu apa|kamu apa)\b|(?:^|\b(?:aplikasi|app|bot|asisten|chat)\s+)ini\s+(?:apa|siapa)(?:\s+(?:sih|ya|dong|kok))?$|^kamu\s+(?:(?:tuh|itu|ini)\s+)?(?:sebenarnya\s+)?(?:apa|siapa)$/;
+// 10.4 (post-hoc) "kamu ai beneran?", "chat ini nyimpen data aku di server ga": what the assistant is, where data goes.
+const ABOUT = /^kamu\s+(?:ai|robot|bot|manusia|mesin|chatgpt)(?:\s+(?:beneran|asli|ya|kah|bukan|atau\s+\p{L}+))*\s*\??$|\b(?:chat|aplikasi|app|asisten|kamu)\b(?:\s+ini)?\b.*\b(?:nyimpen|nyimpan|simpan|menyimpan|kirim|ngirim)\b.*\bdata\p{L}*\b|\bdata\p{L}*\b.*\b(?:disimpan|disimpen|dikirim)\b.*\b(?:server|cloud|internet)\b|\b(?:kamu siapa|siapa kamu|kamu itu apa|kamu apa)\b|(?:^|\b(?:aplikasi|app|bot|asisten|chat)\s+)ini\s+(?:apa|siapa)(?:\s+(?:sih|ya|dong|kok))?$|^kamu\s+(?:(?:tuh|itu|ini)\s+)?(?:sebenarnya\s+)?(?:apa|siapa)$/u;
 const EXAMPLES = /^(?:(?:liat|lihat|minta|kasih|mau liat|mau lihat|tunjukin|tampilin)\s+)?(?:contoh(?:nya)?|template(?:nya)?|ide)(?:\s+(?:nya|dong|lagi|chat|kalimat|apa aja|yang ada))*$/;
 const VOICE_WORDS: [RegExp, Voice][] = [[/\b(?:bar[- ]?bar|barbar|toxic|brutal|nyolot|preman)\b/, 'barbar'], [/\b(?:formal|baku|sopan|anda)\b/, 'sopan'], [/\b(?:lo[- ]?gue|lu[- ]?gue|gue[- ]?lo|gaul)\b/, 'gaul'], [/\b(?:singkat|pendek|ringkas|to the point)\b/, 'singkat'], [/\b(?:santai|kayak temen|jangan kaku|ga kaku|nggak kaku|biasa aja)\b/, 'santai']];
 const VOICE_TALK = /\b(?:bahasa|gaya|ngomong|jawab(?:nya)?|ngobrol|bicara|pakai|pake|balas(?:nya)?|bales(?:nya)?|respon(?:nya)?)\b/;
@@ -243,7 +244,7 @@ const INCOME_ASKED = /\b(?:pemasukan\p{L}*|penghasilan\p{L}*|pendapatan\p{L}*|in
 const SETTING_ASK = /\b(?:pin|tema|mode\s+(?:gelap|terang)|dark\s*mode|light\s*mode|font|huruf|ukuran\s+(?:teks|tampilan|huruf|layar)|sembunyi\p{L}*|nyembunyi\p{L}*|sensor|password|kata\s+sandi|notif\p{L}*|bahasa|warna|palet|tampilan|sidik\s+jari|kunci\s+aplikasi)\b/u;
 /** 10.4 How often, or a day's average, of the total just answered. */
 const COUNT_AGAIN = /^(?:(?:itu|tuh|nah|terus|trus|trs|udah|sudah)\s+)?(?:berapa|brp|brapa|brpa)\s*(?:kali|x|transaksi)\b|\b(?:berapa|brp|brapa)\s*(?:kali|x|transaksi)\s*(?:itu|tuh|ya|sih|aja)?\s*\??$|^(?:sering|seberapa\s+sering)\b/;
-const AVERAGE_AGAIN = /\b(?:rata[-\s]?rata|rata2|rerata)\b|\b(?:sehari|per\s*hari(?:nya)?|perharinya)\s*(?:berapa|brp|brapa)?\s*\??$/;
+const AVERAGE_AGAIN = /\b(?:rata[-\s]?rata|rata2|rerata)(?:nya)?\b|\b(?:sehari|per\s*hari(?:nya)?|perharinya)\s*(?:berapa|brp|brapa)?\s*\??$/;
 const MORE_BREAKDOWN = /\b(?:rinci\p{L}*|perincian\p{L}*|detail\p{L}*|detil\p{L}*|breakdown)\b|\b(?:apa|buat apa|untuk apa|ke ?mana) (?:aja|saja)\b/u;
 const MORE_BIGGEST = /\b(?:paling|ter)\s*(?:besar|gede|banyak|mahal|boros)\b|\bterbesar\b/;
 const MORE_COMPARE = /\b(?:dibanding\p{L}*|banding\p{L}*|vs|versus|lebih\s+(?:boros|hemat|banyak|sedikit)|naik|turun)\b/u;
@@ -300,7 +301,7 @@ const CALC_AGAIN = /^(?:kalau|kalo|klo|terus|trus|lalu)?\s*((?:di)?bagi|(?:di)?k
 const CALC_WORDS = /\b(?:dikali|dibagi|ditambah|dikurangi?|kali|bagi|tambah|kurang|plus|minus|persen|dari|setengah|separuh|sepertiga|seperempat|ribu|rebu|juta|miliar|satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh|sebelas|puluh|ratus|belas)\b/g;
 const AFFORD = /\b(?:boleh|bisa|aman|sanggup|cukup|mampu|kuat|oke|ok)\b.*\b(?:beli|beliin|jajan|belanja|ambil|checkout|co|bayar|nonton|makan|liburan|traktir|top ?up|langganan|sewa)\b|\b(?:kalau|kalo|klo)\s+(?:beli|checkout|ambil|liburan|nonton)\b.*\b(?:aman|boleh|bisa|cukup)\b|\b(?:mau|pengen|pingin|ingin)\s+(?:beli|ambil|checkout)\b.*\b(?:aman|boleh|bisa|gimana|ga|gak|nggak|enggak)\b|\b(?:beli|checkout|co|ambil)\b.*\b(?:aman|boleh|bisa|sanggup|kuat|cukup)\s*(?:kah|gak|ga|nggak|enggak|tidak|ya|gk|nggk|ngga|sih|nih)?\s*\??$|\b(?:kalau|kalo|klo)\s+(?:(?:aku|gue|saya|w)\s+)?(?:beli|checkout|ambil|liburan|nonton)\b.*\b(?:aman|boleh|bisa|cukup|gimana)\b/;
 const TIPS = /\b(?:tips|tip|saran|kasih saran|cara hemat|biar hemat|gimana (?:caranya )?hemat|supaya hemat|ngirit|irit|nabung|menabung|boros|nyisihin|sisihin|menyisihkan|disiplin)\b/;
-const SUMMARY = /\b(?:ringkasan|rangkuman|rekap|ikhtisar|kondisi keuangan|keadaan keuangan|status keuangan|keuangan(?:ku)? (?:gimana|bagaimana)|(?:gimana|bagaimana) keuangan(?:ku)?|cashflow|arus kas|aman (?:(?:ga|gak|nggak|enggak|tidak) )?(?:sampai|sampe) gajian|cukup (?:(?:ga|gak|nggak|enggak|tidak) )?(?:uang|duit)(?:ku)? (?:sampai|sampe) gajian)\b/;
+const SUMMARY = /\b(?:ringkasan|rangkuman|rangkum(?:in|kan)?|ringkas(?:in|kan)?|rekap|ikhtisar|kondisi keuangan|keadaan keuangan|status keuangan|keuangan(?:ku)? (?:gimana|bagaimana)|(?:gimana|bagaimana) keuangan(?:ku)?|cashflow|arus kas|aman (?:(?:ga|gak|nggak|enggak|tidak) )?(?:sampai|sampe) gajian|cukup (?:(?:ga|gak|nggak|enggak|tidak) )?(?:uang|duit)(?:ku)? (?:sampai|sampe) gajian)\b/;
 /** Every budget at once ("anggaranku gimana", "budget mana yang mau habis"); one budget by name is a Tanya question. */
 const BUDGET = /\b(?:anggaran|budget)(?:ku|nya|mu)?\b/;
 const BUDGET_ASK = /\b(?:gimana|bagaimana|gmn|aman|cek|sisa|status|rekap|progress|progres|lihat|liat|semua|mana|jebol|habis|abis|over|kelewatan|lewat|tinggal|overview|pemakaian|masih|kondisi)\b/;
@@ -395,6 +396,9 @@ function withAliases(t: string, learned: Record<string, string> | undefined) {
 export function askAgain(last: string, rest: string, today: string, salaryDay: number, wallets: string[] = []): string {
   // 8.4 "saldo gopay berapa deh": the words said at the end of the first question are not part of it.
   last = `${unfill(lower(last).replace(/[?!.]+$/, ''))}${/\?\s*$/.test(last) ? '?' : ''}`;
+  // 10.4 (post-hoc) Spans written short ("bln ini", "mgg lalu", "kemaren") read as spans, in both messages.
+  const longhand = (x: string) => x.replace(/\bbln\b/g, 'bulan').replace(/\b(?:mgg|mggu|mgu)\b/g, 'minggu').replace(/\bthn\b/g, 'tahun').replace(/\b(?:kmrn|kemaren|kmaren|kmrin)\b/g, 'kemarin');
+  last = longhand(last); rest = longhand(lower(rest));
   const p0 = readPeriod(lower(last), today, salaryDay), p1 = readPeriod(lower(rest), today, salaryDay);
   let q = lower(last);
   const subject = unfill(lower(rest).replace(p1?.said || '\u0000', ' ').replace(/^(?:yang|yg|buat|untuk|utk|di)\s+/, '').replace(/\s{2,}/g, ' ').trim());
@@ -477,7 +481,7 @@ const NOT_BOUGHT = /\b(?:gak|ga|nggak|ngga|enggak|engga|tidak|gk|ndak|nda|batal)
 const PRICE_SEEN = /^(?:harga|hrg)\b.*\b(?:sekarang|skrg|skg|kini|naik|turun|segitu|ya|yah|loh|lho|wkwk\p{L}*)\b|\b(?:naik|turun)\s+(?:jadi|ke|sampe|sampai)\b|\b(?:mahal|murah)\s+(?:bgt|banget|amat|parah|bener)?\s*(?:sampe|sampai|cuma|cuman|hampir)\b/u;
 const HEARSAY = /^(?:katanya|kata\s+(?:orang|temen|teman|dia|mereka|ibu|mama)|denger(?:-denger|2)?|dengar(?:-dengar)?|konon|infonya|kabarnya)\b/;
 const OTHERS_BUY = /^(?:temen|teman|kakak|kakakku|adik|adikku|adek|adekku|tetangga|pacar|pacarku|bos|rekan|sepupu|om|tante|ibu|bapak|ayah|mama|papa)\p{L}*\s+(?:baru\s+|udah\s+|sudah\s+|habis\s+|abis\s+)?(?:beli|bayar|dapet|dapat|ngabisin|abis|habis)\b.*\b(?:seharga|harganya|sampe|sampai)\b/u;
-const ENOUGH = /\b(?:cukup|kurang|nyampe)\s*(?:ga|gak|nggak|ngga|enggak|kah|tidak|gk)?\s+(?:buat|untuk|utk|beli)\b|\bworth(?:\s*it)?\s+(?:ga|gak|nggak|enggak|kah|tidak|gk|sih|ngga)\b|\b(?:misal|misalnya|andai|seandainya|umpama)\s+(?:(?:aku|gue|gw|saya)\s+)?beli\b|\b(?:budget|bujet|duit|uang|modal)\s+\S+\s+dapet\b.*\b(?:ga|gak|nggak|enggak|ngga)\b|\bmikir(?:-mikir|\s+mikir|2)?\s+dulu\b/;
+const ENOUGH = /\b(?:cukup|kurang|nyampe)\s*(?:ga|gak|nggak|ngga|enggak|kah|tidak|gk)?\s+(?:buat|untuk|utk|beli)\b|\bworth(?:\s*it)?\s+(?:ga|gak|nggak|enggak|kah|tidak|gk|sih|ngga)\b|\b(?:misal|misalnya|andai|seandainya|umpama)\s+(?:(?:aku|gue|gw|saya)\s+)?beli\b|\b(?:budget|bujet|duit|uang|modal)\s+\S+\s+(?:dapet|dapat)\b.*\b(?:ga|gak|nggak|enggak|ngga)\b|\bmikir(?:-mikir|\s+mikir|2)?\s+dulu\b/;
 function readNotMine(t: string): 'skipped' | 'heard' | 'enough' | null {
   if (NOT_BOUGHT.test(t)) return 'skipped';
   if (ENOUGH.test(t)) return 'enough';
@@ -1615,6 +1619,8 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     // 10.4 Asking for advice or saying a wish, with no amount ("kasih trik ngatur gaji dong", "i want to buy a house next
     // year"): not a record to fill in, so the model reads it (tips, goal …).
     const asksAdvice = ins.reading === 'record' && !money && /\b(?:tips|trik|saran|cara|caranya|biar|supaya|want to|planning to|plan to|next year|tahun depan)\b/.test(t);
+    // 10.4 (post-hoc) "total bayar pk jago bulan kemarin": a total over a span of days, asked without "berapa".
+    if (ins.reading === 'record' && !money && /^(?:total|jumlah)\b/.test(t) && readPeriod(t, ctx.today, ctx.salaryDay)) { const asked = `${raw.replace(/[?!.]+$/, '')} berapa`; if (ctx.inspect(asked).reading === 'question') return plan(asked); }
     if ((ins.reading === 'record' && !asksAdvice) || ins.reading === 'question') return plan(raw);
     // 8.3 "total kopi bulan ini", "pengeluaran di shell bulan kemarin": a period and a subject, asked without "berapa".
     const period = !money ? readPeriod(t, ctx.today, ctx.salaryDay) : null;
@@ -1684,6 +1690,8 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       case 'howto': {
         if (money || !HOW_WORDS.test(t)) break;
         const how = readHowto(t, { tail: true });
+        // 10.4 (post-hoc) How to record at all ("gimana sih cara nyatet di sini"): what the chat can do.
+        if (!how && /\b(?:nyatet|nyatat|catat|mencatat|ngetik|nulis|input)\b/.test(t)) return model(sayR('help', helpReply(v, tpl)));
         if (how) return model(sayR('howto', { kind: 'say', card: 'help', title: how.title, text: how.text, ...(how.steps ? { steps: how.steps } : {}), ...(how.open ? { open: how.open } : {}), chips: ['cara lainnya?', 'bisa apa aja?'] }));
         return model(sayR('howto', { kind: 'say', card: 'help', title: 'Cara pakai', text: vo(v, { santai: 'Aku belum nemu panduan persisnya. Coba sebut nama fiturnya, misalnya “cara bikin anggaran” atau “cara pasang pengingat”. Semua panduan ada di Tanya Jawab.', sopan: 'Panduan yang tepat belum ditemukan. Silakan sebut nama fiturnya, misalnya “cara membuat anggaran”. Seluruh panduan tersedia di Tanya Jawab.', singkat: 'Sebut fiturnya, misal “cara bikin anggaran”. Lengkapnya di Tanya Jawab.', gaul: 'Panduannya belum ketemu nih. Sebut fiturnya aja, misal “cara bikin anggaran”. Semua panduan ada di Tanya Jawab.' }), open: { view: 'help', label: 'Tanya Jawab' }, chips: ['cara bikin anggaran', 'bisa apa aja?'] }));
       }

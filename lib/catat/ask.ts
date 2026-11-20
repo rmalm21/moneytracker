@@ -160,7 +160,7 @@ function intentOf(t: string): Exclude<AskIntent, 'owed'> {
 const STOP = new Set(`berapa brp brapa kali kapan terakhir terakhirnya pernah gimana bagaimana apakah apa mana sih ya yah dong deh aja saja kok nih
 udah sudah total jumlah semua semuanya aku saya gue gw ku punya ini itu buat untuk utk di ke dari pakai pake via lewat yang yg sama dan dengan
 habis abis keluar keluarin ngeluarin mengeluarkan ngabisin habisin abisin menghabiskan pas kepake kepakai terpakai pengeluaran spend spending duit uang biaya ongkos rp sekarang tadi bulan minggu pekan hari tahun
-siklus periode lalu kemarin sebelumnya paling terbesar tergede termahal gede besar boros mahal banyak rata rata-rata rata2 rerata sehari per tiap
+siklus periode lalu kemarin sebelumnya paling terbesar tergede termahal gede besar boros mahal banyak rata rata-rata rata2 rerata sehari seharinya per tiap harinya
 sekali harian kategori dibanding dibandingkan dibandingin banding vs versus lebih hemat sedikit kecil sisa anggaran budget bujet saldo dompet isi masih
 tinggal pemasukan pendapatan penghasilan masuk dapat dapet diterima income bayar beli catat dicatat transaksi sih kah`.split(/\s+/));
 /** `orText`: a category named by a phrase that the notes also say ("makan siang"); either one counts. */
@@ -348,7 +348,7 @@ export function askMoney(text: string, ctx: QuickContext): AskAnswer | null {
   }
 
   if (intent === 'average') {
-    const daily = /\b(?:sehari|per\s*hari|tiap\s+hari|harian)\b/.test(t);
+    const daily = /\b(?:sehari(?:nya)?|per\s*hari(?:nya)?|tiap\s+hari(?:nya)?|harian(?:nya)?)\b/.test(t);
     const elapsed = Math.max(1, days(P.start, P.end < addDays(today, 1) ? P.end : addDays(today, 1)));
     const value = daily ? Math.round(total / elapsed) : now.length ? Math.round(total / now.length) : 0;
     const sentence = !now.length ? `${cap(P.label)} belum ada${subjectWords || ' pengeluaran'}.` : daily ? `Rata-rata${subjectWords} ${rp(value)} per hari (${P.label}, ${elapsed} hari).` : `Rata-rata${subjectWords} ${rp(value)} sekali bayar (${now.length} kali, ${P.label}).`;

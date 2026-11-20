@@ -46,7 +46,7 @@ const ENGLISH = /\b(?:how|where|what'?s|whats|my|spend|spent|spending|spendings|
 /** 10.4 …and only about money: "how are you", "is my budget ok" and "i feel so sad today" are chit-chat for the model. */
 const ENGLISH_MONEY = /\b(?:spend|spent|spending|spendings|expenses?|balance|income|owes?|owe|debt|coffee|food|daily|free money|money (?:left|go|gone|went|going)|budget \p{L}+ left|how (?:much|many))\b/u;
 const ENGLISH_LEFT = /\b(?:my|the|is|are|did|do|i|me|on|in|for|bro|please)\b/g;
-const SHORT: Record<string, string> = { msh: 'masih', masi: 'masih', tlg: 'tolong', tolongin: 'tolong', brpa: 'berapa', berapaan: 'berapa', brapah: 'berapa', berapah: 'berapa', brpaan: 'berapa', mggu: 'minggu', mgu: 'minggu', ane: 'aku', aq: 'aku', gua: 'gue', w: 'aku', kluar: 'keluar', klwr: 'keluar', kmaren: 'kemarin', kmrin: 'kemarin', anggran: 'anggaran', bajet: 'budget', budjet: 'budget', bujet: 'budget', tabungn: 'tabungan' };
+const SHORT: Record<string, string> = { kpn: 'kapan', kpan: 'kapan', msh: 'masih', masi: 'masih', tlg: 'tolong', tolongin: 'tolong', brpa: 'berapa', berapaan: 'berapa', brapah: 'berapa', berapah: 'berapa', brpaan: 'berapa', mggu: 'minggu', mgu: 'minggu', ane: 'aku', aq: 'aku', gua: 'gue', w: 'aku', kluar: 'keluar', klwr: 'keluar', kmaren: 'kemarin', kmrin: 'kemarin', anggran: 'anggaran', bajet: 'budget', budjet: 'budget', bujet: 'budget', tabungn: 'tabungan' };
 /** "gopayku" → "gopay aku": money words with -ku/-mu. */
 const OWNED = 'saldo|gopay|jago|ovo|jenius|mandiri|bca|bri|bni|krom|tunai|cash|tabungan|utang|hutang|piutang|cicilan|pinjaman|anggaran|budget|hp|kos|wishlist|list|bebas|pakai|harian|darurat|incaran|keuangan|kredivo|tagihan|langganan|nganggur';
 const OWN = new RegExp(`\\b(${OWNED})(ku|mu)\\b`, 'g');
@@ -159,6 +159,8 @@ function englishMenu(base: string): string | null {
   return hit ? `buka ${hit[1]}` : null;
 }
 
+/** 10.4 (post-hoc) A span of days said with the question ("pekan lalu", "bln kemarin", "september"), kept as said. */
+const SPAN = /\b(hari ini|kemarin|(?:minggu|pekan) (?:ini|lalu|kemarin)|(?:bulan|bln) (?:ini|lalu|kemarin)|tahun (?:ini|lalu)|januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\b/;
 /** 10.0 "pengeluaran paling boros apa ya", "kategori yg paling nyedot duit apa": the biggest spending. */
 const MOST_SPENT = /\bpaling\s+(?:boros|nyedot|menyedot|menguras|ngabisin|ngabisin\s+(?:duit|uang)|banyak\s+makan\s+(?:duit|uang)|bikin\s+(?:boncos|bokek))\b/;
 export function understand(input: string): string {
@@ -169,15 +171,15 @@ export function understand(input: string): string {
   if (record) return record;
   const menu = englishMenu(base);
   if (menu) return menu;
+  // 10.4 (post-hoc) "pekan lalu transaksi paling mahal apa": the biggest spending of that span.
+  if (/\b(?:transaksi|belanjaan|pembelian|jajan(?:an)?)\s+(?:yang\s+|yg\s+)?(?:paling\s+(?:mahal|besar|gede)|termahal|terbesar)\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) return `pengeluaran terbesar ${base.match(SPAN)?.[1] || 'bulan ini'}`;
   // "kategori paling boros" is answered per category further on; the rest asks for the biggest spending.
   if (MOST_SPENT.test(base) && !/\b(?:kategori|hari\s+apa|hari\s+(?:apa\s+)?yang|tanggal|minggu\s+(?:apa|mana|ke)|bulan\s+(?:apa|mana)|jam|kapan)\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) {
-    const period = base.match(/\b(hari ini|kemarin|minggu ini|minggu lalu|bulan lalu|bulan kemarin|tahun ini)\b/)?.[1];
-    return `pengeluaran terbesar ${period || 'bulan ini'}`;
+    return `pengeluaran terbesar ${base.match(SPAN)?.[1] || 'bulan ini'}`;
   }
   // "kategori yg paling nyedot duit apa": the category spent most on.
   if (MOST_SPENT.test(base) && /\bkategori\b/.test(base) && !/\bkategori\s+paling\s+boros\b/.test(base) && !findAmounts(base).some(a => a.value > 0)) {
-    const period = base.match(/\b(hari ini|kemarin|minggu ini|minggu lalu|bulan lalu|bulan kemarin|tahun ini)\b/)?.[1];
-    return `kategori paling boros ${period || 'bulan ini'}`;
+    return `kategori paling boros ${base.match(SPAN)?.[1] || 'bulan ini'}`;
   }
   // "sehari biasanya keluar duit brp": the average a day.
   if (/\b(?:sehari|per\s*hari|perhari)\s+(?:(?:aku|gue|gw|w|saya|ku)\s+)?(?:biasanya\s+|rata[- ]?rata\s+)?(?:keluar|kluar|abis|habis|ngeluarin|ngabisin|belanja|pengeluaran)\b|\b(?:biasanya|rata[- ]?rata)\s+(?:sehari|per\s*hari)\s+(?:keluar|abis|habis|ngeluarin|belanja)\b/.test(base) && /\b(?:berapa|brp|brapa|brpa|berapaan)\b/.test(base) && !findAmounts(base).some(a => a.value > 0) && !/\b(?:boleh|bisa|aman|jatah|biar|supaya|agar|sampai|sampe)\b/.test(base))

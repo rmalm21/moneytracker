@@ -22,7 +22,7 @@ export const MODULES: { view: string; label: string; words: RegExp }[] = [
   { view: 'funds', label: 'Tujuan dana', words: /\bdana\s+darurat\b.*\b(?:cukup|tahan|berapa\s+bulan|aman)\b/ },
   { view: 'owedArchive', label: 'Arsip utang & piutang', words: /\barsip\s+(?:utang|hutang|piutang)\b/ },
   { view: 'cycles', label: 'Riwayat Siklus', words: /\b(?:riwayat\s+siklus|siklus\s+(?:lalu|sebelumnya)|tutup\s+buku)\b/ },
-  { view: 'upcoming', label: 'Arus Kas Mendatang', words: /\b(?:arus\s+kas|cash\s*flow|jatuh\s+tempo)\b/ },
+  { view: 'upcoming', label: 'Arus Kas Mendatang', words: /\b(?:arus\s+kas|cash\s*flow|jatuh\s+tempo|jadwal\s+(?:tagihan|bayar\p{L}*|pembayaran|cicilan))\b/u },
   { view: 'inbox', label: 'Perlu Dikonfirmasi', words: /\b(?:perlu\s+dikonfirmasi|inbox|kotak\s+masuk|draf|draft)\b/ },
   { view: 'health', label: 'Periksa Data', words: /\b(?:periksa\s+data|cek\s+data|data\s+(?:rusak|dobel|ganda))\b/ },
   { view: 'splitbill', label: 'Split Bill', words: /\b(?:split\s*bill|split\s*bil|patungan|bagi\s+tagihan)\b/ },

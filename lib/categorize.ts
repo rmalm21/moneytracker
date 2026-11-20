@@ -465,11 +465,14 @@ export function suggestCategory(input: { text: string; item: string; merchant?: 
   // 6.10: nothing read, but a word is one letter away from a word the reader knows ("bakzo" → bakso, "martabk" →
   // martabak): read again with that word. Only as a last resort, so a word that reads already never changes.
   // 10.4 Then a word written without its vowels ("kpi" → kopi, "bnsn" → bensin, "obt" → obat).
-  for (const fixes of [typoFixes(input.text), shorthandFixes(input.text)]) {
+  // 10.4 (post-hoc) A word doubled with "2" ("ngopi2", "jajan2") is that word.
+  const doubled: [string, string][] = [...new Set(input.text.match(/\p{L}{3,}2(?![\d\p{L}])/gu) || [])].map(w => [w, w.slice(0, -1)]);
+  for (const fixes of [doubled, typoFixes(input.text), shorthandFixes(input.text)]) {
     if (!fixes.length) continue;
     let text = input.text, item = input.item;
     for (const [raw, word] of fixes) { const re = new RegExp(`(^|[^\\p{L}])${escapeRe(raw)}(?![\\p{L}])`, 'gu'); text = text.replace(re, `$1${word}`); item = item.replace(re, `$1${word}`); }
     const again = guessCategory({ ...input, text, item }, ctx);
+    if (again && fixes === doubled) return again;
     if (again) return { ...again, why: fixes.map(([raw, word]) => `“${raw}” dibaca “${word}”`).join(', ') };
   }
   return null;

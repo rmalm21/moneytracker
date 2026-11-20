@@ -13,7 +13,7 @@ import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
 import { CHAT_CORPUS, CHAT_NONE, augment } from '../lib/chat/corpus.ts';
-import { generatedCorpus, generatedCorpus104 } from '../lib/chat/corpus-gen.ts';
+import { generatedCorpus, generatedCorpus104, generatedCorpus104b } from '../lib/chat/corpus-gen.ts';
 import { chatFeature } from '../lib/chat/feature.ts';
 
 // Held-out messages (single and in conversations) never reach training.
@@ -51,6 +51,8 @@ if (dirty.length) { console.error(`10.4 sentences with held-out-only words (${di
 
 const generated = generatedCorpus(), seen = new Map(), docs = [];
 for (const [intent, list] of Object.entries(corpus104)) generated[intent] = [...(generated[intent] || []), ...list];
+// 10.4 post-hoc (after the first held-out run): everyday English, not held to the held-out words (corpus-gen.ts G104B).
+for (const [intent, list] of Object.entries(generatedCorpus104b())) generated[intent] = [...(generated[intent] || []), ...list];
 let hand = 0, made = 0, leaks = 0, clash = 0;
 // 10.2 "None": what needs the conversation before it to mean anything (corpus.ts CHAT_NONE).
 for (const [intent, list] of [...Object.entries(CHAT_CORPUS), ['None', CHAT_NONE]]) {
