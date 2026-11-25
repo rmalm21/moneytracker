@@ -99,3 +99,15 @@ test('10.6 chat: sums, features and feelings', async () => {
     assert.match(shown(sim), /Rp400\.000/);
   }
 });
+
+test('10.6 A wrong transfer already sent back, said with its amount: nothing to record; still out or partly back: a card', async () => {
+  for (const acc of [bench, asli]) {
+    for (const s of ['tadi salah transfer 100rb, terus udah dibalikin', 'kemarin salah kirim 50rb ke nomor lain tapi udah balik']) {
+      const r = await talk(acc, s);
+      assert.ok(!isCard(r), s);
+      assert.match(shown(r), /nggak perlu dicatat/);
+    }
+    // Not back yet, or only part of it: the money is (partly) gone, so the card stays (never saved by itself).
+    for (const s of ['salah transfer 200rb, belum dibalikin', 'salah transfer 100rb, udah dibalikin 90rb', 'pesanan 120rb dibatalin, udah direfund']) assert.ok(isCard(await talk(acc, s)), s);
+  }
+});

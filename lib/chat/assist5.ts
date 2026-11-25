@@ -278,7 +278,17 @@ export function readSpentTotal(t: string, ctx: ChatContext, v: Voice): Out | nul
 }
 /** "tadi salah transfer terus uangnya balik": nothing changed, nothing to record. */
 export function readReturned(t: string, v: Voice): Out | null {
-  if (amountsOf(t).length || !/\b(?:salah\s+(?:transfer|tf|kirim|bayar|top\s?up)|kirim\s+salah|transfer\s+salah|kesalahan\s+transfer|refund\s+penuh|dibatalin|dibatalkan|batal)\b/.test(t) || !/\b(?:balik|kembali|dikembaliin|dikembalikan|dibalikin|balikin|refund|direfund|masuk\s+lagi|udah\s+balik)\b/.test(t)) return null;
+  if (!/\b(?:salah\s+(?:transfer|tf|kirim|bayar|top\s?up)|kirim\s+salah|transfer\s+salah|kesalahan\s+transfer|refund\s+penuh|dibatalin|dibatalkan|batal)\b/.test(t) || !/\b(?:balik|kembali|dikembaliin|dikembalikan|dibalikin|balikin|refund|direfund|masuk\s+lagi|udah\s+balik)\b/.test(t)) return null;
+  // 10.6 With an amount ("salah transfer 100rb, terus udah dibalikin"): only once it has come back, never
+  // "minta dibalikin", "belum balik", "gimana biar dibalikin?" (then the money is still out, and a record may be right).
+  const amounts = amountsOf(t).map(a => a.value);
+  if (amounts.length) {
+    if (!/\b(?:salah\s+(?:transfer|tf|kirim|bayar|top\s?up)|kirim\s+salah|transfer\s+salah|kesalahan\s+transfer)\b/.test(t) || /\?\s*$/.test(t) || /\b(?:belum|blm|belom|minta|mohon|semoga|moga|nunggu|tunggu|nungguin|gimana|gmn|bagaimana|cara|kapan|biar|supaya|agar|bisa)\b/.test(t)
+      || /\b(?:nggak|gak|ga|g|tidak|tdk|ngga|enggak|engga|kagak)\s+(?:di)?(?:balik|kembali|balikin|dibalikin|dikembaliin|dikembalikan|refund|direfund)\b/.test(t)
+      || !/\b(?:udah|udh|dah|sudah|sdh|terus|trus|tapi|tp|akhirnya|untung|alhamdulillah|langsung|barusan)\b/.test(t)
+      // "salah tf 100rb, udah dibalikin 90rb": part of it is gone, which Catat otomatis already reads as paid and returned.
+      || amounts.length >= 2) return null;
+  }
   return say('clarify', { card: 'talk', text: vo(v, {
     santai: 'Kalau uangnya udah balik utuh, saldo kamu nggak berubah, jadi nggak perlu dicatat apa-apa. Tapi kalau transfer yang salah itu sempat kecatat, hapus aja catatannya biar saldonya cocok. Kalau baliknya kurang (kena biaya), catat selisihnya sebagai biaya admin.',
     sopan: 'Bila dananya sudah kembali utuh, saldo tidak berubah sehingga tidak perlu dicatat. Bila transfer tersebut sempat tercatat, silakan hapus catatannya. Bila kembali kurang, catat selisihnya sebagai biaya admin.',
