@@ -290,3 +290,55 @@ export function generatedCorpus104(): Record<string, string[]> {
   }
   return out;
 }
+
+/**
+ * 10.6 Asisten chat 5.0: the master prompt's talk about money that the rules may miss in other words, for the model to
+ * catch: feelings (money that never lasts, regret, envy, fear for later), dreaming of riches, wishes and plans without a
+ * price, "what if" purchases without one, whether the app can do something, and how to divide a salary. Checked like
+ * G104 by scripts/build-chat-model.mjs: no word that only the 5.0 held-out test (bench/v106, heldout) has.
+ */
+const P5 = { me: ['gue', 'aku', 'gw', 'saya', ''], tail: ['', 'nih', 'sih', 'deh', 'ya', 'bgt', 'huft'] };
+const G106: Partial<Record<ChatModelIntent, Grammar>> = {
+  mood: { take: 140, slots: {
+    q: ['gaji cuma numpang lewat', 'gaji numpang lewat doang', 'duit cepet banget abisnya', 'uang selalu kurang tiap bulan', 'tanggal tua lagi', 'tanggal tua nih dompet tipis', 'gajian gak kerasa', 'gajian kok cepet abis', 'dompet nangis', 'saldo tinggal dikit', 'uangku tinggal sedikit', 'duit tinggal receh', 'bokek parah akhir bulan', 'kantong kering', 'baru gajian udah abis'],
+    me: P5.me, tail: P5.tail,
+  }, patterns: ['{q}', '{me} {q}', '{q} {tail}'] },
+  curhat: { take: 160, slots: {
+    q: ['nyesel banget belanja kemarin', 'nyesel checkout kemarin', 'nyesel beli barang mahal', 'iri liat temen udah punya rumah', 'iri sama temen yang udah mapan', 'insecure liat temen sukses', 'minder liat orang lain', 'takut tua nanti gak punya tabungan', 'khawatir sama masa depan', 'cemas mikirin hari tua', 'takut gak bisa bayar tagihan', 'capek kerja tapi gak ada sisa', 'kerja terus tapi gak nabung nabung'],
+    me: P5.me, tail: ['', 'nih', 'huft', 'bgt', 'deh'],
+  }, patterns: ['{q}', '{me} {q}', '{q} {tail}'] },
+  banter: { take: 110, slots: {
+    q: ['enak ya jadi orang tajir', 'pengen jadi crazy rich', 'kapan ya gue kaya', 'pengen kaya mendadak', 'rebahan dapet duit enak kali', 'andai gue tajir', 'jadi orang kaya enak kali ya', 'miskin terus wkwk', 'mau jadi tajir aja'],
+    tail: ['', 'wkwk', 'haha', 'hehe', 'ya'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  goal: { take: 160, slots: {
+    q: ['pengen beli mobil', 'pengen ganti laptop', 'mau punya rumah sendiri', 'pengen punya motor', 'pisahin duit buat nikah', 'nabung buat kuliah', 'pengen liburan ke jepang', 'mau beli rumah', 'pengen upgrade hp', 'mau ngumpulin buat nikah', 'pengen punya tabungan darurat', 'pengen beli kamera'],
+    me: P5.me, tail: ['', 'gimana', 'caranya gimana', 'bisa ga', 'tolong bantu'],
+  }, patterns: ['{q}', '{me} {q}', '{q} {tail}', '{me} {q} {tail}'] },
+  afford: { take: 120, slots: {
+    q: ['kalau beli sepatu sisa duit berapa', 'aman ga kalau beli hp', 'misal beli tiket konser masih aman ga', 'kalau jajan terus cukup ga', 'kalau beli laptop masih ada sisa ga', 'kalau beli tas uang gue sisa berapa', 'mampu ga beli motor', 'kuat ga beli iphone', 'aman ga belanja bulanan sekarang'],
+    tail: ['', 'ya', 'sih', 'dong', 'bot'],
+  }, patterns: ['{q}', '{q} {tail}'] },
+  help: { take: 120, slots: {
+    q: ['bisa catet utang ga', 'bisa bikin anggaran ga', 'bisa scan struk ga', 'bisa catat piutang ga', 'bisa bikin target tabungan ga', 'bisa ngitung cicilan ga', 'bisa bagi tagihan ga', 'bisa impor mutasi ga', 'bisa pasang pengingat ga', 'bisa transfer antar dompet ga'],
+    who: ['', 'lu', 'kamu', 'aplikasi ini'],
+  }, patterns: ['{q}', '{who} {q}'] },
+  tips: { take: 120, slots: {
+    q: ['bantu atur gaji', 'bantu bagi gaji', 'gaji enaknya dibagi gimana', 'cara ngatur uang bulanan', 'gimana bagi gaji biar cukup', 'atur keuangan bulanan dong', 'bikin rencana gaji', 'bagi bagi gaji gimana', 'alokasi gaji yang bener gimana'],
+    me: ['', 'gue', 'aku', 'saya'], tail: ['', 'dong', 'ya', 'pls'],
+  }, patterns: ['{q}', '{q} {me}', '{q} {me} {tail}'] },
+};
+/** The 10.6 sentences (same sampling as G104). */
+export function generatedCorpus106(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  let seed = 1060;
+  for (const [intent, g] of Object.entries(G106)) {
+    const rnd = random(seed++);
+    const shuffle = (list: string[]) => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list; };
+    const lists = g!.patterns.map(p => shuffle([...new Set(expand(p, g!.slots).map(x => x.replace(/\s+/g, ' ').trim()))]));
+    const picked = new Set<string>();
+    for (let round = 0; picked.size < g!.take && lists.some(l => l.length > round); round++) for (const l of lists) { if (picked.size >= g!.take) break; if (l[round]) picked.add(l[round]); }
+    out[intent] = [...picked];
+  }
+  return out;
+}

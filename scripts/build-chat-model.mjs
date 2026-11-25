@@ -13,7 +13,7 @@ import { containerBootstrap } from '@nlpjs/core';
 import { Nlp } from '@nlpjs/nlp';
 import { LangId } from '@nlpjs/lang-id';
 import { CHAT_CORPUS, CHAT_NONE, augment } from '../lib/chat/corpus.ts';
-import { generatedCorpus, generatedCorpus104, generatedCorpus104b } from '../lib/chat/corpus-gen.ts';
+import { generatedCorpus, generatedCorpus104, generatedCorpus104b, generatedCorpus106 } from '../lib/chat/corpus-gen.ts';
 import { chatFeature } from '../lib/chat/feature.ts';
 
 // Held-out messages (single and in conversations) never reach training.
@@ -36,6 +36,8 @@ const later = [
   ...(await import('../bench/v103/hand-heldout.mjs')).cases.map(c => c.text).filter(Boolean), ...turnsOf((await import('../bench/v103/hand-heldout.mjs')).cases),
   ...(await import('../bench/v1031/gen.mjs')).build('heldout').map(c => c.text).filter(Boolean), ...turnsOf((await import('../bench/v1031/gen.mjs')).build('heldout')),
   ...turnsOf((await import('../bench/v104/gen.mjs')).build('heldout')),
+  // 10.6: Asisten 5.0 (v106).
+  ...turnsOf((await import('../bench/v106/gen.mjs')).build('heldout')),
 ];
 for (const text of later) held.add(chatFeature(text));
 
@@ -49,7 +51,17 @@ const corpus104 = generatedCorpus104();
 const dirty = Object.values(corpus104).flat().flatMap(x => augment(x)).filter(x => chatFeature(x).split(' ').some(w => forbidden.has(w)));
 if (dirty.length) { console.error(`10.4 sentences with held-out-only words (${dirty.length}), not built:\n${[...new Set(dirty)].slice(0, 20).join('\n')}`); process.exit(1); }
 
+// 10.6 The same check for the 5.0 sentences (corpus-gen.ts G106) against the 5.0 held-out set (bench/v106).
+const v106 = await import('../bench/v106/gen.mjs');
+const tokens106 = split => new Set(v106.build(split).flatMap(c => c.turns.flatMap(t => t.say ? chatFeature(t.say).split(' ') : [])));
+const before106 = new Set([...before, ...Object.values(corpus104).flat().flatMap(x => chatFeature(x).split(' ')), ...Object.values(generatedCorpus104b()).flat().flatMap(x => chatFeature(x).split(' '))]);
+const dev106 = tokens106('dev'), forbidden106 = new Set([...tokens106('heldout')].filter(w => w && !dev106.has(w) && !before106.has(w)));
+const corpus106 = generatedCorpus106();
+const dirty106 = Object.values(corpus106).flat().flatMap(x => augment(x)).filter(x => chatFeature(x).split(' ').some(w => forbidden106.has(w)));
+if (dirty106.length) { console.error(`10.6 sentences with held-out-only words (${dirty106.length}), not built:\n${[...new Set(dirty106)].slice(0, 20).join('\n')}`); process.exit(1); }
+
 const generated = generatedCorpus(), seen = new Map(), docs = [];
+for (const [intent, list] of Object.entries(corpus106)) generated[intent] = [...(generated[intent] || []), ...list];
 for (const [intent, list] of Object.entries(corpus104)) generated[intent] = [...(generated[intent] || []), ...list];
 // 10.4 post-hoc (after the first held-out run): everyday English, not held to the held-out words (corpus-gen.ts G104B).
 for (const [intent, list] of Object.entries(generatedCorpus104b())) generated[intent] = [...(generated[intent] || []), ...list];
