@@ -467,7 +467,7 @@ const SMALL_WORDS = /\b(?:abis|habis|kena|kepake|kepakai|ngabisin|ngehabisin|har
 /** 6.10: a wallet or bank that is not set up, written bare after the amount: how it was paid. */
 const PAID_BARE = /\b(ovo|dana|shopeepay|spay|linkaja|gopay|jenius|jago|bca|bni|bri|bsi|btn|bjb|cimb|permata|danamon|seabank|blu|ocbc|mandiri|flazz|brizzi|tapcash|emoney|e-money|qris|debit|debet)\b/;
 /** 6.10: how it felt and words that weigh the price: never what was bought or received. */
-const FEELING = /\b(?:duh|aduh|haduh|wah|waduh|wih|wuih|astaga|astagfirullah|astaghfirullah|alhamdulillah|buset|busyet|gila|gilak|ya ampun|yaampun|yaallah|ya allah|hadeh|hadeuh|huft|hufft|akhirnya|cuma|cuman|doang|aja|saja|lumayan|mahal|murah|boros|banget|bgt|amat|juga|eh|btw)\b/g;
+const FEELING = /\b(?:duh|aduh|haduh|wah|waduh|wih|wuih|astaga|astagfirullah|astaghfirullah|alhamdulillah|buset|busyet|gila|gilak|ya ampun|yaampun|yaallah|ya allah|hadeh|hadeuh|huft|hufft|akhirnya|cuma|cuman|doang|aja|saja|lumayan|mahal|murah|boros|banget|bgt|amat|juga|eh|btw|seneng|senang|syukur|yeay|kayaknya|sepertinya|kalo|kalau|klo)\b/g;
 /** 6.10: the time of day said with "ini" ("pagi ini") and dawn ("subuh"): the date, not the thing. */
 const DAY_TIME = /\b(?:(?:pagi|siang|sore|malam|malem|subuh) ini|subuh)\b/g;
 /** Names of money that keep their "uang" ("uang saku", "uang kaget"); the second word alone means something else. */

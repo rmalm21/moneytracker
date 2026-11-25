@@ -145,6 +145,8 @@ const PHRASES: [RegExp, string | ((...m: string[]) => string)][] = [
     [/\bgo[\s-]pay\b/g, 'gopay'], [/\bshopee[\s-]pay\b/g, 'shopeepay'], [/\blink[\s-]aja\b/g, 'linkaja'], [/\bsea[\s-]bank\b/g, 'seabank'],
   [/(\d)\s*(?:rbu|rebu|rbuan|ribuan|rban|rb-an|rbn)\b/g, '$1rb'], [/(\d)\s*(?:jtan|jutaan|jt-an)\b/g, '$1jt'],
   [/\b(?:dua2nya|dua-duanya|dua duanya|duaduanya)\b/g, 'dua-duanya'], [/\bpas\s+gajian\b/g, 'pas gajian'],
+  // 10.6 "kalau ga salah tadi bayar listrik 300rb": "if I'm not wrong" is not part of the record.
+  [/\b(?:kalau|kalo|klo|kl)\s+(?:ga|gak|nggak|enggak|engga|ngga|tidak|tdk|g)\s+salah\b\s*,?/g, ' '],
   [/\b(?:gak|ga|nggak|enggak|engga|ngga|gk|g)\s*jadi\b|\bgajadi\b/g, 'tidak jadi'], [/\bmasing2\b/g, 'masing-masing'],
   // 10.6 Days back said in words: "dua hari lalu", "tiga hari yang lalu", "seminggu lalu", "dua minggu yang lalu".
   [new RegExp(`\\b(${Object.keys(DAY_COUNT).join('|')})\\s+hari\\s+(?:yang\\s+|yg\\s+)?lalu\\b`, 'g'), (_m: string, n: string) => `${DAY_COUNT[n]} hari lalu`],

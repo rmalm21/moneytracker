@@ -106,9 +106,9 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
   // 10.6 Paid for others, part of it to be paid back: "gue bayarin dulu 200rb, nanti andi ganti 150rb" → my 50rb is spending,
   // the 150rb Andi owes is a Piutang. Paid for the whole group: "makan berlima 250rb, gue talangin semua" → my share and
   // what the others owe.
-  const fronted = t.match(new RegExp(String.raw`^(.*?)\b(?:bayar(?:in)?|talangin|nalangin|nombokin)\s+(?:dulu\s+)?(.*?)(${AMT})(.*?)\s*,?\s*(?:nanti|ntar|entar|terus|trus|dan|tapi)\s+(.+?)\s+(?:(?:mau|bakal|akan)\s+)?(?:ganti(?:in)?|bayar(?:in)?|balikin|kembaliin|transfer|tf)\s+(?:ke\s+(?:aku|gue|gua|gw|saya)\s+)?(${AMT})(.*)$`, 'u'));
+  const fronted = t.match(new RegExp(String.raw`^(.*?)\b(?:bayar(?:in)?|talangin|nalangin|nombokin|traktir|nraktir|beliin)\s+(?:dulu\s+)?(.*?)(${AMT})(.*?)\s*,?\s*(?:(?:terus|trus|dan|tapi)\s+)?(?:nanti|ntar|entar|besok|katanya)\s+(.+?)\s+(?:(?:mau|bakal|akan|janji)\s+)?(?:ganti(?:in)?|bayar(?:in)?|balikin|kembaliin|transfer|tf)\s+(?:ke\s+(?:aku|gue|gua|gw|saya)\s+)?(${AMT})(.*)$`, 'u'));
   if (fronted) {
-    const all = value(fronted[3]), owed = value(fronted[6]), who = fronted[5].replace(/\b(?:gue|gua|gw|aku|saya|ku)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    const all = value(fronted[3]), owed = value(fronted[6]), who = fronted[5].replace(/\b(?:gue|gua|gw|aku|saya|ku)\b/g, ' ').replace(/\s+/g, ' ').trim().replace(/^(?:dia|doi|beliau|mereka)$/, /\b(?:temen|teman)\b/.test(fronted[2]) ? 'teman' : 'teman');
     const what = `${fronted[1]} ${fronted[2]}`.replace(/\b(?:aku|gue|gua|gw|saya|tadi|udah|sudah)\b/g, ' ').replace(/\s+/g, ' ').trim() || 'bayar';
     const via = `${fronted[4]} ${fronted[7]}`.match(/\b(?:pake|pakai|pakek|dari|via|lewat)\s+(\p{L}+)/u)?.[0] || '';
     if (who && who.split(' ').length <= 3 && owed > 0 && owed <= all) {
@@ -175,10 +175,10 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
     const m = t.match(new RegExp(String.raw`^(?:total\s+)?(.*?)\s*(${AMT})\s*,\s*(.+)$`, 'u'));
     if (m) {
       // 10.6 "200rb pake jago 100rb pake gopay": a new amount after a wallet starts the next way paid.
-      const PARTS = new RegExp(String.raw`\s*,\s*|\s+(?:dan|sama)\s+|(?<=\p{L})\s+(?=(?:rp\.?\s*)?\d)`, 'u');
-      const pairs = m[3].split(PARTS).map(p => p.match(new RegExp(String.raw`^${PAYER}\s+(${AMT})$|^(${AMT})\s+${PAYER}$`, 'u'))).filter(Boolean) as RegExpMatchArray[];
+      const parts = m[3].split(/\s*,\s*|\s+(?:dan|sama)\s+/).flatMap(p => findAmounts(p).filter(a => a.value > 0).length > 1 ? p.split(/(?<=\p{L})\s+(?=(?:rp\.?\s*)?\d)/u) : [p]);
+      const pairs = parts.map(p => p.match(new RegExp(String.raw`^${PAYER}\s+(${AMT})$|^(${AMT})\s+${PAYER}$`, 'u'))).filter(Boolean) as RegExpMatchArray[];
       const ways = pairs.map(p => ({ w: p[1] || p[4], a: value(p[2] || p[3]) }));
-      if (pairs.length >= 2 && pairs.length === m[3].split(PARTS).length && ways.every(x => isWallet(x.w))) {
+      if (pairs.length >= 2 && pairs.length === parts.length && ways.every(x => isWallet(x.w))) {
         const total = value(m[2]), sum = ways.reduce((n, x) => n + x.a, 0), desc = m[1].trim() || 'belanja';
         t = ways.map(x => `${desc} ${amt(x.a)} pakai ${x.w}`).join(', ');
         if (Math.abs(sum - total) >= 1) { out.warn = `Total ${rp(total)}, tapi yang dibayar ${rp(sum)} (beda ${rp(Math.abs(total - sum))}). Ada diskon, cara bayar lain, atau nominal yang salah?`; said(out.warn); }

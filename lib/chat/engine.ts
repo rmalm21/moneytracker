@@ -50,7 +50,7 @@ import { opensMenu, readModule } from './modules.ts';
 import { budgetMissing, continueGoal, readGoal, type GoalFlow, type GoalStep } from './goals.ts';
 import { readAdvice } from './advice.ts';
 import { AFTER_COMMENT, DEBT, GENEROUS, SAVING, TREATS, afterComment, commentFor, type CommentFacts } from './comment.ts';
-import { readBiggestWallet, readBudgetWhatIf, readCapability, readDeleteByDay, readFeeling, readMonthlySetAside, readMoneyMath, readNoAmount, readPaidBack, readPlannedBuy, readReturned, readSalaryPlan, readSetAside, readSkipped, readSpentTotal, readToSavings, readWhatIf, readWish, usualAmounts, type Facts, type Out } from './assist5.ts';
+import { readBiggestWallet, readBudgetWhatIf, readCanRecord, readPaidDebt, readCapability, readDeleteByDay, readFeeling, readMonthlySetAside, readMoneyMath, readNoAmount, readPaidBack, readPlannedBuy, readReturned, readSalaryPlan, readSetAside, readSkipped, readSpentTotal, readToSavings, readWhatIf, readWish, usualAmounts, type Facts, type Out } from './assist5.ts';
 
 export type ChatData = Pick<Data, 'wallets' | 'transactions' | 'budgets' | 'categories' | 'funds' | 'debts' | 'receivables' | 'claims'> & Partial<Pick<Data, 'recurring' | 'wishlist' | 'drafts' | 'plannedTransactions'>>;
 export type ChatContext = {
@@ -1185,10 +1185,10 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     // sums, features asked about, a friend paying back, a record without its amount. Never recorded; a card only to check.
     if (depth <= 1 && !memory.teaching && !memory.kasbon && memory.riddle === undefined && !memory.userRiddle && !memory.game && !memory.unitAsk && !memory.pendingQ && !(memory.goal && !flowDone)) {
       const facts = facts5();
-      const five = readReturned(t, v) || (!pending ? readPaidBack(t, ctx, v) : null) || readCapability(t, v) || readBiggestWallet(t, ctx, v) || readToSavings(t, ctx, v) || readSetAside(t, ctx, v)
+      const five = readReturned(t, v) || (!pending ? readPaidBack(t, ctx, v) : null) || (!pending ? readPaidDebt(t, ctx, v) : null) || readCanRecord(t, v) || readCapability(t, v) || readBiggestWallet(t, ctx, v) || readToSavings(t, ctx, v) || readSetAside(t, ctx, v)
         || readSalaryPlan(t, ctx, v, facts) || readMonthlySetAside(t, ctx, v) || (!pending ? readDeleteByDay(t, ctx, v) : null) || readMoneyMath(raw, v)
         || readWhatIf(t, ctx, v, facts) || readPlannedBuy(t, ctx, v, facts, memory) || readWish(t, ctx, v, facts) || readSpentTotal(t, ctx, v)
-        || readFeeling(t, ctx, v, facts) || (!pending ? readSkipped(t, v) : null) || (!pending && !memory.start ? readNoAmount(raw, t, ctx, v) : null);
+        || readFeeling(t, ctx, v, facts) || (!pending ? readSkipped(t, v) : null) || (!pending && !memory.start && memory.topic !== 'curhat' && memory.topic !== 'mood' ? readNoAmount(raw, t, ctx, v) : null);
       if (five) return use5(five);
     }
     // 10.2 "lagi satu yang sama", "sekali lagi", "sama kayak tadi" right after Simpan: the same card again.

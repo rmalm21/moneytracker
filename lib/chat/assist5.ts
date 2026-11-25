@@ -38,7 +38,7 @@ const short = (n: number) => n >= 1_000_000 ? `${(Math.round(n / 100_000) / 10).
 const say = (intent: ChatIntent, reply: Omit<Extract<ChatReply, { kind: 'say' }>, 'kind'>, memory?: Partial<ChatMemory>): Out => ({ intent, reply: { kind: 'say', ...reply }, ...(memory ? { memory } : {}) });
 
 const PAST = /\b(?:tadi|td|barusan|udah|udh|sudah|dah|kemarin|kemaren|kmrn|abis|habis|tadinya|semalam|semalem|lusa\s+kemarin)\b/;
-const DATE_AHEAD = /\b(?:besok|bsk|lusa|nanti|ntar|minggu\s+depan|pekan\s+depan|bulan\s+depan|tahun\s+depan|tgl\s*\d|tanggal\s*\d|akhir\s+bulan|awal\s+bulan|pas\s+gajian|abis\s+gajian|habis\s+gajian)\b/;
+const DATE_AHEAD = /\b(?:besok|bsk|lusa|nanti|ntar|minggu\s+depan|pekan\s+depan|bulan\s+depan|tahun\s+depan|tgl\s*\d+|tanggal\s*\d+|akhir\s+bulan|awal\s+bulan|pas\s+gajian|abis\s+gajian|habis\s+gajian)\b/;
 const LATER = /\b(?:tahun\s+depan|bulan\s+depan|nanti|suatu\s+hari|someday|kapan[-\s]kapan|akhir\s+tahun|tahun\s+ini)\b/;
 const SAVING = /\b(?:nabung|menabung|tabung|nyisihin|sisihin|sisihkan|nyisain|celengan|ngumpulin|ngumpulkan)\b/;
 const ME = /\b(?:aku|gue|gua|gw|guwe|saya|ane|w|ku)\b/;
@@ -101,6 +101,9 @@ function freeAfter(facts: Facts, amount: number, v: Voice, what: string) {
  * "kalau besok top up 100rb gimana", "gimana kalau kurangin jajan 10rb sehari": worked out, never recorded. */
 export function readWhatIf(t: string, ctx: ChatContext, v: Voice, facts: Facts): Out | null {
   if (!WHATIF.test(t)) return null;
+  // "kalau ga salah tadi bayar listrik 300rb": "if I'm not wrong", a record; "kalo tadi pagi beli…" tells what happened.
+  if (/^(?:kalau|kalo|klo|kl)\s+(?:ga|gak|nggak|ngga|enggak|tidak|tdk|g)\s+salah\b/.test(t)) return null;
+  if (PAST.test(t.replace(/\bjadi(?:nya)?\b/g, ' ')) && !NOT_BUY.test(t) && !/\b(?:sisa|tersisa|berapa|brp|gimana|aman|cukup)\b/.test(t)) return null;
   // Saving sums ("kalau nabung 500rb sebulan…") have their own reader (lib/chat/answers.ts readSaving).
   if (SAVING.test(t) && !CUT.test(t)) return null;
   const body = t.replace(WHATIF, ' ').replace(/\s+/g, ' ').trim(), amounts = amountsOf(body);
@@ -135,7 +138,11 @@ export function readWhatIf(t: string, ctx: ChatContext, v: Voice, facts: Facts):
   // Not buying something for a while: "andai gue nggak beli kopi selama sebulan".
   const skip = body.match(NOT_BUY);
   if (skip && !amounts.length && skip[1] && !/^(?:jadi|usah|bisa|ada|punya|apa|apa2|apa-apa)\b/.test(skip[1])) {
-    const thing = skip[1].replace(/\b(?:lagi|selama|sama\s+sekali|dulu|dong|ya|sih|deh|nih|tiap|setiap|seminggu|sebulan|setahun)\b.*$/, '').trim() || skip[1];
+    const verbThing: Record<string, string> = { ngerokok: 'rokok', merokok: 'rokok', ngopi: 'kopi', jajan: 'jajan', nonton: 'nonton', gofood: 'gofood', grabfood: 'grabfood', belanja: 'belanja', 'nge-gojek': 'gojek', ngegojek: 'gojek' };
+    const verb = body.match(/\b(ngerokok|merokok|ngopi|jajan|nonton|gofood|grabfood|belanja|nge-?gojek)\b/)?.[1];
+    const tail = skip[1].replace(/\b(?:lagi|selama|sama\s+sekali|dulu|dong|ya|sih|deh|nih|tiap|setiap|seminggu|sebulan|setahun|sepekan|hemat|berapa|brp|bisa|jadi|kira-kira)\b.*$/, '').trim();
+    const thing = tail || (verb ? verbThing[verb.replace('-', '')] || verb : '');
+    if (!thing) return null;
     const span = SPAN_DAYS.find(([re]) => re.test(body)) || SPAN_DAYS[1];
     const seen = spentOn(ctx, thing, 30);
     if (!seen.count) return say('calc', { card: 'calc', title: `Tanpa ${thing}`, text: vo(v, { santai: `Di 30 hari terakhir belum ada catatan ${thing}, jadi belum ada yang bisa dihemat dari situ. Kalau biasanya beli ${thing} tapi belum dicatat, catat dulu beberapa kali biar kelihatan polanya.`, sopan: `Dalam 30 hari terakhir belum ada catatan ${thing}, sehingga penghematannya belum dapat dihitung.`, gaul: `30 hari terakhir gak ada catatan ${thing}, jadi gak ada yang dihemat. Catet dulu kalo emang suka beli.`, singkat: `Belum ada catatan ${thing} 30 hari terakhir.` }) });
@@ -164,9 +171,19 @@ export function readWhatIf(t: string, ctx: ChatContext, v: Voice, facts: Facts):
       singkat: `Uang bebas tetap ${rp(facts.free)}. Belum dicatat.`,
     }), hero: { label: 'Uang bebas', value: rp(facts.free), note: 'tidak berubah', tone: 'good' }, tone: 'info', chips: [`top up gopay ${amountWord(a)} dari jago`, 'saldo semua dompet berapa'] });
   }
+  // Money that would come in: "seandainya bonus gue 2jt", "kalau dapet thr 3jt".
+  if (/\b(?:bonus|thr|gaji|gajian|dapet|dapat|terima|cuan|untung|menang|hadiah|warisan|cashback|komisi|insentif)\b/.test(body) && !BUY_VERB.test(body)) {
+    const next = facts.free + a;
+    return say('calc', { card: 'calc', title: 'Kalau dapat uang', text: vo(v, {
+      santai: `Kalau dapat ${rp(a)}, uang bebasmu jadi ${rp(next)}. Saran: sisihin dulu sebagian (misalnya ${rp(a * 0.5)} ke tabungan atau Dana Darurat), baru sisanya dipakai. Ini masih andai-andai, jadi belum kucatat.`,
+      sopan: `Bila menerima ${rp(a)}, uang bebas Anda menjadi ${rp(next)}. Disarankan menyisihkan sebagian terlebih dahulu. Ini masih perkiraan dan belum dicatat.`,
+      gaul: `Kalo dapet ${rp(a)}, duit bebas lo jadi ${rp(next)}. Tabung setengahnya dulu (${rp(a * 0.5)}), baru sisanya buat senang-senang. Masih andai-andai, gak gue catet.`,
+      singkat: `Uang bebas jadi ${rp(next)}. Belum dicatat.`,
+    }), hero: { label: 'Uang bebas jadi', value: rp(next), tone: 'good' }, tone: 'info', chips: ['bantu atur gaji gue', 'berapa yang harus gue sisihin tiap bulan?'] }, { last: 'calc', number: next });
+  }
   // A purchase: what the free money would be after it.
   if (BUY_VERB.test(body) || /\b(?:sisa|tersisa|tinggal|masih)\b/.test(body)) {
-    const thing = body.replace(/\b(?:aku|gue|gua|gw|saya|ane|w|beli|bayar|jajan|belanja|checkout|ambil|pesan|pesen|order|pake|pakai|terus|trus|sisa|tersisa|tinggal|masih|duit|uang|berapa|brp|jadi|gimana|ya|dong|sih|deh|nih)\b/g, ' ').replace(amounts[0].text, ' ').replace(/[?,.!]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ');
+    const thing = body.replace(/\b(?:hari|minggu|bulan|tahun)\s+(?:ini|depan)\b|\b(?:besok|lusa|nanti|aman|ga|gak|nggak|kah|apa|enggak|gimana|gmn)\b/g, ' ').replace(/\b(?:aku|gue|gua|gw|saya|ane|w|beli|bayar|jajan|belanja|checkout|ambil|pesan|pesen|order|pake|pakai|terus|trus|sisa|tersisa|tinggal|masih|duit|uang|berapa|brp|jadi|gimana|ya|dong|sih|deh|nih)\b/g, ' ').replace(amounts[0].text, ' ').replace(/[?,.!]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ');
     const f = freeAfter(facts, a, v, thing ? `beli ${thing}` : 'keluar');
     return say('afford', { card: 'afford', title: thing ? `Kalau beli ${thing}` : 'Simulasi', text: f.text, hero: f.hero, stats: f.stats, tone: f.after >= 0 ? 'info' : 'warn', chips: [`catat beli ${thing || 'barang'} ${amountWord(a)}`, 'kasih tips hemat'] }, { last: 'calc', number: f.after });
   }
@@ -192,6 +209,7 @@ export function readWish(t: string, ctx: ChatContext, v: Voice, facts: Facts): O
     singkat: `Uang bebas ${rp(facts.free)}. Pilih satu, masukkan Wish list.`,
   }), chips: ['buka wishlist', 'kasih tips hemat'] });
   const thing = wishThing(t) || 'barang itu';
+  if (/^(?:dompet|rekening|rek|kategori|anggaran|budget|target|tujuan|pengingat|reminder|transaksi|catatan|akun|kartu|tema|pin|password|fitur|wishlist|wish\s?list)\b/.test(thing)) return null;
   return say('goal', { card: 'goal', title: `Pengen ${thing}`, text: vo(v, {
     santai: `Pengen ${thing}? Wajar kok. Uang bebasmu sekarang ${rp(facts.free)} (±${rp(facts.daily)}/hari sampai gajian). Harganya kira-kira berapa? Bilang misalnya “aman nggak beli ${thing} 500rb?”, nanti kucek. Biar nggak impulsif, bisa juga masuk Wish list dulu.`,
     sopan: `Ingin membeli ${thing}? Uang bebas Anda saat ini ${rp(facts.free)}. Berapa kira-kira harganya? Saya bisa memeriksa apakah aman, atau memasukkannya ke Wish list terlebih dahulu.`,
@@ -205,9 +223,19 @@ export function readWish(t: string, ctx: ChatContext, v: Voice, facts: Facts): O
 export function readPlannedBuy(t: string, ctx: ChatContext, v: Voice, facts: Facts, memory: ChatMemory): Out | null {
   const amounts = amountsOf(t);
   const again = memory.want && amounts.length === 1 && t.split(' ').length <= 9 && /^(?:(?:tapi|tp|eh|kalau|kalo|klo|atau|ato|terus|trus)\s+)*(?:(?:yang|yg)\s+)/.test(t) && !BUY_VERB.test(t.replace(/^(?:\S+\s+){0,3}/, ''));
-  const fresh = !again && amounts.length === 1 && /\b(?:mau|pengen|pengin|pingin|kepengen|ingin|rencana(?:nya)?|berencana|niat(?:nya)?|planning|lagi\s+ngincer|ngincer|ngincar)\s+(?:beli|ganti|ambil|ngambil|upgrade|punya)\b/.test(t) && !PAST.test(t) && !DATE_AHEAD.test(t);
+  const fresh = !again && amounts.length === 1 && !SAVING.test(t) && !/\bpunya\s+(?:duit|uang|dana|tabungan)?\s*(?:rp\.?\s*)?\d/.test(t) && /\b(?:mau|pengen|pengin|pingin|kepengen|ingin|rencana(?:nya)?|berencana|niat(?:nya)?|planning)\s+(?:beli|ganti|ambil|ngambil|upgrade|punya)\b|\b(?:ngincer|ngincar|naksir|ngidam|ngiler)\s+\p{L}/u.test(t) && !PAST.test(t) && !DATE_AHEAD.test(t);
   if (!again && !fresh) return null;
-  const price = amounts[0].value, thing = again ? memory.want!.thing : wishThing(t.replace(amounts[0].text, ' ')) || 'barang itu';
+  if (fresh && amounts[0].value < 300_000 && !/\b(?:ngincer|ngincar|naksir|ngidam|ngiler)\b/.test(t)) {
+    const a = amounts[0].value, what = wishThing(t.replace(amounts[0].text, ' ')) || 'itu', ok = facts.free >= a;
+    return say('afford', { card: 'afford', text: vo(v, {
+      santai: `Oke, mau beli ${what} ${rp(a)}. ${ok ? `Aman, uang bebasmu masih ${rp(facts.free)}.` : `Hati-hati, uang bebasmu tinggal ${rp(facts.free)}.`} Belum kucatat karena belum kebeli. Kalau udah, ketuk tombol di bawah.`,
+      sopan: `Baik, rencana membeli ${what} ${rp(a)}. ${ok ? `Uang bebas Anda ${rp(facts.free)}, masih aman.` : `Uang bebas Anda tinggal ${rp(facts.free)}.`} Belum dicatat karena belum terjadi.`,
+      gaul: `Sip, mau beli ${what} ${rp(a)}. ${ok ? `Aman, duit bebas lo ${rp(facts.free)}.` : `Duit bebas lo tinggal ${rp(facts.free)}, hati-hati.`} Belum gue catet, kalo udah kebeli tap tombol di bawah.`,
+      singkat: `${ok ? 'Aman' : 'Mepet'}. Belum dicatat.`,
+    }), chips: [`beli ${what} ${amountWord(a)}`, 'kasih tips hemat'] }, { item: what });
+  }
+  const price = amounts[0].value, eyed = t.replace(amounts[0].text, ' ').match(/\b(?:ngincer|ngincar|naksir|ngidam|ngiler)\s+(.+)$/)?.[1];
+  const thing = again ? memory.want!.thing : wishThing(eyed ? `beli ${eyed}` : t.replace(amounts[0].text, ' ')) || 'barang itu';
   const ok = facts.free >= price, months = [3, 6, 12].map(n => ({ n, per: Math.ceil(price / n / 1000) * 1000 }));
   const lead = again ? vo(v, { santai: `Oke, yang ${rp(price)}.`, sopan: `Baik, yang ${rp(price)}.`, gaul: `Oke, yang ${rp(price)}.`, singkat: `${rp(price)}:` }) : vo(v, { santai: `${cap(thing)} ${rp(price)} ya.`, sopan: `${cap(thing)} seharga ${rp(price)}.`, gaul: `${cap(thing)} ${rp(price)}, noted.`, singkat: `${cap(thing)} ${rp(price)}:` });
   const text = `${lead} ${vo(v, {
@@ -297,7 +325,7 @@ export function readFeeling(t: string, ctx: ChatContext, v: Voice, facts: Facts)
       singkat: 'Wajar. Coba aturan 24 jam lewat Wish list.',
     }), chips: ['kasih tips hemat', 'buka wishlist'] }, { topic: 'curhat', curhat: 1 });
   }
-  if (/\b(?:gaji|gajian|duit|uang|penghasilan|pendapatan|pemasukan)\b(?:\s+\p{L}+){0,3}\s+(?:kurang|nggak\s+cukup|gak\s+cukup|ga\s+cukup|tidak\s+cukup|pas-?pasan|abis\s+terus|habis\s+terus|cepet\s+abis|cepat\s+habis|numpang\s+lewat|selalu\s+kurang|kurang\s+terus)\b/u.test(t)) {
+  if (!/\b(?:sedih|stres|stress|pusing|galau|bete|kesel|nangis|depresi)\b/.test(t) && /\b(?:gaji|gajian|duit|uang|penghasilan|pendapatan|pemasukan)\b(?:\s+\p{L}+){0,3}\s+(?:kurang|nggak\s+cukup|gak\s+cukup|ga\s+cukup|tidak\s+cukup|pas-?pasan|abis\s+terus|habis\s+terus|cepet\s+abis|cepat\s+habis|numpang\s+lewat|selalu\s+kurang|kurang\s+terus)\b/u.test(t)) {
     return say('curhat', { card: 'talk', text: vo(v, {
       santai: `Capek ya rasanya 🫂 Dari catatanmu periode ini: masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}${facts.income ? ` (${pct(facts.expenses / facts.income, 0)} dari pemasukan)` : ''}. Coba kita lihat bagian mana yang paling bisa dikecilin, pelan-pelan aja.`,
       sopan: `Itu memang melelahkan. Periode ini pemasukan Anda ${rp(facts.income)} dan pengeluaran ${rp(facts.expenses)}. Mari kita lihat pos yang paling mungkin dikurangi.`,
@@ -331,13 +359,17 @@ export function readFeeling(t: string, ctx: ChatContext, v: Voice, facts: Facts)
     }), chips: ['bikin tujuan dana', 'kasih tips hemat'] }, { offer: 'bikin tujuan dana' });
   }
   if (/\bharga\b.*\b(?:mahal|naik|melambung|gila|parah|selangit)\b|\b(?:mahal|naik)\s+(?:banget|bgt|semua|terus|parah)\b.*\b(?:harga|makanan|bensin|sembako|beras|cabe|cabai|minyak)\b|\b(?:makanan|sembako|bensin|beras)\b.*\b(?:mahal|naik)\b/.test(t)) {
-    const food = ctx.data.categories.find(c => !c.parentId && /makan/i.test(c.name)), now = food ? spentBetween(ctx.data.transactions.filter(x => x.categoryId === food.id), ctx.cycle.start, daysBefore(ctx.today, -1)).total : 0;
+    const word = t.match(/\b(bensin|bbm|pertalite|pertamax|solar|listrik|token|air|pulsa|kuota|internet|sewa|kos|kost|ongkir|ojol|tol|parkir|rokok|kopi)\b/)?.[1];
+    const named = word ? ctx.data.categories.find(c => new RegExp(`\\b${word === 'bbm' || word === 'pertalite' || word === 'pertamax' || word === 'solar' ? 'bensin' : word === 'token' ? 'listrik' : word === 'kost' ? 'kos' : word}`, 'i').test(c.name)) : undefined;
+    const food = named || ctx.data.categories.find(c => !c.parentId && /makan/i.test(c.name));
+    const now = food ? spentBetween(ctx.data.transactions.filter(x => x.categoryId === food.id || x.subcategoryId === food.id), ctx.cycle.start, daysBefore(ctx.today, -1)).total : 0;
+    const help = named && !/makan|kopi/i.test(named.name) ? vo(v, { santai: `Coba pasang anggaran ${named.name} biar kelihatan kalau mulai bengkak, dan cari cara ngiritnya (gabung perjalanan, paket bulanan, bandingin harga).`, sopan: `Pasang anggaran ${named.name} agar kenaikannya terpantau.`, gaul: `Pasang anggaran ${named.name} biar ketahuan kalo bengkak.`, singkat: `Pasang anggaran ${named.name}.` }) : '';
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: `Iya, kerasa banget ya 😮‍💨 ${food && now ? `Periode ini ${food.name} kamu udah ${rp(now)}.` : ''} Yang biasanya ngebantu: masak sendiri beberapa kali seminggu, bawa bekal, dan pasang anggaran makan biar ada batasnya.`.replace(/\s+/g, ' '),
+      santai: `Iya, kerasa banget ya 😮‍💨 ${food && now ? `Periode ini ${food.name} kamu udah ${rp(now)}.` : ''} ${help || 'Yang biasanya ngebantu: masak sendiri beberapa kali seminggu, bawa bekal, dan pasang anggaran makan biar ada batasnya.'}`.replace(/\s+/g, ' '),
       sopan: `Memang terasa. ${food && now ? `Periode ini pengeluaran ${food.name} Anda ${rp(now)}.` : ''} Memasak sendiri, membawa bekal, dan memasang anggaran makan dapat membantu.`.replace(/\s+/g, ' '),
       gaul: `Bener, gila sih harganya 😮‍💨 ${food && now ? `Periode ini ${food.name} lo udah ${rp(now)}.` : ''} Masak sendiri, bawa bekal, pasang anggaran makan.`.replace(/\s+/g, ' '),
       singkat: `${food && now ? `${food.name}: ${rp(now)}. ` : ''}Pasang anggaran makan.`,
-    }), chips: ['budget makan masih berapa', 'kasih tips hemat'] }, { topic: 'curhat', curhat: 1 });
+    }), chips: [named && !/makan|kopi/i.test(named.name) ? `anggaran ${lower(named.name)} 500rb` : 'budget makan masih berapa', 'kasih tips hemat'] }, { topic: 'curhat', curhat: 1 });
   }
   return null;
 }
@@ -350,9 +382,9 @@ const AMT_RE = String.raw`(?:rp\.?\s*)?\d[\d.,]*\s*(?:rb|ribu|k|jt|juta|m|miliar
 export function readMoneyMath(t0: string, v: Voice): Out | null {
   const t = amountWords(lower(t0)), amounts = findAmounts(t).filter(a => a.value > 0);
   // A share of one amount in another: "berapa persen 750rb dari 5jt", "pengeluaran 3,2jt dari gaji 8jt itu berapa persen".
-  const of = t.match(new RegExp(String.raw`(${AMT_RE})\s+(?:itu\s+)?dari\s+(?:\p{L}+\s+){0,2}(${AMT_RE})`, 'u'));
-  if (of && /\b(?:berapa|brp)\s*(?:persen|%)|\bpersen(?:nya|tase)?\b|\bpersentase\b/.test(t)) {
-    const a = findAmounts(of[1])[0]?.value || 0, b = findAmounts(of[2])[0]?.value || 0;
+  const dari = t.search(/\bdari\b/);
+  if (dari > 0 && amounts.length === 2 && /\b(?:berapa|brp)\s*(?:persen|%)|\bpersen(?:nya|tase)?\b|\bpersentase\b/.test(t) && amounts[0].index < dari && amounts[1].index > dari) {
+    const a = amounts[0].value, b = amounts[1].value;
     if (a > 0 && b > 0) return say('calc', { card: 'calc', title: 'Persentase', text: `${rp(a)} itu ${pct(a / b)} dari ${rp(b)}.`, hero: { label: `${rp(a)} dari ${rp(b)}`, value: pct(a / b) }, tone: 'info', why: `${rp(a)} ÷ ${rp(b)} × 100 = ${pct(a / b, 2)}.` }, { last: 'calc', number: Math.round(a / b * 1000) / 10 });
   }
   // How much of the income is left to save.
@@ -433,6 +465,13 @@ export function readCapability(t: string, v: Voice): Out | null {
   }), chips: [example, 'bisa apa aja?'], open: { view, label: 'Buka menunya' } });
 }
 
+/** "bisa catetin makan 20rb ga": yes, and its card. */
+export function readCanRecord(t: string, v: Voice): Out | null {
+  const m = t.match(/^(?:(?:min|bot|kak|eh)\s*,?\s+)?(?:bisa|bs|bisakah|boleh)\s+(?:tolong\s+)?(?:catet|catat|catetin|catatin|nyatet|nyatetin|masukin|input|inputin|tambahin)(?:\s+(?:dong|ya))?\s+(.+?)\s*(?:(?:ga|gak|nggak|ngga|enggak|engga|kah|nggk|gk|g|ya|dong|nih|sih)\s*)*\??$/);
+  if (!m || !amountsOf(m[1]).length) return null;
+  return { plan: m[1], intro: vo(v, { santai: 'Bisa dong. Ini kartunya, cek dulu lalu Simpan.', sopan: 'Bisa. Berikut kartunya, silakan periksa lalu Simpan.', gaul: 'Bisa lah. Nih kartunya, cek terus Simpan.', singkat: 'Bisa. Cek lalu Simpan.' }) };
+}
+
 /** "uang gue paling banyak ada di mana?": the wallet with the most money. */
 export function readBiggestWallet(t: string, ctx: ChatContext, v: Voice): Out | null {
   if (!/\b(?:uang|duit|saldo|dana)\b.*\b(?:paling\s+(?:banyak|gede|besar)|terbanyak|terbesar)\b|\b(?:dompet|rekening|wallet)\s+(?:mana|apa)\b.*\b(?:paling\s+(?:banyak|gede|besar)|terbanyak)\b|\bpaling\s+(?:banyak|gede)\b.*\b(?:uang|duit|saldo)\b.*\b(?:mana|dimana|di\s+mana)\b/.test(t)) return null;
@@ -464,7 +503,7 @@ export function readToSavings(t: string, ctx: ChatContext, v: Voice): Out | null
 
 /** "gue mau pisahin duit buat kuliah": a goal (Tujuan dana) or a pocket, offered to set up. */
 export function readSetAside(t: string, ctx: ChatContext, v: Voice): Out | null {
-  const m = t.match(/\b(?:pisahin|misahin|pisahkan|memisahkan|sisihin|sisihkan|nyisihin|nyisain|alokasiin|alokasikan|siapin|nyiapin|kumpulin|ngumpulin)\s+(?:duit|uang|dana|tabungan)?\s*(?:buat|untuk|utk|bwt)\s+(.+)$/);
+  const m = t.match(/\b(?:pisahin|misahin|pisahkan|memisahkan|alokasiin|alokasikan|nyisihin\s+khusus|pisah)\s+(?:duit|uang|dana|tabungan)?\s*(?:buat|untuk|utk|bwt|khusus)\s+(.+)$/);
   if (!m || amountsOf(t).length) return null;
   const goal = m[1].replace(/\b(?:dong|ya|nih|sih|deh|aja|nanti|nantinya|ke\s+depan)\b/g, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 3).join(' ');
   if (!goal) return null;
@@ -476,7 +515,7 @@ export function readSetAside(t: string, ctx: ChatContext, v: Voice): Out | null 
     singkat: `${fund.name}: ${rp(fund.currentAmount)} / ${rp(fund.targetAmount)}.`,
   }), chips: [`nabung 200rb ke ${lower(fund.name)}`], open: { view: 'funds', label: 'Buka Tujuan dana' } });
   return say('goal', { card: 'goal', title: `Dana ${goal}`, text: vo(v, {
-    santai: `Ide bagus! Paling rapi pakai Tujuan dana “${cap(goal)}”: kasih target dan tenggat, nanti kelihatan harus nyisihin berapa tiap bulan. Kalau uangnya mau dipisah di rekening sendiri, bisa juga pakai kantong (dompet tabungan) yang ditautkan.`,
+    santai: `Ide bagus! Paling rapi pakai Tujuan dana “${cap(goal)}”: kasih target dan tenggat, nanti kelihatan harus nyisihin berapa tiap bulan. Kalau uangnya mau dipisah di rekening sendiri, bisa juga pakai kantong (dompet tabungan) yang ditautkan. Targetnya berapa?`,
     sopan: `Ide yang baik. Gunakan Tujuan dana “${cap(goal)}” dengan target dan tenggat, sehingga sisihan bulanan terlihat. Dana juga dapat dipisahkan dalam kantong (dompet tabungan) yang ditautkan.`,
     gaul: `Mantap! Bikin Tujuan dana “${cap(goal)}” aja, kasih target sama tenggat, nanti keliatan nyisihin berapa per bulan. Mau dipisah rekening? Pake kantong (dompet tabungan).`,
     singkat: `Pakai Tujuan dana “${cap(goal)}”.`,
@@ -544,13 +583,16 @@ const FRACTION: [RegExp, number, string][] = [
  * A known person: the rest they owe (or the part said), on a card to check. Not named: who, with their amounts. */
 export function readPaidBack(t: string, ctx: ChatContext, v: Voice): Out | null {
   if (amountsOf(t).length) return null;
-  const m = t.match(/^(?:(?:eh|oh|nah|alhamdulillah|akhirnya|btw)\s*,?\s+)*(?:si\s+)?([\p{L}]+(?:\s+[\p{L}]+){0,2}?)\s+(?:(?:udah|udh|sudah|dah|baru|akhirnya|barusan|tadi|td)\s+)*(?:bayar|bayarin|balikin|ngembaliin|kembaliin|mengembalikan|ngembalikan|lunasin|ngelunasin|melunasi|nyicil|transfer\s+balik|tf\s+balik|ganti|gantiin|nyetor|nyerahin)\s+(.*)\b(?:utang|hutang|pinjaman|duit|uang|kasbon|piutang)(?:nya)?\b(.*)$/u);
+  const m = t.match(/^(?:(?:eh|oh|nah|alhamdulillah|akhirnya|btw)\s*,?\s+)*(?:si\s+)?([\p{L}]+(?:\s+[\p{L}]+){0,2}?)\s+(?:(?:udah|udh|sudah|dah|baru|akhirnya|barusan|tadi|td)\s+)*(?:bayar|bayarin|balikin|ngembaliin|kembaliin|mengembalikan|ngembalikan|lunasin|ngelunasin|melunasi|nyicil|transfer\s+balik|tf\s+balik|ganti|gantiin|nyetor|nyerahin)\s+(.*)\b(?:utang|hutang|pinjaman|duit|uang|kasbon|piutang)(?:nya)?\b(.*)$/u)
+    || t.match(/^(?:(?:eh|oh|nah|alhamdulillah|akhirnya|btw)\s*,?\s+)*(?:si\s+)?([\p{L}]+)\s+(?:(?:udah|udh|sudah|dah|baru|akhirnya|barusan|tadi|td)\s+)+(?:bayar|balikin|ngembaliin|kembaliin|lunasin|lunas|transfer\s+balik|tf\s+balik|nyicil)()((?:\s+(?:setengah|separuh|semua|semuanya|sebagian|full|dong|nih|kok|tuh|ya))*)\s*$/u);
   if (!m) return null;
   const who = m[1].trim(), rest = `${m[2]} ${m[3]}`;
   if (ME.test(who) && who.split(' ').length === 1 || /^(?:aku|gue|gua|gw|saya|ane)\b/.test(who)) return null;
   const open = (ctx.data.receivables || []).filter(r => r.status !== 'paid' && r.remainingAmount > 0);
   if (!open.length) return null;
   const frac = FRACTION.find(([re]) => re.test(rest)), part = frac ? frac[1] : 1, some = /\b(?:sebagian|dikit|sedikit|separo|nyicil)\b/.test(rest) && !frac;
+  // Without the word for the debt, only someone who owes ("dimas udah bayar"); anyone else is not this.
+  if (!/\b(?:utang|hutang|pinjaman|duit|uang|kasbon|piutang)/.test(t) && !open.some(r => lower(r.person).split(/\s+/).some(w => w.length >= 3 && new RegExp(`\\b${esc(w)}\\b`).test(lower(who))))) return null;
   const person = open.find(r => lower(r.person).split(/\s+/).some(w => w.length >= 3 && new RegExp(`\\b${esc(w)}\\b`).test(lower(who))));
   if (person) {
     if (some) return say('clarify', { card: 'talk', text: vo(v, { santai: `${person.person} bayar berapa? Sisa piutangnya ${rp(person.remainingAmount)}.`, sopan: `Berapa yang dibayar ${person.person}? Sisa piutangnya ${rp(person.remainingAmount)}.`, gaul: `${person.person} bayar berapa? Sisanya ${rp(person.remainingAmount)}.`, singkat: `Berapa? Sisa ${rp(person.remainingAmount)}.` }), chips: [`${lower(person.person)} bayar utang ${amountWord(Math.round(person.remainingAmount / 2))}`, `${lower(person.person)} bayar utang ${amountWord(person.remainingAmount)}`] }, { person: lower(person.person) });
@@ -573,19 +615,48 @@ export function readPaidBack(t: string, ctx: ChatContext, v: Voice): Out | null 
   }), chips: open.slice(0, 4).map(r => `${lower(r.person)} bayar utang ${amountWord(Math.round(r.remainingAmount * part))}`) });
 }
 
+/** "gue udah bayar utang ke kak rina", "lunasin cicilan hp": one's own debt paid, without an amount. All of it for "lunas";
+ * otherwise how much, with the instalment and the whole rest to tap. */
+export function readPaidDebt(t: string, ctx: ChatContext, v: Voice): Out | null {
+  if (amountsOf(t).length) return null;
+  const m = t.match(/^(?:(?:aku|gue|gua|gw|saya|ane)\s+)?(?:(?:udah|udh|sudah|dah|baru|barusan|tadi|td|akhirnya)\s+)*(bayar|nyicil|cicil|angsur|lunasin|ngelunasin|melunasi|nyetor)\s+(?:(?:utang|hutang|cicilan|pinjaman|kredit|tagihan)\s+)?(?:ke\s+|sama\s+|buat\s+)?(.+)$/);
+  if (!m) return null;
+  const said = m[2].replace(/\b(?:dong|ya|nih|sih|deh|aja|tadi|kemarin|bulan\s+ini)\b/g, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const debts = (ctx.data.debts || []).filter(d => d.status !== 'paid' && d.outstandingAmount > 0);
+  const hit = debts.filter(d => [d.name, d.provider].some(n => n && lower(n).split(/\s+/).filter(w => w.length >= 2 && !/^(?:cicilan|pinjaman|utang|hutang|kredit)$/.test(w)).some(w => new RegExp(`\\b${esc(w)}\\b`).test(said))));
+  if (hit.length !== 1) return null;
+  const d = hit[0], all = /lunas/.test(m[1]) || /\b(?:lunas|semua|semuanya|full|sampai\s+habis)\b/.test(t);
+  if (all) return { plan: `bayar utang ${lower(d.name)} ${amountWord(d.outstandingAmount)}`, intro: vo(v, { santai: `Lunas semua sisa ${d.name}, ${rp(d.outstandingAmount)}. Udah pas? Pilih dompetnya, lalu Simpan.`, sopan: `Pelunasan sisa ${d.name} sebesar ${rp(d.outstandingAmount)}. Silakan periksa lalu Simpan.`, gaul: `Lunasin ${d.name}, ${rp(d.outstandingAmount)}. Cek dulu, terus Simpan.`, singkat: `${d.name}: ${rp(d.outstandingAmount)}.` }) };
+  const chips = [...new Set([d.installmentAmount > 0 ? amountWord(d.installmentAmount) : '', amountWord(d.outstandingAmount)].filter(Boolean))].map(a => `bayar utang ${lower(d.name)} ${a}`);
+  return say('clarify', { card: 'talk', text: vo(v, { santai: `Bayar ${d.name} berapa? Sisanya sekarang ${rp(d.outstandingAmount)}.`, sopan: `Berapa pembayaran ${d.name}? Sisa saat ini ${rp(d.outstandingAmount)}.`, gaul: `Bayar ${d.name} berapa? Sisa ${rp(d.outstandingAmount)}.`, singkat: `Berapa? Sisa ${rp(d.outstandingAmount)}.` }), chips });
+}
+
 /* ------------------------------------------------------------------ A record said without its amount */
 
-const RECORD_CUE = /\b(?:tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|isi|top\s?up|topup|pindahin|pindah|transfer|tf|kirim|gajian|dapet|dapat|terima|nerima|tarik|setor|makan|minum|ngopi|jajan)\b/;
+const RECORD_CUE = /\b(?:tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|isi|top\s?up|topup|pindahin|pindah|transfer|tf|kirim|gajian|dapet|dapat|terima|nerima|tarik|setor)\b/;
+/** Words that say a record happened or is to be made, without naming what it was. */
+const BARE = /\b(?:aku|gue|gua|gw|saya|ane|w|tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|nih|dong|ya|deh|sih|tolong|tlg|makan|minum|ngopi|jajan|belanja|lagi|juga|aja)\b/g;
+const DOING = /\b(?:beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|isi|top\s?up|topup|pindahin|pindah|transfer|tf|kirim|tarik|setor)\b/;
 /** "masukin uang lembur ke mandiri", "pindahin uang dari BRI ke Mandiri", "gue tadi makan ayam geprek": a record without
  * its amount. Asked for; the next message ("750rb") finishes it with every other word kept. */
 export function readNoAmount(raw: string, t: string, ctx: ChatContext, v: Voice): Out | null {
   const words = t.split(' ').length;
-  if (amountsOf(t).length || words < 2 || words > 12 || /\?\s*$/.test(raw) || /\b(?:berapa|brp|brapa|kapan|apa|apakah|gimana|gmn|bagaimana|siapa|kenapa|knp|cara|caranya|bisa|boleh|pengen|pengin|pingin|ingin|mau|rencana|nanti|besok|kalau|kalo|klo|misal|andai)\b/.test(t)) return null;
+  if (amountsOf(t).length || words < 2 || words > 12 || /\?\s*$/.test(raw) || /\b(?:berapa|brp|brapa|kapan|apa|apakah|gimana|gmn|bagaimana|siapa|kenapa|knp|cara|caranya|bisa|boleh|pengen|pengin|pingin|ingin|mau|mo|rencana|nanti|besok|kalau|kalo|klo|misal|andai)\b/.test(t)) return null;
+  // Asking about records, not making one: totals, periods, budgets, whether money is enough, sharing a bill.
+  if (/\b(?:total|jumlah|pengeluaran|pemasukan|rincian|rekap|ringkasan|laporan|riwayat|saldo|sisa|budget|anggaran|limit|batas|cukup|lama|tanggal|patungan|bagi|split|kebanyakan|terlalu|boros|hemat|irit|terakhir|biasanya|rata-rata|rata2|ada|punya)\b/.test(t) || /\b(?:ga|gak|nggak|ngga|enggak|kah|nggk|gk|belum|blm|belom)\s*$/.test(t)) return null;
+  // "uang jajan gw udh abis": money run out, not something bought.
+  if (/\b(?:uang|duit|saldo|dana|gaji|tabungan|jatah)\b.*\b(?:abis|habis|ludes|tipis|menipis|kosong|tekor|minus)\b/.test(t)) return null;
+  // Telling why ("soalnya duit abis buat bayar kos") is part of a talk, not a record to fill in.
+  if (/^(?:soalnya|karena|karna|krn|gara-gara|gara2|abisnya|habisnya|makanya)\b/.test(t)) return null;
+  const span = readPeriod(t, ctx.today, ctx.salaryDay);
+  if (span && span.start < daysBefore(ctx.today, 1)) return null;
   if (!RECORD_CUE.test(t)) return null;
   const said = raw.replace(/[.!?]+$/, '').trim(), probe = ctx.inspect(`${said} 10rb`);
   if (probe.reading !== 'record') return null;
   const wallets = walletsIn(t, ctx.quick.wallets);
-  const ok = probe.kind === 'transfer' ? wallets.length >= 1 : probe.kind === 'income' ? Boolean(probe.categoryId || probe.subcategoryId || wallets.length) : probe.kind === 'expense' ? Boolean(probe.categoryId || probe.subcategoryId) : false;
+  // Spending needs what it was for ("makan ayam geprek", "bayar parkir"), not only that something was eaten ("udah makan").
+  const named = t.replace(BARE, ' ').replace(/[.,!?]/g, ' ').trim().length > 0;
+  const ok = probe.kind === 'transfer' ? wallets.length >= 1 : probe.kind === 'income' ? Boolean(probe.categoryId || probe.subcategoryId || wallets.length) : probe.kind === 'expense' ? Boolean(probe.categoryId || probe.subcategoryId) && (named || DOING.test(t)) && !/^(?:(?:aku|gue|gua|gw|saya)\s+)?lagi\b/.test(t) : false;
   if (!ok) return null;
   const kind = probe.kind === 'income' ? 'income' : probe.kind === 'expense' ? 'expense' : 'any';
   const ask = probe.kind === 'transfer' ? vo(v, { santai: 'Berapa yang dipindah?', sopan: 'Berapa nominal yang dipindahkan?', gaul: 'Berapa yang dipindah?', singkat: 'Berapa?' })
