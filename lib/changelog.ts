@@ -2,6 +2,16 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.5', date: '25 Nov 2026', title: 'Pet lebih bisa diandalkan', items: [
+    ['🍽️', 'Makan yang kamu kasih ke pet nggak hilang lagi. Dulu, kalau ada perubahan dari HP lain masuk sebelum makan tersimpan lalu pet dielus, makannya batal dan pet balik lapar. Sekarang makan, elusan, dan perawatan lain di HP ini tetap tersimpan.'],
+    ['💸', '“Waduh, pengeluaran gede!” cuma muncul buat pengeluaran besar yang barusan dicatat. Dulu juga muncul waktu pindah dari Ruang Bersama ke Pribadi, atau waktu catatan lama telat termuat.'],
+    ['💡', 'Tips dari pet pakai keadaan pet yang terbaru: nggak lagi bilang laper padahal baru dikasih makan, atau nyuruh nyatat padahal udah. Tombol Minta tips sekarang selalu kasih tips keuangan, bukan malah nyuruh baca tips.'],
+    ['🎉', 'Naik level dari panel pet (makan, elus, main, tips, telur emas) sekarang diumumkan, dan aksesori barunya langsung didapat.'],
+    ['🦉', 'Minta tips dihitung sekali tiap 10 menit, jadi pet nggak bisa naik level cuma dengan ngetuk tombolnya berkali-kali.'],
+    ['🦎', 'Hemat si tokek di panel sekarang sama dengan yang di samping tombol chat (dulu panel nunjukin angka lama).'],
+    ['🐾', 'Ganti pet: pet yang ditinggal tetap dihitung laparnya sampai saat ditinggal, lalu istirahat sampai kamu pakai lagi. Dulu ganti pet bisa bikin laparnya berhenti.'],
+    ['🧭', 'Kalau kartu Arena disembunyikan, pet nggak nyuruh cek roda, gosok, misi, atau api lagi. Panel pet yang dibuka sebelum pet termuat langsung nunjukin pet-mu, dan pilihan sembunyikan pet ikut akun yang lagi dibuka.'],
+  ] },
   { version: '10.4.1', date: '20 Nov 2026', title: 'Sembunyikan nominal lebih konsisten', items: [
     ['🛡️', 'Tingkat Beranda & Dompet sekarang konsisten: yang disamarkan cuma halaman Beranda, menu Dompet, dan jendela dompet (detail dompet, kantong, pisahkan isi, bunga saldo, cocokkan saldo). Jendela lain, misalnya Catat transaksi, Ubah transaksi, daftar transaksi, dan Rekap, selalu menampilkan nominal dari mana pun dibuka. Dulu jendela yang sama tersamar kalau dibuka dari Beranda, tapi kelihatan kalau dibuka dari menu lain.'],
     ['🔁', 'Pindah menu langsung ikut menyesuaikan: nominal yang masih ada di layar disamarkan atau ditampilkan lagi sesuai halaman barunya.'],

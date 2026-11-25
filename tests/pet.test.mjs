@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCESSORIES, CARE, CARE_GAP, MEALS_A_DAY, MEAL_GAP, MONEY_TIPS, NEEDS, PETS, PET_KINDS, PLAY_EVERY, adopt, care, feed, mealWait, asleep, cleanName, collectEgg, eggReady, emptyPet, growthFor, hematScore, levelOf, moodOf, needsAt, pet, petEmoji, petTip, play, readTip, rename, stageOf, syncPet, unlocked, wear } from '../lib/pet.ts';
+import { ACCESSORIES, CARE, CARE_GAP, MEALS_A_DAY, MEAL_GAP, MONEY_TIPS, NEEDS, PETS, PET_KINDS, PLAY_EVERY, TIP_EVERY, adopt, care, feed, mealWait, asleep, cleanName, collectEgg, eggReady, emptyPet, growthFor, hematScore, levelOf, moodOf, needsAt, pet, petEmoji, petTip, play, readTip, rename, stageOf, syncPet, unlocked, wear } from '../lib/pet.ts';
 
 // 9.8 Pet next to the chat button: six pets with a name, needs of their own, growth, accessories, mood, tips.
 const H = 3_600_000, T0 = Date.UTC(2026, 10, 9, 5, 0); // 12:00 in Jakarta
@@ -96,14 +96,14 @@ test('9.8 petting (15 an hour count), playing (once every 20 minutes), tips, the
   assert.equal(d.needs.senang, 85); assert.equal(d.needs.manja, 80);
   // The owl learns from tips.
   let o = adopt(emptyPet(), 'hantu', '', T0, '2026-11-09'); o.pets.hantu.needs.ilmu = 20;
-  o = readTip(o, T0, hourOf); assert.equal(o.pets.hantu.needs.ilmu, 45); assert.equal(o.tipsRead, 1);
+  o = readTip(o, T0, hourOf).state; assert.equal(o.pets.hantu.needs.ilmu, 45); assert.equal(o.tipsRead, 1);
   // The chicken lays a golden egg once a day when all its needs are 60+.
   let c = adopt(emptyPet(), 'ayam', '', T0, '2026-11-09'); const ch = c.pets.ayam;
   assert.equal(eggReady(ch, ch.needs, '2026-11-09'), true);
   assert.equal(eggReady(ch, { ...ch.needs, rajin: 50 }, '2026-11-09'), false);
-  c = collectEgg(c, '2026-11-09'); assert.equal(c.pets.ayam.eggs, 1);
+  c = collectEgg(c, '2026-11-09').state; assert.equal(c.pets.ayam.eggs, 1);
   assert.equal(eggReady(c.pets.ayam, c.pets.ayam.needs, '2026-11-09'), false);
-  assert.equal(collectEgg(c, '2026-11-09').pets.ayam.eggs, 1);
+  assert.equal(collectEgg(c, '2026-11-09').state.pets.ayam.eggs, 1);
 });
 
 test('9.8 feeding is up to you: 4 meals a day, 2 hours apart, not when full; the dog and chicken have their own care', () => {
@@ -146,4 +146,60 @@ test('9.8 mood and what it says', () => {
   const owl = adopt(emptyPet(), 'hantu', '', T0, '2026-11-09').pets.hantu;
   assert.match(petTip(owl, owl.needs, { ...c, recordedToday: 1, litToday: true }).text, /^Tips bijak/);
   assert.ok(MONEY_TIPS.length >= 30);
+});
+
+test('10.5 tips count once every 10 minutes (tapping "Minta tips" no longer grows the pet without end)', () => {
+  let o = adopt(emptyPet(), 'hantu', '', T0, '2026-11-09'); o.pets.hantu.needs.ilmu = 20;
+  let counted = 0; for (let k = 0; k < 300; k++) { const r = readTip(o, T0 + k * 1000, hourOf); o = r.state; if (r.counted) counted++; }
+  assert.equal(counted, 1); assert.equal(o.pets.hantu.growth, 1); assert.equal(o.pets.hantu.needs.ilmu, 45);
+  assert.equal(o.tipsRead, 300, 'every ask still gives the next tip');
+  assert.equal(readTip(o, T0 + TIP_EVERY, hourOf).counted, true);
+});
+
+test('10.5 a level reached by a tip or a golden egg is announced and gives its accessory', () => {
+  const tip = adopt(emptyPet(), 'hantu', '', T0, '2026-11-09'); tip.pets.hantu.growth = growthFor(2) - 1;
+  const r1 = readTip(tip, T0, hourOf);
+  assert.deepEqual(r1.events.map(e => e.kind), ['level']); assert.equal(r1.state.pets.hantu.acc, 'pita');
+  const egg = adopt(emptyPet(), 'ayam', '', T0, '2026-11-09'); egg.pets.ayam.growth = growthFor(4) - 5;
+  const r2 = collectEgg(egg, '2026-11-09');
+  assert.equal(r2.events[0].kind, 'level'); assert.equal(r2.events[0].level, 4); assert.equal(r2.state.pets.ayam.acc, 'syal');
+});
+
+test('10.5 switching pets: the one left behind keeps the hours it waited (switching no longer stops hunger)', () => {
+  let s = adopt(emptyPet(), 'kucing', 'Oyen', T0, '2026-11-09');
+  s = adopt(s, 'anjing', 'Bruno', T0 + 8 * H, '2026-11-09', hourOf);
+  const back = adopt(s, 'kucing', 'Oyen', T0 + 8 * H + 60_000, '2026-11-09', hourOf);
+  const stayed = needsAt(adopt(emptyPet(), 'kucing', 'Oyen', T0, '').pets.kucing, T0 + 8 * H, hourOf);
+  assert.equal(back.pets.kucing.needs.kenyang, stayed.kenyang);
+  assert.ok(back.pets.kucing.needs.kenyang < 80);
+  assert.equal(back.pets.kucing.name, 'Oyen'); assert.equal(back.active, 'kucing');
+});
+
+test('10.5 with the Arena hidden the pet does not point to it', () => {
+  const rec = adopt(emptyPet(), 'kucing', 'Mochi', T0, '2026-11-09').pets.kucing;
+  const ctx = { hour: 19, recordedToday: 2, litToday: false, streak: 5, missionsLeft: 1, spinReady: true, scratchReady: true, index: 0 };
+  assert.match(petTip(rec, rec.needs, ctx).text, /Api 5 hari/);
+  const hidden = petTip(rec, rec.needs, { ...ctx, arena: false });
+  assert.equal(hidden.kind, 'tip'); assert.doesNotMatch(hidden.text, /Arena|Roda|Gosok|Misi|Api/);
+});
+
+test('10.5 a change from another phone arriving before this phone saves keeps this phone\'s meal (the pet on screen and the save)', async () => {
+  const { mergeChanges } = await import('../lib/same-data.ts');
+  const base = adopt(emptyPet(), 'kucing', 'Oyen', T0, '2026-11-09'); base.pets.kucing.needs.kenyang = 20;
+  const fed = feed(base, T0, '2026-11-09', hourOf).state;                       // this phone: a meal, not saved yet
+  const server = { ...structuredClone(base), tipsRead: 1 };                       // another phone: a tip read
+  const shown = mergeChanges(base, fed, server);                                  // what the phone now shows (withLocalChanges)
+  assert.equal(shown.meals.n, 1); assert.equal(shown.tipsRead, 1); assert.equal(shown.pets.kucing.needs.kenyang, fed.pets.kucing.needs.kenyang);
+  const patted = pet(shown, T0 + 1000, '2026-11-09T12', hourOf).state;            // the next pat is made from it
+  const saved = mergeChanges(base, patted, server);                               // what is written on top of the account
+  assert.equal(saved.meals.n, 1, 'the meal is saved'); assert.equal(saved.tipsRead, 1); assert.equal(saved.elus.n, 1);
+});
+
+test('10.5 "Minta tips" answers with a money tip, also when the pet is hungry or bored', () => {
+  const rec = adopt(emptyPet(), 'hantu', 'Huhu', T0, '2026-11-09').pets.hantu;
+  const low = { ...rec.needs, kenyang: 10, ilmu: 10 };
+  const ctx = { hour: 19, recordedToday: 0, litToday: false, streak: 5, missionsLeft: 1, spinReady: true, scratchReady: true, index: 3 };
+  assert.equal(petTip(rec, low, ctx).kind, 'need');
+  const asked = petTip(rec, low, { ...ctx, asked: true });
+  assert.equal(asked.kind, 'tip'); assert.equal(asked.text, `Tips bijak: ${MONEY_TIPS[3]}`);
 });

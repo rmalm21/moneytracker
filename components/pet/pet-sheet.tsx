@@ -9,11 +9,11 @@ import { useApp } from '../app-provider';
 import { Emoji } from '../emoji';
 import { Dialog, DialogContent } from '../ui/dialog';
 import { askToTry } from '../feature-tips-events';
-import { useGame } from '../game/game-store';
+import { arenaHidden, useGame } from '../game/game-store';
 import { PetImg, PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
 import { openPetSheet, petHidden, setPetHidden, usePetStore } from './pet-store';
-import { commitPet, hourIn, hourKey, petSound, waitText } from './pet-actions';
-import { ACCESSORIES, adopt, care, CARE, collectEgg, eggReady, emptyPet, feed, growthFor, levelOf, mealWait, MEALS_A_DAY, moodOf, needsAt, NEEDS, pet, petTip, play as playPet, PET_KINDS, PETS, readTip, rename, stageOf, STAGES, wear, type PetKind } from '@/lib/pet';
+import { commitPet, emitPetEvents, hourIn, hourKey, petSound, waitText } from './pet-actions';
+import { ACCESSORIES, adopt, care, CARE, collectEgg, eggReady, emptyPet, feed, growthFor, levelOf, mealWait, MEALS_A_DAY, moodOf, needsAt, NEEDS, pet, petTip, play as playPet, PET_KINDS, PETS, readTip, rename, stageOf, STAGES, wear, type PetEvent, type PetKind } from '@/lib/pet';
 import { canScratch, canSpin, hash, streakOf } from '@/lib/game';
 import { todayInTimeZone } from '@/lib/period';
 import { play } from '@/lib/game-sound';
@@ -24,7 +24,9 @@ export function PetSheet() {
   const hourOf = useMemo(() => hourIn(tz), [tz]);
   const today = g.today || todayInTimeZone(tz);
   const state = ps.state || emptyPet(), rec = state.active ? state.pets[state.active] : undefined;
-  const [picking, setPicking] = useState(!rec), [chosen, setChosen] = useState<PetKind | null>(null), [draft, setDraft] = useState('');
+  // 10.5 Until you choose, the list shows only when there is no pet yet: opened before the pet had loaded, it used to stay
+  // on "Pilih pet" after the pet arrived.
+  const [pick, setPicking] = useState<boolean | null>(null), picking = pick ?? !rec, [chosen, setChosen] = useState<PetKind | null>(null), [draft, setDraft] = useState('');
   const [editing, setEditing] = useState(false), [tip, setTip] = useState(''), [note, setNote] = useState(''), [shown, setShown] = useState(() => (uid ? !petHidden(uid) : true));
   const { fx, parts, run } = usePetFx();
   const close = () => openPetSheet(false);
@@ -35,15 +37,23 @@ export function PetSheet() {
   function choose(kind: PetKind) { setChosen(kind); setDraft(state.pets[kind]?.name || PETS[kind].name); play('click'); }
   function confirm() {
     if (!chosen) return;
-    commitPet(adopt(state, chosen, draft, Date.now(), today)); play('welcome'); window.setTimeout(() => petSound(PETS[chosen].voice), 500);
+    commitPet(adopt(state, chosen, draft, Date.now(), today, hourOf)); play('welcome'); window.setTimeout(() => petSound(PETS[chosen].voice), 500);
     setPicking(false); setChosen(null);
   }
 
   const now = Date.now(), hour = hourOf(now);
-  const needs = rec ? needsAt(rec, now, hourOf) : null, mood = rec && needs ? moodOf(rec, needs, hour) : null;
+  // 10.5 The gecko's thrift as next to the chat button (the panel showed the copy kept in the account).
+  const needs = rec ? needsAt(rec, now, hourOf, ps.hemat) : null, mood = rec && needs ? moodOf(rec, needs, hour) : null;
   const info = rec ? PETS[rec.kind] : null, level = rec ? levelOf(rec.growth) : 1, stage = stageOf(level);
   const from = growthFor(level), to = growthFor(level + 1), nextStage = STAGES.find(s => s.from > level);
   const mealsToday = state.meals?.day === today ? state.meals.n : 0, wait = mealWait(state, now, today);
+  /** 10.5 A level reached in the panel: said here, and announced by the pet next to the chat button. */
+  function after(events: PetEvent[], text?: string) {
+    const up = events.filter((e): e is Extract<PetEvent, { kind: 'level' }> => e.kind === 'level').pop();
+    if (rec && up) setNote(`${text ? `${text} ` : ''}${rec.name} naik ke Lv ${up.level}!${up.stageUp ? ` Sekarang ${STAGES[up.stage].name}.` : ''}`);
+    else if (text) setNote(text);
+    emitPetEvents(events);
+  }
   const mealLine = `Makan hari ini ${mealsToday}/${MEALS_A_DAY}${mealsToday >= MEALS_A_DAY ? ' · besok lagi' : wait > 0 ? ` · berikutnya ${waitText(wait)}` : ' · ketuk Kasih makan'}`;
 
   return <Dialog open onOpenChange={o => { if (!o) close(); }}>
@@ -94,26 +104,26 @@ export function PetSheet() {
         <div className={`ps-actions n${CARE[rec.kind] ? 5 : 4}`}>
           <button type="button" className="ps-act is-food" onClick={() => {
             const r = feed(state, Date.now(), today, hourOf);
-            if (r.ok) { commitPet(r.state); run('eat', info.food.emoji); play('munch'); setNote(`Nyam! ${rec.name} makan ${info.food.name}.`); return; }
+            if (r.ok) { commitPet(r.state); run('eat', info.food.emoji); play('munch'); after(r.events, `Nyam! ${rec.name} makan ${info.food.name}.`); return; }
             play('bonk'); setNote(r.reason === 'full' ? `${rec.name} masih kenyang.` : r.reason === 'limit' ? `Udah ${MEALS_A_DAY}× makan hari ini. Besok lagi ya!` : `Barusan makan. Bisa makan lagi ${waitText(r.waitMs || 0)}.`);
           }}><PetImg e={info.food.emoji}/><span>Kasih makan</span></button>
           {CARE[rec.kind] && <button type="button" className="ps-act" onClick={() => {
             const c = CARE[rec.kind]!, r = care(state, Date.now(), hourOf);
-            if (r.ok) { commitPet(r.state); run('dance'); petSound(info.voice); setNote(c.say); } else { play('bonk'); setNote(`Barusan ${c.name.toLowerCase()}. Bisa lagi ${waitText(r.waitMs || 0)}.`); }
+            if (r.ok) { commitPet(r.state); run('dance'); petSound(info.voice); after(r.events, c.say); } else { play('bonk'); setNote(`Barusan ${c.name.toLowerCase()}. Bisa lagi ${waitText(r.waitMs || 0)}.`); }
           }}><Emoji e={CARE[rec.kind]!.emoji}/><span>{CARE[rec.kind]!.name}</span></button>}
-          <button type="button" className="ps-act" onClick={() => { const r = pet(state, Date.now(), hourKey(tz), hourOf); if (r.counted) commitPet(r.state); run('elus'); if (rec.kind === 'kucing') play('purr'); else petSound(info.voice); }}><Emoji e="🤚"/><span>Elus</span></button>
-          <button type="button" className="ps-act is-special" onClick={() => { const r = playPet(state, Date.now(), hourOf); if (r.counted) commitPet(r.state); run(SPECIAL_FX[rec.kind]); petSound(info.voice); }}><Emoji e={info.special.emoji}/><span>{info.special.name}</span></button>
+          <button type="button" className="ps-act" onClick={() => { const r = pet(state, Date.now(), hourKey(tz), hourOf); if (r.counted) commitPet(r.state); run('elus'); if (rec.kind === 'kucing') play('purr'); else petSound(info.voice); after(r.events); }}><Emoji e="🤚"/><span>Elus</span></button>
+          <button type="button" className="ps-act is-special" onClick={() => { const r = playPet(state, Date.now(), hourOf); if (r.counted) commitPet(r.state); run(SPECIAL_FX[rec.kind]); petSound(info.voice); after(r.events); }}><Emoji e={info.special.emoji}/><span>{info.special.name}</span></button>
           <button type="button" className="ps-act" onClick={() => {
             const st = g.state;
             const t = petTip(rec, needs, { hour, recordedToday: st?.txDay === today ? Object.values(st.txCounted || {}).reduce((n, v) => n + v, 0) : 0, litToday: Boolean(st?.days.includes(today)), streak: st ? streakOf(st.days, st.frozen || [], today).current : 0,
-              missionsLeft: st && st.missionDay === today ? Math.max(0, (st.missionIds?.length || 3) - (st.missionsDone?.length || 0)) : 3, spinReady: st ? canSpin(st, today) : false, scratchReady: st ? canScratch(st, today) : false, index: hash(`${uid}:${today}`) + state.tipsRead + 1 });
-            commitPet(readTip(state, Date.now(), hourOf)); setTip(t.text); petSound(info.voice);
+              missionsLeft: st && st.missionDay === today ? Math.max(0, (st.missionIds?.length || 3) - (st.missionsDone?.length || 0)) : 3, spinReady: st ? canSpin(st, today) : false, scratchReady: st ? canScratch(st, today) : false, index: hash(`${uid}:${today}`) + state.tipsRead + 1, arena: !arenaHidden(uid), asked: true });
+            const r = readTip(state, Date.now(), hourOf); commitPet(r.state); setTip(t.text); petSound(info.voice); after(r.events);
           }}><Emoji e="💡"/><span>Minta tips</span></button>
         </div>
         {note && <p className="ps-note" role="status">{note}</p>}
         {tip && <div className="ps-tip" role="status"><p>{tip}</p><button type="button" className="ps-link" onClick={() => { close(); window.setTimeout(() => askToTry('home_chat'), 250); }}>Tanya asisten chat</button></div>}
         {rec.kind === 'ayam' && <div className="ps-eggs"><Emoji e="🥚"/><span><b>{rec.eggs || 0}</b> telur emas terkumpul</span>
-          {eggReady(rec, needs, today) && <button type="button" className="btn btn-secondary small" onClick={() => { commitPet(collectEgg(state, today)); run('egg'); play('gem'); }}>Ambil telur hari ini</button>}</div>}
+          {eggReady(rec, needs, today) && <button type="button" className="btn btn-secondary small" onClick={() => { const r = collectEgg(state, today); commitPet(r.state); run('egg'); play('gem'); after(r.events); }}>Ambil telur hari ini</button>}</div>}
         <div className="ps-card-note"><b><Emoji e={info.special.emoji}/> {info.special.name}</b><small>{info.special.text}</small></div>
         <div className="ps-acc">
           <h4>Aksesori</h4>

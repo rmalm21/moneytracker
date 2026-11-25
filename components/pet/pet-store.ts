@@ -11,7 +11,8 @@ import { changedFields, mergeChanges, sameData } from '@/lib/same-data';
 import { db } from '@/lib/firebase';
 import type { PetState } from '@/lib/pet';
 
-type Store = { uid: string; state: PetState | null; ready: boolean; sheet: boolean };
+/** 10.5 `hemat`: the gecko's thrift today, worked out next to the chat button and shown the same in its panel. */
+type Store = { uid: string; state: PetState | null; ready: boolean; sheet: boolean; hemat?: number };
 let store: Store = { uid: '', state: null, ready: false, sheet: false };
 const listeners = new Set<() => void>();
 export function setPetStore(next: Partial<Store>) { store = { ...store, ...next }; listeners.forEach(f => f()); }

@@ -1,18 +1,44 @@
 'use client';
 /** 9.8 Changing the pet: the new state goes to the store at once, to the phone's copy, and to the account a moment later. */
 import { cachePet, petNow, savePetOnTop, setPetStore } from './pet-store';
-import type { PetState } from '@/lib/pet';
+import type { PetEvent, PetState } from '@/lib/pet';
+import { mergeChanges } from '@/lib/same-data';
 import { play, type GameSound } from '@/lib/game-sound';
 
 let timer = 0, pending: PetState | null = null, pendingBase: PetState | null = null;
+/** 10.5 A change being written to the account right now (the copy it was made from, and the change). */
+let inflight: { base: PetState | null; next: PetState } | null = null;
 export function commitPet(next: PetState) {
   const { uid, state: before } = petNow(); if (!uid) return;
   // 9.9.2 The copy the first unsaved change was made from, so only this phone's changes go on top of the account's pet.
   if (!pending) pendingBase = before;
   setPetStore({ state: next }); cachePet(uid, next);
   pending = next; window.clearTimeout(timer);
-  timer = window.setTimeout(() => { const s = pending, base = pendingBase; pending = null; pendingBase = null; if (s) void savePetOnTop(uid, base, s).catch(() => {}); }, 900);
+  timer = window.setTimeout(() => {
+    const s = pending, base = pendingBase; pending = null; pendingBase = null; if (!s) return;
+    const mine = { base, next: s }; inflight = mine;
+    void savePetOnTop(uid, base, s).catch(() => {}).finally(() => { if (inflight === mine) inflight = null; });
+  }, 900);
 }
+/**
+ * 10.5 The account's pet as this phone should show it: with this phone's changes that are not saved yet laid on top.
+ * Before, a copy arriving from the account (another phone's change, or the account answering a moment after the app
+ * opened) replaced the pet on screen; a meal given just before was shown undone, and the next pat or meal was made from
+ * that copy, so the meal was never saved.
+ */
+export function withLocalChanges(server: PetState): PetState {
+  let out = server;
+  if (inflight) out = inflight.base ? mergeChanges(inflight.base, inflight.next, out) : inflight.next;
+  if (pending) out = pendingBase ? mergeChanges(pendingBase, pending, out) : pending;
+  return out;
+}
+
+/** 10.5 What happened in the pet's panel (a level reached by a meal, a pat, a tip, an egg): the pet next to the chat button
+ * announces it, the same as for what happens next to it. */
+const eventListeners = new Set<(events: PetEvent[]) => void>();
+export function onPetEvents(listener: (events: PetEvent[]) => void) { eventListeners.add(listener); return () => { eventListeners.delete(listener); }; }
+export function emitPetEvents(events: PetEvent[]) { if (events.length) eventListeners.forEach(f => f(events)); }
+
 /** Hour of the day in a time zone (0–23). */
 const formats = new Map<string, Intl.DateTimeFormat>();
 export function hourIn(tz: string) {

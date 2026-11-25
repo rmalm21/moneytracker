@@ -50,9 +50,9 @@ export type PetRec = { kind: PetKind; name: string; needs: Record<NeedId, number
 export type PetState = {
   v: 1; active: PetKind | null; pets: Partial<Record<PetKind, PetRec>>;
   /** What was already counted (so nothing is given twice, also across phones). */ seenTx: { day: string; n: number }; litDay: string; missionsSeen: number; gamesSeen: number; xpSeen: number;
-  elus: { hour: string; n: number }; playAt: number; tipsRead: number; /** Meals given today and when the last one was. */ meals: { day: string; n: number; at: number }; careAt: number;
+  elus: { hour: string; n: number }; playAt: number; tipsRead: number; /** 10.5 When a tip last counted (Ilmu and growth). */ tipAt: number; /** Meals given today and when the last one was. */ meals: { day: string; n: number; at: number }; careAt: number;
 };
-export const emptyPet = (): PetState => ({ v: 1, active: null, pets: {}, seenTx: { day: '', n: 0 }, litDay: '', missionsSeen: -1, gamesSeen: -1, xpSeen: -1, elus: { hour: '', n: 0 }, playAt: 0, tipsRead: 0, meals: { day: '', n: 0, at: 0 }, careAt: 0 });
+export const emptyPet = (): PetState => ({ v: 1, active: null, pets: {}, seenTx: { day: '', n: 0 }, litDay: '', missionsSeen: -1, gamesSeen: -1, xpSeen: -1, elus: { hour: '', n: 0 }, playAt: 0, tipsRead: 0, tipAt: 0, meals: { day: '', n: 0, at: 0 }, careAt: 0 });
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n * 10) / 10));
 const copy = (s: PetState): PetState => ({ ...emptyPet(), ...s, seenTx: { ...emptyPet().seenTx, ...(s.seenTx || {}) }, elus: { ...emptyPet().elus, ...(s.elus || {}) }, meals: { ...emptyPet().meals, ...(s.meals || {}) },
   pets: Object.fromEntries(Object.entries(s.pets || {}).map(([k, r]) => [k, { ...r!, needs: { ...r!.needs } }])) });
@@ -147,9 +147,12 @@ function levelEvent(rec: PetRec, before: number, events: PetEvent[]) {
 }
 const active = (s: PetState) => (s.active ? s.pets[s.active] : undefined);
 
-/** Adopts a pet (or comes back to one adopted before: it keeps its name and growth). */
-export function adopt(previous: PetState, kind: PetKind, name: string, now: number, today: string): PetState {
-  const s = copy(previous), old = s.pets[kind];
+/** Adopts a pet (or comes back to one adopted before: it keeps its name and growth). 10.5 The pet left behind is brought up
+ * to now first (its needs went down until it was switched away; while another pet is out it rests where it was). */
+export function adopt(previous: PetState, kind: PetKind, name: string, now: number, today: string, hourOf?: (ms: number) => number): PetState {
+  const s = copy(previous), was = active(s);
+  if (was && hourOf && was.kind !== kind) { was.needs = needsAt(was, now, hourOf); was.at = now; }
+  const old = s.pets[kind];
   s.pets[kind] = old ? { ...old, name: cleanName(name || old.name, kind), at: now } : { kind, name: cleanName(name, kind), needs: fullNeeds(), at: now, growth: 0, acc: null, eggs: 0, eggDay: '', born: today };
   s.active = kind;
   return s;
@@ -214,17 +217,26 @@ export function care(previous: PetState, now: number, hourOf: (ms: number) => nu
   r.needs[c.need] = clamp(r.needs[c.need] + 40); r.growth += 3; levelEvent(r, before, events);
   return { state: s, ok: true, events };
 }
-/** A tip read: the owl's Ilmu goes up (everyone grows a little). */
-export function readTip(previous: PetState, now: number, hourOf: (ms: number) => number): PetState {
-  const s = copy(previous), r = active(s); if (!r) return s;
-  r.needs = needsAt(r, now, hourOf); r.at = now; s.tipsRead++;
+/** A tip read: the owl's Ilmu goes up (everyone grows a little). 10.5 That counts once every 10 minutes (asking again
+ * still gives the next tip): tapping "Minta tips" over and over used to grow the pet without end. */
+export const TIP_EVERY = 10 * 60 * 1000;
+export function readTip(previous: PetState, now: number, hourOf: (ms: number) => number): { state: PetState; counted: boolean; events: PetEvent[] } {
+  const s = copy(previous), r = active(s), events: PetEvent[] = []; if (!r) return { state: s, counted: false, events };
+  s.tipsRead++;
+  const counted = now - (s.tipAt || 0) >= TIP_EVERY; if (!counted) return { state: s, counted, events };
+  const before = levelOf(r.growth);
+  r.needs = needsAt(r, now, hourOf); r.at = now; s.tipAt = now;
   if (PETS[r.kind].needs.includes('ilmu')) r.needs.ilmu = clamp(r.needs.ilmu + 25);
-  r.growth += 1;
-  return s;
+  r.growth += 1; levelEvent(r, before, events);
+  return { state: s, counted, events };
 }
 /** The chicken's golden egg: once a day, when all its needs are 60 or more. */
 export const eggReady = (rec: PetRec | undefined, needs: Record<NeedId, number>, today: string) => Boolean(rec && rec.kind === 'ayam' && rec.eggDay !== today && PETS.ayam.needs.every(id => needs[id] >= 60));
-export function collectEgg(previous: PetState, today: string): PetState { const s = copy(previous), r = active(s); if (r && r.kind === 'ayam' && r.eggDay !== today) { r.eggs++; r.eggDay = today; r.growth += 10; } return s; }
+export function collectEgg(previous: PetState, today: string): { state: PetState; events: PetEvent[] } {
+  const s = copy(previous), r = active(s), events: PetEvent[] = [];
+  if (r && r.kind === 'ayam' && r.eggDay !== today) { const before = levelOf(r.growth); r.eggs++; r.eggDay = today; r.growth += 10; levelEvent(r, before, events); }
+  return { state: s, events };
+}
 
 // ——— What it says ———
 export const MONEY_TIPS = [
@@ -259,16 +271,19 @@ export const MONEY_TIPS = [
   'Sisakan uang buat hal mendadak sebelum beli keinginan.',
   'Catat transaksi langsung setelah bayar biar nggak lupa.',
 ];
-export type TipCtx = { hour: number; recordedToday: number; litToday: boolean; streak: number; missionsLeft: number; spinReady: boolean; scratchReady: boolean; index: number };
+export type TipCtx = { hour: number; recordedToday: number; litToday: boolean; streak: number; missionsLeft: number; spinReady: boolean; scratchReady: boolean; index: number; /** 10.5 false: the Arena card is hidden on this phone, so nothing points to it. */ arena?: boolean;
+  /** 10.5 "Minta tips" tapped: a money tip, not what it needs (asking for a tip used to answer "read its tips"). */ asked?: boolean };
 /** What the pet says now: something about today when there is something, a money tip otherwise. */
 export function petTip(rec: PetRec, needs: Record<NeedId, number>, c: TipCtx): { text: string; kind: 'today' | 'need' | 'tip' } {
   const info = PETS[rec.kind], say = (t: string) => `${t} ${capital(info.sound)}!`;
+  if (c.asked) return { text: `${rec.kind === 'hantu' ? 'Tips bijak: ' : ''}${MONEY_TIPS[Math.abs(c.index) % MONEY_TIPS.length]}`, kind: 'tip' };
   if (needs.kenyang < 40) return { text: say(`Aku laper nih. Kasih ${info.food.name} dong!`), kind: 'need' };
   if (!c.recordedToday && c.hour >= 11) return { text: say('Hari ini ada pengeluaran? Jangan lupa dicatat ya.'), kind: 'today' };
-  if (!c.litToday && c.streak > 0 && c.hour >= 18) return { text: say(`Api ${c.streak} harimu tinggal ±${24 - c.hour} jam lagi. Catat atau cek-in yuk.`), kind: 'today' };
-  if (c.spinReady) return { text: say('Roda hari ini siap diputar. Cek di kartu Arena!'), kind: 'today' };
-  if (c.scratchReady) return { text: say('Misi beres! Kartu Gosok Berhadiah udah kebuka.'), kind: 'today' };
-  if (c.missionsLeft > 0 && c.missionsLeft < 3 && c.hour >= 15) return { text: say(`Misi hari ini tinggal ${c.missionsLeft}. Dikit lagi!`), kind: 'today' };
+  const arena = c.arena !== false;
+  if (arena && !c.litToday && c.streak > 0 && c.hour >= 18) return { text: say(`Api ${c.streak} harimu tinggal ±${24 - c.hour} jam lagi. Catat atau cek-in yuk.`), kind: 'today' };
+  if (arena && c.spinReady) return { text: say('Roda hari ini siap diputar. Cek di kartu Arena!'), kind: 'today' };
+  if (arena && c.scratchReady) return { text: say('Misi beres! Kartu Gosok Berhadiah udah kebuka.'), kind: 'today' };
+  if (arena && c.missionsLeft > 0 && c.missionsLeft < 3 && c.hour >= 15) return { text: say(`Misi hari ini tinggal ${c.missionsLeft}. Dikit lagi!`), kind: 'today' };
   const own = info.needs[1];
   if (needs[own] < 35 && own !== 'hemat') return { text: ownLow(rec, own), kind: 'need' };
   return { text: `${rec.kind === 'hantu' ? 'Tips bijak: ' : ''}${MONEY_TIPS[Math.abs(c.index) % MONEY_TIPS.length]}`, kind: 'tip' };

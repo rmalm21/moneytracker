@@ -11,10 +11,10 @@ import dynamic from 'next/dynamic';
 import { useApp } from '../app-provider';
 import { Emoji } from '../emoji';
 import { askToTry } from '../feature-tips-events';
-import { celebrate, useGame } from '../game/game-store';
+import { arenaHidden, celebrate, useGame } from '../game/game-store';
 import { PetImg, PetParts, PetSprite, SPECIAL_FX, usePetFx } from './pet-view';
 import { cachedPet, openPetSheet, PET_HIDE_EVENT, petHidden, setPetStore, subscribePet, usePetStore, cachePet } from './pet-store';
-import { commitPet, hourIn, hourKey, petSound, waitText } from './pet-actions';
+import { commitPet, hourIn, hourKey, onPetEvents, petSound, waitText, withLocalChanges } from './pet-actions';
 import { ACCESSORIES, collectEgg, eggReady, emptyPet, feed, hematScore, MEALS_A_DAY, moodOf, needsAt, pet, petTip, play as playPet, PETS, readTip, STAGES, syncPet, type PetEvent, type PetState } from '@/lib/pet';
 import { canScratch, canSpin, hash, streakOf, type GameState } from '@/lib/game';
 import { todayInTimeZone } from '@/lib/period';
@@ -49,12 +49,14 @@ export function PetDock() {
     let confirmed = false;
     const fallback = window.setTimeout(() => { confirmed = true; setPetStore({ ready: true }); }, 10_000);
     const stop = subscribePet(uid, (st, fromServer) => {
-      const next = st || emptyPet(); confirmed = confirmed || fromServer || isOffline();
+      // 10.5 This phone's changes not saved yet stay on top of what the account sends.
+      const next = withLocalChanges(st || emptyPet()); confirmed = confirmed || fromServer || isOffline();
       setPetStore({ uid, state: next, ready: confirmed }); cachePet(uid, next);
     });
     return () => { window.clearTimeout(fallback); stop(); };
   }, [uid]);
-  useEffect(() => { const on = () => setHidden(uid ? petHidden(uid) : false); window.addEventListener(PET_HIDE_EVENT, on); return () => window.removeEventListener(PET_HIDE_EVENT, on); }, [uid]);
+  // 10.5 Read again for the account now open (another account's choice was kept after switching accounts).
+  useEffect(() => { const on = () => setHidden(uid ? petHidden(uid) : false); on(); window.addEventListener(PET_HIDE_EVENT, on); return () => window.removeEventListener(PET_HIDE_EVENT, on); }, [uid]);
   // The needs move with time: look again every minute.
   useEffect(() => { const t = window.setInterval(() => tick(n => n + 1), 60_000); return () => window.clearInterval(t); }, []);
 
@@ -68,6 +70,7 @@ export function PetDock() {
     const usual = exp.filter(t => t.date >= start && t.date < today).reduce((n, t) => n + (t.amount || 0), 0) / 30;
     return hematScore(todaySpent, usual);
   }, [rec, space, data.transactions, today]);
+  useEffect(() => { setPetStore({ hemat }); }, [hemat]);
 
   // Saying things, one after another.
   function say(text: string, tip = false, ms = tip ? 8000 : 3200) {
@@ -90,34 +93,53 @@ export function PetDock() {
     });
   }
 
+  // 10.5 What happened in the pet's panel (a level reached there) is announced here too.
+  const reactRef = useRef(react); reactRef.current = react;
+  useEffect(() => onPetEvents(events => events.forEach(ev => reactRef.current(ev))), []);
+
   // What happened since the last look: meals, the flame, missions, games, Arena XP.
   useEffect(() => {
     if (!ps.ready || !state || !g.state || !g.confirmed) return;
     const s = g.state;
     const r = syncPet(state, { today, recordedToday: recordedOf(s, today), lit: s.days.includes(today), missions: s.stats?.missions || 0, games: gamesOf(s), xp: s.xp || 0, now: Date.now() }, hourOf, hemat);
-    if (r.events.length || countersOf(r.state) !== countersOf(state)) commitPet(r.state);
+    // 10.5 The gecko's thrift is also kept in the account when it moved (so another phone, or a Ruang Bersama, shows today's).
+    const thriftMoved = hemat !== undefined && rec?.kind === 'tokek' && Math.abs((rec.needs.hemat ?? 0) - hemat) >= 5;
+    if (r.events.length || thriftMoved || countersOf(r.state) !== countersOf(state)) commitPet(r.state);
     r.events.forEach(react);
   }, [ps.ready, state, g.state, g.confirmed, today, hemat]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A big expense just recorded: it jumps.
-  const seen = useRef<Set<string> | null>(null);
+  // A big expense just recorded: it jumps. 10.5 Only for one recorded a moment ago, once: opening the app in a Ruang
+  // Bersama and then going to Pribadi, or records arriving late, showed older transactions as new, and the pet was startled
+  // by an old big expense. Now: what arrives in the first seconds after opening or switching is taken as already there, a
+  // big expense counts only when recorded in the last 3 minutes and dated today, and each one startles it once (this phone
+  // remembers which).
+  const seen = useRef<Set<string> | null>(null), seenIn = useRef(''), settleUntil = useRef(0);
   useEffect(() => {
-    const list = data.transactions;
-    if (!seen.current) { seen.current = new Set(list.map(t => t.id)); return; }
+    const list = data.transactions, scope = space?.id || 'me', now = Date.now();
+    if (!seen.current || seenIn.current !== scope) { seen.current = new Set(); seenIn.current = scope; settleUntil.current = now + 4000; }
     const fresh = list.filter(t => !seen.current!.has(t.id)); fresh.forEach(t => seen.current!.add(t.id));
-    if (!rec || !fresh.length) return;
+    if (now < settleUntil.current || !rec || !fresh.length) return;
+    const justNow = (t: LedgerTx) => { const c = t.createdAt as { toMillis?: () => number; seconds?: number } | null | undefined; const at = c?.toMillis ? c.toMillis() : c?.seconds ? c.seconds * 1000 : null; return at === null || Math.abs(now - at) < 3 * 60_000; };
     const amounts = list.filter(t => t.type === 'expense').slice(0, 60).map(t => t.amount || 0).sort((a, b) => a - b);
     const median = amounts[Math.floor(amounts.length / 2)] || 0, line = Math.max(150_000, median * 3);
-    if (fresh.some(t => t.type === 'expense' && (t.amount || 0) >= line)) enqueue(() => { run('kaget'); play('wow'); say('Waduh, pengeluaran gede! Nggak apa-apa, yang penting dicatat.'); });
-  }, [data.transactions]); // eslint-disable-line react-hooks/exhaustive-deps
+    const startled = startledBy(uid), big = fresh.filter(t => t.type === 'expense' && (t.amount || 0) >= line && t.date === today && justNow(t) && !startled.includes(t.id));
+    if (!big.length) return;
+    rememberStartled(uid, big.map(t => t.id));
+    enqueue(() => { run('kaget'); play('wow'); say('Waduh, pengeluaran gede! Nggak apa-apa, yang penting dicatat.'); });
+  }, [data.transactions, space?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Now and then, something useful (once a while after opening, then every 40 minutes).
+  // Now and then, something useful (once a while after opening, then every 40 minutes). 10.5 Read from the pet and the
+  // Arena as they are when it speaks: the timer used to keep the ones from when it started, so 40 minutes after a meal the
+  // pet still said it was hungry, or asked to record when you already had.
+  const latest = useRef({ rec, state, hemat, today, st: g.state });
+  latest.current = { rec, state, hemat, today, st: g.state };
   useEffect(() => {
     if (!rec || hidden) return;
     const show = () => {
-      const st = g.state, now = Date.now(), hour = hourOf(now); if (!st || moodOf(rec, needsAt(rec, now, hourOf, hemat), hour).id === 'tidur') return;
+      const { rec, state, hemat, today, st } = latest.current, now = Date.now(), hour = hourOf(now);
+      if (!rec || !st || moodOf(rec, needsAt(rec, now, hourOf, hemat), hour).id === 'tidur') return;
       const t = petTip(rec, needsAt(rec, now, hourOf, hemat), { hour, recordedToday: recordedOf(st, today), litToday: st.days.includes(today), streak: streakOf(st.days, st.frozen || [], today).current,
-        missionsLeft: st.missionDay === today ? Math.max(0, (st.missionIds?.length || 3) - (st.missionsDone?.length || 0)) : 3, spinReady: canSpin(st, today), scratchReady: canScratch(st, today), index: hash(`${uid}:${today}`) + (state?.tipsRead || 0) });
+        missionsLeft: st.missionDay === today ? Math.max(0, (st.missionIds?.length || 3) - (st.missionsDone?.length || 0)) : 3, spinReady: canSpin(st, today), scratchReady: canScratch(st, today), index: hash(`${uid}:${today}`) + (state?.tipsRead || 0), arena: !arenaHidden(uid) });
       enqueue(() => { petSound(PETS[rec.kind].voice); say(t.text, true); });
     };
     let first = 0; try { if (!sessionStorage.getItem('dompet-ajaib:pet-tip')) { sessionStorage.setItem('dompet-ajaib:pet-tip', '1'); first = window.setTimeout(show, 14_000); } } catch { first = window.setTimeout(show, 14_000); }
@@ -163,7 +185,7 @@ export function PetDock() {
 
   return <>
     <div className={`pet-dock ${rec ? `kind-${rec.kind}` : 'is-empty'} ${mood ? `mood-${mood.id}` : ''}`} aria-live="polite">
-      {bubble && <button type="button" key={bubble.id} className={`pet-bubble ${bubble.tip ? 'is-tip' : ''}`} onClick={() => { if (bubble.tip && state) { commitPet(readTip(state, Date.now(), hourOf)); askToTry('home_chat'); } setBubble(null); }}>
+      {bubble && <button type="button" key={bubble.id} className={`pet-bubble ${bubble.tip ? 'is-tip' : ''}`} onClick={() => { if (bubble.tip && state) { const r = readTip(state, Date.now(), hourOf); commitPet(r.state); r.events.forEach(react); askToTry('home_chat'); } setBubble(null); }}>
         <span>{bubble.text}</span>{bubble.tip && <small>Ketuk buat tanya asisten</small>}
       </button>}
       {rec && info && needs && mood ? <>
@@ -175,10 +197,14 @@ export function PetDock() {
           <PetParts parts={parts}/>
         </button>
         {hungry && <button type="button" className="pet-food" onClick={giveFood} aria-label={`Kasih ${info.food.name} ke ${rec.name}`}><PetImg e={info.food.emoji}/></button>}
-        {egg && <button type="button" className="pet-egg" onClick={() => { if (!state) return; const n = (rec.eggs || 0) + 1; commitPet(collectEgg(state, today)); run('egg'); play('gem'); say(`Telur emas ke-${n}! Makasih udah ngerawat ${rec.name}.`); }} aria-label="Ambil telur emas"><Emoji e="🥚"/></button>}
+        {egg && <button type="button" className="pet-egg" onClick={() => { if (!state) return; const n = (rec.eggs || 0) + 1, r = collectEgg(state, today); commitPet(r.state); run('egg'); play('gem'); say(`Telur emas ke-${n}! Makasih udah ngerawat ${rec.name}.`); r.events.forEach(react); }} aria-label="Ambil telur emas"><Emoji e="🥚"/></button>}
       </> : <button type="button" className="pet-adopt" onClick={() => { play('pop'); openPetSheet(); }} aria-label="Adopsi pet"><Emoji e="🎁"/><span>Adopsi pet</span></button>}
     </div>
     {ps.sheet && <PetSheet/>}
   </>;
 }
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** 10.5 The big expenses the pet was already startled by on this phone (the newest 40). */
+const STARTLED = (uid: string) => `dompet-ajaib:pet-startled:${uid}`;
+function startledBy(uid: string): string[] { try { return JSON.parse(localStorage.getItem(STARTLED(uid)) || '[]'); } catch { return []; } }
+function rememberStartled(uid: string, ids: string[]) { try { localStorage.setItem(STARTLED(uid), JSON.stringify([...startledBy(uid), ...ids].slice(-40))); } catch { /* this visit only */ } }
