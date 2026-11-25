@@ -173,7 +173,7 @@ function readAmount(raw: string, unit = '') {
  */
 const SLANG: Record<string, number> = { gopek: 500, seceng: 1000, noceng: 2000, goceng: 5000, ceban: 10000, noban: 20000, goban: 50000, gocap: 50000, cepek: 100000, sejutaan: 1000000, sejeti: 1000000, sejt: 1000000 };
 const NUM_WORDS: Record<string, number> = { nol: 0, satu: 1, se: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10, sebelas: 11, seratus: 100, seribu: 1000, sejuta: 1000000 };
-const SCALES: Record<string, number> = { ribu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, jt: 1e6, miliar: 1e9, milyar: 1e9, m: 1e9 };
+const SCALES: Record<string, number> = { ribu: 1e3, rebu: 1e3, rb: 1e3, k: 1e3, juta: 1e6, jt: 1e6, miliar: 1e9, milyar: 1e9, m: 1e9 };
 const NUMBER_RUN = new RegExp(`(?<![\\p{L}\\p{N}])((?:(?:${[...Object.keys(NUM_WORDS), 'puluh', 'belas', 'ratus', 'setengah', ...Object.keys(SCALES)].sort((a, b) => b.length - a.length).join('|')}|\\d+(?:[.,]\\d+)?)\\s*)+)(?![\\p{L}\\p{N}])`, 'gu');
 /** Words read as names in the sentence being parsed ("Ceban Cafe"): never money slang. Set by the plan reader. */
 export const amountGuard: { words: Set<string> } = { words: new Set() };
@@ -913,14 +913,19 @@ export function parseQuickText(input: string, ctx: QuickContext, mode: QuickGrou
     if (claim && (/\b(cair|dicairkan|diganti|reimburse)\b/.test(text) || /\b(?:kantor|perusahaan|hrd|finance)\b.*\b(?:udah|sudah|dah|baru)\s+(?:ganti|gantiin|bayar|bayarin|transfer|tf|reimburse)\b/.test(text))) return 'claim_payment';
     // "dina transfer balik 30rb ke jago": a friend with an open Piutang who pays or transfers is paying it back, not a transfer.
     if (receivable && subject(receivable.words, PAY) && !LEND_OUT.test(text)) return 'receivable_payment';
-    if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !/\b(biaya|admin|fee)\b/.test(text) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
+    // 10.6 A fee said after the cash taken out ("tarik tunai 300rb dari jago kena biaya admin 6500") belongs to it; only the
+    // fee itself ("biaya tarik tunai 6500", "admin tarik tunai") is spending.
+    if ((CASH_OUT.test(text) || CASH_IN.test(text)) && !(/\b(biaya|admin|fee)\b/.test(text) && !/\b(?:tarik|narik|setor|ambil)\b.*\d.*\b(?:biaya|admin|fee)\b/.test(text)) && ctx.wallets.some(w => w.type === 'cash' || /tunai|cash/i.test(w.name))) return 'transfer';
     if (wallets.length >= 2 && wallets.some(w => /\b(isi|isi saldo|top ?up|topup)\s+$/.test(text.slice(0, w.at)))) return 'transfer';
     // "transfer 100k dari jago ke budi": Budi is a person, not a wallet → money paid to someone (spending), not a transfer.
     const toPerson = recipient?.cue === 'to' && !wallets.some(w => /\b(ke|kepada|masuk(?: ke)?|top ?up|topup|isi(?: saldo)?)\s+$/.test(text.slice(0, w.at)));
     if (TRANSFER_WORDS.test(text) && !toPerson && (wallets.length >= 2 || wallets.length === 1 && /\b(topup|top up|isi saldo|tambah saldo)\b|\b(tf|transfer|pindah|pindahin)\b.*\b(ke|dari)\s+\S+/.test(text))) return 'transfer';
     // 10.4 "nabung 500rb ke jenius", "sisihin 300rb ke rekening bri": saving into a wallet (no goal named) moves the money there.
     if (SAVE_WORDS.test(text) && !fund && !wish && wallets.some(w => /\b(?:ke|masuk(?: ke)?|di)(?:\s+(?:rekening|rek|dompet|akun))?\s+$/.test(text.slice(0, w.at)))) return 'transfer';
-    if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text))) return targetKind();
+    // 10.6 "150rb buat sepatu" with "Sepatu lari" on the wish list is buying shoes: "buat" alone puts money into a wish only
+    // when the wish is named whole ("200rb buat sepatu lari"), into a goal as before ("500rb buat dana darurat").
+    const wishWhole = wish ? text.includes(lower(wish.record.name)) : false;
+    if (SAVE_WORDS.test(text) || (fund || wish) && (FILL_WORDS.test(text) || /\b(ke|buat|untuk|utk)\b/.test(text) && !BORROW.test(text) && !PAY.test(text) && (fund || wishWhole || /\bke\b/.test(text)))) return targetKind();
     // 10.2 "nyicil sepatu lari 100rb": paying bit by bit toward a wish-list item (no debt by that name) is saving for it.
     if ((wish || fund) && !debt && /\b(?:nyicil|nyicilin|cicil|dicicil)\b/.test(text) && !DEBT_WORDS.test(text.replace(/\b(?:nyicil|nyicilin|cicil|dicicil)\b/g, ' '))) return targetKind();
     // "budi minjemin aku 300rb": somebody lent to me.

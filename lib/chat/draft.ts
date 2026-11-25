@@ -177,3 +177,52 @@ export function readDiscount(message: string, pending: string): { text: string; 
   if (items.length !== 1 || !off || off >= items[0].amount) return null;
   return { text: amountIn(pending, rp(items[0].amount - off).toLocaleLowerCase('id-ID')), off, was: items[0].amount };
 }
+
+/**
+ * 10.6 A change to some of the records on a card, said by what they are or by their place: "yang makan bayarnya cash",
+ * "kopinya pake gopay", "semua pakai cash kecuali bensin", "yang pertama sama kedua masuk kategori makan, sisanya
+ * hiburan". The other records stay as they were. Null when a record named is not on the card.
+ */
+const PLACE = String.raw`(?:pertama|kesatu|satu|kedua|dua|ketiga|tiga|keempat|empat|kelima|lima|terakhir)`;
+const placeOf = (w: string, n: number) => w === 'terakhir' ? n - 1 : ({ pertama: 1, kesatu: 1, satu: 1, kedua: 2, dua: 2, ketiga: 3, tiga: 3, keempat: 4, empat: 4, kelima: 5, lima: 5 } as Record<string, number>)[w] - 1;
+export function readClauseEdit(message: string, pending: string, ctx: QuickContext, say: Say): DraftEdit | null {
+  const t = lower(message).replace(/[!?]+$/g, '').replace(/\.$/, '').trim();
+  const { items, tail } = clausesOf(pending);
+  if (!items.length) return null;
+  // "semua pakai cash kecuali bensin", "semuanya dari jago selain parkir".
+  let m = t.match(/^(?:semua(?:nya)?|semuanya)\s+(?:(?:bayar(?:nya)?|dibayar)\s+)?(?:pake|pakai|pakek|via|dari|lewat)\s+(\p{L}+)(?:\s*,?\s*(?:kecuali|selain)\s+(?:yang\s+|yg\s+)?(.+))?$/u);
+  if (m) {
+    const w = walletsIn(m[1], ctx.wallets)[0]; if (!w) return null;
+    const except = m[2] ? m[2].split(/\s*(?:,|\bdan\b|\bsama\b|&)\s*/).filter(Boolean).map(x => itemAt(x.replace(/^(?:yang|yg)\s+/, ''), items)) : [];
+    if (except.some(i => i < 0)) return null;
+    const next = items.map((c, i) => except.includes(i) ? c : { ...c, text: withWallet(c.text, lower(w.name), ctx) });
+    return { text: join(next, tail), did: [`${except.length ? `selain ${m[2]}, ` : ''}${say.wallet(w.name)}`] };
+  }
+  // "yang makan bayarnya cash", "kopinya pake gopay", "bensin tadi dari jago".
+  m = t.match(/^(?:(?:yang|yg)\s+)?(\p{L}+?)(?:nya)?\s+(?:tadi\s+)?(?:(?:bayar(?:nya)?|dibayar|pake(?:nya)?|pakai(?:nya)?|pakek|via|dari|lewat)\s+)+(\p{L}+)$/u);
+  if (m && !/^(?:semua|semuanya|itu|ini|tadi)$/.test(m[1])) {
+    const w = walletsIn(m[2], ctx.wallets)[0], at = itemAt(m[1], items);
+    if (!w || at < 0) return null;
+    items[at] = { ...items[at], text: withWallet(items[at].text, lower(w.name), ctx) };
+    return { text: join(items, tail), did: [`${m[1].replace(/nya$/, '')} ${say.wallet(w.name)}`] };
+  }
+  // "yang pertama sama kedua masuk kategori makan, sisanya hiburan".
+  if (!new RegExp(String.raw`\b(?:yang|yg)\s+${PLACE}\b`).test(t) || items.length < 2) return null;
+  const set = new Map<number, string>(), did: string[] = [];
+  for (const part of t.split(/\s*[,;]\s*|\s+(?:terus|trus|lalu)\s+/).filter(Boolean)) {
+    const own = part.match(new RegExp(String.raw`^(?:(?:yang|yg)\s+)?(${PLACE}(?:\s*(?:,|\bsama\b|\bdan\b|&)\s*(?:(?:yang|yg)\s+)?${PLACE})*)\s+(?:masuk(?:in|kan)?(?:\s+ke)?(?:\s+kategori)?|kategori(?:nya)?|ke|jadi)\s+(.+)$`));
+    const rest = part.match(/^(?:sisanya|sisa(?:nya)?|yang\s+lain(?:nya)?|lainnya|selebihnya)\s+(?:masuk(?:\s+ke)?\s+)?(?:kategori\s+)?(.+)$/);
+    if (own) {
+      const at = own[1].split(/\s*(?:,|\bsama\b|\bdan\b|&)\s*/).map(w => placeOf(w.replace(/^(?:yang|yg)\s+/, ''), items.length));
+      if (at.some(i => !(i >= 0 && i < items.length))) return null;
+      for (const i of at) set.set(i, own[2]);
+      did.push(`${at.map(i => `#${i + 1}`).join(' & ')} ${say.category(own[2])}`);
+    } else if (rest && set.size) {
+      items.forEach((_, i) => { if (!set.has(i)) set.set(i, rest[1]); });
+      did.push(`sisanya ${say.category(rest[1])}`);
+    } else return null;
+  }
+  if (!set.size) return null;
+  const next = items.map((c, i) => set.has(i) ? { ...c, text: withCategory(c.text, set.get(i)!) } : c);
+  return { text: join(next, tail), did };
+}

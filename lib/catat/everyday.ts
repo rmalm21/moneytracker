@@ -95,8 +95,49 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
   // The cash handed over: "beli nasi 23rb, kasih 50rb" → only 23rb went out, 27rb came back.
   const handed = t.match(new RegExp(String.raw`^(.*?(${AMT}).*?)\s*,?\s*(?:kasih|ngasih|bayar(?:nya)?\s+(?:pake|pakai|pakek)|uang(?:nya)?|duit(?:nya)?|nyerahin)\s+(${AMT})\s*$`));
   if (handed) { const price = value(handed[2]), paid = value(handed[3]); if (paid > price && price > 0 && findAmounts(handed[1]).length === 1) { t = handed[1].trim(); out.notes.push(`Dibayar ${rp(paid)}, kembalian ${rp(paid - price)}`); said(`uang diberikan ${rp(paid)}, kembalian ${rp(paid - price)}`); } }
-  // A cashback still to come is not money in: "belanja 100rb, nanti cashback 10rb".
   const later = /\b(?:nanti|katanya|bakal|akan|besok|dijanjikan|menyusul|belum masuk)\b/;
+  // 10.6 Money given back at once: "beli kaos 100rb tapi dikembaliin 20rb", "bayar 100rb, kembaliannya 20rb" → 80rb went out.
+  // A returned item with its own refund is read further on.
+  const given = t.match(new RegExp(String.raw`^(.*?)(${AMT})(.*?)\s*,?\s*(?:(?:tapi|terus|trus|lalu|dan|sama|eh)\s+)?(?:(?:di)?(?:kembaliin|kembalikan|kembaliin|balikin|balikkan|kembaliin lagi)|kembalian(?:nya)?|kembali|dibalikin)\s+(${AMT})(.*)$`));
+  if (given && !/\b(?:refund|retur|diretur|barang(?:nya)?\s+(?:dibalikin|dikembalikan|rusak))\b/.test(t) && !findAmounts(given[1] + given[3] + given[5]).some(a => a.value > 0)) {
+    const paid = value(given[2]), got = value(given[4]);
+    if (got > 0 && got < paid) { t = `${given[1]}${amt(paid - got)}${given[3]}${given[5]}`.replace(/\s+/g, ' ').trim(); out.notes.push(`Bayar ${rp(paid)}, dikembalikan ${rp(got)}`); said(`bayar ${rp(paid)}, kembali ${rp(got)}: yang keluar ${rp(paid - got)}`); }
+  }
+  // 10.6 Paid for others, part of it to be paid back: "gue bayarin dulu 200rb, nanti andi ganti 150rb" → my 50rb is spending,
+  // the 150rb Andi owes is a Piutang. Paid for the whole group: "makan berlima 250rb, gue talangin semua" → my share and
+  // what the others owe.
+  const fronted = t.match(new RegExp(String.raw`^(.*?)\b(?:bayar(?:in)?|talangin|nalangin|nombokin)\s+(?:dulu\s+)?(.*?)(${AMT})(.*?)\s*,?\s*(?:nanti|ntar|entar|terus|trus|dan|tapi)\s+(.+?)\s+(?:(?:mau|bakal|akan)\s+)?(?:ganti(?:in)?|bayar(?:in)?|balikin|kembaliin|transfer|tf)\s+(?:ke\s+(?:aku|gue|gua|gw|saya)\s+)?(${AMT})(.*)$`, 'u'));
+  if (fronted) {
+    const all = value(fronted[3]), owed = value(fronted[6]), who = fronted[5].replace(/\b(?:gue|gua|gw|aku|saya|ku)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    const what = `${fronted[1]} ${fronted[2]}`.replace(/\b(?:aku|gue|gua|gw|saya|tadi|udah|sudah)\b/g, ' ').replace(/\s+/g, ' ').trim() || 'bayar';
+    const via = `${fronted[4]} ${fronted[7]}`.match(/\b(?:pake|pakai|pakek|dari|via|lewat)\s+(\p{L}+)/u)?.[0] || '';
+    if (who && who.split(' ').length <= 3 && owed > 0 && owed <= all) {
+      t = `${owed < all ? `${what} ${amt(all - owed)}${via ? ` ${via}` : ''}, ` : ''}${who} pinjam ${amt(owed)}${via ? ` ${via}` : ''}`;
+      out.notes.push(`Dibayarin dulu ${rp(all)}, ${who} ganti ${rp(owed)}`); said(`dibayarin ${rp(all)}: bagianku ${rp(all - owed)}, piutang ${rp(owed)}`);
+    }
+  }
+  const group = t.match(new RegExp(String.raw`^(.*?)\bber(dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh)\b(.*?)(${AMT})(.*?)\s*,?\s*(?:(?:aku|gue|gua|gw|saya)\s+(?:yang\s+)?)?(?:talangin|nalangin|nombokin|bayarin|bayar(?:in)?\s+(?:dulu|semua|semuanya))\b(.*)$`, 'u'));
+  if (group) {
+    const n = countOf(group[2]), total = value(group[4]), mine = Math.round(total / n);
+    const what = `${group[1]} ${group[3]}`.replace(/\b(?:aku|gue|gua|gw|saya|tadi|total(?:nya)?)\b/g, ' ').replace(/\s+/g, ' ').trim() || 'bayar';
+    const via = `${group[5]} ${group[6]}`.match(/\b(?:pake|pakai|pakek|dari|via|lewat)\s+(\p{L}+)/u)?.[0] || '';
+    if (n >= 2 && total > 0) { t = `${what} ${amt(mine)}${via ? ` ${via}` : ''}, teman pinjam ${amt(total - mine)}${via ? ` ${via}` : ''}`; out.notes.push(`Bayar ${rp(total)} untuk ${n} orang, bagianku ${rp(mine)}`); said(`talangan ${n} orang: bagianku ${rp(mine)}, piutang ${rp(total - mine)}`); }
+  }
+  // 10.6 "bayar cicilan 500 ribu dari total utang 2 juta": the total is how much is owed, not a second record. The debt
+  // owing exactly that much is the one paid; the rest after it is noted.
+  const ofTotal = t.match(new RegExp(String.raw`^(.*?\b(?:bayar|nyicil|cicil|setor|lunasin|angsur)\b.*?)(${AMT})(.*?)\s*,?\s*(?:dari|dr)\s+(?:total|sisa|jumlah)?\s*(?:utang|hutang|pinjaman|cicilan|kredit)(?:nya|\s+(?:aku|gue|gw|saya))?\s+(?:yang\s+)?(${AMT})(.*)$`, 'u'));
+  if (ofTotal) {
+    const paid = value(ofTotal[2]), total = value(ofTotal[4]);
+    if (paid > 0 && total > paid) {
+      const debt = (ctx.debts || []).filter(d => d.outstandingAmount > 0 && Math.round(d.outstandingAmount) === total);
+      const named = debt.length === 1 && !lower(ofTotal[1]).includes(lower(debt[0].name)) ? ` ${lower(debt[0].name)}` : '';
+      t = `${ofTotal[1].replace(/\b(?:cicilan|utang|hutang)\b(?=\s*$)/, m => named ? `utang${named}` : m)}${named && !/\b(?:cicilan|utang|hutang)\b\s*$/.test(ofTotal[1]) ? `${named} ` : ''}${ofTotal[2]}${ofTotal[3]}${ofTotal[5]}`.replace(/\s+/g, ' ').trim();
+      out.notes.push(`Sisa utang setelah ini ${rp(total - paid)}`); said(`bayar ${rp(paid)} dari total utang ${rp(total)}: satu pembayaran`);
+    }
+  }
+  // 10.6 A cashback received with the purchase ("beli makan 50rb dapet cashback 10rb") is money in of its own.
+  t = t.replace(new RegExp(String.raw`(${AMT})\s+((?:terus\s+|trus\s+|dan\s+)?(?:dapet|dapat)\s+cashback(?:nya)?\s+${AMT})`), (m, a: string, rest: string) => later.test(t) ? m : `${a}, ${rest}`);
+  // A cashback still to come is not money in: "belanja 100rb, nanti cashback 10rb".
   t = t.replace(new RegExp(String.raw`\s*[,.]?\s*((?:nanti|katanya|bakal|akan|besok|dijanjikan)\s+)?(?:(?:dapet|dapat|ada)\s+)?cashback(?:nya)?\s+(${AMT})(\s+(?:nanti|besok|menyusul|katanya))?`), (m, pre?: string, a?: string, post?: string) => {
     if (!pre && !post && !later.test(t)) return m;
     const rest = t.replace(m, ' ');
@@ -133,9 +174,11 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
     // "total belanja 150rb, tunai 50rb, jago 80rb": each way paid is its own entry; a gap is pointed out, never filled in.
     const m = t.match(new RegExp(String.raw`^(?:total\s+)?(.*?)\s*(${AMT})\s*,\s*(.+)$`, 'u'));
     if (m) {
-      const pairs = m[3].split(/\s*,\s*|\s+(?:dan|sama)\s+/).map(p => p.match(new RegExp(String.raw`^${PAYER}\s+(${AMT})$|^(${AMT})\s+${PAYER}$`, 'u'))).filter(Boolean) as RegExpMatchArray[];
+      // 10.6 "200rb pake jago 100rb pake gopay": a new amount after a wallet starts the next way paid.
+      const PARTS = new RegExp(String.raw`\s*,\s*|\s+(?:dan|sama)\s+|(?<=\p{L})\s+(?=(?:rp\.?\s*)?\d)`, 'u');
+      const pairs = m[3].split(PARTS).map(p => p.match(new RegExp(String.raw`^${PAYER}\s+(${AMT})$|^(${AMT})\s+${PAYER}$`, 'u'))).filter(Boolean) as RegExpMatchArray[];
       const ways = pairs.map(p => ({ w: p[1] || p[4], a: value(p[2] || p[3]) }));
-      if (pairs.length >= 2 && pairs.length === m[3].split(/\s*,\s*|\s+(?:dan|sama)\s+/).length && ways.every(x => isWallet(x.w))) {
+      if (pairs.length >= 2 && pairs.length === m[3].split(PARTS).length && ways.every(x => isWallet(x.w))) {
         const total = value(m[2]), sum = ways.reduce((n, x) => n + x.a, 0), desc = m[1].trim() || 'belanja';
         t = ways.map(x => `${desc} ${amt(x.a)} pakai ${x.w}`).join(', ');
         if (Math.abs(sum - total) >= 1) { out.warn = `Total ${rp(total)}, tapi yang dibayar ${rp(sum)} (beda ${rp(Math.abs(total - sum))}). Ada diskon, cara bayar lain, atau nominal yang salah?`; said(out.warn); }

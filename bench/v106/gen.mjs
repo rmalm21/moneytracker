@@ -17,7 +17,7 @@ const TODAY = '2026-10-15';
 const DATA = accounts[0].data;
 const rp = n => `Rp${Math.round(n).toLocaleString('id-ID')}`;
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const money = n => new RegExp(`${esc(rp(n))}(?![\\d.])`);
+const money = n => new RegExp(`${esc(rp(n))}(?!\\d|\\.\\d)`);
 const day = n => { const d = new Date(`${TODAY}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 
 // ——— From the ledger ———

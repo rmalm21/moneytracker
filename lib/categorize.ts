@@ -238,6 +238,9 @@ const RULES: Rule[] = [
   R(/\b(cetak|cetak dokumen|penjilidan|buku tulis|map plastik|atk|alat tulis|pulpen|pena|pensil|penghapus|penggaris|spidol|kertas|map|fotokopi|fotocopy|foto copy|print|nge-?print|printout|jilid|laminating|laminasi)\b/, 'stationery', 3.8),
   // People
   R(/\b(sedekah|infaq|infak|zakat|zakat fitrah|zakat mal|wakaf|donasi|sumbangan|nyumbang|amal|kotak amal|kolekte|perpuluhan|persembahan|kitabisa|panti asuhan|fidyah|kurban|qurban)\b/, 'charity', 4.8),
+  // 10.6 Giving to someone in need or to a house of worship: "kasih ceban ke pengamen", "50rb buat masjid".
+  R(/\b(pengamen|ngamen|pengemis|pemulung|anak yatim|yatim|yatim piatu|dhuafa|duafa|kaum dhuafa|fakir|kotak masjid|kas masjid|kas mushola|kas gereja)\b/, 'charity', 4.8),
+  R(/\b(masjid|mesjid|musholla|mushola|musala|surau|langgar|gereja|pura|vihara|klenteng)\b/, 'charity', 3.2),
   R(/\b(uang duka|duka cita|belasungkawa|tahlilan|amplop|takziah|takjiah|melayat|layat|syukuran|selamatan|hajatan|lahiran|aqiqah|akikah|khitanan|sunatan|jenguk|besuk|arisan|reuni|buka bersama|bukber)\b/, 'social', 4),
   R(/\b(kondangan|nikahan|pernikahan|resepsi|kawinan)\b/, 'wedding', 4.4),
   // V4: treating someone ("traktir teman", "entertain") is money given to people, not one's own meal.

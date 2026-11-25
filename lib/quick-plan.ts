@@ -138,13 +138,20 @@ const SPELLING: Record<string, string> = {
 };
 /** The general reading of one shorthand word ("mkn" -> "makan"), or undefined: what everyone may type, not personal memory. */
 export const generalSpelling = (word: string) => Object.prototype.hasOwnProperty.call(SPELLING, word) ? SPELLING[word] : curatedReading(word) ?? compileLanguagePack().variants.get(word);
-const PHRASES: [RegExp, string][] = [
+const DAY_COUNT: Record<string, number> = { dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10 };
+const PHRASES: [RegExp, string | ((...m: string[]) => string)][] = [
   // Day of month as people type it: "tgl2", "tnggl 2", "tanggal2" → "tgl 2".
   [/\b(?:tanggal|tangal|tnggal|tnggl|tngl|tgl|tg)\s*(\d{1,2})(?!\d)/g, 'tgl $1'],
     [/\bgo[\s-]pay\b/g, 'gopay'], [/\bshopee[\s-]pay\b/g, 'shopeepay'], [/\blink[\s-]aja\b/g, 'linkaja'], [/\bsea[\s-]bank\b/g, 'seabank'],
   [/(\d)\s*(?:rbu|rebu|rbuan|ribuan|rban|rb-an|rbn)\b/g, '$1rb'], [/(\d)\s*(?:jtan|jutaan|jt-an)\b/g, '$1jt'],
   [/\b(?:dua2nya|dua-duanya|dua duanya|duaduanya)\b/g, 'dua-duanya'], [/\bpas\s+gajian\b/g, 'pas gajian'],
   [/\b(?:gak|ga|nggak|enggak|engga|ngga|gk|g)\s*jadi\b|\bgajadi\b/g, 'tidak jadi'], [/\bmasing2\b/g, 'masing-masing'],
+  // 10.6 Days back said in words: "dua hari lalu", "tiga hari yang lalu", "seminggu lalu", "dua minggu yang lalu".
+  [new RegExp(`\\b(${Object.keys(DAY_COUNT).join('|')})\\s+hari\\s+(?:yang\\s+|yg\\s+)?lalu\\b`, 'g'), (_m: string, n: string) => `${DAY_COUNT[n]} hari lalu`],
+  [/\b(?:seminggu|sepekan)\s+(?:yang\s+|yg\s+)?(?:lalu|kemarin|kmrn)\b/g, '7 hari lalu'],
+  [new RegExp(`\\b(\\d|${Object.keys(DAY_COUNT).join('|')})\\s+(?:minggu|pekan)\\s+(?:yang\\s+|yg\\s+)?lalu\\b`, 'g'), (_m: string, n: string) => `${(DAY_COUNT[n] || Number(n)) * 7} hari lalu`],
+  // 10.6 "beli tiga barang masing-masing 25rb": a count in words before a price for each.
+  [new RegExp(`\\b(${Object.keys(DAY_COUNT).join('|')})\\s+(\\p{L}+)\\s+(?=(?:masing-masing|@|per\\s*(?:biji|buah|item|pcs|porsi|gelas|bungkus|orang))\\b)`, 'gu'), (_m: string, n: string, thing: string) => `${DAY_COUNT[n]} ${thing} `],
 ];
 /** "2jt200" / "2 juta 200" → 2.200.000; the digits after "jt" are thousands ("2jt50" = 2.050.000), one digit is a tenth ("2jt5" = 2,5 jt). */
 // Never inside a decimal ("1.5jt 2 bulan", "1,5jt") nor before a count ("1jt 2 bulan" = for two months, not 1,2 jt).
@@ -154,7 +161,7 @@ const millionTail = (_: string, whole: string, tail: string) => `${Number(whole)
 let guarded: Set<string> = new Set();
 export function normalizeQuick(text: string) {
   let out = text.toLocaleLowerCase('id-ID').replace(/[“”"]/g, '').replace(/\s+/g, ' ').trim();
-  for (const [pattern, to] of PHRASES) out = out.replace(pattern, to);
+  for (const [pattern, to] of PHRASES) out = typeof to === 'string' ? out.replace(pattern, to) : out.replace(pattern, to as (...m: string[]) => string);
   out = out.replace(MILLION_TAIL, millionTail);
   out = out.replace(/\p{L}+/gu, word => guarded.has(word) || !Object.prototype.hasOwnProperty.call(SPELLING, word) ? word : SPELLING[word]);
   return amountWords(out);
@@ -526,7 +533,8 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   if (comp) set('amount', 'verified', comp.formula);
   else if (each) set('amount', 'likely', `${each.qty} × ${rupiah(each.unit)} = ${rupiah(each.total)} (dihitung)`);
   else if (AMOUNT_KINDS(kind)) {
-    const amounts = findAmounts(text).filter(a => !a.monthly), marked = [...new Set(amounts.filter(a => a.marked).map(a => a.value))];
+    // 10.6 The fee of a transfer ("… kena biaya admin 5 ribu") is not a second amount of it.
+    const amounts = findAmounts(text).filter(a => !a.monthly && !(kind === 'transfer' && /\b(?:admin|biaya|fee)(?:\s+admin)?(?:nya)?\s*$/.test(text.slice(0, a.index)))), marked = [...new Set(amounts.filter(a => a.marked).map(a => a.value))];
     const main = amounts.find(a => a.marked) || amounts.filter(a => a.value >= 10).sort((a, b) => b.value - a.value)[0];
     if (amountMissing || !r.amount) set('amount', 'missing', 'Nominalnya belum disebut');
     else if (marked.length > 1 && !['fund_new', 'wish_new'].includes(kind)) { set('amount', 'check', `Ada ${marked.length} nominal: ${marked.map(rupiah).join(' dan ')}`); options.amount = marked; }
@@ -534,7 +542,8 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     else if (main && !main.marked && main.value < 1000) {
       // V3.3: a plain "20" next to an item is suggested as Rp20.000, never saved without a tap (no rule is learned from it).
       const k = main.value * 1000;
-      if (main.value >= 10 && main.value < 100 && r.amount === main.value) { r.amount = k; if (r.preset.amount) r.preset.amount = k; r.inferredAmount = { raw: main.value, value: k }; }
+      // 10.6 Between two wallets a bare "500" or "200" is thousands too (nobody moves Rp500), shown to be checked the same way.
+      if ((main.value >= 10 && main.value < 100 || kind === 'transfer' && main.value >= 10) && r.amount === main.value) { r.amount = k; if (r.preset.amount) r.preset.amount = k; r.inferredAmount = { raw: main.value, value: k }; }
       set('amount', 'check', r.inferredAmount ? `“${main.value}” dibaca ${rupiah(k)}? Kalau maksudnya ${rupiah(main.value)}, pilih di bawah` : `${rupiah(main.value)}? Mungkin maksudnya ${rupiah(k)}`);
       options.amount = r.inferredAmount ? [k, main.value] : [main.value, k];
     }
@@ -959,8 +968,12 @@ function inherit(actions: Analyzed[], today: string, graph: Graph, ctx: QuickCon
   for (const kind of ['expense', 'income'] as const) {
     const flows = actions.filter(a => a.result.kind === kind);
     const said = [...new Set(flows.filter(a => a.explicit.wallet).map(a => a.result.preset.walletId!))];
+    // 10.6 Said for each of the others ("makan 20rb pakai cash, kopi 15rb pakai cash, bensin 40rb"), the one left without
+    // is not taken to be the same: it is asked, not filled in.
+    const each = flows.filter(a => a.explicit.wallet).length > 1;
     for (const a of flows.filter(x => !x.explicit.wallet && !x.assigned.wallet)) {
-      if (said.length === 1 && flows.length > 1) { setWallet(a, said[0], 'likely', 'disebut sekali untuk semuanya'); graph.relations.push({ type: 'shared_wallet', from: flows.find(f => f.explicit.wallet)!.id, to: a.id, note: 'disebut sekali untuk semuanya', confidence: 'likely' }); }
+      if (said.length === 1 && flows.length > 1 && each) { a.fields.wallet = { status: 'check', note: 'Dompetnya belum disebut untuk yang ini' }; a.options.wallet = said; }
+      else if (said.length === 1 && flows.length > 1) { setWallet(a, said[0], 'likely', 'disebut sekali untuk semuanya'); graph.relations.push({ type: 'shared_wallet', from: flows.find(f => f.explicit.wallet)!.id, to: a.id, note: 'disebut sekali untuk semuanya', confidence: 'likely' }); }
       else if (said.length > 1) { a.fields.wallet = { status: 'check', note: 'Dompetnya tidak disebut; kalimat ini menyebut beberapa dompet' }; a.options.wallet = said; }
     }
   }
@@ -1187,7 +1200,7 @@ function parseQuickPlanAll(input: string, ctx: QuickContext, mode: QuickGroup | 
   const before = guarded, beforeAmounts = amountGuard.words;
   guarded = g.guard; amountGuard.words = g.guard;
   let plan: QuickParseResult;
-  try { plan = readPlan(g.text || raw, ctx, mode); if (mode === 'auto') { plan = compose(plan, g.text || raw, ctx); recallHabits(plan, ctx); } } finally { guarded = before; amountGuard.words = beforeAmounts; }
+  try { plan = readPlan(g.text || raw, ctx, mode); if (mode === 'auto') { plan = compose(plan, g.text || raw, ctx); recallHabits(plan, ctx); fillFromPurpose(plan, ctx); } } finally { guarded = before; amountGuard.words = beforeAmounts; }
   if (!g.notes.length) { if (plan.sourceText !== raw && plan.composition) plan.sourceText = raw; return plan; }
   plan.sourceText = raw;
   plan.language = { version: g.version, text: g.text, notes: g.notes };
@@ -1389,6 +1402,27 @@ function recallHabits(plan: QuickParseResult, ctx: QuickContext) {
   }
 }
 
+/**
+ * 10.6 A spending with no category of its own takes the category of what it was for ("kurangin saldo gopay 20rb buat
+ * kopi", "pake jenius 300rb buat kursus", "sumbang 50rb buat masjid"); a description that only says how the money moved
+ * ("Kurangin Saldo", "Sumbang", none) becomes what it was for. Only an empty category; never money, wallet or date.
+ */
+const MOVE_ONLY = /^(?:(?:kurangin|kurangi|potong|motong|tarik)\s+saldo|pakai|pake|bayar|kasih|ngasih|kasi|sumbang|nyumbang|keluar|keluarin|duit|uang|kirim|ngirim)?$/;
+function fillFromPurpose(plan: QuickParseResult, ctx: QuickContext) {
+  for (const a of plan.actions) {
+    const r = a.result, p = r.preset;
+    if (r.kind !== 'expense' || p.categoryId && a.fields.category?.status !== 'missing') continue;
+    const purpose = (r.purpose || p.notes?.match(/(?:Keperluan|Untuk):\s*([^·]+)/)?.[1] || '').trim();
+    if (!purpose || purpose.split(/\s+/).length > 4) continue;
+    const c = purposeCategory(purpose, ctx); if (!c) continue;
+    p.categoryId = c.categoryId; p.subcategoryId = c.subcategoryId;
+    a.fields.category = { status: 'likely', note: `dari keperluannya: ${purpose.toLocaleLowerCase('id-ID')}` };
+    if (a.ask?.field === 'category') a.ask = undefined;
+    if (MOVE_ONLY.test((p.description || '').toLocaleLowerCase('id-ID').trim())) p.description = purpose.replace(/(^|\s)(\S)/g, (_m: string, sp: string, ch: string) => sp + ch.toLocaleUpperCase('id-ID'));
+    a.evidence.push(`Kategori ${c.name} dibaca dari keperluannya (“${purpose}”).`);
+    a.review = Object.values(a.fields).some(f => f && (f.status === 'check' || f.status === 'missing'));
+  }
+}
 const joinNames = (l: string[]) => l.length > 1 ? `${l.slice(0, -1).join(', ')} dan ${l[l.length - 1]}` : l[0] || '';
 function compose(plain: QuickParseResult, text: string, ctx: QuickContext): QuickParseResult {
   if (!plain.actions.length || plain.confirm) return plain;
