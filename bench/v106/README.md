@@ -29,4 +29,4 @@ sekitar 29/37 (≈78%) benar sebelum ditambal — sejalan dengan 84% di held-out
 ## Bench lama (tidak boleh turun)
 
 Semua bench chat & Catat otomatis sebelumnya dijalankan ulang di 10.6 dibanding 10.5: tidak ada kasus yang tadinya lulus
-jadi gagal; v103 held-out +15 dan v1031 held-out +8 kasus jadi lulus. `npm test` 1018/1018.
+jadi gagal; v103 held-out +16 dan v1031 held-out +8 kasus jadi lulus. `npm test` 1018/1018.
