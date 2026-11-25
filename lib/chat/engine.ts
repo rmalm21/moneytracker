@@ -1149,7 +1149,9 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (part) return plan(part.text, { did: part.did.join(', '), intent: memory.asking ? 'fill' : 'edit' });
     }
     // 10.6 A budget spent in thought: "budget makan sisa berapa" → "kalau gue pake 100rb?" → "terus besok 75rb lagi".
-    if (!pending && depth <= 1) {
+    // 10.6 A card left waiting while the talk moved on (an answer came after it) is not what this message is about.
+    const onCard = Boolean(pending) && memory.last === 'record';
+    if (!onCard && depth <= 1) {
       const sim = readBudgetWhatIf(t, ctx, v, memory, asked => {
         const words = new Set(lower(asked).split(/[^\p{L}]+/u).filter(w => w.length > 2));
         const all = budgetsNow(ctx), hit = all.find(b => lower(b.name).split(/[^\p{L}]+/u).some(w => w.length > 2 && words.has(w))) || all.find(b => { const c = ctx.data.categories.find(x => x.id === b.categoryId); return c && lower(c.name).split(/[^\p{L}&]+/u).some(w => w.length > 2 && words.has(w)); });
@@ -1158,7 +1160,7 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
       if (sim) return use5(sim);
     }
     // 10.6 "hapus yang kemarin": which one of that day's records (before a change to the record just saved).
-    if (!pending && depth <= 1) { const which = readDeleteByDay(t, ctx, v); if (which) return use5(which); }
+    if (!onCard && depth <= 1) { const which = readDeleteByDay(t, ctx, v); if (which) return use5(which); }
     const fixed = !(memory.goal && !flowDone) && depth <= 1 ? fixReply() : null;
     if (fixed) return fixed;
     // 10.2 "kantor udah ganti uang taksi meeting", "klaim … udah cair": an open claim paid out is recorded (not looked up);
@@ -1191,10 +1193,10 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
         if (m) return sayR('module', { kind: 'say', card: 'talk', title: m.title, text: m.text, ...(m.hero ? { hero: m.hero } : {}), ...(m.lines?.length ? { lines: m.lines } : {}), ...(m.chips?.length ? { chips: m.chips } : {}), open: m.open }, m.list ? { ...mem, list: m.list, listAt: turn, topic: 'module' } : mem);
       }
       const facts = facts5();
-      const five = readReturned(t, v) || (!pending ? readPaidBack(t, ctx, v) : null) || (!pending ? readPaidDebt(t, ctx, v) : null) || readCanRecord(t, v) || readCapability(t, v) || readBiggestWallet(t, ctx, v) || readToSavings(t, ctx, v) || readSetAside(t, ctx, v)
-        || readSalaryPlan(t, ctx, v, facts) || readMonthlySetAside(t, ctx, v) || (!pending ? readDeleteByDay(t, ctx, v) : null) || readMoneyMath(raw, v)
+      const five = readReturned(t, v) || readPaidBack(t, ctx, v) || (!onCard ? readPaidDebt(t, ctx, v) : null) || readCanRecord(t, v) || readCapability(t, v) || readBiggestWallet(t, ctx, v) || readToSavings(t, ctx, v) || readSetAside(t, ctx, v)
+        || readSalaryPlan(t, ctx, v, facts) || readMonthlySetAside(t, ctx, v) || (!onCard ? readDeleteByDay(t, ctx, v) : null) || readMoneyMath(raw, v)
         || readWhatIf(t, ctx, v, facts) || readPlannedBuy(t, ctx, v, facts, memory) || readWish(t, ctx, v, facts) || readSpentTotal(t, ctx, v)
-        || readFeeling(t, ctx, v, facts) || (!pending ? readSkipped(t, v) : null) || (!pending && !memory.start && memory.topic !== 'curhat' && memory.topic !== 'mood' ? readNoAmount(raw, t, ctx, v) : null);
+        || readFeeling(t, ctx, v, facts) || (!onCard ? readSkipped(t, v) : null) || (!onCard && !memory.start && memory.topic !== 'curhat' && memory.topic !== 'mood' ? readNoAmount(raw, t, ctx, v) : null);
       if (five) return use5(five);
     }
     // 10.2 "lagi satu yang sama", "sekali lagi", "sama kayak tadi" right after Simpan: the same card again.

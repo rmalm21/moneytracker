@@ -974,7 +974,9 @@ function inherit(actions: Analyzed[], today: string, graph: Graph, ctx: QuickCon
     // is not taken to be the same: it is asked, not filled in.
     const each = flows.filter(a => a.explicit.wallet).length > 1;
     for (const a of flows.filter(x => !x.explicit.wallet && !x.assigned.wallet)) {
-      if (said.length === 1 && flows.length > 1 && each) { a.fields.wallet = { status: 'check', note: 'Dompetnya belum disebut untuk yang ini' }; a.options.wallet = said; }
+      // 10.6 A wallet said for this one that is not set up ("200rb pake bca") is never another wallet's money.
+      const ownWallet = /\b(?:pake|pakai|pakek|via|lewat)\s+\p{L}{2,}/u.test((a.text || '').toLocaleLowerCase('id-ID'));
+      if (said.length === 1 && flows.length > 1 && (each || ownWallet)) { a.fields.wallet = { status: 'check', note: ownWallet ? 'Dompet yang disebut belum ada di daftarmu; pilih dompetnya' : 'Dompetnya belum disebut untuk yang ini' }; a.options.wallet = said; }
       else if (said.length === 1 && flows.length > 1) { setWallet(a, said[0], 'likely', 'disebut sekali untuk semuanya'); graph.relations.push({ type: 'shared_wallet', from: flows.find(f => f.explicit.wallet)!.id, to: a.id, note: 'disebut sekali untuk semuanya', confidence: 'likely' }); }
       else if (said.length > 1) { a.fields.wallet = { status: 'check', note: 'Dompetnya tidak disebut; kalimat ini menyebut beberapa dompet' }; a.options.wallet = said; }
     }

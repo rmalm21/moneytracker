@@ -190,7 +190,10 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
       const parts = m[3].split(/\s*,\s*|\s+(?:dan|sama)\s+/).flatMap(p => findAmounts(p).filter(a => a.value > 0).length > 1 ? p.split(/(?<=\p{L})\s+(?=(?:rp\.?\s*)?\d)/u) : [p]);
       const pairs = parts.map(p => p.match(new RegExp(String.raw`^${PAYER}\s+(${AMT})$|^(${AMT})\s+${PAYER}$`, 'u'))).filter(Boolean) as RegExpMatchArray[];
       const ways = pairs.map(p => ({ w: p[1] || p[4], a: value(p[2] || p[3]) }));
-      if (pairs.length >= 2 && pairs.length === parts.length && ways.every(x => isWallet(x.w))) {
+      // 10.6 A way said with "pake/via/dari" counts even when that wallet is not set up (its card then asks which one), as
+      // long as one of them is a wallet: the money is split, never lumped into one record.
+      const said = (p: string) => /\b(?:pake|pakai|pakek|via|dari|lewat)\s+\p{L}+/u.test(p);
+      if (pairs.length >= 2 && pairs.length === parts.length && ways.some(x => isWallet(x.w)) && ways.every((x, i) => isWallet(x.w) || said(parts[i]))) {
         const total = value(m[2]), sum = ways.reduce((n, x) => n + x.a, 0), desc = m[1].trim() || 'belanja';
         t = ways.map(x => `${desc} ${amt(x.a)} pakai ${x.w}`).join(', ');
         if (Math.abs(sum - total) >= 1) { out.warn = `Total ${rp(total)}, tapi yang dibayar ${rp(sum)} (beda ${rp(Math.abs(total - sum))}). Ada diskon, cara bayar lain, atau nominal yang salah?`; said(out.warn); }
