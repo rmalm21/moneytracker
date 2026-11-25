@@ -125,7 +125,7 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
   }
   // 10.6 "bayar cicilan 500 ribu dari total utang 2 juta": the total is how much is owed, not a second record. The debt
   // owing exactly that much is the one paid; the rest after it is noted.
-  const ofTotal = t.match(new RegExp(String.raw`^(.*?\b(?:bayar|nyicil|cicil|setor|lunasin|angsur)\b.*?)(${AMT})(.*?)\s*,?\s*(?:dari|dr)\s+(?:total|sisa|jumlah)?\s*(?:utang|hutang|pinjaman|cicilan|kredit)(?:nya|\s+(?:aku|gue|gw|saya))?\s+(?:yang\s+)?(${AMT})(.*)$`, 'u'));
+  const ofTotal = t.match(new RegExp(String.raw`^(.*?\b(?:bayar|nyicil|cicil|setor|lunasin|angsur)\b.*?)(${AMT})(.*?)\s*,?\s*(?:(?:dari|dr)\s+(?:total|sisa|jumlah)?|(?:total|sisa|jumlah))\s*(?:utang|hutang|pinjaman|cicilan|kredit)(?:nya|\s+(?:aku|gue|gw|saya))?\s+(?:yang\s+)?(${AMT})(.*)$`, 'u'));
   if (ofTotal) {
     const paid = value(ofTotal[2]), total = value(ofTotal[4]);
     if (paid > 0 && total > paid) {
@@ -135,6 +135,9 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
       out.notes.push(`Sisa utang setelah ini ${rp(total - paid)}`); said(`bayar ${rp(paid)} dari total utang ${rp(total)}: satu pembayaran`);
     }
   }
+  // 10.6 (post-hoc) The fee of money moved, said after a comma ("narik tunai 500rb dari bri, biaya adminnya 7500"): the
+  // transfer's own fee, as "kena admin" is.
+  if (/\b(?:tarik\s+tunai|narik|tarik|ambil\s+(?:uang|duit)|setor\s+tunai|transfer|tf|top\s?up|kirim)\b/.test(t)) t = t.replace(new RegExp(String.raw`(${AMT}[^,]*?)\s*,\s*(?:dan\s+|terus\s+|plus\s+)?(?:biaya\s+)?(?:admin|fee)(?:nya)?\s+(${AMT}|\d[\d.,]*)`), '$1 kena admin $2');
   // 10.6 A cashback received with the purchase ("beli makan 50rb dapet cashback 10rb") is money in of its own.
   t = t.replace(new RegExp(String.raw`(${AMT})\s+((?:terus\s+|trus\s+|dan\s+)?(?:dapet|dapat)\s+cashback(?:nya)?\s+${AMT})`), (m, a: string, rest: string) => later.test(t) ? m : `${a}, ${rest}`);
   // A cashback still to come is not money in: "belanja 100rb, nanti cashback 10rb".
@@ -163,6 +166,14 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
   const inst = t.match(new RegExp(String.raw`^((?:bayar\s+)?(?:cicilan|angsuran)(?:nya)?(?:\s+\p{L}+)?)\s+(${AMT})\s*,?\s*(?:pokok(?:nya)?)\s+(${AMT})\s*,?\s*(?:dan\s+|sama\s+|\+\s*)?(?:bunga(?:nya)?)\s+(${AMT})(.*)$`, 'u'));
   if (inst) { const total = value(inst[2]), a = value(inst[3]), b = value(inst[4]); if (Math.abs(a + b - total) < 1) { t = `${inst[1]} ${amt(a)}${inst[5]}, bunga pinjaman ${amt(b)}${inst[5]}`; said(`cicilan ${rp(total)} = pokok ${rp(a)} + bunga ${rp(b)}`); } }
 
+  // 10.6 One thing paid with two wallets, each with its part and no total ("bayar listrik 200rb pake jago, 100rb pake
+  // gopay"): two entries with the same description (the second part used to be lost).
+  { const PAY = String.raw`(?:pake|pakai|pakek|via|dari|lewat)\s+(\p{L}+)`;
+    const parts = t.match(new RegExp(String.raw`^(.*?\p{L}.*?)\s+(${AMT})\s+${PAY}\s*,\s*(?:sama\s+|dan\s+|terus\s+|sisanya\s+)?(${AMT})\s+${PAY}\s*$`, 'u'));
+    if (parts && isWallet(parts[3]) && isWallet(parts[5]) && !findAmounts(parts[1]).some(a => a.value > 0)) {
+      const desc = parts[1].trim(); t = `${desc} ${parts[2]} pakai ${parts[3]}, ${desc} ${parts[4]} pakai ${parts[5]}`;
+      out.notes.push(`Dibayar 2 cara, total ${rp(value(parts[2]) + value(parts[4]))}`); said('satu pembayaran, dua dompet');
+    } }
   // One purchase paid two ways: "belanja 150rb, tunai 50rb sisanya jago", "300rb, 100rb pake cash sisanya gopay".
   const PAYER = String.raw`(?:(?:pake|pakai|pakek|via|dari|lewat)\s+)?([\p{L}]+(?:\s[\p{L}]+)?)`;
   const two = t.match(new RegExp(String.raw`^(?:total\s+)?(.*?)\s*(${AMT})\s*,?\s*(?:(?:${PAYER})\s+(${AMT})|(${AMT})\s+${PAYER})\s*,?\s*(?:dan\s+)?(?:sisanya|sisa(?:nya)?|kekurangannya)\s+${PAYER}\s*$`, 'u'));

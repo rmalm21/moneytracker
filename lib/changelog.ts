@@ -2,6 +2,18 @@
 export type Release = { version: string; date: string; title: string; items: [emoji: string, text: string][] };
 
 export const releases: Release[] = [
+  { version: '10.6', date: '25 Nov 2026', title: 'Asisten chat 5.0', items: [
+    ['🎯', 'Simulasi nggak lagi jadi catatan: “kalau gue beli headset 400rb sisa duit berapa”, “misalnya gaji naik 10%”, “andai nggak beli kopi sebulan”, “kalau besok top up 100rb gimana” dihitung dari catatanmu sendiri, tanpa kartu.'],
+    ['💡', 'Keinginan dan rencana dibahas dulu: “pengen beli sepatu”, “mau beli HP 5 juta” (lalu “yang 4 juta juga bagus” dan “kalau nabung 500rb tiap bulan?”), sampai “pengen borong isi mall”. Ada tombol buat cek aman nggaknya, Wish list, atau Tujuan dana.'],
+    ['✏️', 'Catatan tanpa nominal ditanya dulu, lalu dilengkapi tanpa ngulang: “masukin uang lembur ke Mandiri” → “750rb”, “pindahin uang dari BRI ke Mandiri” → “300rb”, “gue tadi makan ayam geprek” → “25rb” → “GoPay”. Pilihan nominalnya dari yang biasa kamu catat (misalnya gaji terakhir).'],
+    ['🤝', 'Piutang dan utang tanpa nominal: “Budi udah bayar utangnya” (sisa piutangnya), “Dimas balikin setengah utangnya”, “temen gue bayar utangnya” (ditanya siapa), “gue udah bayar utang ke kak rina” (ditanya berapa). “Bayar cicilan 500rb dari total utang 2 juta” jadi satu pembayaran.'],
+    ['🧾', 'Transaksi rumit dicatat tanpa dobel: “beli kaos 100rb tapi dikembaliin 20rb” (80rb), “gue bayarin dulu 200rb, nanti Andi ganti 150rb”, “makan berlima 250rb gue talangin”, “tarik tunai 300rb kena biaya admin 6.500”, “beli 3 barang masing-masing 25rb”, “300rb, 200rb pake jago 100rb pake gopay”, dan cashback yang langsung didapat.'],
+    ['📊', 'Hitungan langsung dijawab: persen yang bisa ditabung dari gaji dan pengeluaran, “berapa persen 750rb dari 5jt”, jatah per hari sampai gajian, diskon bertingkat, jajan tiap hari selama seminggu, dan simulasi sisa anggaran (“budget makan sisa berapa” → “kalau gue pake 100rb?” → “terus besok 75rb lagi”).'],
+    ['💰', 'Fitur makin nyambung: “uang gue paling banyak di mana”, “bisa catetin utang nggak?”, “pindahin 500rb ke tabungan” (ditanya ke Tujuan dana mana), “bantu atur gaji” (50/30/20 dari gaji terakhirmu), “berapa yang harus disisihin tiap bulan” (dari tenggat Tujuan dana), “hapus yang kemarin” (dipilih dulu yang mana).'],
+    ['❤️', 'Ngerti perasaan soal uang: berhasil nabung atau utang lunas diberi selamat, nyesel beli, gaji kurang terus, iri, takut masa depan, harga naik, sampai “gua kagak jadi beli sepatu” dijawab dengan empati dan langkah nyata, bukan kartu catatan.'],
+    ['📝', 'Catat otomatis juga ikut pintar: “dua hari lalu”, “seminggu lalu”, “sepuluh rebu”, “tf dr bri ke mandiri 500” (dibaca 500rb, tetap dicek), dan kategori dari keperluannya (“kurangin saldo gopay 20rb buat kopi”, “sumbang 50rb buat masjid”, “kasih ceban ke pengamen”).'],
+    ['🤖', 'Model maksud kalimat dilatih ulang dengan kalimat-kalimat baru soal curhat, keinginan, simulasi, dan kemampuan aplikasi. Semuanya tetap jalan di HP-mu, tanpa internet dan tanpa unggahan. Tetap aturan + model kecil, bukan AI awan.'],
+  ] },
   { version: '10.5', date: '25 Nov 2026', title: 'Pet lebih bisa diandalkan', items: [
     ['🍽️', 'Makan yang kamu kasih ke pet nggak hilang lagi. Dulu, kalau ada perubahan dari HP lain masuk sebelum makan tersimpan lalu pet dielus, makannya batal dan pet balik lapar. Sekarang makan, elusan, dan perawatan lain di HP ini tetap tersimpan.'],
     ['💸', '“Waduh, pengeluaran gede!” cuma muncul buat pengeluaran besar yang barusan dicatat. Dulu juga muncul waktu pindah dari Ruang Bersama ke Pribadi, atau waktu catatan lama telat termuat.'],

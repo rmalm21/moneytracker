@@ -76,7 +76,7 @@ function spentBetween(txs: LedgerTx[], start: string, end: string) {
 
 /* ------------------------------------------------------------------ Simulations: "kalau…", "misalnya…", "andai…" */
 
-const WHATIF = /^(?:(?:eh|terus|trus|nah|oke|ok|btw|bro|min|kak|tapi|tp)\s*,?\s+)*(?:kalau|kalo|klo|kl|misal(?:nya)?|andai(?:kan|nya)?|seandainya|umpama(?:nya)?|semisal(?:nya)?|anggap(?:lah|\s+aja)?|bayangin|coba\s+bayangin|(?:gimana|gmn|bagaimana)\s+(?:kalau|kalo|klo|kl|jika|misal))\b/;
+const WHATIF = /^(?:(?:eh|terus|trus|nah|oke|ok|btw|bro|min|kak|tapi|tp)\s*,?\s+)*(?:kalau|kalo|klo|kl|misal(?:nya|kan)?|andai(?:kan|nya)?|seandainya|umpama(?:nya|kan)?|semisal(?:nya|kan)?|anggap(?:lah|\s+aja)?|bayangin|coba\s+bayangin|(?:gimana|gmn|bagaimana)\s+(?:kalau|kalo|klo|kl|jika|misal))\b/;
 const SPAN_DAYS: [RegExp, number, string][] = [
   [/\b(?:setahun|1\s*tahun|satu\s+tahun|per\s*tahun|tiap\s+tahun)\b/, 365, 'setahun'], [/\b(?:sebulan|1\s*bulan|satu\s+bulan|per\s*bulan|tiap\s+bulan)\b/, 30, 'sebulan'],
   [/\b(?:seminggu|sepekan|1\s*minggu|satu\s+minggu|per\s*minggu|tiap\s+minggu)\b/, 7, 'seminggu'],
@@ -108,7 +108,7 @@ export function readWhatIf(t: string, ctx: ChatContext, v: Voice, facts: Facts):
   if (SAVING.test(t) && !CUT.test(t)) return null;
   const body = t.replace(WHATIF, ' ').replace(/\s+/g, ' ').trim(), amounts = amountsOf(body);
   // A pay rise or cut: "gaji gue naik 10 persen", "kalau gaji naik 500rb".
-  const raise = body.match(/\b(?:gaji|gajian|penghasilan|pendapatan|income|pemasukan)\b.*?\b(naik|nambah|bertambah|turun|dipotong|berkurang|dikurangi)\b(?:\s+(?:jadi\s+)?)?(?:(\d+(?:[.,]\d+)?)\s*(?:%|persen))?/);
+  const raise = body.match(/\b(?:gaji|gajian|penghasilan|pendapatan|income|pemasukan)(?:ku|mu|nya)?\b.*?\b(naik|nambah|bertambah|turun|dipotong|berkurang|dikurangi)\b(?:\s+(?:jadi\s+)?)?(?:(\d+(?:[.,]\d+)?)\s*(?:%|persen))?/);
   if (raise) {
     const base = lastSalary(ctx) || facts.income;
     if (!base) return say('calc', { card: 'calc', title: 'Simulasi gaji', text: vo(v, { santai: 'Aku belum nemu catatan gajimu, jadi belum bisa kuhitung. Sebut aja gajinya, misalnya “kalau gaji 6jt naik 10%”.', sopan: 'Catatan gaji Anda belum ditemukan. Silakan sebutkan nominalnya, misalnya “kalau gaji 6jt naik 10%”.', gaul: 'Gue belum nemu catatan gaji lo. Sebut aja, misal “kalau gaji 6jt naik 10%”.', singkat: 'Sebut gajinya dulu, misalnya “gaji 6jt naik 10%”.' }) });
@@ -156,11 +156,16 @@ export function readWhatIf(t: string, ctx: ChatContext, v: Voice, facts: Facts):
   }
   if (!amounts.length) return null;
   const a = amounts[0].value;
-  // So much each day (week, month) for a while: "misal jajan boba 25rb tiap hari seminggu habis berapa".
-  const span = SPAN_DAYS.find(([re]) => re.test(body.replace(UNIT, ' '))), nDays = body.replace(UNIT, ' ').match(/\b(\d{1,3})\s*(hari|minggu|pekan|bulan)\b/);
-  if (UNIT.test(body) && (span || nDays) && amounts.length === 1) {
-    const days = nDays ? Number(nDays[1]) * (nDays[2] === 'hari' ? 1 : nDays[2] === 'bulan' ? 30 : 7) : span![1], label = nDays ? `${nDays[1]} ${nDays[2]}` : span![2], total = a0(amounts) * days;
-    return say('calc', { card: 'calc', title: 'Kalau tiap hari', text: vo(v, { santai: `${rp(a0(amounts))} tiap hari selama ${label} jadi ${rp(total)}. Itu ${facts.free > 0 ? `${pct(total / facts.free, 0)} dari uang bebasmu sekarang (${rp(facts.free)})` : 'di luar uang bebasmu yang sekarang habis'}. Cuma simulasi, nggak kucatat.`, sopan: `${rp(a0(amounts))} per hari selama ${label} menjadi ${rp(total)}. Ini simulasi dan tidak dicatat.`, gaul: `${rp(a0(amounts))} tiap hari ${label} = ${rp(total)}. Simulasi doang, gak gue catet.`, singkat: `${rp(total)}.` }), hero: { label: `Total ${label}`, value: rp(total) }, tone: 'info', chips: ['kasih tips hemat'], why: `${rp(a0(amounts))} × ${days} hari = ${rp(total)}.` }, { last: 'calc', number: total });
+  // So much each day (week, month) for a while: "misal jajan boba 25rb tiap hari seminggu habis berapa", "misalkan tiap
+  // minggu jajan 50rb, sebulan abis berapa" (four weeks in a month, 52 in a year).
+  const per = /\b(?:sehari|per\s*hari|tiap\s+hari|setiap\s+hari|perhari)\b/.test(body) ? 1 : /\b(?:per\s*minggu|tiap\s+minggu|setiap\s+minggu|seminggu\s+sekali|perminggu)\b/.test(body) ? 7 : /\b(?:per\s*bulan|tiap\s+bulan|setiap\s+bulan|sebulan\s+sekali|perbulan)\b/.test(body) ? 30 : 0;
+  const rest = body.replace(/\b(?:sehari|per\s*hari|tiap\s+hari|setiap\s+hari|perhari|per\s*minggu|tiap\s+minggu|setiap\s+minggu|seminggu\s+sekali|perminggu|per\s*bulan|tiap\s+bulan|setiap\s+bulan|sebulan\s+sekali|perbulan)\b/g, ' ');
+  const span = SPAN_DAYS.find(([re]) => re.test(rest)), nDays = rest.match(/\b(\d{1,3})\s*(hari|minggu|pekan|bulan)\b/);
+  if (per && (span || nDays) && amounts.length === 1) {
+    const days = nDays ? Number(nDays[1]) * (nDays[2] === 'hari' ? 1 : nDays[2] === 'bulan' ? 30 : 7) : span![1], label = nDays ? `${nDays[1]} ${nDays[2]}` : span![2];
+    const times = per === 1 ? days : per === 7 ? (days === 365 ? 52 : days === 30 ? 4 : Math.round(days / 7)) : (days === 365 ? 12 : Math.max(1, Math.round(days / 30)));
+    const each = a0(amounts), total = each * times, unit = per === 1 ? 'hari' : per === 7 ? 'minggu' : 'bulan';
+    return say('calc', { card: 'calc', title: `Kalau tiap ${unit}`, text: vo(v, { santai: `${rp(each)} tiap ${unit} selama ${label} (${times}×) jadi ${rp(total)}. Itu ${facts.free > 0 ? `${pct(total / facts.free, 0)} dari uang bebasmu sekarang (${rp(facts.free)})` : 'di luar uang bebasmu yang sekarang habis'}. Cuma simulasi, nggak kucatat.`, sopan: `${rp(each)} per ${unit} selama ${label} (${times}×) menjadi ${rp(total)}. Ini simulasi dan tidak dicatat.`, gaul: `${rp(each)} tiap ${unit} ${label} (${times}×) = ${rp(total)}. Simulasi doang, gak gue catet.`, singkat: `${rp(total)}.` }), hero: { label: `Total ${label}`, value: rp(total) }, tone: 'info', chips: ['kasih tips hemat'], why: `${rp(each)} × ${times} = ${rp(total)}.` }, { last: 'calc', number: total });
   }
   // A top-up or transfer between one's own wallets: the free money stays.
   if (/\b(?:top\s?up|topup|isi\s+saldo|transfer|tf|pindahin|pindah|tarik\s+tunai|narik)\b/.test(body) && !/\b(?:ke|buat|untuk)\s+(?!gopay|ovo|dana|shopeepay|jago|bca|bri|mandiri|bni|jenius|krom|cash|tunai)\p{L}+\b.*\b(?:bayar|beli)\b/u.test(body)) {
@@ -251,14 +256,14 @@ export function readPlannedBuy(t: string, ctx: ChatContext, v: Voice, facts: Fac
 /* ------------------------------------------------------------------ Totals said in surprise, and money that came back */
 
 const EXCLAIM = /^(?:(?:buset|busett|busyet|gila|gile|gilak|anjir|anjay|anjrit|astaga|astagfirullah|astaghfirullah|waduh|wadaw|wah|weh|duh|aduh|parah|ya\s+ampun|yaampun|ampun|edan|mampus|alamak|omg|wtf|anjim|njir|cuy)\b[\s,!.]*)+/;
-const SPENT_VERB = /\b(?:abis|habis|keluar|kepake|kepakai|terpakai|ludes|boncos|tekor|ngabisin|ngeluarin)\b/;
+const SPENT_VERB = /\b(?:abis|habis|keluar|kepake|kepakai|terpakai|ludes|boncos|tekor|ngabisin|ngeluarin|jebol|bocor)\b/;
 /** "buset abis 200rb hari ini", "gila minggu ini udah keluar sejuta lebih": a total said in surprise. What is recorded for
  * that span is told, and what may be missing; nothing is recorded from it. */
 export function readSpentTotal(t: string, ctx: ChatContext, v: Voice): Out | null {
   const amounts = amountsOf(t);
   if (amounts.length !== 1 || !SPENT_VERB.test(t)) return null;
   const period = readPeriod(t, ctx.today, ctx.salaryDay);
-  if (!period || !(EXCLAIM.test(t) || /\b(?:lebih|an|lebihan|udah|sudah|dah)\b/.test(t))) return null;
+  if (!period || !(EXCLAIM.test(t) || /\b(?:lebih|an|lebihan|udah|sudah|dah|kayaknya|sepertinya|kira-kira|kira2|kurang\s+lebih|sekitar|hampir|nyaris)\b/.test(t))) return null;
   const ins = ctx.inspect(t);
   if (ins.reading === 'record' && (ins.categoryId || ins.subcategoryId)) return null;
   const said = amounts[0].value, end = period.end > ctx.today ? daysBefore(ctx.today, -1) : period.end;
@@ -273,7 +278,7 @@ export function readSpentTotal(t: string, ctx: ChatContext, v: Voice): Out | nul
 }
 /** "tadi salah transfer terus uangnya balik": nothing changed, nothing to record. */
 export function readReturned(t: string, v: Voice): Out | null {
-  if (amountsOf(t).length || !/\b(?:salah\s+(?:transfer|tf|kirim|bayar|top\s?up)|kirim\s+salah|transfer\s+salah|kesalahan\s+transfer|refund\s+penuh|dibatalin|dibatalkan|batal)\b/.test(t) || !/\b(?:balik|kembali|dikembaliin|dikembalikan|refund|direfund|masuk\s+lagi|udah\s+balik)\b/.test(t)) return null;
+  if (amountsOf(t).length || !/\b(?:salah\s+(?:transfer|tf|kirim|bayar|top\s?up)|kirim\s+salah|transfer\s+salah|kesalahan\s+transfer|refund\s+penuh|dibatalin|dibatalkan|batal)\b/.test(t) || !/\b(?:balik|kembali|dikembaliin|dikembalikan|dibalikin|balikin|refund|direfund|masuk\s+lagi|udah\s+balik)\b/.test(t)) return null;
   return say('clarify', { card: 'talk', text: vo(v, {
     santai: 'Kalau uangnya udah balik utuh, saldo kamu nggak berubah, jadi nggak perlu dicatat apa-apa. Tapi kalau transfer yang salah itu sempat kecatat, hapus aja catatannya biar saldonya cocok. Kalau baliknya kurang (kena biaya), catat selisihnya sebagai biaya admin.',
     sopan: 'Bila dananya sudah kembali utuh, saldo tidak berubah sehingga tidak perlu dicatat. Bila transfer tersebut sempat tercatat, silakan hapus catatannya. Bila kembali kurang, catat selisihnya sebagai biaya admin.',
@@ -317,40 +322,40 @@ export function readFeeling(t: string, ctx: ChatContext, v: Voice, facts: Facts)
       singkat: `Selamat!${debtsLeft.length ? ` Masih tercatat: ${debtsLeft.map(d => d.name).join(', ')}.` : ''}`,
     }), chips: debtsLeft.length ? [`lunasin ${lower(debtsLeft[0].name)}`, 'utang gue berapa'] : ['ringkasan bulan ini'] }, { topic: 'mood' });
   }
-  if (/\b(?:nyesel|nyesal|menyesal|nyesek|kecewa|rugi)\b.*\b(?:beli|belanja|bayar|checkout|co|ambil|order|pesan)\b|\b(?:beli|belanja)\b.*\b(?:nyesel|menyesal|nyesal)\b/.test(t)) {
+  if (/\b(?:nyesel|nyesal|menyesal|nyesek|kecewa|rugi)\b.*\b(?:beli|belanja|bayar|checkout|co|ambil|order|pesan|borong|ngeborong|kalap|jajan|diskonan|flash\s*sale)\b|\b(?:beli|belanja)\b.*\b(?:nyesel|menyesal|nyesal)\b/.test(t)) {
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: 'Wajar kok nyesel, semua orang pernah 🫂 Yang penting jadi pelajaran. Kalau barangnya masih bisa diretur atau dijual lagi, lumayan balik modal. Ke depannya coba aturan 24 jam: masukin Wish list dulu, kalau besoknya masih pengen baru beli.',
+      santai: 'Wajar kok nyesel, semua orang pernah 🤗 Yang penting jadi pelajaran. Kalau barangnya masih bisa diretur atau dijual lagi, lumayan balik modal. Ke depannya coba aturan 24 jam: masukin Wish list dulu, kalau besoknya masih pengen baru beli.',
       sopan: 'Penyesalan itu wajar. Bila barangnya masih bisa dikembalikan atau dijual kembali, itu bisa membantu. Ke depan, coba tunda 24 jam dengan memasukkannya ke Wish list terlebih dahulu.',
-      gaul: 'Santai, semua pernah 🫂 Kalo masih bisa retur atau dijual lagi, lumayan. Next time pake aturan 24 jam: masukin Wish list dulu, besok masih pengen baru beli.',
+      gaul: 'Santai, semua pernah 🤗 Kalo masih bisa retur atau dijual lagi, lumayan. Next time pake aturan 24 jam: masukin Wish list dulu, besok masih pengen baru beli.',
       singkat: 'Wajar. Coba aturan 24 jam lewat Wish list.',
     }), chips: ['kasih tips hemat', 'buka wishlist'] }, { topic: 'curhat', curhat: 1 });
   }
-  if (!/\b(?:sedih|stres|stress|pusing|galau|bete|kesel|nangis|depresi)\b/.test(t) && /\b(?:gaji|gajian|duit|uang|penghasilan|pendapatan|pemasukan)\b(?:\s+\p{L}+){0,3}\s+(?:kurang|nggak\s+cukup|gak\s+cukup|ga\s+cukup|tidak\s+cukup|pas-?pasan|abis\s+terus|habis\s+terus|cepet\s+abis|cepat\s+habis|numpang\s+lewat|selalu\s+kurang|kurang\s+terus)\b/u.test(t)) {
+  if (!/\b(?:sedih|stres|stress|pusing|galau|bete|kesel|nangis|depresi)\b/.test(t) && /\b(?:gaji|gajian|duit|uang|penghasilan|pendapatan|pemasukan)\b(?:ku|mu|nya)?(?:\s+\p{L}+){0,3}\s+(?:(?:nggak|gak|ga|tidak|tdk|ngga|enggak)\s+(?:pernah|juga|bakal|akan)\s+cukup|kurang|nggak\s+cukup|gak\s+cukup|ga\s+cukup|tidak\s+cukup|pas-?pasan|abis\s+terus|habis\s+terus|cepet\s+abis|cepat\s+habis|numpang\s+lewat|selalu\s+kurang|kurang\s+terus)\b/u.test(t)) {
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: `Capek ya rasanya 🫂 Dari catatanmu periode ini: masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}${facts.income ? ` (${pct(facts.expenses / facts.income, 0)} dari pemasukan)` : ''}. Coba kita lihat bagian mana yang paling bisa dikecilin, pelan-pelan aja.`,
+      santai: `Capek ya rasanya 🤗 Dari catatanmu periode ini: masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}${facts.income ? ` (${pct(facts.expenses / facts.income, 0)} dari pemasukan)` : ''}. Coba kita lihat bagian mana yang paling bisa dikecilin, pelan-pelan aja.`,
       sopan: `Itu memang melelahkan. Periode ini pemasukan Anda ${rp(facts.income)} dan pengeluaran ${rp(facts.expenses)}. Mari kita lihat pos yang paling mungkin dikurangi.`,
-      gaul: `Relate banget 🫂 Periode ini masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}. Yuk cek pos mana yang paling bisa dirampingin.`,
+      gaul: `Relate banget 🤗 Periode ini masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}. Yuk cek pos mana yang paling bisa dirampingin.`,
       singkat: `Masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}.`,
     }), chips: ['pengeluaran terbesar bulan ini', 'bantu atur gaji gue', 'kasih tips hemat'] }, { topic: 'curhat', curhat: 1 });
   }
   if (/\b(?:iri|insecure|minder|ngiri)\b/.test(t) && /\b(?:orang|temen|teman|mereka|dia|liat|lihat)\b/.test(t)) {
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: 'Wajar banget ngerasa gitu 🫂 Yang kelihatan di luar sering cuma bagian bagusnya. Fokus ke progresmu sendiri: tiap bulan sedikit lebih baik dari bulan lalu itu udah menang.',
+      santai: 'Wajar banget ngerasa gitu 🤗 Yang kelihatan di luar sering cuma bagian bagusnya. Fokus ke progresmu sendiri: tiap bulan sedikit lebih baik dari bulan lalu itu udah menang.',
       sopan: 'Perasaan itu wajar. Yang terlihat dari luar sering kali hanya sebagian. Fokuslah pada kemajuan Anda sendiri dari bulan ke bulan.',
-      gaul: 'Wajar, bro 🫂 Yang lo liat cuma highlight-nya orang. Fokus ke progres lo sendiri, sedikit-sedikit juga menang.',
+      gaul: 'Wajar, bro 🤗 Yang lo liat cuma highlight-nya orang. Fokus ke progres lo sendiri, sedikit-sedikit juga menang.',
       singkat: 'Wajar. Fokus ke progres sendiri.',
     }), chips: ['ringkasan bulan ini', 'bikin tujuan dana'] }, { topic: 'curhat', curhat: 1 });
   }
-  if (/\b(?:takut|khawatir|kuatir|cemas|was-was|parno|overthinking)\b/.test(t) && /\b(?:uang|duit|masa\s+depan|pensiun|tua|nggak\s+cukup|gak\s+cukup|ga\s+cukup|kekurangan|bangkrut|miskin)\b/.test(t)) {
+  if (/\b(?:takut|khawatir|kuatir|cemas|was-was|parno|overthinking)\b/.test(t) && /\b(?:uang|duit|masa\s+depan|pensiun|tua|nggak\s+cukup|gak\s+cukup|ga\s+cukup|kekurangan|bangkrut|miskin)\b|\b(?:gak|ga|nggak|ngga|tidak|tdk)\s+(?:bisa|sanggup|mampu|kuat)\s+(?:bayar|nutup|lunasin)\b/.test(t)) {
     const emergency = (ctx.data.funds || []).find(f => f.kind === 'emergency' || /darurat/i.test(f.name));
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: `Perasaan itu wajar, dan bagusnya kamu udah mikirin dari sekarang 🫂 Langkah pertama yang paling ngebantu: dana darurat 3–6 kali pengeluaran bulanan.${emergency ? ` Dana Daruratmu sekarang ${rp(emergency.currentAmount)} dari target ${rp(emergency.targetAmount)}.` : ''} Sedikit tapi rutin lebih kuat daripada banyak tapi sekali.`,
+      santai: `Perasaan itu wajar, dan bagusnya kamu udah mikirin dari sekarang 🤗 Langkah pertama yang paling ngebantu: dana darurat 3–6 kali pengeluaran bulanan.${emergency ? ` Dana Daruratmu sekarang ${rp(emergency.currentAmount)} dari target ${rp(emergency.targetAmount)}.` : ''} Sedikit tapi rutin lebih kuat daripada banyak tapi sekali.`,
       sopan: `Kekhawatiran itu wajar. Langkah awal yang membantu adalah dana darurat sebesar 3–6 kali pengeluaran bulanan.${emergency ? ` Saat ini ${emergency.name} berisi ${rp(emergency.currentAmount)} dari target ${rp(emergency.targetAmount)}.` : ''}`,
-      gaul: `Wajar kok 🫂 Mulai dari dana darurat 3–6x pengeluaran bulanan.${emergency ? ` Dana darurat lo sekarang ${rp(emergency.currentAmount)} dari ${rp(emergency.targetAmount)}.` : ''} Dikit-dikit asal rutin.`,
+      gaul: `Wajar kok 🤗 Mulai dari dana darurat 3–6x pengeluaran bulanan.${emergency ? ` Dana darurat lo sekarang ${rp(emergency.currentAmount)} dari ${rp(emergency.targetAmount)}.` : ''} Dikit-dikit asal rutin.`,
       singkat: `Mulai dari dana darurat 3–6× pengeluaran bulanan.${emergency ? ` Sekarang ${rp(emergency.currentAmount)}.` : ''}`,
     }), chips: [emergency ? `isi ${lower(emergency.name)} 100rb` : 'bikin tujuan dana darurat', 'kasih tips hemat'] }, { topic: 'curhat', curhat: 1 });
   }
-  if (/\benak(?:nya|\s+kali|\s+banget|\s+ya)?\b.*\b(?:punya|jadi)\s+(?:uang|duit|harta)\b|\bpengen\s+(?:jadi\s+)?(?:kaya|sultan|crazy\s+rich|tajir)\b|\bandai\s+(?:aku|gue|gw|saya)\s+(?:kaya|sultan|tajir)\b/.test(t)) {
+  if (/\benak(?:nya|\s+kali|\s+banget|\s+ya)?\b.*\b(?:punya|jadi)\s+(?:uang|duit|harta)\b|\b(?:pengen|pengin|mau|ingin)(?:\s+(?:banget|bgt|sih|deh|juga))*\s+(?:jadi\s+)?(?:orang\s+)?(?:kaya|sultan|crazy\s+rich|tajir|konglomerat|miliarder|milyarder|horang\s+kaya)\b|\b(?:andai|seandainya|kalau|kalo|coba)\b.*\b(?:kaya\s+raya|sultan|crazy\s+rich|tajir|konglomerat|miliarder|milyarder|horang\s+kaya)\b/.test(t)) {
     return say('banter', { card: 'talk', text: vo(v, {
       santai: 'Enak banget pasti, bisa jajan tanpa lihat harga 😆 Tapi jalan ke sana biasanya lewat hal yang ngebosenin: catat rutin, tabung rutin. Mau kubantu bikin target pertamanya?',
       sopan: 'Tentu menyenangkan. Biasanya jalannya dimulai dari mencatat dan menabung secara rutin. Mau saya bantu membuat target pertama?',
@@ -358,18 +363,27 @@ export function readFeeling(t: string, ctx: ChatContext, v: Voice, facts: Facts)
       singkat: 'Mulai dari target tabungan pertama?',
     }), chips: ['bikin tujuan dana', 'kasih tips hemat'] }, { offer: 'bikin tujuan dana' });
   }
-  if (/\bharga\b.*\b(?:mahal|naik|melambung|gila|parah|selangit)\b|\b(?:mahal|naik)\s+(?:banget|bgt|semua|terus|parah)\b.*\b(?:harga|makanan|bensin|sembako|beras|cabe|cabai|minyak)\b|\b(?:makanan|sembako|bensin|beras)\b.*\b(?:mahal|naik)\b/.test(t)) {
+  if (/\b(?:harga|biaya\s+hidup|kebutuhan\s+pokok|sembako|serba)\b.*\b(?:mahal|naik|melambung|gila|parah|selangit)|\b(?:makin|tambah|semakin|terlalu)\s+(?:[a-z]+\s+)?mahal|\b(?:mahal|naik)\s+(?:banget|bgt|semua|terus|parah)\b.*\b(?:harga|makanan|bensin|sembako|beras|cabe|cabai|minyak)\b|\b(?:makanan|sembako|bensin|beras)\b.*\b(?:mahal|naik)\b/.test(t)) {
     const word = t.match(/\b(bensin|bbm|pertalite|pertamax|solar|listrik|token|air|pulsa|kuota|internet|sewa|kos|kost|ongkir|ojol|tol|parkir|rokok|kopi)\b/)?.[1];
     const named = word ? ctx.data.categories.find(c => new RegExp(`\\b${word === 'bbm' || word === 'pertalite' || word === 'pertamax' || word === 'solar' ? 'bensin' : word === 'token' ? 'listrik' : word === 'kost' ? 'kos' : word}`, 'i').test(c.name)) : undefined;
     const food = named || ctx.data.categories.find(c => !c.parentId && /makan/i.test(c.name));
     const now = food ? spentBetween(ctx.data.transactions.filter(x => x.categoryId === food.id || x.subcategoryId === food.id), ctx.cycle.start, daysBefore(ctx.today, -1)).total : 0;
     const help = named && !/makan|kopi/i.test(named.name) ? vo(v, { santai: `Coba pasang anggaran ${named.name} biar kelihatan kalau mulai bengkak, dan cari cara ngiritnya (gabung perjalanan, paket bulanan, bandingin harga).`, sopan: `Pasang anggaran ${named.name} agar kenaikannya terpantau.`, gaul: `Pasang anggaran ${named.name} biar ketahuan kalo bengkak.`, singkat: `Pasang anggaran ${named.name}.` }) : '';
     return say('curhat', { card: 'talk', text: vo(v, {
-      santai: `Iya, kerasa banget ya 😮‍💨 ${food && now ? `Periode ini ${food.name} kamu udah ${rp(now)}.` : ''} ${help || 'Yang biasanya ngebantu: masak sendiri beberapa kali seminggu, bawa bekal, dan pasang anggaran makan biar ada batasnya.'}`.replace(/\s+/g, ' '),
+      santai: `Iya, kerasa banget ya ${food && now ? `Periode ini ${food.name} kamu udah ${rp(now)}.` : ''} ${help || 'Yang biasanya ngebantu: masak sendiri beberapa kali seminggu, bawa bekal, dan pasang anggaran makan biar ada batasnya.'}`.replace(/\s+/g, ' '),
       sopan: `Memang terasa. ${food && now ? `Periode ini pengeluaran ${food.name} Anda ${rp(now)}.` : ''} Memasak sendiri, membawa bekal, dan memasang anggaran makan dapat membantu.`.replace(/\s+/g, ' '),
-      gaul: `Bener, gila sih harganya 😮‍💨 ${food && now ? `Periode ini ${food.name} lo udah ${rp(now)}.` : ''} Masak sendiri, bawa bekal, pasang anggaran makan.`.replace(/\s+/g, ' '),
+      gaul: `Bener, gila sih harganya ${food && now ? `Periode ini ${food.name} lo udah ${rp(now)}.` : ''} Masak sendiri, bawa bekal, pasang anggaran makan.`.replace(/\s+/g, ' '),
       singkat: `${food && now ? `${food.name}: ${rp(now)}. ` : ''}Pasang anggaran makan.`,
     }), chips: [named && !/makan|kopi/i.test(named.name) ? `anggaran ${lower(named.name)} 500rb` : 'budget makan masih berapa', 'kasih tips hemat'] }, { topic: 'curhat', curhat: 1 });
+  }
+  // Working hard and the savings not growing ("kerja mulu tapi saldo gitu-gitu aja").
+  if (/\b(?:kerja|kerjaan|lembur|banting\s+tulang)\b/.test(t) && /\b(?:tabungan|saldo|duit|uang|gaji|rekening)(?:ku|mu|nya)?\b/.test(t) && /\b(?:gitu-gitu|gini-gini|gitu2|gini2|segitu|segini|(?:nggak|gak|ga|tidak|tdk|ngga)\s+(?:nambah|naik|bertambah|berubah)|stuck|mentok|jalan\s+di\s+tempat)\b/.test(t)) {
+    return say('curhat', { card: 'talk', text: vo(v, {
+      santai: `Capek ya, kerja terus tapi tabungannya nggak gerak 🤗 Periode ini masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}${facts.income > facts.expenses ? `, jadi sebenarnya masih ada lebih ${rp(facts.income - facts.expenses)}. Coba langsung pindahin sebagian ke Tujuan dana pas gajian, biar nggak kepakai.` : '. Kita cek pos mana yang paling bisa dikecilin, ya.'}`,
+      sopan: `Itu memang melelahkan. Periode ini pemasukan ${rp(facts.income)} dan pengeluaran ${rp(facts.expenses)}. Menyisihkan di awal gajian ke Tujuan dana dapat membantu.`,
+      gaul: `Relate 🤗 Periode ini masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}. Pindahin sebagian ke Tujuan dana pas gajian biar gak kepake.`,
+      singkat: `Masuk ${rp(facts.income)}, keluar ${rp(facts.expenses)}.`,
+    }), chips: ['bantu atur gaji gue', 'pengeluaran terbesar bulan ini'] }, { topic: 'curhat', curhat: 1 });
   }
   return null;
 }
@@ -389,16 +403,16 @@ export function readMoneyMath(t0: string, v: Voice): Out | null {
   }
   // How much of the income is left to save.
   const inc = t.match(new RegExp(String.raw`\b(?:gaji|gajian|penghasilan|pendapatan|pemasukan|income|salary)(?:\s+(?:aku|gue|gw|saya|ku|nya))?\s+(${AMT_RE})`, 'u'));
-  const out = t.match(new RegExp(String.raw`\b(?:pengeluaran|keluar|biaya\s+hidup|habis|abis|belanja|expense|kebutuhan)(?:\s+(?:aku|gue|gw|saya|ku|nya|bulanan|sebulan))?\s+(${AMT_RE})`, 'u'));
+  const out = t.match(new RegExp(String.raw`\b(?:pengeluaran|keluar|biaya\s+hidup|habis|abis|belanja|expense|kebutuhan|kepake|kepakai|terpakai|dipake|dipakai|kepotong)(?:\s+(?:aku|gue|gw|saya|ku|nya|bulanan|sebulan))?\s+(${AMT_RE})`, 'u'));
   if (inc && out && /\b(?:persen|%|berapa|brp|sisa|tabung|nabung|bisa|sisain|saving)\b/.test(t)) {
     const a = findAmounts(inc[1])[0]?.value || 0, b = findAmounts(out[1])[0]?.value || 0;
     if (a > 0 && b >= 0 && a !== b) {
       const left = a - b, rate = left / a;
       return say('calc', { card: 'calc', title: 'Bisa ditabung', text: vo(v, {
-        santai: left >= 0 ? `Sisa ${rp(left)} dari ${rp(a)}, jadi bisa nabung ${pct(rate)} dari penghasilan. ${rate >= 0.2 ? 'Udah di atas 20%, bagus banget!' : 'Patokan umum 20%; coba naikin pelan-pelan.'}` : `Pengeluaran lebih besar ${rp(-left)} dari penghasilan. Perlu dikurangi dulu sebelum bisa nabung.`,
-        sopan: left >= 0 ? `Sisa ${rp(left)} dari ${rp(a)}, atau ${pct(rate)} dari penghasilan yang dapat ditabung.` : `Pengeluaran melebihi penghasilan sebesar ${rp(-left)}.`,
-        gaul: left >= 0 ? `Sisa ${rp(left)} dari ${rp(a)}, berarti lo bisa nabung ${pct(rate)}. ${rate >= 0.2 ? 'Mantap, udah lewat 20%!' : 'Target umum 20%, naikin pelan-pelan.'}` : `Tekor ${rp(-left)}, bro. Kurangin dulu pengeluarannya.`,
-        singkat: left >= 0 ? `${pct(rate)} (${rp(left)}).` : `Minus ${rp(-left)}.`,
+        santai: left >= 0 ? `Yang kepakai ${pct(b / a)} dari penghasilan. Sisa ${rp(left)} dari ${rp(a)}, jadi bisa nabung ${pct(rate)}. ${rate >= 0.2 ? 'Udah di atas 20%, bagus banget!' : 'Patokan umum 20%; coba naikin pelan-pelan.'}` : `Pengeluaran lebih besar ${rp(-left)} dari penghasilan. Perlu dikurangi dulu sebelum bisa nabung.`,
+        sopan: left >= 0 ? `Terpakai ${pct(b / a)} dari penghasilan. Sisa ${rp(left)} dari ${rp(a)}, atau ${pct(rate)} yang dapat ditabung.` : `Pengeluaran melebihi penghasilan sebesar ${rp(-left)}.`,
+        gaul: left >= 0 ? `Kepake ${pct(b / a)}. Sisa ${rp(left)} dari ${rp(a)}, berarti lo bisa nabung ${pct(rate)}. ${rate >= 0.2 ? 'Mantap, udah lewat 20%!' : 'Target umum 20%, naikin pelan-pelan.'}` : `Tekor ${rp(-left)}, bro. Kurangin dulu pengeluarannya.`,
+        singkat: left >= 0 ? `Terpakai ${pct(b / a)}, sisa ${pct(rate)} (${rp(left)}).` : `Minus ${rp(-left)}.`,
       }), hero: { label: 'Bisa ditabung', value: pct(rate), note: rp(left), tone: left >= 0 ? 'good' : 'warn' }, stats: [{ label: 'Penghasilan', value: rp(a) }, { label: 'Pengeluaran', value: rp(b) }], tone: 'info', why: `(${rp(a)} − ${rp(b)}) ÷ ${rp(a)} = ${pct(rate, 2)}.` }, { last: 'calc', number: left });
     }
   }
@@ -474,7 +488,7 @@ export function readCanRecord(t: string, v: Voice): Out | null {
 
 /** "uang gue paling banyak ada di mana?": the wallet with the most money. */
 export function readBiggestWallet(t: string, ctx: ChatContext, v: Voice): Out | null {
-  if (!/\b(?:uang|duit|saldo|dana)\b.*\b(?:paling\s+(?:banyak|gede|besar)|terbanyak|terbesar)\b|\b(?:dompet|rekening|wallet)\s+(?:mana|apa)\b.*\b(?:paling\s+(?:banyak|gede|besar)|terbanyak)\b|\bpaling\s+(?:banyak|gede)\b.*\b(?:uang|duit|saldo)\b.*\b(?:mana|dimana|di\s+mana)\b/.test(t)) return null;
+  if (!/\b(?:uang|duit|saldo|dana)(?:ku|mu|nya)?\b.*\b(?:paling\s+(?:banyak|gede|besar)|terbanyak|terbesar)\b|\b(?:dompet|rekening|wallet|akun)\b.*\b(?:paling\s+(?:banyak|gede|besar|tebel|tebal|gendut)|terbanyak)\b.*\b(?:mana|apa|yang\s+mana)\b|\b(?:dompet|rekening|wallet)\s+(?:mana|apa)\b.*\b(?:paling\s+(?:banyak|gede|besar|tebel|tebal)|terbanyak)\b|\bpaling\s+(?:banyak|gede)\b.*\b(?:uang|duit|saldo)\b.*\b(?:mana|dimana|di\s+mana)\b/.test(t)) return null;
   const live = ctx.data.wallets.filter(w => !w.isArchived && (w.cachedBalance || 0) > 0).sort((a, b) => b.cachedBalance - a.cachedBalance);
   if (!live.length) return say('question', { card: 'summary', text: vo(v, { santai: 'Semua dompetmu lagi kosong nih.', sopan: 'Seluruh dompet Anda saat ini kosong.', gaul: 'Dompet lo kosong semua, bro.', singkat: 'Semua dompet kosong.' }) });
   const total = live.reduce((n, w) => n + w.cachedBalance, 0), top = live[0];
@@ -619,7 +633,8 @@ export function readPaidBack(t: string, ctx: ChatContext, v: Voice): Out | null 
  * otherwise how much, with the instalment and the whole rest to tap. */
 export function readPaidDebt(t: string, ctx: ChatContext, v: Voice): Out | null {
   if (amountsOf(t).length) return null;
-  const m = t.match(/^(?:(?:aku|gue|gua|gw|saya|ane)\s+)?(?:(?:udah|udh|sudah|dah|baru|barusan|tadi|td|akhirnya)\s+)*(bayar|nyicil|cicil|angsur|lunasin|ngelunasin|melunasi|nyetor)\s+(?:(?:utang|hutang|cicilan|pinjaman|kredit|tagihan)\s+)?(?:ke\s+|sama\s+|buat\s+)?(.+)$/);
+  const m = t.match(/^(?:(?:aku|gue|gua|gw|saya|ane)\s+)?(?:(?:udah|udh|sudah|dah|baru|barusan|tadi|td|akhirnya)\s+)*(bayar|nyicil|cicil|angsur|lunasin|ngelunasin|melunasi|nyetor)\s+(?:(?:utang|hutang|cicilan|pinjaman|kredit|tagihan)\s+)?(?:ke\s+|sama\s+|buat\s+)?(.+)$/)
+    || (() => { const o = t.match(/^(?:utang|hutang|cicilan|pinjaman|kredit)\s+(?:ke\s+|sama\s+)?(.+?)\s+(?:(?:udah|udh|sudah|dah|baru|akhirnya|barusan)\s+)*(?:(?:aku|gue|gua|gw|saya)\s+)?(lunasin|lunas|bayar|cicil|nyicil|beres|kelar)\b/); return o ? [o[0], o[2], o[1]] as unknown as RegExpMatchArray : null; })();
   if (!m) return null;
   const said = m[2].replace(/\b(?:dong|ya|nih|sih|deh|aja|tadi|kemarin|bulan\s+ini)\b/g, ' ').replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
   const debts = (ctx.data.debts || []).filter(d => d.status !== 'paid' && d.outstandingAmount > 0);
@@ -633,10 +648,10 @@ export function readPaidDebt(t: string, ctx: ChatContext, v: Voice): Out | null 
 
 /* ------------------------------------------------------------------ A record said without its amount */
 
-const RECORD_CUE = /\b(?:tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|isi|top\s?up|topup|pindahin|pindah|transfer|tf|kirim|gajian|dapet|dapat|terima|nerima|tarik|setor)\b/;
+const RECORD_CUE = /\b(?:tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|tambahin|tambahkan|isi|top\s?up|topup|pindahin|pindah|oper|operin|geser|alihin|transfer|tf|kirim|kirimin|transferin|tfin|gajian|dapet|dapat|terima|nerima|tarik|setor|setorin)\b/;
 /** Words that say a record happened or is to be made, without naming what it was. */
 const BARE = /\b(?:aku|gue|gua|gw|saya|ane|w|tadi|td|tdi|barusan|abis|habis|udah|udh|sudah|dah|kemarin|kemaren|kmrn|nih|dong|ya|deh|sih|tolong|tlg|makan|minum|ngopi|jajan|belanja|lagi|juga|aja)\b/g;
-const DOING = /\b(?:beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|isi|top\s?up|topup|pindahin|pindah|transfer|tf|kirim|tarik|setor)\b/;
+const DOING = /\b(?:beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|tambahin|tambahkan|isi|top\s?up|topup|pindahin|pindah|oper|operin|geser|alihin|transfer|transferin|tfin|tf|kirim|kirimin|tarik|setor|setorin)\b/;
 /** "masukin uang lembur ke mandiri", "pindahin uang dari BRI ke Mandiri", "gue tadi makan ayam geprek": a record without
  * its amount. Asked for; the next message ("750rb") finishes it with every other word kept. */
 export function readNoAmount(raw: string, t: string, ctx: ChatContext, v: Voice): Out | null {

@@ -521,10 +521,12 @@ function oneTypo(a: string, b: string) {
   return false;
 }
 /** Unknown words (five letters or more) with exactly one known word a typo away, same first letter. */
+const NOT_TYPO = new Set(['tekor', 'boncos', 'bokek', 'kayaknya', 'sepertinya', 'kepake', 'kepakai', 'lebihan', 'pekan']);
 function typoFixes(text: string): [string, string][] {
   const { known, byLetter } = knownByLetter(), out: [string, string][] = [];
   for (const raw of new Set(text.match(/\p{L}{5,}/gu) || [])) {
-    if (known.has(raw)) continue;
+    // 10.6 (post-hoc) Everyday money words are never a typo of a thing bought ("tekor" is not "telor").
+    if (known.has(raw) || NOT_TYPO.has(raw)) continue;
     const near = (byLetter.get(raw[0]) || []).filter(w => oneTypo(raw, w));
     if (near.length === 1) out.push([raw, near[0]]);
   }

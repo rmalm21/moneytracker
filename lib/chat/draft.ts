@@ -109,7 +109,9 @@ export function readDraftEdit(message: string, pending: string, ctx: QuickContex
     // An item dropped: "yang kedua hapus", "makan jangan dulu", "jajannya jangan dulu", "yang ketiga gak jadi".
     if (CANCEL_ITEM.test(part) && many) {
       const ord = part.match(/\b(?:yang|yg)\s+(pertama|kesatu|kedua|ketiga|keempat|kelima|keenam|terakhir)\b/);
-      const word = part.replace(CANCEL_ITEM, ' ').replace(/\b(?:yang|yg|itu|beli|dulu|dicatat|aja|nggak|gak|ga|jadi)\b/g, ' ').trim().split(/\s+/)[0] || '';
+      // 10.6 (post-hoc) A name of two words with a short first one ("es tehnya ga jadi").
+      const named = part.replace(CANCEL_ITEM, ' ').replace(/\b(?:yang|yg|itu|beli|dulu|dicatat|aja|nggak|gak|ga|jadi)\b/g, ' ').trim().split(/\s+/);
+      const word = (named[0]?.length < 3 && named[1] ? `${named[0]} ${named[1]}` : named[0]) || '';
       const at = ord ? (ord[1] === 'terakhir' ? items.length - 1 : ORDINAL[ord[1]] - 1) : itemAt(word, items);
       if ((at < 0 || at >= items.length) && removed.length && !word) continue;
       if (at < 0 || at >= items.length) return null;
@@ -199,7 +201,7 @@ export function readClauseEdit(message: string, pending: string, ctx: QuickConte
     return { text: join(next, tail), did: [`${except.length ? `selain ${m[2]}, ` : ''}${say.wallet(w.name)}`] };
   }
   // "yang makan bayarnya cash", "kopinya pake gopay", "bensin tadi dari jago".
-  m = t.match(/^(?:(?:yang|yg)\s+)?(\p{L}+?)(?:nya)?\s+(?:tadi\s+)?(?:(?:bayar(?:nya)?|dibayar|pake(?:nya)?|pakai(?:nya)?|pakek|via|dari|lewat)\s+)+(\p{L}+)$/u);
+  m = t.match(/^(?:(?:yang|yg)\s+)?((?:\p{L}{1,3}\s+)?\p{L}+?)(?:nya)?\s+(?:tadi\s+)?(?:(?:bayar(?:nya)?|dibayar|pake(?:nya)?|pakai(?:nya)?|pakek|via|dari|lewat)\s+)+(\p{L}+)$/u);
   if (m && !/^(?:semua|semuanya|itu|ini|tadi)$/.test(m[1])) {
     const w = walletsIn(m[2], ctx.wallets)[0], at = itemAt(m[1], items);
     if (!w || at < 0) return null;
@@ -210,7 +212,7 @@ export function readClauseEdit(message: string, pending: string, ctx: QuickConte
   if (!new RegExp(String.raw`\b(?:yang|yg)\s+${PLACE}\b`).test(t) || items.length < 2) return null;
   const set = new Map<number, string>(), did: string[] = [];
   for (const part of t.split(/\s*[,;]\s*|\s+(?:terus|trus|lalu)\s+/).filter(Boolean)) {
-    const own = part.match(new RegExp(String.raw`^(?:(?:yang|yg)\s+)?(${PLACE}(?:\s*(?:,|\bsama\b|\bdan\b|&)\s*(?:(?:yang|yg)\s+)?${PLACE})*)\s+(?:masuk(?:in|kan)?(?:\s+ke)?(?:\s+kategori)?|kategori(?:nya)?|ke|jadi)\s+(.+)$`));
+    const own = part.match(new RegExp(String.raw`^(?:(?:yang|yg)\s+)?(${PLACE}(?:\s*(?:,|\bsama\b|\bdan\b|&)\s*(?:(?:yang|yg)\s+)?${PLACE})*)\s+(?:(?:masuk(?:in|kan)?(?:\s+ke)?(?:\s+kategori)?|kategori(?:nya)?|ke|jadi)\s+)?(.+)$`));
     const rest = part.match(/^(?:sisanya|sisa(?:nya)?|yang\s+lain(?:nya)?|lainnya|selebihnya)\s+(?:masuk(?:\s+ke)?\s+)?(?:kategori\s+)?(.+)$/);
     if (own) {
       const at = own[1].split(/\s*(?:,|\bsama\b|\bdan\b|&)\s*/).map(w => placeOf(w.replace(/^(?:yang|yg)\s+/, ''), items.length));

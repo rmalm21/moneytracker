@@ -403,9 +403,9 @@ export function findAmounts(text: string): Amount[] {
 /** Two-digit plain numbers count too ("bensin 80"): the preview marks a plain number under 1.000 to check, with the thousands as a one-tap choice. */
 const mainAmount = (list: Amount[]) => list.find(a => a.marked) || list.filter(a => a.value >= 10).sort((a, b) => b.value - a.value)[0];
 
-const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|topup|top up|isi saldo|tambah saldo)\b/;
+const TRANSFER_WORDS = /\b(tf|transfer|pindah|pindahin|oper|operin|ngoper|topup|top up|isi saldo|tambah saldo)\b/;
 /** Cash in and out of a bank: tarik tunai (bank → cash), setor tunai (cash → bank). Not the fee ("biaya tarik tunai"). */
-const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil uang(?: di)? atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
+const CASH_OUT = /\b(tarik tunai|tarik uang|narik uang|narik tunai|ambil (?:uang|duit)(?: di)? atm|ambil (?:uang|duit) \d[\d.,]*\s*(?:rb|ribu|k|jt|juta)? di atm|tarik(?: di)? atm|narik(?: di)? atm)\b/, CASH_IN = /\b(setor tunai|setor uang|nyetor|setoran tunai)\b/;
 const CLAIM_WORDS = /\b(klaim|claim|reimburse|reimbursement|reimburs|rembes|talangan kantor|talangin kantor|nalangin kantor|diklaim|diklaimkan|klaimkan|direimburse)\b/;
 const CLAIM_PAID = /\b(cair|dicairkan|diganti|dibayar|masuk|lunas)\b|\b(?:udah|sudah|dah|baru)\s+(?:ganti|gantiin|bayar|bayarin|transfer|tf|reimburse)\b/;
 const SAVE_WORDS = /\b(nabung|menabung|tabung(?!\s+(?:gas|elpiji|lpg|oksigen))|nyimpen|simpan|sisihkan|sisihin|nyisihin|setor|celengan)\b/;
@@ -467,7 +467,7 @@ const SMALL_WORDS = /\b(?:abis|habis|kena|kepake|kepakai|ngabisin|ngehabisin|har
 /** 6.10: a wallet or bank that is not set up, written bare after the amount: how it was paid. */
 const PAID_BARE = /\b(ovo|dana|shopeepay|spay|linkaja|gopay|jenius|jago|bca|bni|bri|bsi|btn|bjb|cimb|permata|danamon|seabank|blu|ocbc|mandiri|flazz|brizzi|tapcash|emoney|e-money|qris|debit|debet)\b/;
 /** 6.10: how it felt and words that weigh the price: never what was bought or received. */
-const FEELING = /\b(?:duh|aduh|haduh|wah|waduh|wih|wuih|astaga|astagfirullah|astaghfirullah|alhamdulillah|buset|busyet|gila|gilak|ya ampun|yaampun|yaallah|ya allah|hadeh|hadeuh|huft|hufft|akhirnya|cuma|cuman|doang|aja|saja|lumayan|mahal|murah|boros|banget|bgt|amat|juga|eh|btw|seneng|senang|syukur|yeay|kayaknya|sepertinya|kalo|kalau|klo)\b/g;
+const FEELING = /\b(?:duh|aduh|haduh|wah|waduh|wih|wuih|astaga|astagfirullah|astaghfirullah|alhamdulillah|buset|busyet|gila|gilak|ya ampun|yaampun|yaallah|ya allah|hadeh|hadeuh|huft|hufft|akhirnya|cuma|cuman|doang|aja|saja|lumayan|mahal|murah|boros|banget|bgt|amat|juga|eh|btw|seneng|senang|syukur|yeay|kayaknya|sepertinya|kalo|kalau|klo|tekor|boncos|jebol)\b/g;
 /** 6.10: the time of day said with "ini" ("pagi ini") and dawn ("subuh"): the date, not the thing. */
 const DAY_TIME = /\b(?:(?:pagi|siang|sore|malam|malem|subuh) ini|subuh)\b/g;
 /** Names of money that keep their "uang" ("uang saku", "uang kaget"); the second word alone means something else. */
