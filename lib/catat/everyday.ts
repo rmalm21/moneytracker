@@ -117,7 +117,8 @@ export function readEveryday(input: string, ctx: QuickContext): Everyday | null 
     }
   }
   const group = t.match(new RegExp(String.raw`^(.*?)\bber(dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh)\b(.*?)(${AMT})(.*?)\s*,?\s*(?:(?:aku|gue|gua|gw|saya)\s+(?:yang\s+)?)?(?:talangin|nalangin|nombokin|bayarin|bayar(?:in)?\s+(?:dulu|semua|semuanya))\b(.*)$`, 'u'));
-  if (group) {
+  // A price for each one ("berempat masing-masing 35rb") is a shared bill the V4 reader works out: not this.
+  if (group && !/\b(?:masing-masing|masing2|per\s*orang|perorang|seorang|tiap\s+orang|@)\b/.test(t)) {
     const n = countOf(group[2]), total = value(group[4]), mine = Math.round(total / n);
     const what = `${group[1]} ${group[3]}`.replace(/\b(?:aku|gue|gua|gw|saya|tadi|total(?:nya)?)\b/g, ' ').replace(/\s+/g, ' ').trim() || 'bayar';
     const via = `${group[5]} ${group[6]}`.match(/\b(?:pake|pakai|pakek|dari|via|lewat)\s+(\p{L}+)/u)?.[0] || '';

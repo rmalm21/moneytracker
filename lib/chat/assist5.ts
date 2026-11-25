@@ -632,7 +632,8 @@ export function readPaidBack(t: string, ctx: ChatContext, v: Voice): Out | null 
 /** "gue udah bayar utang ke kak rina", "lunasin cicilan hp": one's own debt paid, without an amount. All of it for "lunas";
  * otherwise how much, with the instalment and the whole rest to tap. */
 export function readPaidDebt(t: string, ctx: ChatContext, v: Voice): Out | null {
-  if (amountsOf(t).length) return null;
+  // A question about the debt ("cicilan kredivo kelar kapan", "pinjaman ke kak rina kapan lunas") is answered elsewhere.
+  if (amountsOf(t).length || /\?\s*$/.test(t) || /\b(?:kapan|berapa|brp|gimana|kah|belum|blm|belom|masih|sisa)\b/.test(t)) return null;
   const m = t.match(/^(?:(?:aku|gue|gua|gw|saya|ane)\s+)?(?:(?:udah|udh|sudah|dah|baru|barusan|tadi|td|akhirnya)\s+)*(bayar|nyicil|cicil|angsur|lunasin|ngelunasin|melunasi|nyetor)\s+(?:(?:utang|hutang|cicilan|pinjaman|kredit|tagihan)\s+)?(?:ke\s+|sama\s+|buat\s+)?(.+)$/)
     || (() => { const o = t.match(/^(?:utang|hutang|cicilan|pinjaman|kredit)\s+(?:ke\s+|sama\s+)?(.+?)\s+(?:(?:udah|udh|sudah|dah|baru|akhirnya|barusan)\s+)*(?:(?:aku|gue|gua|gw|saya)\s+)?(lunasin|lunas|bayar|cicil|nyicil|beres|kelar)\b/); return o ? [o[0], o[2], o[1]] as unknown as RegExpMatchArray : null; })();
   if (!m) return null;
@@ -656,7 +657,7 @@ const DOING = /\b(?:beli|bayar|byr|catet|catat|catetin|catatin|masukin|masukkan|
  * its amount. Asked for; the next message ("750rb") finishes it with every other word kept. */
 export function readNoAmount(raw: string, t: string, ctx: ChatContext, v: Voice): Out | null {
   const words = t.split(' ').length;
-  if (amountsOf(t).length || words < 2 || words > 12 || /\?\s*$/.test(raw) || /\b(?:berapa|brp|brapa|kapan|apa|apakah|gimana|gmn|bagaimana|siapa|kenapa|knp|cara|caranya|bisa|boleh|pengen|pengin|pingin|ingin|mau|mo|rencana|nanti|besok|kalau|kalo|klo|misal|andai)\b/.test(t)) return null;
+  if (amountsOf(t).length || words < 2 || words > 12 || /\?\s*$/.test(raw) || /\b(?:berapa|brp|brapa|kapan|apa|apakah|gimana|gmn|bagaimana|siapa|kenapa|knp|cara|caranya|bisa|boleh|pengen|pengin|pingin|ingin|mau|mo|rencana|nanti|besok|kalau|kalo|klo|misal|andai|belum|blm|belom)\b/.test(t)) return null;
   // Asking about records, not making one: totals, periods, budgets, whether money is enough, sharing a bill.
   if (/\b(?:total|jumlah|pengeluaran|pemasukan|rincian|rekap|ringkasan|laporan|riwayat|saldo|sisa|budget|anggaran|limit|batas|cukup|lama|tanggal|patungan|bagi|split|kebanyakan|terlalu|boros|hemat|irit|terakhir|biasanya|rata-rata|rata2|ada|punya)\b/.test(t) || /\b(?:ga|gak|nggak|ngga|enggak|kah|nggk|gk|belum|blm|belom)\s*$/.test(t)) return null;
   // "uang jajan gw udh abis": money run out, not something bought.

@@ -1185,7 +1185,8 @@ export async function chatReply(input: string, memory: ChatMemory, ctx: ChatCont
     // sums, features asked about, a friend paying back, a record without its amount. Never recorded; a card only to check.
     if (depth <= 1 && !memory.teaching && !memory.kasbon && memory.riddle === undefined && !memory.userRiddle && !memory.game && !memory.unitAsk && !memory.pendingQ && !(memory.goal && !flowDone)) {
       // 10.6 (post-hoc) "orang2 masih punya utang berapa ke aku": money owed to me is Piutang, not Utang.
-      if (!money && /\b(?:utang|hutang|ngutang|minjem|pinjem|pinjam)\b/.test(t) && /\b(?:ke|sama|sm|dari)\s+(?:aku|gue|gw|gua|saya|ku)\b/.test(t) && /\b(?:berapa|brp|siapa|aja|mana|masih)\b/.test(t) && !/^(?:aku|gue|gw|gua|saya)\b/.test(t)) {
+      if (!money && /\b(?:utang|hutang|ngutang|minjem|pinjem|pinjam)\b/.test(t) && /\b(?:ke|sama|sm|dari)\s+(?:aku|gue|gw|gua|saya|ku)\b/.test(t) && /\b(?:berapa|brp|siapa|aja|mana|masih)\b/.test(t) && !/^(?:aku|gue|gw|gua|saya)\b/.test(t)
+        && !(ctx.data.receivables || []).some(r => lower(r.person).split(/\s+/).some(w => w.length >= 3 && new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(t)))) {
         const m = readModule('piutang aku berapa', ctx.data, ctx.today, v);
         if (m) return sayR('module', { kind: 'say', card: 'talk', title: m.title, text: m.text, ...(m.hero ? { hero: m.hero } : {}), ...(m.lines?.length ? { lines: m.lines } : {}), ...(m.chips?.length ? { chips: m.chips } : {}), open: m.open }, m.list ? { ...mem, list: m.list, listAt: turn, topic: 'module' } : mem);
       }
