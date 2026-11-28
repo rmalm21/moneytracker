@@ -20,6 +20,19 @@ export async function settle<T>(write: Promise<T>): Promise<void> {
 }
 
 /**
+ * 10.7 Firestore can send a write a second time when the cloud's first answer never arrived (the phone closed, or the
+ * connection dropped right after saving). The rules refuse the repeat (firestore.rules: createdKept), so a refusal can
+ * mean "it already went through": `landed` reads the cloud to tell that apart from a real refusal.
+ */
+export async function commitOnce(write: Promise<unknown>, landed: () => Promise<boolean>): Promise<void> {
+  try { await write; }
+  catch (error) {
+    if ((error as { code?: string } | null)?.code === 'permission-denied' && await landed().catch(() => false)) return;
+    throw error;
+  }
+}
+
+/**
  * runTransaction that also works offline: the same body runs against the device cache
  * and its writes go into a batch that Firestore sends when the connection returns.
  */

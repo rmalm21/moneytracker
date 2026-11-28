@@ -37,23 +37,30 @@ export function AppSelect({ children, value, defaultValue, onChange, disabled, r
     const anchor = trigger.current;
     const dialog = anchor.closest<HTMLElement>('.app-dialog');
     setHost(dialog);
-    const rect = anchor.getBoundingClientRect();
-    const height = Math.min(264, options.length * 42 + 12);
-    const below = window.innerHeight - rect.bottom - 12;
-    const above = rect.top - 12;
-    const upwards = below < Math.min(180, height) && above > below;
-    const maxHeight = Math.max(90, Math.min(264, upwards ? above : below));
-    const visibleHeight = Math.min(height, maxHeight);
-    const top = Math.max(8, Math.min(upwards ? rect.top - visibleHeight - 7 : rect.bottom + 7, window.innerHeight - visibleHeight - 8));
-    const width = Math.min(window.innerWidth - 16, Math.max(rect.width, menuWidth));
-    const left = Math.max(8, Math.min(rect.right - width, rect.left, window.innerWidth - width - 8));
-    const parentRect = dialog?.getBoundingClientRect();
-    setPosition({ top: top - (parentRect?.top ?? 0), left: left - (parentRect?.left ?? 0), width, maxHeight });
+    const place = () => {
+      const rect = anchor.getBoundingClientRect();
+      const height = Math.min(264, options.length * 42 + 12);
+      const below = window.innerHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      const upwards = below < Math.min(180, height) && above > below;
+      const maxHeight = Math.max(90, Math.min(264, upwards ? above : below));
+      const visibleHeight = Math.min(height, maxHeight);
+      const top = Math.max(8, Math.min(upwards ? rect.top - visibleHeight - 7 : rect.bottom + 7, window.innerHeight - visibleHeight - 8));
+      const width = Math.min(window.innerWidth - 16, Math.max(rect.width, menuWidth));
+      const left = Math.max(8, Math.min(rect.right - width, rect.left, window.innerWidth - width - 8));
+      const parentRect = dialog?.getBoundingClientRect();
+      setPosition({ top: top - (parentRect?.top ?? 0), left: left - (parentRect?.left ?? 0), width, maxHeight });
+    };
+    place();
     const outside = (event: PointerEvent) => {
       if (!anchor.contains(event.target as Node) && !menu.current?.contains(event.target as Node)) setOpen(false);
     };
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false); };
-    const resize = () => setOpen(false);
+    // 10.7 A scroll or resize around the field (the sheet settling, a finger that moved a little, the phone's keyboard
+    // closing after the amount was typed) used to close the menu at once, so it had to be tapped again. The menu now
+    // moves with the field and closes only when the field itself is out of sight.
+    const follow = () => { const rect = anchor.getBoundingClientRect(); if (rect.bottom < 0 || rect.top > window.innerHeight || !rect.width) setOpen(false); else place(); };
+    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) follow(); };
+    const resize = follow;
     // Escape closes only this menu. The capture listener on window runs before the
     // surrounding dialog's own Escape handler, which would otherwise close the whole form.
     const escape = (event: KeyboardEvent) => { if (event.key !== 'Escape') return; event.stopPropagation(); event.preventDefault(); setOpen(false); anchor.focus(); };

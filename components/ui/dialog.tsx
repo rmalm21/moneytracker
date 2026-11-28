@@ -47,10 +47,26 @@ function useKeyboardLift(content:React.RefObject<HTMLDivElement|null>){
  },[content]);
 }
 
+/**
+ * 10.7 A message a form shows after Simpan ("Nominal hanya antara Rp1 dan Rp650.000", "Pilih kategori…") sat under the
+ * buttons at the bottom of a sheet, so tapping Simpan seemed to do nothing. When one appears or changes it is scrolled
+ * into sight (above the buttons, see .form-error scroll-margin in globals.css).
+ */
+function useErrorReveal(content:React.RefObject<HTMLDivElement|null>){
+ useEffect(()=>{
+  const el=content.current;if(!el||typeof MutationObserver==='undefined')return;
+  let last=Array.from(el.querySelectorAll<HTMLElement>('.modal-body .form-error')).map(e=>e.textContent?.trim()||'').join('|');
+  const observer=new MutationObserver(()=>{const shown=Array.from(el.querySelectorAll<HTMLElement>('.modal-body .form-error')).filter(e=>e.offsetParent!==null);const text=shown.map(e=>e.textContent?.trim()||'').join('|');if(text&&text!==last)shown[0]?.scrollIntoView({block:'nearest',behavior:'smooth'});last=text;});
+  observer.observe(el,{subtree:true,childList:true,characterData:true});
+  return ()=>observer.disconnect();
+ },[content]);
+}
+
 /** 10.4.1 `hideWith="wallets"`: a window of the Dompet menu (a wallet, its pockets, its balance). At "Beranda & Dompet"
  * its amounts are hidden wherever it is opened; every other window shows them, wherever it is opened. */
 export function DialogContent({title,children,className='',onCloseAutoFocus,hideWith}:{title:string;children:React.ReactNode;className?:string;onCloseAutoFocus?:(event:Event)=>void;hideWith?:'wallets'}){
  const sheet=useSheetDrag();
  useKeyboardLift(sheet.content);
+ useErrorReveal(sheet.content);
  return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="modal-overlay"/><DialogPrimitive.Content ref={sheet.content} className={`modal-content app-dialog ${className}`} onCloseAutoFocus={onCloseAutoFocus} data-hide-with={hideWith}><div className="modal-heading sheet-drag" {...sheet.handlers}><DialogPrimitive.Title>{title}</DialogPrimitive.Title><DialogPrimitive.Close ref={sheet.close} aria-label="Tutup" className="icon-btn"><X size={19}/></DialogPrimitive.Close></div><div className="modal-body">{children}</div></DialogPrimitive.Content></DialogPrimitive.Portal>;
 }

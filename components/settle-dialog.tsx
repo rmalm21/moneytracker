@@ -35,7 +35,8 @@ export function SettleDialog({ target, onClose }: { target: SettleTarget | null;
     if (!target) return;
     if (editTx) { setAmount(editTx.amount); setDate(editTx.date); setMode('wallet'); setWalletId(editTx.walletId); setNote(editTx.description || ''); setCategory(editTx.subcategoryId || editTx.categoryId || ''); }
     else if (editPaid) { setAmount(editPaid.amount); setDate(editPaid.date); setMode('plain'); setWalletId(''); setNote(editPaid.note || ''); setCategory(''); }
-    else { setAmount(target.suggested || target.remaining); setDate(todayInTimeZone(profile?.timeZone)); setMode('wallet'); setWalletId(wallets[0]?.id || ''); setNote(''); setCategory(''); }
+    // 10.7 The wallet the person set as usual (Pengaturan: dompet bawaan pengeluaran/pemasukan) first, like the transaction form.
+    else { const usual = receivable ? profile?.defaultIncomeWalletId : profile?.defaultExpenseWalletId; setAmount(target.suggested || target.remaining); setDate(todayInTimeZone(profile?.timeZone)); setMode('wallet'); setWalletId((wallets.find(w => w.id === usual) || wallets[0])?.id || ''); setNote(''); setCategory(''); }
     setError('');
   }, [key]);
   function submit(event: FormEvent) {

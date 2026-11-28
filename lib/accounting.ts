@@ -91,6 +91,14 @@ export function splitBillFlows(items:LedgerTx[]){
   }
   return {...flows,bills:flows.bills.size};
 }
+/**
+ * 10.7 The category for a transfer's admin fee when the person has not chosen one ("Admin Bank", "Biaya Transfer"…, then
+ * any fee-like category). Catat otomatis and the transaction form use the same choice.
+ */
+export function defaultFeeCategory<C extends Pick<Category, 'name' | 'type' | 'isArchived' | 'parentId'>>(categories: C[]): C | undefined {
+  const live = categories.filter(c => c.type === 'expense' && !c.isArchived);
+  return live.find(c => /\b(admin|biaya bank|biaya transfer)\b/i.test(c.name)) || live.find(c => /\bbiaya\b/i.test(c.name));
+}
 export function walletBalance(wallet: Wallet, txs: LedgerTx[]) { return wallet.openingBalance + txs.reduce((sum, tx) => sum + (effects(tx)[wallet.id] || 0), 0); }
 export function salaryCycle(date: Date, day: number) {
   const d = Math.min(31, Math.max(1, day || 24));

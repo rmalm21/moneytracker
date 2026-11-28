@@ -53,6 +53,13 @@ service cloud.firestore {
             && data.interest.get('date', '') == data.date
             && transactionId == 'wint_' + data.walletId + '_' + data.date);
     }
+    // 10.7 A write can reach the cloud twice: the phone closes (or the connection drops) after the cloud saved it but
+    // before its answer came back, and Firestore sends it again. A transaction keeps the createdAt it was made with and
+    // only an existing one can be deleted, so the repeat is refused and the balance change that came with it (same
+    // batch) cannot land a second time.
+    function createdKept() {
+      return !('createdAt' in resource.data) || request.resource.data.get('createdAt', null) == resource.data.createdAt;
+    }
     function validName(data, longest) { return data.name is string && data.name.size() > 0 && data.name.size() <= longest; }
     // Read by the app to know whether the signed-in account is the owner. Changed only in the Firebase Console.
     match /appConfig/{docId} {
@@ -220,8 +227,14 @@ service cloud.firestore {
           && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time;
         allow delete: if memberOf(spaceId) && space(spaceId).data.memberIds == [request.auth.uid];
       }
+      // 10.7 Shared transactions: the same guard against a write arriving twice (see createdKept).
+      match /transactions/{transactionId} {
+        allow read, create: if memberOf(spaceId);
+        allow update: if memberOf(spaceId) && createdKept();
+        allow delete: if memberOf(spaceId) && resource != null;
+      }
       match /{collectionName}/{documentId} {
-        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads', 'streak', 'fire']);
+        allow read, write: if memberOf(spaceId) && !(collectionName in ['requests', 'activity', 'messages', 'reads', 'streak', 'fire', 'transactions']);
       }
     }
     // An invite code: random, one use, valid about a day, made by a member. Whoever holds it can read it (to see which
@@ -249,9 +262,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if own(userId);
       match /transactions/{transactionId} {
-        allow read, delete: if own(userId);
+        allow read: if own(userId);
+        allow delete: if own(userId) && resource != null;
         allow create: if own(userId) && expenseAllowed(userId, null) && interestOk(transactionId);
-        allow update: if own(userId) && expenseAllowed(userId, resource) && interestOk(transactionId);
+        allow update: if own(userId) && expenseAllowed(userId, resource) && interestOk(transactionId) && createdKept();
       }
       // Split Bill: bills, saved people and groups belong to the signed-in user only.
       match /splitBills/{billId} {

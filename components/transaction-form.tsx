@@ -10,9 +10,9 @@ import { emojiOrFallback } from './visual-identity';
 import { CategoryPicker } from './category-picker';
 import { QuickEntryBox } from './quick-entry';
 import { ReceiptDetail } from './receipt-detail';
-import { Field, Input, Money, Select } from './fields';
+import { Field, Input, Money, Select, categoryOptions } from './fields';
 import { newTx, upsertTransaction, validateTx } from '@/lib/firestore';
-import { rupiah } from '@/lib/accounting';
+import { defaultFeeCategory, rupiah } from '@/lib/accounting';
 import { isCycleClosed } from '@/lib/finance-control';
 import { splitDebtNamed } from '@/lib/split-bill';
 import { suggestCategory } from '@/lib/categorize';
@@ -33,6 +33,8 @@ export function TransactionForm({onDone,onCancel,preset,editing,background,onQui
  // 8.4.1 Spending written to someone still owed for a Split Bill is probably the payback: said, with a one-tap switch.
  const splitDebt=type==='expense'&&!editing?.splitBillId?splitDebtNamed([merchant,description,notes].join(' '),data.debts):undefined;
  const [splits,setSplits]=useState<SplitLine[]>(initial?.splits||[]),[fee,setFee]=useState(initial?.transferFee||0),[feeCategory,setFeeCategory]=useState(initial?.transferFeeCategoryId||''),[closedAcknowledged,setClosedAcknowledged]=useState(false);
+ // 10.7 An admin fee typed in gets the usual fee category ("Biaya Transfer"), as in Catat otomatis; it can still be changed.
+ const hasFee=type==='transfer'&&fee>0;useEffect(()=>{if(hasFee&&!feeCategory){const usual=defaultFeeCategory(data.categories);if(usual)setFeeCategory(usual.id)}},[hasFee]);// eslint-disable-line react-hooks/exhaustive-deps
  const splitTotal=splits.reduce((sum,line)=>sum+line.amount,0),splitDifference=amount-splitTotal;
  const closed=isCycleClosed(editing?.date||date,data.cycleSnapshots||[])||isCycleClosed(date,data.cycleSnapshots||[]);
  function updateSplit(index:number,change:Partial<SplitLine>){setSplits(rows=>rows.map((row,i)=>i===index?{...row,...change}:row));}
@@ -89,7 +91,7 @@ export function TransactionForm({onDone,onCancel,preset,editing,background,onQui
   </section>}
   <section className="tx-section"><h4>{sourceLabel}</h4>{walletChips(activeWallets,walletId,setWallet,sourceLabel)}<PortionPicker wallet={data.wallets.find(w=>w.id===walletId)} value={portionFrom} onChange={setPortionFrom} label={type==='income'?'Masuk ke bagian':'Diambil dari bagian'}/></section>
   {['transfer','fund_contribution'].includes(type)&&<section className="tx-section"><h4>Ke dompet</h4>{walletChips(targetWallets,destination,setDest,'Dompet tujuan')}<PortionPicker wallet={data.wallets.find(w=>w.id===destination)} value={portionTo} onChange={setPortionTo} label="Masuk ke bagian"/></section>}
-  {type==='transfer'&&<section className="tx-section form-grid"><Field label="Biaya admin"><Money value={fee} onChange={setFee}/></Field>{fee>0&&<Field label="Kategori biaya"><Select required value={feeCategory} onChange={e=>setFeeCategory(e.target.value)}><option value="">Pilih kategori</option>{data.categories.filter(c=>!c.isArchived&&c.type==='expense'&&!c.parentId).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>}<small className="muted tx-span">Total keluar {rupiah(amount+fee)} · tujuan menerima {rupiah(amount)}. Hanya biaya admin yang dihitung pengeluaran.</small></section>}
+  {type==='transfer'&&<section className="tx-section form-grid"><Field label="Biaya admin"><Money value={fee} onChange={setFee}/></Field>{fee>0&&<Field label="Kategori biaya"><Select required value={feeCategory} onChange={e=>setFeeCategory(e.target.value)}><option value="">Pilih kategori</option>{categoryOptions(data.categories,['expense'])}</Select></Field>}<small className="muted tx-span">Total keluar {rupiah(amount+fee)} · tujuan menerima {rupiah(amount)}. Hanya biaya admin yang dihitung pengeluaran.</small></section>}
   {type==='debt_payment'&&<Field label="Utang"><Select required value={debtId} onChange={e=>setDebt(e.target.value)}><option value="">Pilih utang</option>{data.debts.filter(d=>d.outstandingAmount>0||d.id===editing?.debtId).map(d=><option key={d.id} value={d.id}>{d.name} · sisa {rupiah(d.outstandingAmount)}</option>)}</Select></Field>}
   {type==='claim_payment'&&<Field label="Klaim kantor"><Select required value={claimId} onChange={e=>setClaim(e.target.value)}><option value="">Pilih klaim</option>{data.claims.filter(c=>c.remainingAmount>0||c.id===editing?.claimId).map(c=><option key={c.id} value={c.id}>{c.name} · sisa {rupiah(c.remainingAmount)}</option>)}</Select></Field>}
   {type==='receivable_payment'&&<Field label="Piutang"><Select required value={receivableId} onChange={e=>setReceivable(e.target.value)}><option value="">Pilih piutang</option>{data.receivables.filter(c=>c.remainingAmount>0||c.id===editing?.receivableId).map(c=><option key={c.id} value={c.id}>{c.person} · sisa {rupiah(c.remainingAmount)}</option>)}</Select></Field>}

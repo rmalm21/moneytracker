@@ -30,6 +30,8 @@ import { readComposition, readUnitPrice, type Composition } from './catat/compos
 import { readGroup, readSplit, type GroupReading } from './catat/group.ts';
 import { anonymousShare, lineAmounts, readV4, rp as rpV4, splitShares, type V4Reading } from './catat/math.ts';
 import { readEveryday, type Everyday } from './catat/everyday.ts';
+import { defaultFeeCategory } from './accounting.ts';
+import { readDatedList, type DatedList } from './catat/dated-list.ts';
 import { suggestCategory } from './categorize.ts';
 import { readCommand, type Command } from './catat/history.ts';
 import { catchMutationBugs, planMutation, type FinancialMutationPlan } from './catat/mutation.ts';
@@ -145,6 +147,8 @@ const PHRASES: [RegExp, string | ((...m: string[]) => string)][] = [
     [/\bgo[\s-]pay\b/g, 'gopay'], [/\bshopee[\s-]pay\b/g, 'shopeepay'], [/\blink[\s-]aja\b/g, 'linkaja'], [/\bsea[\s-]bank\b/g, 'seabank'],
   [/(\d)\s*(?:rbu|rebu|rbuan|ribuan|rban|rb-an|rbn)\b/g, '$1rb'], [/(\d)\s*(?:jtan|jutaan|jt-an)\b/g, '$1jt'],
   [/\b(?:dua2nya|dua-duanya|dua duanya|duaduanya)\b/g, 'dua-duanya'], [/\bpas\s+gajian\b/g, 'pas gajian'],
+  // 10.7 A fee named after what it is for ("biaya admin transfer 2.500", "admin tarik tunai 6.500") is that fee, spent.
+  [/\b(?:biaya\s+)?admin\s+(?:transfer|tf|trf)\b/g, 'biaya transfer'], [/\b(?:biaya\s+)?admin\s+(?:tarik|narik)\s+tunai\b/g, 'biaya tarik tunai'],
   // 10.6 "kalau ga salah tadi bayar listrik 300rb": "if I'm not wrong" is not part of the record.
   [/\b(?:kalau|kalo|klo|kl)\s+(?:ga|gak|nggak|enggak|engga|ngga|tidak|tdk|g)\s+salah\b\s*,?/g, ' '],
   [/\b(?:gak|ga|nggak|enggak|engga|ngga|gk|g)\s*jadi\b|\bgajadi\b/g, 'tidak jadi'], [/\bmasing2\b/g, 'masing-masing'],
@@ -495,7 +499,9 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
   }
   if (result.kind === 'expense' && !walletsIn(text, ctx.wallets).length) {
     // 6.9: "top up game / diamond / steam" buys something; only a wallet top-up is a transfer.
-    const asked: QuickKind | null = /\b(tf|transfer|pindahin|topup|top up)\b/.test(text) && !/\b(?:ke|kepada|buat|untuk)\s+\p{L}/u.test(text) && !GAME_TOPUP.test(text) ? 'transfer'
+    // 10.7 "Biaya admin transfer 2.500", "biaya transfer BI-Fast": the fee of a transfer is spending, not a transfer.
+    const feeOnly = /^(?:bayar\s+)?(?:biaya|admin|fee)\b/.test(text.trim()) || /\b(?:biaya|admin|fee)\s+(?:admin\s+)?(?:transfer|tf|bi-?fast|antar\s*bank|online|topup|top up)\b/.test(text);
+    const asked: QuickKind | null = /\b(tf|transfer|pindahin|topup|top up)\b/.test(text) && !feeOnly && !/\b(?:ke|kepada|buat|untuk)\s+\p{L}/u.test(text) && !GAME_TOPUP.test(text) ? 'transfer'
       : /\bsaldo(?:nya)?\b/.test(text) && (/\b(sekarang|tinggal|sisa|jadi|aktual|real)\b/.test(text) || /^saldo\b/.test(text)) ? 'balance' : null;
     const again = asked && parseQuickText(text, ctx, asked);
     if (again) result = again;
@@ -603,7 +609,7 @@ function analyze(unit: Unit, index: number, ctx: QuickContext, mode: QuickGroup 
     const value = fee ? findAmounts(fee[1])[0]?.value || Number(fee[1].replace(/\D/g, '')) : 0;
     if (value > 0 && value < r.amount) {
       r.preset.transferFee = value;
-      const feeCat = ctx.categories.find(c => c.type === 'expense' && !c.isArchived && /\b(admin|biaya bank|biaya transfer)\b/i.test(c.name)) || ctx.categories.find(c => c.type === 'expense' && !c.isArchived && /\bbiaya\b/i.test(c.name));
+      const feeCat = defaultFeeCategory(ctx.categories);
       if (feeCat) { r.preset.transferFeeCategoryId = feeCat.id; evidence.push(`Biaya admin ${rupiah(value)} dicatat terpisah (kategori ${feeCat.name}); jumlah yang ditransfer tetap ${rupiah(r.amount)}`); }
       else warnings.push(`Biaya admin ${rupiah(value)}: pilih kategorinya di formulir.`);
     }
@@ -1101,7 +1107,12 @@ function addressBack(plan: QuickParseResult, shown: Map<string, string>, ctx: Qu
   }
   return plan;
 }
+/** 10.7 A dated list being read item by item (each item is parsed alone, never as a list again). */
+let inList = false;
 export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGroup | QuickKind = 'auto'): QuickParseResult {
+  // 10.7 Daftar bertanggal (lib/catat/dated-list.ts): a date header sets the date of the items under it, request lines
+  // are not records, and each line is read on its own.
+  if (!inList && /\n/.test(input)) { const list = readDatedList(input, ctx); if (list) { inList = true; try { return parseList(input, list, ctx, mode); } finally { inList = false; } } }
   // 10.2 "beli kopi 2 @18rb": the count right before "@" is how many, read as "kopi 2x18rb" (the card shows what was typed).
   const countedRaw = input.replace(/(\p{L})\s+(\d{1,3})\s*@\s*(?:rp\.?\s*)?(\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)?)(?![\p{L}\d])/giu, '$1 $2x$3');
   // 10.3 A wallet typed wrong ("nasgor 18rb mandri"): the pembaca kalimat says when a word is a wallet (lib/catat/tagger.ts).
@@ -1113,6 +1124,31 @@ export function parseQuickPlan(input: string, ctx: QuickContext, mode: QuickGrou
   if (roles) plan = withRoles(plan, roles, names, text, ctx, mode);
   if (plan.sourceText === text && (shown.size || counted !== input)) plan.sourceText = input;
   return addressBack(plan, shown, ctx);
+}
+/** 10.7 The items of a dated list, each read alone with its group's date and the wallet named for all, as one plan. */
+function parseList(input: string, list: DatedList, ctx: QuickContext, mode: QuickGroup | QuickKind): QuickParseResult {
+  const walletName = (id?: string) => ctx.wallets.find(w => w.id === id)?.name || '';
+  const actions: ActionCandidate[] = [], clauses: QuickClause[] = [], entities: QuickEntity[] = [], relations: QuickRelation[] = [];
+  const unresolved: string[] = [], references: string[] = [], warnings: string[] = [], cancelled: string[] = [], trace = [`10.7 daftar bertanggal: ${list.items.length} baris catatan, ${list.headers.length} judul tanggal, ${list.asked.length} baris permintaan`, ...list.trace];
+  let offset = 0, n = 0, confirm: QuickParseResult['confirm'];
+  for (const item of list.items) {
+    const text = [item.text, item.dateLabel || '', item.wallet ? `pakai ${walletName(item.wallet)}` : ''].filter(Boolean).join(' ');
+    const plan = parseQuickPlan(text, ctx, mode), ids = new Map<string, string>();
+    for (const a of plan.actions) {
+      const id = `a${n++}`; ids.set(a.id, id);
+      actions.push({ ...a, id, clause: a.clause + offset, text: a.text === text ? item.text : a.text, evidence: [...(item.dateLabel ? [`Tanggal dari judul daftar: ${item.dateLabel}`] : []), ...(item.wallet ? [`Dompet ${walletName(item.wallet)} disebut untuk semua`] : []), ...a.evidence] });
+    }
+    const ref = (v: string) => ids.get(v) ?? (/^c\d+$/.test(v) ? `c${Number(v.slice(1)) + offset}` : v);
+    clauses.push(...plan.clauses.map(c => ({ ...c, index: c.index + offset })));
+    entities.push(...plan.entities.map(e => ({ ...e, clause: e.clause + offset })));
+    relations.push(...plan.relations.map(r => ({ ...r, from: ref(r.from), ...(r.to ? { to: ref(r.to) } : {}) })));
+    cancelled.push(...plan.cancelled.map(ref)); unresolved.push(...plan.unresolved); references.push(...plan.references); warnings.push(...plan.warnings);
+    if (plan.confirm) confirm = { question: confirm?.question || plan.confirm.question, items: [...(confirm?.items || []), ...plan.confirm.items.map(i => ({ ...i, id: ref(i.id) }))] };
+    trace.push(...plan.trace.map(t => `[baris ${item.line + 1}] ${t}`));
+    offset += Math.max(1, plan.clauses.length);
+  }
+  const confidence: QuickParseResult['confidence'] = !actions.length ? 'none' : actions.some(a => a.review) ? 'review' : 'high';
+  return { sourceText: input, normalizedText: list.items.map(i => i.text).join('\n'), clauses, entities, actions, unresolved, references, confidence, warnings, relations, cancelled, ...(confirm ? { confirm } : {}), trace };
 }
 /** 10.3.1 Words the person has used in their own records (descriptions, places, people): never taken for slang. */
 const OWN_WORDS = new WeakMap<object, Set<string>>();

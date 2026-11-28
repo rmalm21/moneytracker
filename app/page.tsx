@@ -151,6 +151,7 @@ import { AmountToggle } from '@/components/hide-amounts';
 import { FeatureTips, FeatureTipsBridge, useTipTry } from '@/components/feature-tips';
 import { PinLockScreen, useAppLock } from '@/components/pin-lock';
 import { useReminderEngine } from '@/components/reminders';
+import { useBalanceWatch } from '@/components/balance-watch';
 import type { Debt, LedgerTx } from '@/lib/types';
 const nav=[{key:'dashboard',label:'Beranda',icon:Home},{key:'transactions',label:'Transaksi',icon:ListFilter},{key:'inbox',label:'Perlu Dikonfirmasi',icon:Inbox},{key:'budgets',label:'Anggaran',icon:LayoutGrid},{key:'advisor',label:'Insight',icon:Lightbulb},{key:'wallets',label:'Dompet',icon:Wallet},{key:'claims',label:'Klaim kantor',icon:ShieldCheck},{key:'receivables',label:'Piutang',icon:HandCoins},{key:'debts',label:'Utang',icon:CreditCard},{key:'owedReport',label:'Laporan utang & piutang',icon:BookOpenText},{key:'owedArchive',label:'Arsip utang & piutang',icon:Archive},{key:'funds',label:'Tujuan dana',icon:Target},{key:'wishlist',label:'Wish list',icon:Gift},{key:'splitbill',label:'Split Bill',icon:ReceiptText},{key:'recurring',label:'Rutin',icon:Repeat},{key:'upcoming',label:'Arus Kas Mendatang',icon:CalendarClock},{key:'calendar',label:'Kalender Keuangan',icon:CalendarDays},{key:'categories',label:'Kategori',icon:Layers3},{key:'forecast',label:'Proyeksi',icon:ChartNoAxesCombined},{key:'analytics',label:'Analisis',icon:BarChart3},{key:'report',label:'Laporan',icon:BookOpenText},{key:'cycles',label:'Riwayat Siklus',icon:ScrollText},{key:'health',label:'Periksa Data',icon:HeartPulse},{key:'settings',label:'Pengaturan',icon:Settings},{key:'help',label:'Tanya Jawab',icon:CircleHelp}];
 /** What the sidebar and the phone menu show: related pages are grouped into hubs with tabs. */
@@ -195,6 +196,8 @@ function AppPage(){const {user,profile,data,dataReady,loading,error,ready,sync,a
  const latest=useRef({openTx,go,removeTx});latest.current={openTx,go,removeTx};
  const stable=useMemo(()=>({openTx:(p?:Partial<LedgerTx>,e?:LedgerTx)=>latest.current.openTx(p,e),go:(requested:string,target?:string)=>latest.current.go(requested,target),txActions:{remove:(tx:LedgerTx)=>latest.current.removeTx(tx),edit:(tx:LedgerTx)=>latest.current.openTx(undefined,tx)}}),[]);
  useReminderEngine(go,()=>openTx({type:'expense'}));
+ // 10.7 A wallet whose stored balance drifted from its transactions is pointed out once per opening.
+ useBalanceWatch(go,!appLock.locked);
  // 9.9.2 The copy of Beranda shown the next time the app opens (components/home-shot.tsx). None while a PIN is on.
  useHomeShotKeeper({uid:account?.uid,active:view==='dashboard'&&dataReady&&!loading,pin:Boolean(personalProfile?.pinHash&&personalProfile?.pinSalt),mode:space?.id||''});
  // 8.10 Tips that start something kept on this page: the receipt scanner and Rekap.

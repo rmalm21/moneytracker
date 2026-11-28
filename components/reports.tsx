@@ -62,7 +62,7 @@ function Kpi({ label, value, previous, good = 'up', basis = 'Periode lalu', suff
     <span className="stat-head"><span className="stat-label">{label}</span>{Icon && <span className={`metric-icon is-${tone}`} aria-hidden="true"><Icon size={17}/></span>}</span>
     <strong className={`stat-value ${format === 'money' && value < 0 ? 'amount-negative' : ''}`}>{format === 'money' ? <AnimatedRupiah value={value}/> : format === 'percent' ? `${value}%` : value.toLocaleString('id-ID')}</strong>
     {suffix && <small>{suffix}</small>}
-    {previous !== undefined && <Delta current={value} previous={previous} good={good} basis={basis}/>}
+    {previous !== undefined && <Delta current={value} previous={previous} good={good} basis={basis} format={format}/>}
   </div>;
 }
 
